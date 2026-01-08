@@ -96,7 +96,7 @@ export const geminiService = {
           const q = (fc.args as any).keywords.toLowerCase();
           result = { type: 'message_list', data: MOCK_MESSAGES.filter(m => m.text.toLowerCase().includes(q) || m.user.toLowerCase().includes(q)) };
         } else if (fc.name === 'analyzeDiskSpace') {
-          result = { type: 'disk_usage', data: MOCK_FILES.sort((a, b) => b.size.includes('GB') ? 1 : -1) };
+          result = { type: 'disk_usage', data: [...MOCK_FILES].sort((a, b) => b.size.includes('GB') ? 1 : -1) };
         } else if (fc.name === 'checkFileSafety') {
           const path = (fc.args as any).filePath;
           const file = MOCK_FILES.find(f => f.path.includes(path) || f.name.includes(path));
