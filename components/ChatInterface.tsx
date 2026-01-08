@@ -36,8 +36,10 @@ const ChatInterface: React.FC = () => {
     WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)]
   );
   
+  const [micPermission, setMicPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const activeColor = useMemo(() => {
     const action = QUICK_ACTIONS.find(a => a.id === activeMode);
@@ -51,9 +53,189 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
+  const initSpeechRecognition = () => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      const recognition = new SpeechRecognition();
+      
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = navigator.language || 'en-US';
+      recognition.maxAlternatives = 1;
+      
+      recognition.onstart = () => {
+        console.log('Speech recognition started');
+        setIsRecording(true);
+        setPlaceholder('🎤 Listening in any language...');
+      };
+      
+      recognition.onresult = (event: any) => {
+        console.log('Speech recognition result:', event);
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            transcript += event.results[i][0].transcript;
+          } else {
+            // Show interim results
+            const interimTranscript = event.results[i][0].transcript;
+            setInput(transcript + interimTranscript);
+          }
+        }
+        if (transcript) {
+          setInput(transcript.trim());
+        }
+      };
+      
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsRecording(false);
+        
+        // Handle different error types
+        switch (event.error) {
+          case 'no-speech':
+            setPlaceholder('No speech detected, try again');
+            break;
+          case 'audio-capture':
+            setPlaceholder('Microphone not accessible');
+            break;
+          case 'not-allowed':
+            setMicPermission('denied');
+            setPlaceholder('Microphone permission denied');
+            break;
+          case 'network':
+            setPlaceholder('Network error, check connection');
+            break;
+          case 'aborted':
+            setPlaceholder('Speech recognition aborted');
+            break;
+          default:
+            setPlaceholder('Speech recognition error');
+        }
+        
+        setTimeout(() => setPlaceholder('Skhoot is listening...'), 3000);
+      };
+      
+      recognition.onend = () => {
+        console.log('Speech recognition ended');
+        setIsRecording(false);
+        setPlaceholder('Skhoot is listening...');
+      };
+      
+      return recognition;
+    }
+    return null;
+  };
+
+  const handleMicClick = () => {
+    console.log('🎤 Mic clicked, isRecording:', isRecording);
+    
+    try {
+      // Check if speech recognition is supported
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert('Speech recognition not supported in this browser');
+        return;
+      }
+      
+      if (isRecording) {
+        // Stop recording when clicked again
+        console.log('🔴 Stopping recording...');
+        if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
+        setIsRecording(false);
+        setPlaceholder('Skhoot is listening...');
+        return;
+      }
+      
+      // Start recording
+      console.log('🟢 Starting recording...');
+      
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      const recognition = new SpeechRecognition();
+      
+      recognition.continuous = true; // Keep listening continuously
+      recognition.interimResults = true;
+      recognition.lang = navigator.language || 'en-US';
+      
+      recognition.onstart = () => {
+        console.log('✅ Recording started successfully');
+        setIsRecording(true);
+        setPlaceholder('🎤 Listening... Click send button to confirm');
+      };
+      
+      recognition.onresult = (event: any) => {
+        console.log('✅ Got speech result');
+        let finalTranscript = '';
+        let interimTranscript = '';
+        
+        for (let i = 0; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+        
+        const fullTranscript = (finalTranscript + interimTranscript).trim();
+        if (fullTranscript) {
+          console.log('📝 Transcript:', fullTranscript);
+          setInput(fullTranscript);
+        }
+      };
+      
+      recognition.onerror = (event: any) => {
+        console.error('❌ Recognition error:', event.error);
+        
+        // Don't stop on 'no-speech' error, just continue
+        if (event.error === 'no-speech') {
+          console.log('No speech detected, but continuing to listen...');
+          return;
+        }
+        
+        setIsRecording(false);
+        setPlaceholder('Error: ' + event.error);
+        setTimeout(() => setPlaceholder('Skhoot is listening...'), 2000);
+      };
+      
+      recognition.onend = () => {
+        console.log('✅ Recognition ended, restarting if still recording...');
+        
+        // Auto-restart if we're still supposed to be recording
+        if (isRecording) {
+          setTimeout(() => {
+            if (isRecording && recognitionRef.current) {
+              try {
+                recognitionRef.current.start();
+                console.log('🔄 Auto-restarted recognition');
+              } catch (e) {
+                console.log('Could not restart:', e);
+              }
+            }
+          }, 100);
+        } else {
+          setPlaceholder('Skhoot is listening...');
+        }
+      };
+      
+      recognitionRef.current = recognition;
+      recognition.start();
+      
+    } catch (error) {
+      console.error('❌ Error:', error);
+      setIsRecording(false);
+      setPlaceholder('Skhoot is listening...');
+    }
+  };
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isLoading) return;
+
+    // Stop any ongoing recording when sending
+    if (isRecording && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+    }
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -89,6 +271,15 @@ const ChatInterface: React.FC = () => {
   }, [input, isLoading, messages]);
 
   const handleQuickAction = useCallback((mode: string, newPlaceholder: string) => {
+  const hasContent = input.trim().length > 0;
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleQuickAction = (mode: string, newPlaceholder: string) => {
     setInput('');
     setPlaceholder(newPlaceholder);
     setActiveMode(mode);
@@ -115,6 +306,67 @@ const ChatInterface: React.FC = () => {
       >
         {isEmpty ? (
           <EmptyState welcomeMessage={welcomeMessage} />
+          <div className="text-center max-w-[340px]">
+            <div 
+              className="w-28 h-28 rounded-[2.5rem] mb-10 mx-auto flex items-center justify-center shadow-xl rotate-[-4deg] hover:rotate-0 duration-500" 
+              style={{ 
+                backgroundColor: COLORS.orchidTint,
+                animation: 'logoEntrance 1s ease-out 0.3s both'
+              }}
+              onAnimationEnd={(e) => {
+                e.currentTarget.style.animation = 'none';
+                e.currentTarget.classList.add('transition-transform');
+              }}
+            >
+              <div style={{ 
+                filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.4)) drop-shadow(0 -1px 0px rgba(255,255,255,0.6))',
+                transform: 'translateY(1px)',
+                opacity: 0.9
+              }}>
+                <SkhootLogo size={64} />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold tracking-tight font-jakarta" style={{ color: '#1e1e1e' }}>
+                {"Need help with something?".split("").map((char, index) => (
+                  <span
+                    key={index}
+                    className="inline-block"
+                    style={{
+                      animation: `dropIn 0.6s ease-out ${1300 + index * 50}ms both`,
+                    }}
+                  >
+                    {char === " " ? "\u00A0" : char}
+                  </span>
+                ))}
+              </h2>
+              <style jsx>{`
+                @keyframes dropIn {
+                  0% {
+                    transform: translateY(-20px);
+                    opacity: 0;
+                  }
+                  100% {
+                    transform: translateY(0);
+                    opacity: 1;
+                  }
+                }
+                @keyframes logoEntrance {
+                  0% {
+                    transform: rotate(-4deg) scale(0.3);
+                    opacity: 0;
+                  }
+                  50% {
+                    transform: rotate(8deg) scale(1.1);
+                  }
+                  100% {
+                    transform: rotate(-4deg) scale(1);
+                    opacity: 1;
+                  }
+                }
+              `}</style>
+            </div>
+          </div>
         ) : (
           <>
             {messages.map(msg => (
@@ -163,6 +415,47 @@ const ChatInterface: React.FC = () => {
               />
             </button>
             
+            {/* Audio Visualization */}
+            {isRecording && (
+              <div className="flex items-center gap-1 px-3">
+                {[...Array(5)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-1 rounded-full"
+                    style={{
+                      height: '8px',
+                      background: 'linear-gradient(to top, #60a5fa, #a855f7)',
+                      animation: `audioWave-${i} 1.5s ease-in-out infinite`,
+                    }}
+                  />
+                ))}
+                <style>
+                  {`
+                    @keyframes audioWave-0 {
+                      0%, 100% { height: 8px; opacity: 0.4; }
+                      50% { height: 24px; opacity: 1; }
+                    }
+                    @keyframes audioWave-1 {
+                      0%, 100% { height: 8px; opacity: 0.4; }
+                      50% { height: 20px; opacity: 1; }
+                    }
+                    @keyframes audioWave-2 {
+                      0%, 100% { height: 8px; opacity: 0.4; }
+                      50% { height: 28px; opacity: 1; }
+                    }
+                    @keyframes audioWave-3 {
+                      0%, 100% { height: 8px; opacity: 0.4; }
+                      50% { height: 16px; opacity: 1; }
+                    }
+                    @keyframes audioWave-4 {
+                      0%, 100% { height: 8px; opacity: 0.4; }
+                      50% { height: 22px; opacity: 1; }
+                    }
+                  `}
+                </style>
+              </div>
+            )}
+            
             <input 
               ref={inputRef}
               type="text" 
@@ -172,6 +465,10 @@ const ChatInterface: React.FC = () => {
               placeholder={placeholder}
               className="flex-1 bg-transparent border-none outline-none py-2 text-[14px] font-semibold placeholder:text-gray-400 placeholder:font-medium font-jakarta"
               style={{ color: '#1e1e1e' }}
+              style={{ color: '#1e1e1e' }}
+              className={`flex-1 bg-transparent border-none outline-none py-2 text-[14px] font-semibold placeholder:text-gray-400 placeholder:font-medium font-jakarta transition-all ${
+                isRecording ? 'placeholder:text-blue-500' : ''
+              }`}
             />
             
             <div className="flex items-center gap-1.5 pr-1">
@@ -181,6 +478,15 @@ const ChatInterface: React.FC = () => {
               />
               
               <ActionButton 
+              <button 
+                onClick={handleMicClick}
+                className={`p-3 hover:bg-black/5 rounded-2xl transition-all active:scale-90 ${
+                  isRecording ? 'text-red-500 animate-pulse bg-red-50' : 'text-gray-400'
+                }`}
+              >
+                <Mic size={22} />
+              </button>
+              <button 
                 onClick={handleSend}
                 disabled={isLoading}
                 isActive={hasContent && !isLoading}
@@ -372,8 +678,7 @@ const QuickActionButton = memo<{
         : 'border-black/5 opacity-80 hover:opacity-100 active:scale-95'
     }`}
     style={{ 
-      backgroundColor: isActive ? color : `${color}B0`,
-      backdropFilter: isActive ? 'none' : 'blur(10px)',
+      backgroundColor: isActive ? color : color,
       color: COLORS.textPrimary,
       boxShadow: isActive 
         ? `inset 0 2px 4px rgba(0,0,0,0.2), inset 0 -1px 2px rgba(255,255,255,0.3), 0 4px 8px -2px ${color}40`
