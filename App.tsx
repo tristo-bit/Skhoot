@@ -1,75 +1,150 @@
-
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
+import SettingsPanel from './components/SettingsPanel';
 import { COLORS, THEME } from './constants';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Settings, User } from 'lucide-react';
+import { GlassButton } from './components/shared';
 
-const SkhootLogo = ({ size = 24, className = "" }: { size?: number, className?: string }) => (
-  <img src="/skhoot-purple.svg" alt="Skhoot" width={size} height={size} className={className} />
-);
+const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
+  <img src="/skhoot-purple.svg" alt="Skhoot" width={size} height={size} />
+));
+SkhootLogo.displayName = 'SkhootLogo';
 
 const App: React.FC = () => {
-  const [key, setKey] = useState(0);
+  const [chatKey, setChatKey] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const resetChat = () => {
-    setKey(prev => prev + 1);
+  const handleNewChat = useCallback(() => {
+    setChatKey(k => k + 1);
     setIsSidebarOpen(false);
-  };
+  }, []);
 
-  const closeApp = () => {
-    console.log("App closing...");
-    window.location.reload(); 
-  };
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen(open => !open);
+  }, []);
+
+  const openSettings = useCallback(() => setIsSettingsOpen(true), []);
+  const closeSettings = useCallback(() => setIsSettingsOpen(false), []);
+
+  const handleClose = useCallback(() => {
+    window.location.reload();
+  }, []);
 
   return (
-    <div className="flex h-screen w-full items-center justify-center p-4 overflow-hidden" style={{ backgroundColor: THEME.background }}>
-      {/* Dynamic Background Blurs */}
-      <div className="absolute top-[5%] left-[15%] w-[600px] h-[600px] rounded-full blur-[150px] opacity-40 animate-pulse pointer-events-none" style={{ backgroundColor: COLORS.orchidTint }} />
-      <div className="absolute bottom-[5%] right-[15%] w-[600px] h-[600px] rounded-full blur-[150px] opacity-40 animate-pulse pointer-events-none" style={{ backgroundColor: COLORS.almostAqua }} />
+    <div 
+      className="flex h-screen w-full items-center justify-center p-4 overflow-hidden" 
+      style={{ backgroundColor: THEME.background }}
+    >
+      {/* Background blurs */}
+      <BackgroundBlur position="top-[5%] left-[15%]" color={COLORS.orchidTint} />
+      <BackgroundBlur position="bottom-[5%] right-[15%]" color={COLORS.almostAqua} />
 
-      {/* Main App Window Container */}
-      <div className="relative z-10 w-full max-w-[480px] h-[720px] flex flex-col rounded-[40px] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] overflow-hidden border border-white/80" style={{ backgroundColor: 'rgba(255,255,255,0.4)', backdropFilter: 'blur(30px)' }}>
-        
+      {/* Main container */}
+      <div 
+        className="relative z-10 w-full max-w-[480px] h-[720px] flex flex-col rounded-[40px] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] overflow-hidden" 
+        style={{ 
+          backgroundColor: 'rgba(255,255,255,0.4)', 
+          backdropFilter: 'blur(30px)' 
+        }}
+      >
         {/* Header */}
-        <header className="px-6 py-5 flex items-center justify-between border-b border-black/5" style={{ backgroundColor: `${THEME.header}88` }}>
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-1.5 hover:bg-black/5 rounded-lg transition-all text-gray-600"
+        <header className="relative z-30 px-6 py-5 flex items-center justify-between">
+          {/* Left side with morphing background */}
+          <div className="flex items-center gap-4 relative">
+            {/* Morphing background that extends from sidebar */}
+            <div 
+              className={`absolute -left-6 -top-5 -bottom-5 rounded-r-3xl transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+                isSidebarOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'
+              }`}
+              style={{ 
+                backgroundColor: THEME.sidebar,
+              }}
             >
-              {isSidebarOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <SkhootLogo size={18} />
-                <span className="text-sm font-black tracking-[0.2em] font-jakarta" style={{ color: '#c0b7c9' }}>SKHOOT</span>
+              <div className="absolute inset-0 bg-black/5 rounded-r-3xl" />
+            </div>
+            
+            <button 
+              onClick={toggleSidebar}
+              className="relative z-10 p-1.5 hover:bg-black/5 rounded-lg transition-all text-gray-600 active:scale-95"
+              aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
+            >
+              <div className="relative w-[18px] h-[18px]">
+                <Menu 
+                  size={18} 
+                  className={`absolute inset-0 transition-all duration-300 ${
+                    isSidebarOpen ? 'opacity-0 rotate-90 scale-75' : 'opacity-100 rotate-0 scale-100'
+                  }`}
+                />
+                <X 
+                  size={18} 
+                  className={`absolute inset-0 transition-all duration-300 ${
+                    isSidebarOpen ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-75'
+                  }`}
+                />
               </div>
-              <span className="text-[10px] font-medium tracking-tight mt-0.5 font-jakarta opacity-80" style={{ color: '#1e1e1e' }}>Your personal sentinel</span>
+            </button>
+            
+            <div 
+              className={`flex items-center gap-2 relative z-10 transition-all duration-500 ${
+                isSidebarOpen ? 'opacity-0 -translate-x-4' : 'opacity-100 translate-x-0'
+              }`}
+            >
+              <SkhootLogo size={18} />
+              <span 
+                className="text-sm font-black tracking-[0.2em] font-jakarta" 
+                style={{ color: COLORS.fukuBrand }}
+              >
+                SKHOOT
+              </span>
             </div>
           </div>
           
-          <button 
-            onClick={closeApp}
-            className="w-8 h-8 flex items-center justify-center hover:bg-red-500/10 rounded-full transition-colors text-gray-500 hover:text-red-500"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2 relative z-10">
+            <GlassButton onClick={() => {}} aria-label="User profile">
+              <User size={18} />
+            </GlassButton>
+            <GlassButton onClick={openSettings} aria-label="Settings">
+              <Settings size={18} />
+            </GlassButton>
+            <GlassButton 
+              onClick={handleClose} 
+              className="hover:bg-red-500/10 hover:text-red-500"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </GlassButton>
+          </div>
         </header>
 
-        {/* Sidebar Overlay */}
-        <div className={`absolute top-[75px] left-0 bottom-0 z-20 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <Sidebar onNewChat={resetChat} />
+        {/* Sidebar - now starts from top */}
+        <div 
+          className={`absolute top-0 left-0 bottom-0 z-20 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <Sidebar onNewChat={handleNewChat} onClose={toggleSidebar} />
         </div>
 
-        {/* Content Area */}
+        {/* Settings */}
+        {isSettingsOpen && <SettingsPanel onClose={closeSettings} />}
+
+        {/* Main content */}
         <main className="flex-1 relative overflow-hidden flex flex-col">
-          <ChatInterface key={key} />
+          <ChatInterface key={chatKey} />
         </main>
       </div>
     </div>
   );
 };
+
+const BackgroundBlur = memo<{ position: string; color: string }>(({ position, color }) => (
+  <div 
+    className={`absolute ${position} w-[600px] h-[600px] rounded-full blur-[150px] opacity-40 animate-pulse pointer-events-none`} 
+    style={{ backgroundColor: color }} 
+  />
+));
+BackgroundBlur.displayName = 'BackgroundBlur';
 
 export default App;
