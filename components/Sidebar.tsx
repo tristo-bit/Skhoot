@@ -1,78 +1,180 @@
-import React from 'react';
-import { COLORS, THEME } from '../constants';
-import { Search, Plus, Star, Settings, HelpCircle } from 'lucide-react';
+import React, { memo, useState, useEffect } from 'react';
+import { COLORS, THEME, GLASS_STYLES } from '../constants';
+import { Search, Plus, Star, X } from 'lucide-react';
 
 interface SidebarProps {
   onNewChat: () => void;
+  onClose: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onNewChat }) => {
-  return (
-    <div 
-      className="w-64 h-full border-r border-black/5 p-5 flex flex-col shadow-2xl relative overflow-hidden" 
-      style={{ backgroundColor: THEME.sidebar }}
-    >
-      <div className="absolute inset-0 bg-black/5 pointer-events-none" />
-      
-      <div className="relative z-10 mb-8">
-        <button 
-          onClick={onNewChat}
-          className="flex items-center gap-3 w-full p-3.5 rounded-2xl transition-all shadow-md active:scale-95 border border-white/50 hover:brightness-105"
-          style={{ backgroundColor: '#DDEBF4', color: '#1e1e1e' }}
-        >
-          <div className="w-8 h-8 bg-white/40 rounded-xl flex items-center justify-center">
-            <Plus size={18} />
-          </div>
-          <span className="text-sm font-black tracking-tight font-jakarta">New Search</span>
-        </button>
-      </div>
+const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
+  <img src="/skhoot-purple.svg" alt="Skhoot" width={size} height={size} />
+));
+SkhootLogo.displayName = 'SkhootLogo';
 
-      <div className="relative z-10 flex-1 overflow-y-auto space-y-2 no-scrollbar">
-        <div className="flex items-center justify-between px-2 mb-3">
-          <p 
-            className="text-[10px] font-black uppercase tracking-[0.1em] font-jakarta"
-            style={{ color: '#1e1e1e' }}
-          >
-            Past search
-          </p>
-          <Star size={10} style={{ color: '#1e1e1e' }} className="opacity-20" />
-        </div>
-        
-        {/* Empty State */}
-        <div className="flex flex-col items-center justify-center py-12 px-4 text-center space-y-3 opacity-40">
-          <div className="p-3 rounded-full bg-black/5">
-            <Search size={24} style={{ color: COLORS.textSecondary }} />
-          </div>
-          <p className="text-[11px] font-bold font-jakarta" style={{ color: COLORS.textSecondary }}>No recent searches</p>
-        </div>
-      </div>
-
-      <div className="relative z-10 mt-auto pt-6 border-t border-black/10 space-y-1">
-        <SidebarItem icon={<Settings size={15}/>} label="Settings" />
-        <SidebarItem icon={<HelpCircle size={15}/>} label="Help Center" />
-        
-        <div 
-          className="mt-6 py-2.5 px-4 rounded-[20px] flex flex-col items-center justify-center shadow-lg border border-white bg-white/90 ring-1 ring-black/5 transform transition-transform hover:scale-[1.02] cursor-default"
+const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose }) => (
+  <div 
+    className="w-64 h-full border-r border-black/5 flex flex-col shadow-2xl relative overflow-hidden" 
+    style={{ backgroundColor: THEME.sidebar }}
+  >
+    <div className="absolute inset-0 bg-black/5 pointer-events-none" />
+    
+    {/* Sidebar Header - morphs with main header */}
+    <div className="relative z-10 px-5 py-5 flex items-center gap-4">
+      <button 
+        onClick={onClose}
+        className="p-1.5 hover:bg-black/5 rounded-lg transition-all text-gray-600 active:scale-95"
+        aria-label="Close menu"
+      >
+        <X size={18} />
+      </button>
+      <div className="flex items-center gap-2">
+        <SkhootLogo size={18} />
+        <span 
+          className="text-sm font-black tracking-[0.2em] font-jakarta" 
           style={{ color: COLORS.fukuBrand }}
         >
-          <span className="text-[9px] font-black font-jakarta tracking-[0.3em] leading-tight">SKHOOT ENGINE</span>
-          <span className="text-[9px] font-black font-jakarta tracking-[0.3em] leading-tight opacity-70">VERSION 1.0</span>
-        </div>
+          SKHOOT
+        </span>
       </div>
     </div>
-  );
-};
+    
+    {/* New Search Button */}
+    <div className="relative z-10 px-5 mb-6">
+      <NewSearchButton onClick={onNewChat} />
+    </div>
 
-const SidebarItem: React.FC<{ icon: React.ReactNode, label: string, active?: boolean }> = ({ icon, label, active }) => (
-  <div 
-    className={`flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all ${
-      active ? 'bg-white shadow-sm font-black' : 'hover:bg-white/50 opacity-60 font-bold'
-    }`}
-    style={{ color: COLORS.textPrimary }}
-  >
-    <span style={{ color: active ? COLORS.fukuBrand : 'inherit' }}>{icon}</span>
-    <span className="text-xs truncate font-jakarta">{label}</span>
+    {/* Search History */}
+    <div className="relative z-10 flex-1 overflow-y-auto space-y-2 no-scrollbar px-5">
+      <div className="flex items-center justify-between px-2 mb-3">
+        <p 
+          className="text-[10px] font-black uppercase tracking-[0.1em] font-jakarta"
+          style={{ color: '#1e1e1e' }}
+        >
+          Past search
+        </p>
+        <Star size={10} style={{ color: '#1e1e1e' }} className="opacity-20" />
+      </div>
+      
+      <EmptySearchState />
+    </div>
   </div>
 );
+
+const EmptySearchState = memo(() => (
+  <div className="flex flex-col items-center justify-center py-12 px-4 text-center space-y-3 opacity-40">
+    <div className="p-3 rounded-full bg-black/5">
+      <Search size={24} style={{ color: COLORS.textSecondary }} />
+    </div>
+    <p 
+      className="text-[11px] font-bold font-jakarta" 
+      style={{ color: COLORS.textSecondary }}
+    >
+      No recent searches
+    </p>
+  </div>
+));
+EmptySearchState.displayName = 'EmptySearchState';
+
+const NewSearchButton = memo<{ onClick: () => void }>(({ onClick }) => {
+  const [isHovering, setIsHovering] = useState(false);
+  const [shouldSpin, setShouldSpin] = useState(false);
+  const [spinStartTime, setSpinStartTime] = useState<number | null>(null);
+  const [isSnappingBack, setIsSnappingBack] = useState(false);
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    
+    if (isHovering) {
+      timeout = setTimeout(() => {
+        setShouldSpin(true);
+        setSpinStartTime(Date.now());
+      }, 1000);
+    } else {
+      if (shouldSpin && spinStartTime) {
+        const spinDuration = Date.now() - spinStartTime;
+        const snapBackDuration = Math.min(Math.max(spinDuration * 0.3, 200), 800);
+        
+        setIsSnappingBack(true);
+        setShouldSpin(false);
+        
+        setTimeout(() => {
+          setIsSnappingBack(false);
+          setSpinStartTime(null);
+        }, snapBackDuration);
+      } else {
+        setShouldSpin(false);
+        setSpinStartTime(null);
+      }
+    }
+
+    return () => clearTimeout(timeout);
+  }, [isHovering, shouldSpin, spinStartTime]);
+
+  const handleClick = () => {
+    if (shouldSpin && spinStartTime) {
+      const spinDuration = Date.now() - spinStartTime;
+      const snapBackDuration = Math.min(Math.max(spinDuration * 0.3, 200), 800);
+      
+      setIsSnappingBack(true);
+      setShouldSpin(false);
+      
+      setTimeout(() => {
+        setIsSnappingBack(false);
+        setSpinStartTime(null);
+      }, snapBackDuration);
+    }
+    onClick();
+  };
+
+  const getSnapBackStyle = () => {
+    if (!isSnappingBack || !spinStartTime) return {};
+    
+    const spinDuration = Date.now() - spinStartTime;
+    const snapBackDuration = Math.min(Math.max(spinDuration * 0.3, 200), 800);
+    
+    return {
+      transitionDuration: `${snapBackDuration}ms`,
+      transitionTimingFunction: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+    };
+  };
+
+  return (
+    <button 
+      onClick={handleClick}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      className="flex items-center gap-3 w-full p-3.5 rounded-2xl transition-all active:scale-95 border border-black/5 hover:brightness-105 group"
+      style={{ 
+        backgroundColor: `${COLORS.iceMelt}B0`,
+        ...GLASS_STYLES.base,
+        boxShadow: GLASS_STYLES.elevated.boxShadow,
+        color: COLORS.textPrimary,
+      }}
+    >
+      <div 
+        className="w-8 h-8 rounded-xl flex items-center justify-center border border-black/5 overflow-hidden"
+        style={{ 
+          backgroundColor: 'rgba(255, 255, 255, 0.5)',
+          boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.4), inset 0 -1px 1px rgba(0,0,0,0.05)'
+        }}
+      >
+        <Plus 
+          size={18} 
+          className={`${
+            shouldSpin 
+              ? 'animate-spin' 
+              : isSnappingBack 
+                ? 'transform rotate-0' 
+                : 'transition-transform duration-300 ease-out group-hover:rotate-90'
+          }`}
+          style={isSnappingBack ? getSnapBackStyle() : {}}
+        />
+      </div>
+      <span className="text-sm font-black tracking-tight font-jakarta">New Search</span>
+    </button>
+  );
+});
+NewSearchButton.displayName = 'NewSearchButton';
 
 export default Sidebar;
