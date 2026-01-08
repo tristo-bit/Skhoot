@@ -271,15 +271,6 @@ const ChatInterface: React.FC = () => {
   }, [input, isLoading, messages]);
 
   const handleQuickAction = useCallback((mode: string, newPlaceholder: string) => {
-  const hasContent = input.trim().length > 0;
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  const handleQuickAction = (mode: string, newPlaceholder: string) => {
     setInput('');
     setPlaceholder(newPlaceholder);
     setActiveMode(mode);
@@ -305,68 +296,9 @@ const ChatInterface: React.FC = () => {
         }`}
       >
         {isEmpty ? (
-          <EmptyState welcomeMessage={welcomeMessage} />
-          <div className="text-center max-w-[340px]">
-            <div 
-              className="w-28 h-28 rounded-[2.5rem] mb-10 mx-auto flex items-center justify-center shadow-xl rotate-[-4deg] hover:rotate-0 duration-500" 
-              style={{ 
-                backgroundColor: COLORS.orchidTint,
-                animation: 'logoEntrance 1s ease-out 0.3s both'
-              }}
-              onAnimationEnd={(e) => {
-                e.currentTarget.style.animation = 'none';
-                e.currentTarget.classList.add('transition-transform');
-              }}
-            >
-              <div style={{ 
-                filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.4)) drop-shadow(0 -1px 0px rgba(255,255,255,0.6))',
-                transform: 'translateY(1px)',
-                opacity: 0.9
-              }}>
-                <SkhootLogo size={64} />
-              </div>
-            </div>
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold tracking-tight font-jakarta" style={{ color: '#1e1e1e' }}>
-                {"Need help with something?".split("").map((char, index) => (
-                  <span
-                    key={index}
-                    className="inline-block"
-                    style={{
-                      animation: `dropIn 0.6s ease-out ${1300 + index * 50}ms both`,
-                    }}
-                  >
-                    {char === " " ? "\u00A0" : char}
-                  </span>
-                ))}
-              </h2>
-              <style jsx>{`
-                @keyframes dropIn {
-                  0% {
-                    transform: translateY(-20px);
-                    opacity: 0;
-                  }
-                  100% {
-                    transform: translateY(0);
-                    opacity: 1;
-                  }
-                }
-                @keyframes logoEntrance {
-                  0% {
-                    transform: rotate(-4deg) scale(0.3);
-                    opacity: 0;
-                  }
-                  50% {
-                    transform: rotate(8deg) scale(1.1);
-                  }
-                  100% {
-                    transform: rotate(-4deg) scale(1);
-                    opacity: 1;
-                  }
-                }
-              `}</style>
-            </div>
-          </div>
+          <>
+            <EmptyState welcomeMessage={welcomeMessage} />
+          </>
         ) : (
           <>
             {messages.map(msg => (
@@ -463,21 +395,13 @@ const ChatInterface: React.FC = () => {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
-              className="flex-1 bg-transparent border-none outline-none py-2 text-[14px] font-semibold placeholder:text-gray-400 placeholder:font-medium font-jakarta"
-              style={{ color: '#1e1e1e' }}
-              style={{ color: '#1e1e1e' }}
               className={`flex-1 bg-transparent border-none outline-none py-2 text-[14px] font-semibold placeholder:text-gray-400 placeholder:font-medium font-jakarta transition-all ${
                 isRecording ? 'placeholder:text-blue-500' : ''
               }`}
+              style={{ color: '#1e1e1e' }}
             />
             
             <div className="flex items-center gap-1.5 pr-1">
-              <RecordButton 
-                isRecording={isRecording}
-                onToggle={() => setIsRecording(r => !r)}
-              />
-              
-              <ActionButton 
               <button 
                 onClick={handleMicClick}
                 className={`p-3 hover:bg-black/5 rounded-2xl transition-all active:scale-90 ${
@@ -486,10 +410,18 @@ const ChatInterface: React.FC = () => {
               >
                 <Mic size={22} />
               </button>
+              
               <button 
                 onClick={handleSend}
                 disabled={isLoading}
-                isActive={hasContent && !isLoading}
+                className={`w-12 h-12 rounded-2xl transition-all flex items-center justify-center active:scale-90 border border-black/5 ${
+                  hasContent && !isLoading ? 'text-gray-700' : 'text-gray-400'
+                } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                style={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  ...GLASS_STYLES.base,
+                  boxShadow: '0 2px 4px -1px rgba(0,0,0,0.1), 0 1px 2px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05)'
+                }}
                 aria-label="Send message"
               >
                 {isLoading ? (
@@ -500,7 +432,7 @@ const ChatInterface: React.FC = () => {
                     className={hasContent ? 'animate-in zoom-in duration-200' : 'opacity-50'} 
                   />
                 )}
-              </ActionButton>
+              </button>
             </div>
           </div>
         </div>
