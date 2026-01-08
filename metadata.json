@@ -1,0 +1,8 @@
+
+{
+  "name": "Skhoot - Your Desktop Seeker",
+  "description": "Skhoot is a modern desktop seeker that helps you find files, messages, and analyze logs using natural language to reduce cognitive load.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
