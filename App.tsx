@@ -46,13 +46,23 @@ const App: React.FC = () => {
                 <SkhootLogo size={18} />
                 <span className="text-sm font-black tracking-[0.2em] font-jakarta" style={{ color: '#c0b7c9' }}>SKHOOT</span>
               </div>
-              <span className="text-[10px] font-medium tracking-tight mt-0.5 font-jakarta opacity-80" style={{ color: '#1e1e1e' }}>Your personal sentinel</span>
+              <span className="text-[10px] font-bold tracking-tight mt-0.5 font-jakarta opacity-50" style={{ color: '#1e1e1e' }}>Your personal sentinel</span>
             </div>
           </div>
           
           <button 
             onClick={closeApp}
-            className="w-8 h-8 flex items-center justify-center hover:bg-red-500/10 rounded-full transition-colors text-gray-500 hover:text-red-500"
+            className="w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 text-gray-500"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#a89bb5';
+              e.currentTarget.style.backgroundColor = '#a89bb525';
+              e.currentTarget.style.boxShadow = '0 0 10px rgba(168, 155, 181, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '#6b7280';
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
           >
             <X size={20} />
           </button>
