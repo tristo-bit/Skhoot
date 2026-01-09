@@ -2,6 +2,7 @@ import React, { useState, useCallback, memo } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import SettingsPanel from './components/SettingsPanel';
+import UserPanel from './components/UserPanel';
 import { COLORS, THEME } from './constants';
 import { Menu, X, Settings, User } from 'lucide-react';
 import { GlassButton } from './components/shared';
@@ -15,6 +16,7 @@ const App: React.FC = () => {
   const [chatKey, setChatKey] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
 
   const handleNewChat = useCallback(() => {
     setChatKey(k => k + 1);
@@ -27,6 +29,9 @@ const App: React.FC = () => {
 
   const openSettings = useCallback(() => setIsSettingsOpen(true), []);
   const closeSettings = useCallback(() => setIsSettingsOpen(false), []);
+  
+  const openUserPanel = useCallback(() => setIsUserPanelOpen(true), []);
+  const closeUserPanel = useCallback(() => setIsUserPanelOpen(false), []);
 
   const handleClose = useCallback(() => {
     window.location.reload();
@@ -102,7 +107,7 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2 relative z-10">
-            <GlassButton onClick={() => {}} aria-label="User profile">
+            <GlassButton onClick={openUserPanel} aria-label="User profile">
               <User size={18} />
             </GlassButton>
             <GlassButton onClick={openSettings} aria-label="Settings">
@@ -129,6 +134,9 @@ const App: React.FC = () => {
 
         {/* Settings */}
         {isSettingsOpen && <SettingsPanel onClose={closeSettings} />}
+        
+        {/* User Panel */}
+        {isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
 
         {/* Main content */}
         <main className="flex-1 relative overflow-hidden flex flex-col">
