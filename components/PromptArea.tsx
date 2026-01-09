@@ -72,15 +72,26 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
   onMicClick,
   onQuickAction,
 }, ref) => {
-  // DEBUG: Log des props reçues
-  console.log('🔄 PromptArea render - isRecording:', isRecording, 'hasPendingVoiceMessage:', hasPendingVoiceMessage);
-  
   const hasContent = input.trim().length > 0;
   const showQuickActions = !isRecording && !hasPendingVoiceMessage;
   const placeholder = hasPendingVoiceMessage ? "Send your message?" : "Skhoot is listening...";
   
+  // Detect Opera browser and speech support
+  const isOpera = navigator.userAgent.indexOf('OPR') !== -1 || navigator.userAgent.indexOf('Opera') !== -1;
+  const isSpeechSupported = !isOpera && (('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window));
+  
   const quickActionsRef = useRef<HTMLDivElement>(null);
   const [quickActionsHeight, setQuickActionsHeight] = useState(52);
+  const [showOperaNotification, setShowOperaNotification] = useState(false);
+  
+  // Show Opera notification briefly when component mounts if Opera is detected
+  useEffect(() => {
+    if (isOpera && !localStorage.getItem('opera-voice-notification-shown')) {
+      setShowOperaNotification(true);
+      localStorage.setItem('opera-voice-notification-shown', 'true');
+      setTimeout(() => setShowOperaNotification(false), 4000);
+    }
+  }, [isOpera]);
   
   // Measure quick actions height for smooth animation
   useEffect(() => {
@@ -189,15 +200,31 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
           <div className="flex items-center gap-1.5 pr-1">
             <button 
               onClick={onMicClick}
-              className={`p-3 hover:bg-black/5 rounded-2xl active:scale-90 ${
-                isRecording ? 'text-red-500 animate-pulse bg-red-50' : 'text-gray-400'
+              className={`relative p-3 hover:bg-black/5 rounded-2xl active:scale-90 ${
+                isRecording ? 'text-red-500 animate-pulse bg-red-50' : 
+                isOpera ? 'text-amber-500' : 'text-gray-400'
               }`}
               style={{
-                transition: `all 0.4s ${smoothEasing}`,
+                transition: `all 0.4s cubic-bezier(0.22, 1, 0.36, 1)`,
               }}
-              aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+              aria-label={
+                isRecording ? 'Stop recording' : 
+                isOpera ? 'Voice input (Opera fallback)' : 
+                'Start recording'
+              }
+              title={
+                isOpera ? 'Voice input not supported in Opera - click for text input fallback' :
+                isSpeechSupported ? 'Click to start voice recording' :
+                'Voice input not supported in this browser'
+              }
             >
               <Mic size={22} />
+              {/* Opera indicator */}
+              {isOpera && !isRecording && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full flex items-center justify-center">
+                  <span className="text-[8px] font-bold text-white">!</span>
+                </div>
+              )}
             </button>
             
             {/* Send button - animated hide during recording */}
@@ -205,7 +232,7 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
               style={{
                 display: 'grid',
                 gridTemplateColumns: isRecording ? '0fr' : '1fr',
-                transition: `grid-template-columns 0.45s ${smoothEasing}`,
+                transition: `grid-template-columns 0.45s cubic-bezier(0.22, 1, 0.36, 1)`,
               }}
             >
               <div style={{ overflow: 'hidden' }}>
@@ -239,6 +266,31 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
           </div>
         </div>
       </div>
+      
+      {/* Opera Voice Input Notification */}
+      {showOperaNotification && (
+        <div 
+          className="absolute bottom-full left-4 right-4 mb-2 p-3 rounded-2xl border border-amber-200 animate-in fade-in slide-in-from-bottom-2 duration-300"
+          style={{ 
+            backgroundColor: 'rgba(251, 191, 36, 0.1)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <div className="flex items-start gap-2">
+            <div className="w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-[10px] font-bold text-white">!</span>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-amber-700 font-jakarta">
+                Opera Browser Detected
+              </p>
+              <p className="text-[10px] font-medium text-amber-600 font-jakarta leading-relaxed mt-1">
+                Voice input isn't supported in Opera. Click the mic button for a text input fallback.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

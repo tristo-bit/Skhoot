@@ -23,10 +23,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
   const [pendingVoiceText, setPendingVoiceText] = useState('');
   const [hasPendingVoiceMessage, setHasPendingVoiceMessage] = useState(false);
   const [audioLevels, setAudioLevels] = useState<number[]>([0.2, 0.4, 0.6, 0.3, 0.5, 0.7, 0.4, 0.8]);
-  
-  // DEBUG: Log des états à chaque rendu
-  console.log('🔄 ChatInterface render - isRecording:', isRecording, 'hasPendingVoiceMessage:', hasPendingVoiceMessage);
-  
   const [welcomeMessage] = useState(() => 
     WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)]
   );
@@ -316,78 +312,94 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
     setIsRecording(false);
   }, []);
 
-  const handleMicClick = async () => {
-    console.log('🎤 Mic clicked, isRecording:', isRecording);
-    
-    if (isRecording) {
-      console.log('🛑 Stopping recording');
-      console.log('🛑 Current voiceTranscript:', voiceTranscript);
-      console.log('🛑 Current pendingVoiceText:', pendingVoiceText);
-      
-      stopRecording();
-      const fullTranscript = (voiceTranscript + ' ' + pendingVoiceText).trim();
-      console.log('🛑 Full transcript:', fullTranscript);
-      
-      if (fullTranscript) {
-        setVoiceTranscript(fullTranscript);
-        setPendingVoiceText('');
-        setHasPendingVoiceMessage(true);
-        console.log('✅ Voice message set as pending');
-      } else {
-        setVoiceTranscript('');
-        setPendingVoiceText('');
-        setHasPendingVoiceMessage(false);
-        console.log('❌ No transcript, clearing voice message');
-      }
-      return;
+  // Detect browser type for Opera-specific handling
+  const isOpera = () => {
+    return (navigator.userAgent.indexOf('OPR') !== -1 || navigator.userAgent.indexOf('Opera') !== -1);
+  };
+
+  // Check if speech recognition is available with Opera-specific detection
+  const isSpeechRecognitionAvailable = () => {
+    // Opera doesn't support Web Speech API natively
+    if (isOpera()) {
+      return false;
     }
-    
-    // FORCER L'ÉTAT RECORDING IMMÉDIATEMENT
-    console.log('🎤 FORCING recording state to true');
-    console.log('🎤 Current isRecording before:', isRecording);
-    setIsRecording(true);
-    console.log('🎤 setIsRecording(true) called');
-    setVoiceTranscript('');
-    setPendingVoiceText('');
-    
+    return ('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window);
+  };
+
+  const handleMicClick = async () => {
     try {
-      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        console.log('❌ Speech recognition not supported');
-        alert('Speech recognition not supported in this browser');
-        setIsRecording(false);
+      if (isRecording) {
+        stopRecording();
+        const fullTranscript = (voiceTranscript + ' ' + pendingVoiceText).trim();
+        
+        if (fullTranscript) {
+          setVoiceTranscript(fullTranscript);
+          setPendingVoiceText('');
+          setHasPendingVoiceMessage(true);
+        } else {
+          setVoiceTranscript('');
+          setPendingVoiceText('');
+          setHasPendingVoiceMessage(false);
+        }
         return;
       }
-      
-      console.log('🎤 Starting recording...');
-      
-      // Start recording
+
+      // Check for speech recognition support
+      if (!isSpeechRecognitionAvailable()) {
+        // Opera-specific fallback
+        if (isOpera()) {
+          const userInput = prompt(
+            '🎤 Voice Input - Opera Browser\n\n' +
+            'Opera doesn\'t support Web Speech API yet.\n' +
+            'Please type your message below:'
+          );
+          if (userInput && userInput.trim()) {
+            setInput(userInput.trim());
+            inputRef.current?.focus();
+          }
+          return;
+        } else {
+          alert('Speech recognition not supported in this browser. Please try Chrome, Edge, or Safari.');
+          return;
+        }
+      }
+
+      // Start recording for supported browsers
+      setIsRecording(true);
+      setVoiceTranscript('');
+      setPendingVoiceText('');
+
+      // Setup audio visualization
       try {
-        console.log('🎤 Requesting microphone access...');
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('✅ Microphone access granted');
         streamRef.current = stream;
-        audioContextRef.current = new AudioContext();
-        const source = audioContextRef.current.createMediaStreamSource(stream);
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 256;
-        source.connect(analyserRef.current);
+        
+        // Create audio context for visualization
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          audioContextRef.current = new AudioContextClass();
+          const source = audioContextRef.current.createMediaStreamSource(stream);
+          analyserRef.current = audioContextRef.current.createAnalyser();
+          analyserRef.current.fftSize = 256;
+          analyserRef.current.smoothingTimeConstant = 0.8;
+          source.connect(analyserRef.current);
+        }
       } catch (audioError) {
-        console.error('❌ Audio setup error:', audioError);
-        setIsRecording(false);
-        alert(`Microphone error: ${audioError.message}`);
-        return;
+        // Continue without visualization
       }
-      
+
+      // Setup speech recognition
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
       const recognition = new SpeechRecognition();
       
+      // Configure recognition
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = navigator.language || 'en-US';
       recognition.maxAlternatives = 1;
       
+      // Handle results
       recognition.onresult = (event: any) => {
-        console.log('📝 Speech recognition result received');
         let finalTranscript = '';
         let interimTranscript = '';
         
@@ -400,58 +412,72 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
           }
         }
         
-        console.log('📝 Final transcript:', finalTranscript);
-        console.log('📝 Interim transcript:', interimTranscript);
-        
         setVoiceTranscript(finalTranscript.trim());
         setPendingVoiceText(interimTranscript.trim());
       };
       
+      // Handle errors
       recognition.onerror = (event: any) => {
-        console.error('❌ Speech recognition error:', event.error);
-        if (event.error === 'no-speech') {
-          console.log('⚠️ No speech detected, continuing...');
-          return;
+        // Handle specific errors
+        switch (event.error) {
+          case 'no-speech':
+            // Continue listening
+            return;
+          case 'audio-capture':
+            alert('Microphone access denied. Please allow microphone access and try again.');
+            break;
+          case 'not-allowed':
+            alert('Microphone permission denied. Please enable microphone access in your browser settings.');
+            break;
+          case 'network':
+            alert('Network error occurred. Please check your internet connection.');
+            break;
+          default:
+            // Silent error handling
         }
-        console.log('❌ Stopping due to error');
-        setIsRecording(false);
-        if (recognitionRef.current) {
-          recognitionRef.current = null;
-        }
+        
+        stopRecording();
       };
       
+      // Handle recognition end
       recognition.onend = () => {
-        console.log('🔄 Speech recognition ended');
-        // Seulement redémarrer si on est encore en mode recording
+        // Only restart if still recording and recognition object exists
         if (isRecording && recognitionRef.current) {
-          console.log('🔄 Restarting recognition...');
           setTimeout(() => {
             if (isRecording && recognitionRef.current) {
               try {
                 recognitionRef.current.start();
               } catch (e) {
-                console.error('❌ Error restarting:', e);
+                stopRecording();
               }
             }
           }, 100);
         }
       };
+
+      // Handle start
+      recognition.onstart = () => {
+        // Recognition started
+      };
       
       recognitionRef.current = recognition;
-      console.log('🚀 Starting speech recognition...');
-      
-      try {
-        recognition.start();
-      } catch (startError) {
-        console.error('❌ Error starting recognition:', startError);
-        setIsRecording(false);
-        return;
-      }
+      recognition.start();
       
     } catch (error) {
-      console.error('❌ Recording error:', error);
       setIsRecording(false);
-      alert(`Recording error: ${error.message}`);
+      
+      // Provide user-friendly error messages
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          alert('Microphone access denied. Please allow microphone access and try again.');
+        } else if (error.name === 'NotFoundError') {
+          alert('No microphone found. Please connect a microphone and try again.');
+        } else {
+          alert(`Recording error: ${error.message}`);
+        }
+      } else {
+        alert('An unknown error occurred while starting voice recording.');
+      }
     }
   };
 
@@ -530,7 +556,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       
       setMessages(prev => [...prev, assistantMsg]);
     } catch (error) {
-      console.error('Chat error:', error);
       setSearchType(null);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setMessages(prev => [...prev, {

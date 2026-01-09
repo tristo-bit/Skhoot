@@ -55,6 +55,22 @@ skhootDemo.cleanup()
 - **Cleanup**: Smart cleanup suggestions with safety warnings and Archive/Remove options
 - **Markdown**: Full markdown rendering including code blocks, lists, links, etc.
 
+## Browser Compatibility
+
+### Voice Input Support
+- ✅ **Chrome**: Full Web Speech API support
+- ✅ **Edge**: Full Web Speech API support  
+- ✅ **Safari**: Full Web Speech API support
+- ⚠️ **Opera**: Fallback to text input prompt (Web Speech API not supported)
+- ❌ **Firefox**: Limited/no Web Speech API support
+
+### Opera Browser Users
+When using Opera, the voice input button will:
+- Show an amber warning indicator (!)
+- Display a tooltip explaining the limitation
+- Open a text input prompt when clicked
+- Show a one-time notification about the fallback
+
 ## Mock Data
 
 The demos use realistic mock data including:
