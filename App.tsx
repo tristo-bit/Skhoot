@@ -179,19 +179,8 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2 relative z-10">
-            <GlassButton onClick={user ? () => {} : handleSignIn} aria-label="User profile">
-              {user ? (
-                <div 
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                  style={{ backgroundColor: COLORS.fukuBrand }}
-                >
-                  {user.displayName.charAt(0).toUpperCase()}
-                </div>
-              ) : (
-                <UserIcon size={18} />
-              )}
             <GlassButton onClick={openUserPanel} aria-label="User profile">
-              <User size={18} />
+              <UserIcon size={18} />
             </GlassButton>
             <GlassButton onClick={openSettings} aria-label="Settings">
               <Settings size={18} />
