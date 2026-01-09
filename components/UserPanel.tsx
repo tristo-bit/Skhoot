@@ -196,13 +196,12 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                 <label className="text-sm font-bold font-jakarta text-text-primary">Profile Picture</label>
                 {hasProfileChanges && (
                   <button
-                  onClick={handleSaveProfile}
-                  className="px-3 py-1 rounded-lg text-xs font-bold font-jakarta transition-all text-white"
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold font-jakarta transition-all text-white bg-accent"
-                >
-                  Save Photo
-                </button>
-              )}
+                    onClick={handleSaveProfile}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold font-jakarta transition-all text-white bg-accent"
+                  >
+                    Save Photo
+                  </button>
+                )}
             </div>
             <div className="flex flex-col items-center gap-4">
               {/* Profile Image Display */}
@@ -687,7 +686,6 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                 {/* Billing Footer - Now inside scrollable area */}
                 <div className="space-y-3 pt-4">
                   <button
-                    className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
                     className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white bg-accent"
                     onClick={() => {
                       console.log('Start 7-Day Free Trial');

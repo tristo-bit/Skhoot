@@ -12,7 +12,7 @@ const SkhootLogo = memo(({ size = 64 }: { size?: number }) => (
     alt="Skhoot" 
     width={size} 
     height={size}
-    className="drop-shadow-lg dark:drop-shadow-none dark:brightness-90"
+    className="drop-shadow-lg dark:drop-shadow-none dark:brightness-150 dark:contrast-75 dark:hue-rotate-15"
   />
 ));
 SkhootLogo.displayName = 'SkhootLogo';
@@ -35,11 +35,9 @@ export const EmptyState = memo<EmptyStateProps>(({ welcomeMessage, isExiting = f
     }}
   >
     <div 
-      className="w-28 h-28 rounded-[2.5rem] mb-10 mx-auto flex items-center justify-center rotate-[-4deg] transition-all hover:rotate-0 duration-500 border border-black/5 origin-center" 
+      className="w-28 h-28 rounded-[2.5rem] mb-10 mx-auto flex items-center justify-center rotate-[-4deg] transition-all hover:rotate-0 duration-500 origin-center glass-subtle" 
       style={{ 
-        backgroundColor: `${COLORS.orchidTint}B0`,
-        ...GLASS_STYLES.base,
-        boxShadow: '0 2px 4px -1px rgba(0,0,0,0.1), 0 1px 2px rgba(255,255,255,0.5), inset 0 2px 4px rgba(255,255,255,0.3), inset 0 -2px 4px rgba(0,0,0,0.1)',
+        backgroundColor: 'rgba(75, 85, 99, 0.8)',
         transform: isExiting ? 'rotate(12deg) scale(0.6)' : undefined,
         transition: 'transform 600ms cubic-bezier(0.4, 0, 0.2, 1)',
       }}
