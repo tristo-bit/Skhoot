@@ -1,11 +1,16 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, useEffect, memo } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import SettingsPanel from './components/SettingsPanel';
+import Login from './components/Login';
+import Register from './components/Register';
 import UserPanel from './components/UserPanel';
 import { COLORS, THEME } from './constants';
-import { Menu, X, Settings, User } from 'lucide-react';
+import { Menu, X, Settings, User as UserIcon } from 'lucide-react';
 import { GlassButton } from './components/shared';
+import { chatStorage } from './services/chatStorage';
+import { authService } from './services/auth';
+import { Chat, Message, User } from './types';
 
 const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
   <img src="/skhoot-purple.svg" alt="Skhoot" width={size} height={size} />
@@ -13,15 +18,71 @@ const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
 SkhootLogo.displayName = 'SkhootLogo';
 
 const App: React.FC = () => {
-  const [chatKey, setChatKey] = useState(0);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [authView, setAuthView] = useState<'none' | 'login' | 'register'>('none');
+
+  // Load chats and auth state on mount
+  useEffect(() => {
+    const loadedChats = chatStorage.getChats();
+    setChats(loadedChats);
+    
+    const authState = authService.getStoredAuth();
+    if (authState.isAuthenticated && authState.user) {
+      setUser(authState.user);
+    }
+  }, []);
   const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
 
   const handleNewChat = useCallback(() => {
-    setChatKey(k => k + 1);
+    const newChat = chatStorage.createChat();
+    chatStorage.saveChat(newChat);
+    setChats(chatStorage.getChats());
+    setCurrentChatId(newChat.id);
     setIsSidebarOpen(false);
   }, []);
+
+  const handleSelectChat = useCallback((chatId: string) => {
+    setCurrentChatId(chatId);
+    setIsSidebarOpen(false);
+  }, []);
+
+  const handleDeleteChat = useCallback((chatId: string) => {
+    chatStorage.deleteChat(chatId);
+    setChats(chatStorage.getChats());
+    if (currentChatId === chatId) {
+      setCurrentChatId(null);
+    }
+  }, [currentChatId]);
+
+  const handleMessagesChange = useCallback((messages: Message[]) => {
+    if (!currentChatId) {
+      // Create a new chat if none exists
+      const newChat = chatStorage.createChat();
+      newChat.messages = messages;
+      newChat.title = chatStorage.generateTitle(messages);
+      newChat.updatedAt = new Date();
+      chatStorage.saveChat(newChat);
+      setChats(chatStorage.getChats());
+      setCurrentChatId(newChat.id);
+    } else {
+      // Update existing chat
+      const chat = chatStorage.getChat(currentChatId);
+      if (chat) {
+        chat.messages = messages;
+        chat.title = chatStorage.generateTitle(messages);
+        chat.updatedAt = new Date();
+        chatStorage.saveChat(chat);
+        setChats(chatStorage.getChats());
+      }
+    }
+  }, [currentChatId]);
+
+  // Get current chat's messages
+  const currentChat = currentChatId ? chats.find(c => c.id === currentChatId) : null;
 
   const toggleSidebar = useCallback(() => {
     setIsSidebarOpen(open => !open);
@@ -29,6 +90,17 @@ const App: React.FC = () => {
 
   const openSettings = useCallback(() => setIsSettingsOpen(true), []);
   const closeSettings = useCallback(() => setIsSettingsOpen(false), []);
+
+  const handleSignIn = useCallback(() => setAuthView('login'), []);
+  const handleSignOut = useCallback(async () => {
+    await authService.logout();
+    setUser(null);
+  }, []);
+  const handleLogin = useCallback((loggedInUser: User) => {
+    setUser(loggedInUser);
+    setAuthView('none');
+  }, []);
+  const handleCloseAuth = useCallback(() => setAuthView('none'), []);
   
   const openUserPanel = useCallback(() => setIsUserPanelOpen(true), []);
   const closeUserPanel = useCallback(() => setIsUserPanelOpen(false), []);
@@ -107,6 +179,17 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2 relative z-10">
+            <GlassButton onClick={user ? () => {} : handleSignIn} aria-label="User profile">
+              {user ? (
+                <div 
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                  style={{ backgroundColor: COLORS.fukuBrand }}
+                >
+                  {user.displayName.charAt(0).toUpperCase()}
+                </div>
+              ) : (
+                <UserIcon size={18} />
+              )}
             <GlassButton onClick={openUserPanel} aria-label="User profile">
               <User size={18} />
             </GlassButton>
@@ -125,22 +208,53 @@ const App: React.FC = () => {
 
         {/* Sidebar - now starts from top */}
         <div 
-          className={`absolute top-0 left-0 bottom-0 z-20 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+          className={`absolute top-0 left-0 bottom-0 z-40 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <Sidebar onNewChat={handleNewChat} onClose={toggleSidebar} />
+          <Sidebar 
+            onNewChat={handleNewChat} 
+            onClose={toggleSidebar}
+            onSelectChat={handleSelectChat}
+            onDeleteChat={handleDeleteChat}
+            chats={chats}
+            currentChatId={currentChatId}
+            user={user}
+            onSignIn={handleSignIn}
+            onSignOut={handleSignOut}
+          />
         </div>
 
         {/* Settings */}
         {isSettingsOpen && <SettingsPanel onClose={closeSettings} />}
+
+        {/* Auth Views */}
+        {authView === 'login' && (
+          <Login 
+            onLogin={handleLogin} 
+            onSwitchToRegister={() => setAuthView('register')} 
+            onClose={handleCloseAuth} 
+          />
+        )}
+        {authView === 'register' && (
+          <Register 
+            onRegister={handleLogin} 
+            onSwitchToLogin={() => setAuthView('login')} 
+            onClose={handleCloseAuth} 
+          />
+        )}
         
         {/* User Panel */}
         {isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
 
         {/* Main content */}
         <main className="flex-1 relative overflow-hidden flex flex-col">
-          <ChatInterface key={chatKey} />
+          <ChatInterface 
+            key={currentChatId || 'new'} 
+            chatId={currentChatId}
+            initialMessages={currentChat?.messages || []}
+            onMessagesChange={handleMessagesChange}
+          />
         </main>
       </div>
     </div>

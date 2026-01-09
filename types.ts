@@ -8,6 +8,14 @@ export interface Message {
   timestamp: Date;
 }
 
+export interface Chat {
+  id: string;
+  title: string;
+  messages: Message[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface FileInfo {
   id: string;
   name: string;
@@ -30,4 +38,18 @@ export interface SearchResult {
   files?: FileInfo[];
   messages?: ConversationMessage[];
   analysis?: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  avatar?: string;
+  provider: 'email' | 'google' | 'microsoft' | 'apple';
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
 }
