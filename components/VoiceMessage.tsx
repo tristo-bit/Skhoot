@@ -128,6 +128,15 @@ export const VoiceMessage = memo<VoiceMessageProps>(({
             </div>
           )}
         </div>
+        
+        {/* Pending confirmation text */}
+        {isPending && (
+          <div className="flex justify-end mt-2">
+            <p className="text-xs font-jakarta text-gray-400 animate-pulse">
+              Waiting for your confirmation
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
