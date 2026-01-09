@@ -54,7 +54,7 @@
   }
 
   body {
-    background-color: var(--bg-primary);
+    background-color: transparent;
     color: var(--text-primary);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }

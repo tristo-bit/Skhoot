@@ -4,7 +4,7 @@
 
 # Skhoot - Your Desktop AI Assistant
 
-Skhoot is an intelligent desktop assistant that helps you find files, search conversations, analyze disk usage, and manage your digital workspace. Built with React, TypeScript, and powered by Google's Gemini AI, it features a modern embossed glassmorphic design system.
+Skhoot is an intelligent desktop assistant that helps you find files, search conversations, analyze disk usage, and manage your digital workspace. Built with React, TypeScript, Tauri, and powered by Google's Gemini AI, it features a modern embossed glassmorphic design system and runs as both a web application and native desktop app.
 
 View your app in AI Studio: https://ai.studio/apps/drive/1yPnxkAry7gQ3SPvIsRQW4eBCoYkV7iwP
 
@@ -44,6 +44,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1yPnxkAry7gQ3SPvIsRQW4e
 
 ### Prerequisites
 - **Node.js** (v16 or higher)
+- **Rust** (for desktop builds - [Install Rust](https://rustup.rs/))
 - **Google Gemini API Key** ([Get one here](https://aistudio.google.com/apikey))
 
 ### Installation
@@ -63,19 +64,36 @@ View your app in AI Studio: https://ai.studio/apps/drive/1yPnxkAry7gQ3SPvIsRQW4e
    ```
 
 3. **Start the development server:**
+   
+   **Web Version:**
    ```bash
-   npm run dev
+   npm run dev          # Opens browser automatically
+   npm run dev:no-open  # Starts server without opening browser
+   ```
+   
+   **Desktop Version:**
+   ```bash
+   npm run tauri:dev
    ```
 
-4. **Open your browser:**
+4. **Open your browser (web version only):**
    Navigate to `http://localhost:5173`
 
 ## 🛠️ Development
 
 ### Available Scripts
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
+
+**Web Development:**
+- `npm run dev` - Start web development server (opens browser automatically)
+- `npm run dev:no-open` - Start web development server without opening browser
+- `npm run build` - Build web version for production
+- `npm run preview` - Preview web production build
+
+**Desktop Development:**
+- `npm run tauri:dev` - Start desktop development with hot reload
+- `npm run tauri:build` - Build desktop app for current platform
+- `npm run tauri:build:ubuntu` - Build desktop app for Ubuntu/Linux
+- `npm run tauri` - Run Tauri CLI commands
 
 ### Project Structure
 ```
@@ -89,6 +107,10 @@ skhoot/
 ├── src/
 │   ├── contexts/        # React contexts (Theme, etc.)
 │   └── constants.ts     # App constants and config
+├── src-tauri/           # Tauri desktop app configuration
+│   ├── src/            # Rust backend code
+│   ├── icons/          # Desktop app icons
+│   └── tauri.conf.json # Tauri configuration
 ├── browser-test/        # Demo and testing utilities
 └── public/             # Static assets
 ```
@@ -99,6 +121,26 @@ Skhoot uses an **Embossed Glassmorphic Design System**. See [EMBOSSED_STYLE_GUID
 - Color system and theming
 - Interactive states and animations
 - Accessibility considerations
+
+## 🖥️ Desktop vs Web
+
+Skhoot is available in two versions:
+
+### 🌐 Web Version
+- Runs in any modern browser
+- Instant access, no installation required
+- Full feature set with voice input support
+- Perfect for quick access and testing
+
+### 🖥️ Desktop Version (Tauri)
+- Native desktop application
+- Better performance and system integration
+- Offline capabilities
+- Native file system access
+- System tray integration
+- Auto-updater support
+
+**Choose the version that best fits your workflow!**
 
 ## 🎮 Demo Features
 
@@ -144,6 +186,12 @@ skhootDemo.showMarkdown()
 - Configure demo data in `browser-test/demo.ts`
 
 ## 📝 Recent Updates
+
+### Tauri Desktop Integration
+- Added desktop application support with Tauri
+- New build scripts for cross-platform desktop builds
+- Enhanced native system integration capabilities
+- Ubuntu/Linux specific build target support
 
 ### Design System Improvements
 - Resolved merge conflicts in SettingsPanel component
