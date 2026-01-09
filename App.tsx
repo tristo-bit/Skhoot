@@ -209,7 +209,7 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2 relative z-10">
-            <GlassButton onClick={openFilesPanel} aria-label="Files & Storage">
+            <GlassButton onClick={openFilesPanel} aria-label="Utility">
               <FolderOpen size={18} />
             </GlassButton>
             <GlassButton onClick={openUserPanel} aria-label="User profile">

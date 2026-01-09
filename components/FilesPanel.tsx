@@ -51,7 +51,7 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
         {/* Header */}
         <div className="px-6 py-4 border-b border-black/5 flex items-center justify-between">
           <h2 className="text-lg font-black font-jakarta" style={{ color: COLORS.textPrimary }}>
-            Files & Storage
+            Utility
           </h2>
           <button 
             onClick={onClose}
