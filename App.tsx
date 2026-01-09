@@ -194,7 +194,7 @@ const AppContent: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-bg-primary">
+    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden">
       {/* Resize handles (borderless window) */}
       <div className="absolute inset-0 pointer-events-none z-50">
         <div className="absolute top-0 left-0 right-0 h-6 cursor-n-resize pointer-events-auto" onMouseDown={() => handleResizeMouseDown('North')} />
@@ -206,17 +206,21 @@ const AppContent: React.FC = () => {
         <div className="absolute bottom-0 left-0 w-8 h-8 cursor-sw-resize pointer-events-auto" onMouseDown={() => handleResizeMouseDown('SouthWest')} />
         <div className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize pointer-events-auto" onMouseDown={() => handleResizeMouseDown('SouthEast')} />
       </div>
-      {/* Background blurs */}
-      <BackgroundBlur position="top-[5%] left-[15%]" />
-      <BackgroundBlur position="bottom-[5%] right-[15%]" />
+      {/* Visual shell with rounded corners */}
+      <div className="app-shell relative z-10 w-full h-full flex flex-col rounded-[32px] shadow-2xl overflow-hidden bg-bg-primary">
+        {/* Background blurs disabled to avoid banding */}
+        {/*
+        <BackgroundBlur position="top-[5%] left-[15%]" />
+        <BackgroundBlur position="bottom-[5%] right-[15%]" />
+        */}
 
-      {/* Main container */}
-      <div className="relative z-10 w-full h-full flex flex-col rounded-[32px] shadow-2xl overflow-hidden glass-elevated">
-        {/* Header */}
-        <header
-          className="relative z-30 px-6 py-5 flex items-center justify-between cursor-move select-none"
-          onMouseDown={handleDragMouseDown}
-        >
+        {/* Main container */}
+        <div className="app-glass relative z-10 w-full h-full flex flex-col rounded-[32px] overflow-hidden glass-elevated">
+          {/* Header */}
+          <header
+            className="header-bar relative z-30 flex items-center justify-between cursor-move select-none"
+            onMouseDown={handleDragMouseDown}
+          >
           {/* Left side with morphing background */}
           <div className="flex items-center gap-4 relative">
             {/* Morphing background that extends from sidebar */}
@@ -251,18 +255,20 @@ const AppContent: React.FC = () => {
             </button>
             
             <div 
-              className={`flex items-center gap-2 relative z-10 transition-all duration-500 ${
+              className={`header-logo flex items-center gap-2 relative z-10 transition-all duration-500 ${
                 isSidebarOpen ? 'opacity-0 -translate-x-4' : 'opacity-100 translate-x-0'
               }`}
             >
-              <SkhootLogo size={18} />
-              <span className="text-sm font-black tracking-[0.2em] font-jakarta text-fuku-brand">
+              <span className="header-logo-icon">
+                <SkhootLogo size={18} />
+              </span>
+              <span className="header-logo-text text-sm font-black tracking-[0.2em] font-jakarta text-fuku-brand">
                 SKHOOT
               </span>
             </div>
           </div>
           
-          <div className="flex items-center gap-2 relative z-10" data-no-drag>
+          <div className="header-actions flex items-center gap-2 relative z-10" data-no-drag>
             <GlassButton onClick={openFilesPanel} aria-label="Utility">
               <FolderOpen size={18} />
             </GlassButton>
@@ -280,7 +286,7 @@ const AppContent: React.FC = () => {
               <X size={18} />
             </GlassButton>
           </div>
-        </header>
+          </header>
 
         {/* Sidebar - now starts from top */}
         <div 
@@ -330,28 +336,52 @@ const AppContent: React.FC = () => {
         {isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
 
         {/* Main content */}
-        <main
-          className="flex-1 relative overflow-hidden flex flex-col p-2"
-          onMouseDown={handleBackgroundDrag}
-        >
-          <div className="flex-1 relative overflow-hidden" data-tauri-drag-region="false">
-            <ChatInterface 
-              key={currentChatId ?? 'new-chat'} 
-              chatId={currentChatId}
-              initialMessages={currentChat?.messages || []}
-              onMessagesChange={handleMessagesChange}
-            />
-          </div>
-        </main>
-
+          <main
+            className="flex-1 relative overflow-hidden flex flex-col p-2"
+            onMouseDown={handleBackgroundDrag}
+          >
+            <div className="flex-1 relative overflow-hidden" data-tauri-drag-region="false">
+              <ChatInterface 
+                key={currentChatId ?? 'new-chat'} 
+                chatId={currentChatId}
+                initialMessages={currentChat?.messages || []}
+                onMessagesChange={handleMessagesChange}
+              />
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );
 };
 
-const BackgroundBlur = memo<{ position: string }>(({ position }) => (
-  <div className={`absolute ${position} w-[600px] h-[600px] rounded-full blur-[150px] opacity-40 animate-pulse pointer-events-none bg-orchid-tint dark:bg-almost-aqua`} />
-));
+type BackgroundBlurProps = { position: string };
+
+const BackgroundBlur = memo(function BackgroundBlur({ position }: BackgroundBlurProps) {
+  return (
+    <div className={`absolute ${position} w-[720px] h-[720px] rounded-full pointer-events-none`}>
+      <div
+        className="absolute inset-0 rounded-full blur-[180px] opacity-35"
+        style={{
+          background: 'radial-gradient(circle at 50% 50%, rgba(169, 131, 247, 0.55) 0%, rgba(169, 131, 247, 0.35) 45%, rgba(169, 131, 247, 0) 70%)',
+        }}
+      />
+      <div
+        className="absolute inset-8 rounded-full blur-[240px] opacity-30"
+        style={{
+          background: 'radial-gradient(circle at 50% 50%, rgba(3, 201, 255, 0.5) 0%, rgba(3, 201, 255, 0.25) 45%, rgba(3, 201, 255, 0) 70%)',
+        }}
+      />
+      <div
+        className="absolute -inset-10 rounded-full blur-[300px] opacity-25"
+        style={{
+          background: 'radial-gradient(circle at 50% 50%, rgba(169, 131, 247, 0.35) 0%, rgba(169, 131, 247, 0.18) 50%, rgba(169, 131, 247, 0) 75%)',
+        }}
+      />
+      <div className="absolute inset-0 rounded-full opacity-10 mix-blend-overlay" style={{ backgroundImage: 'radial-gradient(rgba(0,0,0,0.06) 0.5px, transparent 0.6px)', backgroundSize: '3px 3px' }} />
+    </div>
+  );
+});
 BackgroundBlur.displayName = 'BackgroundBlur';
 
 const App: React.FC = () => (

@@ -113,6 +113,7 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
         paddingRight: 'var(--prompt-area-x)',
         paddingTop: 'var(--prompt-area-y)',
         paddingBottom: 'var(--prompt-area-x)',
+        transform: 'translateY(calc(-1 * var(--prompt-panel-bottom-offset)))',
       }}
     >
       <div 
