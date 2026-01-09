@@ -168,6 +168,32 @@ export const skhootDemo = {
       results: MOCK_CLEANUP_ITEMS
     });
   },
+
+  findDuplicates: () => {
+    console.log('🔍 Finding duplicate files...');
+    dispatchDemoEvent('find-duplicates', {
+      duplicates: [
+        {
+          id: 'dup1',
+          files: MOCK_FILES.slice(1, 3),
+          totalSize: '47.4 MB',
+          similarity: 95
+        }
+      ]
+    });
+  },
+
+  showInsights: () => {
+    console.log('📊 Showing smart insights...');
+    dispatchDemoEvent('show-insights', {
+      insights: {
+        storageSaved: '12.4 GB',
+        filesOrganized: 247,
+        timeSaved: '4.2 hrs',
+        efficiency: '94%'
+      }
+    });
+  },
   
   showMarkdown: () => {
     console.log('📝 Showing markdown demo...');
@@ -204,15 +230,17 @@ Check out [Skhoot](https://example.com) for more!`
 ━━━━━━━━━━━━━━━━━━━━━━━
 
 Available commands:
-  skhootDemo.searchFiles()    - Demo file search animation
-  skhootDemo.searchMessages() - Demo message search animation  
-  skhootDemo.analyzeDisk()    - Demo disk analysis animation
-  skhootDemo.cleanup()        - Demo cleanup/space analysis
-  skhootDemo.showMarkdown()   - Demo markdown rendering
-  skhootDemo.help()           - Show this help message
+  skhootDemo.searchFiles()     - Demo file search animation
+  skhootDemo.searchMessages()  - Demo message search animation  
+  skhootDemo.analyzeDisk()     - Demo disk analysis animation
+  skhootDemo.cleanup()         - Demo cleanup/space analysis
+  skhootDemo.findDuplicates()  - Demo duplicate file detection
+  skhootDemo.showInsights()    - Demo smart insights dashboard
+  skhootDemo.showMarkdown()    - Demo markdown rendering
+  skhootDemo.help()            - Show this help message
 
 Example:
-  skhootDemo.searchFiles()
+  skhootDemo.findDuplicates()
     `);
   }
 };

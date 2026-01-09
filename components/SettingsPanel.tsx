@@ -1,5 +1,6 @@
 import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { COLORS, GLASS_STYLES } from '../constants';
+import { X, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList } from 'lucide-react';
 import { X, Bot, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList, ExternalLink, Mail, Bug } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -23,7 +24,6 @@ const SETTINGS_ITEMS = [
 ] as const;
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceability }) => {
-  const [aiEnabled, setAiEnabled] = useState(true);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   
   // Privacy panel states
@@ -56,6 +56,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
   const [animationTime, setAnimationTime] = useState(0);
   const [autoSensitivity, setAutoSensitivity] = useState(true);
   const [manualSensitivity, setManualSensitivity] = useState(50);
+  
+  // Appearance settings state
+  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>('system');
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -999,6 +1002,82 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
     </div>
   );
 
+  const renderAppearancePanel = () => (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <button 
+          onClick={handleBack}
+          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
+        >
+          <ChevronRight size={18} className="rotate-180" />
+        </button>
+        <h3 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
+          Appearance
+        </h3>
+      </div>
+
+      {/* Theme Selection */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-gray-700">Theme</label>
+        <p className="text-xs text-gray-500 font-jakarta">
+          Choose your preferred theme or let the system decide
+        </p>
+        
+        <div className="space-y-2">
+          {[
+            { value: 'light', label: 'Light', description: 'Always use light theme' },
+            { value: 'dark', label: 'Dark', description: 'Always use dark theme' },
+            { value: 'system', label: 'System', description: 'Follow system preference' }
+          ].map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setThemeMode(option.value as 'light' | 'dark' | 'system')}
+              className={`w-full p-4 rounded-xl border transition-all text-left ${
+                themeMode === option.value
+                  ? 'border-purple-300 bg-purple-50'
+                  : 'border-gray-200 bg-white hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold font-jakarta text-gray-900">
+                    {option.label}
+                  </p>
+                  <p className="text-xs text-gray-500 font-jakarta">
+                    {option.description}
+                  </p>
+                </div>
+                <div className={`w-4 h-4 rounded-full border-2 ${
+                  themeMode === option.value
+                    ? 'border-purple-500 bg-purple-500'
+                    : 'border-gray-300'
+                }`}>
+                  {themeMode === option.value && (
+                    <div className="w-full h-full rounded-full bg-white scale-50" />
+                  )}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Coming Soon Section */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-gray-700">More Options</label>
+        <div className="p-4 rounded-xl border border-gray-200 bg-gray-50">
+          <p className="text-sm font-medium font-jakarta text-gray-600">
+            More appearance customization options coming soon!
+          </p>
+          <p className="text-xs text-gray-500 font-jakarta mt-1">
+            Font size, accent colors, and layout preferences
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div 
       className="absolute inset-0 z-30 flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-200"
@@ -1037,24 +1116,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
             renderSoundPanel()
           ) : activePanel === 'Privacy' ? (
             renderPrivacyPanel()
+          ) : activePanel === 'Appearance' ? (
+            renderAppearancePanel()
           ) : activePanel === 'Help Center' ? (
             renderHelpCenterPanel()
           ) : (
             <>
-              {/* AI Section */}
-              <SettingsSection title="AI Assistant">
-                <SettingsToggle 
-                  icon={<Bot size={18} />}
-                  label="AI Assistance"
-                  description="Enable smart file suggestions"
-                  enabled={aiEnabled}
-                  onToggle={toggleAi}
-                  color={COLORS.orchidTint}
-                />
-              </SettingsSection>
-
               {/* General Section */}
-              <SettingsSection title="General">
+              {/* <SettingsSection title="General"> */}
                 {SETTINGS_ITEMS.map(item => (
                   <SettingsItem 
                     key={item.label}
@@ -1064,7 +1133,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
                     onClick={() => handleSettingClick(item.label)}
                   />
                 ))}
-              </SettingsSection>
+              {/* </SettingsSection> */}
             </>
           )}
           </div>
