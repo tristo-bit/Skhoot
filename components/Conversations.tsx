@@ -35,7 +35,7 @@ export const EmptyState = memo<EmptyStateProps>(({ welcomeMessage, isExiting = f
     }}
   >
     <div 
-      className="w-28 h-28 rounded-[2.5rem] mb-10 mx-auto flex items-center justify-center rotate-[-4deg] transition-all hover:rotate-0 duration-500 origin-center glass-subtle" 
+      className="w-28 h-28 rounded-[2.5rem] mb-10 mx-auto flex items-center justify-center rotate-0 transition-all hover:rotate-[-4deg] duration-500 origin-center glass-subtle" 
       style={{ 
         backgroundColor: 'rgba(75, 85, 99, 0.8)',
         transform: isExiting ? 'rotate(12deg) scale(0.6)' : undefined,

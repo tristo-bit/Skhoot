@@ -38,9 +38,13 @@ function clamp(value: number, min: number, max: number): number {
 function applyScale(state: ScaleState): void {
   const root = document.documentElement;
   const textScale = clamp(state.scale, 0.85, 1);
+  const headerBtnScale = clamp(state.scale, 0.7, 1);
+  const headerShift = state.isMicro ? 20 : state.isMobile ? 14 : state.isCompact ? 8 : 0;
   root.style.setProperty('--scale', state.scale.toString());
   root.style.setProperty('--height-scale', state.heightScale.toString());
   root.style.setProperty('--scale-text', textScale.toString());
+  root.style.setProperty('--header-btn-scale', headerBtnScale.toString());
+  root.style.setProperty('--header-actions-shift', `${headerShift}px`);
 
   if (state.isCompact) {
     root.classList.add('compact-mode');
@@ -64,8 +68,10 @@ function applyScale(state: ScaleState): void {
 export function updateScale(viewportWidth: number, viewportHeight: number): void {
   const scaling = getScalingConfig();
 
-  const widthScale = scaling.enableWidthScaling
-    ? clamp(viewportWidth / scaling.baseWidth, scaling.minScale, 1)
+  const baseDiagonal = Math.hypot(scaling.baseWidth, scaling.baseHeight);
+  const currentDiagonal = Math.hypot(viewportWidth, viewportHeight);
+  const diagonalScale = scaling.enableWidthScaling
+    ? clamp(currentDiagonal / baseDiagonal, scaling.minScale, 1)
     : 1;
 
   const heightScale = scaling.enableHeightScaling
@@ -73,7 +79,7 @@ export function updateScale(viewportWidth: number, viewportHeight: number): void
     : 1;
 
   const nextState: ScaleState = {
-    scale: widthScale,
+    scale: diagonalScale,
     heightScale,
     viewportWidth,
     viewportHeight,
