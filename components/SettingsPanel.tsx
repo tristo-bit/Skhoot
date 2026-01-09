@@ -1,8 +1,7 @@
 import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
-import { COLORS, GLASS_STYLES } from '../constants';
+import { COLORS, GLASS_STYLES } from '../src/constants';
 import { X, Bot, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList, ExternalLink, Mail, Bug } from 'lucide-react';
 import { useTheme } from '../src/contexts/ThemeContext';
-import { GLASS_STYLES } from '../src/constants';
 
 interface SettingsPanelProps {
   onClose: () => void;
