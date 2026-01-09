@@ -22,6 +22,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
   const [pendingVoiceText, setPendingVoiceText] = useState('');
   const [hasPendingVoiceMessage, setHasPendingVoiceMessage] = useState(false);
   const [audioLevels, setAudioLevels] = useState<number[]>([0.2, 0.4, 0.6, 0.3, 0.5, 0.7, 0.4, 0.8]);
+  
+  // DEBUG: Log des états à chaque rendu
+  console.log('🔄 ChatInterface render - isRecording:', isRecording, 'hasPendingVoiceMessage:', hasPendingVoiceMessage);
+  
   const [welcomeMessage] = useState(() => 
     WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)]
   );
@@ -152,30 +156,54 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
   }, []);
 
   const handleMicClick = async () => {
+    console.log('🎤 Mic clicked, isRecording:', isRecording);
+    
+    if (isRecording) {
+      console.log('🛑 Stopping recording');
+      console.log('🛑 Current voiceTranscript:', voiceTranscript);
+      console.log('🛑 Current pendingVoiceText:', pendingVoiceText);
+      
+      stopRecording();
+      const fullTranscript = (voiceTranscript + ' ' + pendingVoiceText).trim();
+      console.log('🛑 Full transcript:', fullTranscript);
+      
+      if (fullTranscript) {
+        setVoiceTranscript(fullTranscript);
+        setPendingVoiceText('');
+        setHasPendingVoiceMessage(true);
+        console.log('✅ Voice message set as pending');
+      } else {
+        setVoiceTranscript('');
+        setPendingVoiceText('');
+        setHasPendingVoiceMessage(false);
+        console.log('❌ No transcript, clearing voice message');
+      }
+      return;
+    }
+    
+    // FORCER L'ÉTAT RECORDING IMMÉDIATEMENT
+    console.log('🎤 FORCING recording state to true');
+    console.log('🎤 Current isRecording before:', isRecording);
+    setIsRecording(true);
+    console.log('🎤 setIsRecording(true) called');
+    setVoiceTranscript('');
+    setPendingVoiceText('');
+    
     try {
       if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        console.log('❌ Speech recognition not supported');
         alert('Speech recognition not supported in this browser');
+        setIsRecording(false);
         return;
       }
       
-      if (isRecording) {
-        stopRecording();
-        const fullTranscript = (voiceTranscript + ' ' + pendingVoiceText).trim();
-        if (fullTranscript) {
-          setVoiceTranscript(fullTranscript);
-          setPendingVoiceText('');
-          setHasPendingVoiceMessage(true);
-        } else {
-          setVoiceTranscript('');
-          setPendingVoiceText('');
-          setHasPendingVoiceMessage(false);
-        }
-        return;
-      }
+      console.log('🎤 Starting recording...');
       
       // Start recording
       try {
+        console.log('🎤 Requesting microphone access...');
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log('✅ Microphone access granted');
         streamRef.current = stream;
         audioContextRef.current = new AudioContext();
         const source = audioContextRef.current.createMediaStreamSource(stream);
@@ -183,7 +211,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         analyserRef.current.fftSize = 256;
         source.connect(analyserRef.current);
       } catch (audioError) {
-        console.warn('Could not setup audio visualization:', audioError);
+        console.error('❌ Audio setup error:', audioError);
+        setIsRecording(false);
+        alert(`Microphone error: ${audioError.message}`);
+        return;
       }
       
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
@@ -192,14 +223,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = navigator.language || 'en-US';
-      
-      recognition.onstart = () => {
-        setIsRecording(true);
-        setVoiceTranscript('');
-        setPendingVoiceText('');
-      };
+      recognition.maxAlternatives = 1;
       
       recognition.onresult = (event: any) => {
+        console.log('📝 Speech recognition result received');
         let finalTranscript = '';
         let interimTranscript = '';
         
@@ -212,33 +239,58 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
           }
         }
         
+        console.log('📝 Final transcript:', finalTranscript);
+        console.log('📝 Interim transcript:', interimTranscript);
+        
         setVoiceTranscript(finalTranscript.trim());
         setPendingVoiceText(interimTranscript.trim());
       };
       
       recognition.onerror = (event: any) => {
-        if (event.error === 'no-speech') return;
-        stopRecording();
-        setVoiceTranscript('');
-        setPendingVoiceText('');
+        console.error('❌ Speech recognition error:', event.error);
+        if (event.error === 'no-speech') {
+          console.log('⚠️ No speech detected, continuing...');
+          return;
+        }
+        console.log('❌ Stopping due to error');
+        setIsRecording(false);
+        if (recognitionRef.current) {
+          recognitionRef.current = null;
+        }
       };
       
       recognition.onend = () => {
-        if (recognitionRef.current && isRecording) {
-          try {
-            recognitionRef.current.start();
-          } catch (e) {
-            // Ignore restart errors
-          }
+        console.log('🔄 Speech recognition ended');
+        // Seulement redémarrer si on est encore en mode recording
+        if (isRecording && recognitionRef.current) {
+          console.log('🔄 Restarting recognition...');
+          setTimeout(() => {
+            if (isRecording && recognitionRef.current) {
+              try {
+                recognitionRef.current.start();
+              } catch (e) {
+                console.error('❌ Error restarting:', e);
+              }
+            }
+          }, 100);
         }
       };
       
       recognitionRef.current = recognition;
-      recognition.start();
+      console.log('🚀 Starting speech recognition...');
+      
+      try {
+        recognition.start();
+      } catch (startError) {
+        console.error('❌ Error starting recognition:', startError);
+        setIsRecording(false);
+        return;
+      }
       
     } catch (error) {
-      console.error('Recording error:', error);
-      stopRecording();
+      console.error('❌ Recording error:', error);
+      setIsRecording(false);
+      alert(`Recording error: ${error.message}`);
     }
   };
 
@@ -250,6 +302,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
 
   const handleSend = useCallback(async () => {
     const messageText = voiceTranscript.trim() || input.trim();
+    
     if (!messageText || isLoading) return;
 
     stopRecording();
@@ -290,10 +343,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: result.text || 'I received your message.',
+        role: 'assistant' as const,
+        content: (result.text || 'I received your message.').trim(),
         type: (result.type as Message['type']) || 'text',
-        data: result.data,
+        data: result.data || undefined,
         timestamp: new Date()
       };
       

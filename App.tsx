@@ -73,8 +73,8 @@ const App: React.FC = () => {
       newChat.updatedAt = new Date();
       chatStorage.saveChat(newChat);
       setChats(chatStorage.getChats());
-      setCurrentChatId(newChat.id); // Set immediately since user has sent a message
-      pendingChatIdRef.current = null;
+      // NE PAS changer currentChatId immédiatement pour éviter le remount
+      // setCurrentChatId(newChat.id); 
     } else {
       // Update existing chat (use pending ID if we just created one)
       const chatId = currentChatId || pendingChatIdRef.current;
@@ -87,8 +87,9 @@ const App: React.FC = () => {
           chatStorage.saveChat(chat);
           setChats(chatStorage.getChats());
           
-          // Now that we have a response, update the currentChatId
-          if (!currentChatId && pendingChatIdRef.current) {
+          // Maintenant que nous avons une conversation complète, mettre à jour currentChatId
+          if (!currentChatId && pendingChatIdRef.current && messages.length >= 2) {
+            // Attendre que la conversation soit complète (user + assistant)
             setCurrentChatId(pendingChatIdRef.current);
             pendingChatIdRef.current = null;
           }

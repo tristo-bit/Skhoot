@@ -14,7 +14,7 @@ export const MessageBubble = memo<{ message: Message }>(({ message }) => {
 
   // Embossed text style for AI - pressed into the surface
   const aiTextStyle = {
-    color: '#555',
+    color: '#2D3436', // Utiliser la couleur textPrimary pour une meilleure visibilité
     textShadow: '1px 1px 1px rgba(255, 255, 255, 0.9), -0.5px -0.5px 0.5px rgba(0, 0, 0, 0.15)',
   };
 

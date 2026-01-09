@@ -72,6 +72,9 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
   onMicClick,
   onQuickAction,
 }, ref) => {
+  // DEBUG: Log des props reçues
+  console.log('🔄 PromptArea render - isRecording:', isRecording, 'hasPendingVoiceMessage:', hasPendingVoiceMessage);
+  
   const hasContent = input.trim().length > 0;
   const showQuickActions = !isRecording && !hasPendingVoiceMessage;
   const placeholder = hasPendingVoiceMessage ? "Send your message?" : "Skhoot is listening...";

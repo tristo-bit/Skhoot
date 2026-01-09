@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { MOCK_FILES, MOCK_MESSAGES } from "../constants";
+import { Message } from "../types";
 
 const findFileFunction: FunctionDeclaration = {
   name: 'findFile',
@@ -64,6 +65,7 @@ export const geminiService = {
   async chat(message: string, history: any[] = []) {
     // Creating a new GoogleGenAI instance inside the function to ensure up-to-date API key access
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY not found in environment variables');
     }
@@ -76,7 +78,7 @@ export const geminiService = {
           { role: 'user', parts: [{ text: message }] }
         ],
         config: {
-          systemInstruction: "You are Skhoot, a proactive desktop 'seeker' owl assistant. Your goal is to reduce cognitive load for the user. IMPORTANT: When a user explains they have lost something, are looking for a file/message, or are generally searching, YOUR FIRST REFLEX IS TO SEARCH IMMEDIATELY using the tools. Do NOT ask for more details or clarifications first. Infer the best search terms from the user's description and trigger the appropriate findFile or findMessage tool. Only talk after you have search results to show. Always be polite, modern, and concise.",
+          systemInstruction: "You are Skhoot, a helpful desktop assistant. Respond naturally to user messages. Only use tools when the user explicitly asks you to search for files, messages, or analyze disk space.",
           tools: [{ functionDeclarations: [
             findFileFunction, 
             findMessageFunction, 
@@ -132,7 +134,8 @@ export const geminiService = {
         };
       }
 
-      return { text: response.text || "I'm here! How can I help you?", type: 'text' };
+      const responseText = response.text || "I'm here! How can I help you?";
+      return { text: responseText, type: 'text' };
     } catch (error) {
       console.error("Gemini Error:", error);
       return { text: "I'm sorry, I encountered an issue accessing your system index.", type: 'text' };
