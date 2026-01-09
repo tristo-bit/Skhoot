@@ -15,7 +15,7 @@ interface AudioDevice {
 
 const SETTINGS_ITEMS = [
   { icon: Volume2, label: 'Sound', color: COLORS.almostAqua },
-  { icon: Bell, label: 'Notifications', color: COLORS.raindropsOnRoses },
+  // { icon: Bell, label: 'Notifications', color: COLORS.raindropsOnRoses },
   { icon: Palette, label: 'Appearance', color: COLORS.lemonIcing },
   { icon: Shield, label: 'Privacy', color: COLORS.iceMelt },
   { icon: ClipboardList, label: 'Activity Log', color: COLORS.orchidTint },
