@@ -1,5 +1,5 @@
 import React, { forwardRef, memo } from 'react';
-import { COLORS, GLASS_STYLES } from '../constants';
+import { COLORS, GLASS_STYLES } from '../src/constants';
 import { Message } from '../types';
 import { MessageBubble, LoadingIndicator, SearchingIndicator } from './Messages';
 import { VoiceMessage } from './VoiceMessage';
@@ -12,7 +12,7 @@ const SkhootLogo = memo(({ size = 64 }: { size?: number }) => (
     alt="Skhoot" 
     width={size} 
     height={size}
-    style={{ filter: 'drop-shadow(1px 2px 2px rgba(0,0,0,0.25)) drop-shadow(-1px -1px 1px rgba(255,255,255,0.4))' }}
+    className="drop-shadow-lg dark:drop-shadow-none dark:brightness-90"
   />
 ));
 SkhootLogo.displayName = 'SkhootLogo';
@@ -47,9 +47,8 @@ export const EmptyState = memo<EmptyStateProps>(({ welcomeMessage, isExiting = f
       <SkhootLogo size={64} />
     </div>
     <h2 
-      className="text-2xl font-bold tracking-tight font-jakarta" 
+      className="text-2xl font-bold tracking-tight font-jakarta text-text-primary" 
       style={{ 
-        color: '#1e1e1e',
         transform: isExiting ? 'translateY(20px)' : 'translateY(0)',
         opacity: isExiting ? 0 : 1,
         transition: 'transform 400ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms ease-out',

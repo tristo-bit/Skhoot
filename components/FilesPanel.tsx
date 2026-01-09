@@ -1,6 +1,5 @@
 import React, { memo, useState } from 'react';
 import { X, HardDrive, Link2, Archive, RefreshCw, Plus, Trash2, FolderOpen, Check } from 'lucide-react';
-import { COLORS, GLASS_STYLES } from '../constants';
 import { MOCK_CONNECTED_APPS, MOCK_ARCHIVED_FILES } from '../browser-test/demo';
 
 interface FilesPanelProps {
@@ -40,39 +39,33 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
-      <div 
-        className="w-[90%] max-w-[400px] max-h-[80%] rounded-3xl overflow-hidden border border-black/5 animate-in zoom-in-95 duration-300"
-        style={{ 
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(20px)',
-        }}
+      <div className="w-[90%] max-w-[400px] h-[500px] rounded-3xl overflow-hidden glass-elevated animate-in zoom-in-95 duration-300 flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-black/5 flex items-center justify-between">
-          <h2 className="text-lg font-black font-jakarta" style={{ color: COLORS.textPrimary }}>
+        <div className="px-6 py-4 flex items-center justify-between flex-shrink-0">
+          <h2 className="text-lg font-black font-jakarta text-text-primary">
             Utility
           </h2>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-black/5 rounded-xl transition-all active:scale-95"
+            className="p-2 hover:glass-subtle rounded-xl transition-all active:scale-95"
           >
-            <X size={18} className="text-gray-500" />
+            <X size={18} className="text-text-secondary" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="px-4 py-2 flex gap-1 border-b border-black/5">
+        <div className="px-4 py-2 flex gap-1 flex-shrink-0">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[11px] font-bold font-jakarta transition-all ${
                 activeTab === tab.id 
-                  ? 'bg-black/5' 
-                  : 'hover:bg-black/[0.02]'
+                  ? 'glass-subtle text-text-primary' 
+                  : 'hover:glass-subtle text-text-secondary'
               }`}
-              style={{ color: activeTab === tab.id ? COLORS.textPrimary : COLORS.textSecondary }}
             >
               {tab.icon}
               {tab.label}
@@ -81,14 +74,16 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="p-4 overflow-y-auto max-h-[400px] no-scrollbar">
-          {activeTab === 'disks' && <DisksTab />}
-          {activeTab === 'apps' && (
-            <AppsTab apps={connectedApps} onToggle={toggleAppConnection} />
-          )}
-          {activeTab === 'archive' && (
-            <ArchiveTab files={archivedFiles} onDelete={deleteArchive} />
-          )}
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full p-4 overflow-y-auto no-scrollbar">
+            {activeTab === 'disks' && <DisksTab />}
+            {activeTab === 'apps' && (
+              <AppsTab apps={connectedApps} onToggle={toggleAppConnection} />
+            )}
+            {activeTab === 'archive' && (
+              <ArchiveTab files={archivedFiles} onDelete={deleteArchive} />
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -106,42 +101,36 @@ const DisksTab = memo(() => {
       {disks.map((disk, i) => (
         <div 
           key={i}
-          className="p-4 rounded-2xl border border-black/5"
-          style={{ backgroundColor: 'rgba(255, 255, 255, 0.5)' }}
+          className="p-4 rounded-2xl glass-subtle border-glass-border"
         >
           <div className="flex items-center gap-3 mb-3">
-            <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: `${COLORS.iceMelt}80` }}
-            >
-              <HardDrive size={18} className="text-gray-600" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center glass-subtle">
+              <HardDrive size={18} className="text-text-secondary" />
             </div>
             <div className="flex-1">
-              <p className="text-[13px] font-bold font-jakarta text-gray-800">{disk.name}</p>
-              <p className="text-[10px] font-medium text-gray-500 font-jakarta">
+              <p className="text-[13px] font-bold font-jakarta text-text-primary">{disk.name}</p>
+              <p className="text-[10px] font-medium text-text-secondary font-jakarta">
                 {disk.free} available of {disk.total}
               </p>
             </div>
           </div>
           
-          <div className="h-2 w-full bg-black/5 rounded-full overflow-hidden">
+          <div className="h-2 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--glass-border)' }}>
             <div 
               className="h-full rounded-full transition-all duration-500"
               style={{ 
                 width: `${disk.percent}%`,
-                backgroundColor: disk.percent > 80 ? '#ef4444' : disk.percent > 60 ? COLORS.lemonIcing : COLORS.almostAqua,
+                backgroundColor: disk.percent > 80 ? '#ef4444' : disk.percent > 60 ? '#f59e0b' : 'var(--accent)',
               }}
             />
           </div>
-          <p className="text-[9px] font-bold text-gray-400 mt-1.5 font-jakarta">
+          <p className="text-[9px] font-bold text-text-secondary mt-1.5 font-jakarta">
             {disk.used} used ({disk.percent}%)
           </p>
         </div>
       ))}
       
-      <button 
-        className="w-full p-3 rounded-xl border border-dashed border-black/10 text-[11px] font-bold font-jakarta text-gray-400 hover:bg-black/[0.02] transition-all flex items-center justify-center gap-2"
-      >
+      <button className="w-full p-3 rounded-xl border border-dashed border-glass-border text-[11px] font-bold font-jakarta text-text-secondary hover:glass-subtle transition-all flex items-center justify-center gap-2">
         <Plus size={14} />
         Add External Drive
       </button>
@@ -163,14 +152,13 @@ const AppsTab = memo<AppsTabProps>(({ apps, onToggle }) => (
     {apps.map(app => (
       <div 
         key={app.id}
-        className="p-3 rounded-xl border border-black/5 flex items-center gap-3"
-        style={{ backgroundColor: 'rgba(255, 255, 255, 0.5)' }}
+        className="p-3 rounded-xl glass-subtle border-glass-border flex items-center gap-3"
       >
         <span className="text-2xl">{app.icon}</span>
         <div className="flex-1">
-          <p className="text-[12px] font-bold font-jakarta text-gray-800">{app.name}</p>
+          <p className="text-[12px] font-bold font-jakarta text-text-primary">{app.name}</p>
           {app.connected && app.lastSync && (
-            <p className="text-[9px] font-medium text-gray-400 font-jakarta">
+            <p className="text-[9px] font-medium text-text-secondary font-jakarta">
               Synced {app.lastSync}
             </p>
           )}
@@ -180,7 +168,7 @@ const AppsTab = memo<AppsTabProps>(({ apps, onToggle }) => (
           className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-jakarta transition-all flex items-center gap-1.5 ${
             app.connected 
               ? 'bg-green-500/10 text-green-600' 
-              : 'bg-black/5 text-gray-500 hover:bg-black/10'
+              : 'glass-subtle text-text-secondary hover:glass-elevated'
           }`}
         >
           {app.connected ? (
@@ -208,14 +196,14 @@ interface ArchiveTabProps {
 
 const ArchiveTab = memo<ArchiveTabProps>(({ files, onDelete }) => (
   <div className="space-y-2">
-    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3 font-jakarta">
+    <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-3 font-jakarta">
       Archived files are indexed and searchable
     </p>
     {files.length === 0 ? (
       <div className="p-8 text-center">
-        <Archive size={32} className="mx-auto mb-3 text-gray-300" />
-        <p className="text-[12px] font-semibold text-gray-400 font-jakarta">No archived files</p>
-        <p className="text-[10px] text-gray-400 font-jakarta mt-1">
+        <Archive size={32} className="mx-auto mb-3 text-text-secondary opacity-50" />
+        <p className="text-[12px] font-semibold text-text-secondary font-jakarta">No archived files</p>
+        <p className="text-[10px] text-text-secondary font-jakarta mt-1">
           Archive files to save space while keeping them searchable
         </p>
       </div>
@@ -223,36 +211,30 @@ const ArchiveTab = memo<ArchiveTabProps>(({ files, onDelete }) => (
       files.map(file => (
         <div 
           key={file.id}
-          className="p-3 rounded-xl border border-black/5"
-          style={{ backgroundColor: 'rgba(255, 255, 255, 0.5)' }}
+          className="p-3 rounded-xl glass-subtle border-glass-border"
         >
           <div className="flex items-start gap-3">
-            <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: `${COLORS.orchidTint}50` }}
-            >
-              <Archive size={16} className="text-gray-600" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 glass-subtle">
+              <Archive size={16} className="text-accent" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-bold font-jakarta text-gray-800 truncate">{file.name}</p>
-              <p className="text-[9px] font-medium text-gray-400 font-jakarta truncate">
+              <p className="text-[11px] font-bold font-jakarta text-text-primary truncate">{file.name}</p>
+              <p className="text-[9px] font-medium text-text-secondary font-jakarta truncate">
                 {file.originalPath}
               </p>
-              <p className="text-[9px] font-medium text-gray-400 font-jakarta mt-1">
+              <p className="text-[9px] font-medium text-text-secondary font-jakarta mt-1">
                 {file.size} • Archived {file.archivedDate}
               </p>
             </div>
           </div>
           <div className="flex gap-2 mt-3">
-            <button 
-              className="flex-1 py-2 rounded-lg text-[10px] font-bold font-jakarta bg-black/5 text-gray-600 hover:bg-black/10 transition-all flex items-center justify-center gap-1.5"
-            >
+            <button className="flex-1 py-2 rounded-lg text-[10px] font-bold font-jakarta glass-subtle text-text-primary hover:glass-elevated transition-all flex items-center justify-center gap-1.5">
               <FolderOpen size={12} />
               Restore
             </button>
             <button 
               onClick={() => onDelete(file.id)}
-              className="py-2 px-3 rounded-lg text-[10px] font-bold font-jakarta text-red-500 hover:bg-red-50 transition-all"
+              className="py-2 px-3 rounded-lg text-[10px] font-bold font-jakarta text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
             >
               <Trash2 size={12} />
             </button>

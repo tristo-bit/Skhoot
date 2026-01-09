@@ -1,15 +1,13 @@
 import React, { memo, useMemo } from 'react';
-import { COLORS } from '../../constants';
 
 interface MarkdownRendererProps {
   content: string;
   style?: React.CSSProperties;
 }
 
-// Embossed text style for AI
+// Base text style for AI messages
 const baseTextStyle: React.CSSProperties = {
-  color: '#555',
-  textShadow: '1px 1px 1px rgba(255, 255, 255, 0.9), -0.5px -0.5px 0.5px rgba(0, 0, 0, 0.15)',
+  color: 'var(--text-secondary)',
 };
 
 // Parse inline markdown (bold, italic, code, links)
@@ -23,7 +21,7 @@ const parseInline = (text: string): React.ReactNode[] => {
     let match = remaining.match(/^(\*\*|__)(.+?)\1/);
     if (match) {
       elements.push(
-        <strong key={key++} className="font-black" style={{ color: '#444' }}>
+        <strong key={key++} className="font-black text-text-primary">
           {parseInline(match[2])}
         </strong>
       );
@@ -35,7 +33,7 @@ const parseInline = (text: string): React.ReactNode[] => {
     match = remaining.match(/^(\*|_)(.+?)\1/);
     if (match) {
       elements.push(
-        <em key={key++} className="italic" style={{ color: '#666' }}>
+        <em key={key++} className="italic text-text-secondary">
           {parseInline(match[2])}
         </em>
       );
@@ -49,12 +47,7 @@ const parseInline = (text: string): React.ReactNode[] => {
       elements.push(
         <code
           key={key++}
-          className="px-1.5 py-0.5 rounded-md text-[11px] font-mono font-semibold"
-          style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.06)',
-            color: '#c7254e',
-            textShadow: 'none',
-          }}
+          className="px-1.5 py-0.5 rounded-md text-[11px] font-mono font-semibold glass-subtle text-accent"
         >
           {match[1]}
         </code>
@@ -72,8 +65,7 @@ const parseInline = (text: string): React.ReactNode[] => {
           href={match[2]}
           target="_blank"
           rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:opacity-70 transition-opacity"
-          style={{ color: COLORS.fukuBrand }}
+          className="underline underline-offset-2 hover:opacity-70 transition-opacity text-accent"
         >
           {match[1]}
         </a>
@@ -132,21 +124,11 @@ const parseMarkdown = (content: string): React.ReactNode[] => {
       elements.push(
         <div key={key++} className="my-3 rounded-xl overflow-hidden border border-black/5">
           {lang && (
-            <div 
-              className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider font-jakarta"
-              style={{ backgroundColor: 'rgba(0, 0, 0, 0.08)', color: '#888' }}
-            >
+            <div className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider font-jakarta glass-subtle text-text-secondary">
               {lang}
             </div>
           )}
-          <pre
-            className="p-3 overflow-x-auto text-[11px] font-mono leading-relaxed"
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.04)',
-              color: '#444',
-              textShadow: 'none',
-            }}
-          >
+          <pre className="p-3 overflow-x-auto text-[11px] font-mono leading-relaxed glass-subtle text-text-secondary">
             <code>{codeLines.join('\n')}</code>
           </pre>
         </div>
@@ -164,8 +146,7 @@ const parseMarkdown = (content: string): React.ReactNode[] => {
       elements.push(
         <div
           key={key++}
-          className={`${sizes[level - 1]} font-black font-jakarta mt-3 mb-1.5`}
-          style={{ ...baseTextStyle, color: '#444' }}
+          className={`${sizes[level - 1]} font-black font-jakarta mt-3 mb-1.5 text-text-primary`}
         >
           {parseInline(text)}
         </div>
@@ -179,8 +160,7 @@ const parseMarkdown = (content: string): React.ReactNode[] => {
       elements.push(
         <hr
           key={key++}
-          className="my-3 border-0 h-px"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)' }}
+          className="my-3 border-0 h-px bg-glass-border"
         />
       );
       i++;
@@ -200,8 +180,7 @@ const parseMarkdown = (content: string): React.ReactNode[] => {
             style={{ marginLeft: indent * 8 }}
           >
             <span 
-              className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: COLORS.fukuBrand }}
+              className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 bg-accent"
             />
             <span>{parseInline(itemText)}</span>
           </li>
@@ -224,10 +203,7 @@ const parseMarkdown = (content: string): React.ReactNode[] => {
         const itemText = lines[i].replace(/^[\s]*\d+\.\s/, '');
         listItems.push(
           <li key={listItems.length} className="flex items-start gap-2">
-            <span 
-              className="text-[11px] font-black flex-shrink-0 w-5"
-              style={{ color: COLORS.fukuBrand }}
-            >
+            <span className="text-[11px] font-black flex-shrink-0 w-5 text-accent">
               {num}.
             </span>
             <span>{parseInline(itemText)}</span>
@@ -254,12 +230,7 @@ const parseMarkdown = (content: string): React.ReactNode[] => {
       elements.push(
         <blockquote
           key={key++}
-          className="my-2 pl-3 py-1 text-[12px] font-medium font-jakarta italic border-l-2"
-          style={{
-            borderColor: COLORS.fukuBrand,
-            color: '#777',
-            textShadow: '1px 1px 1px rgba(255, 255, 255, 0.8)',
-          }}
+          className="my-2 pl-3 py-1 text-[12px] font-medium font-jakarta italic border-l-2 border-accent text-text-secondary"
         >
           {quoteLines.map((l, idx) => (
             <p key={idx}>{parseInline(l)}</p>

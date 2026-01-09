@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "Documentation Sync",
+  "description": "Listens to TypeScript source files and prompts the agent to update documentation in README.md when changes are made",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "*.tsx",
+      "*.ts",
+      "package.json",
+      "vite.config.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "I've made changes to source files in this TypeScript React project. Please review the changes and update the README.md file to reflect any new features, API changes, or important modifications. Focus on keeping the documentation accurate and helpful for users and developers."
+  }
+}

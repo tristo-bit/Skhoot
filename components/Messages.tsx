@@ -1,32 +1,13 @@
 import React, { memo, useState } from 'react';
 import { Search, FileText, MessageSquare, ExternalLink, Copy, Check, Folder, Trash2, Archive, AlertTriangle, CheckCircle } from 'lucide-react';
-import { COLORS, THEME, GLASS_STYLES } from '../constants';
-import { Message, FileInfo, ConversationMessage, CleanupItem } from '../types';
+import { Message, FileInfo, ConversationMessage, CleanupItem, DiskInfo } from '../types';
 import { MarkdownRenderer } from './shared';
 
 export const MessageBubble = memo<{ message: Message }>(({ message }) => {
   const isUser = message.role === 'user';
   
-  // User bubble style - keep the frosted glass look
-  const userBubbleStyle = {
-    backgroundColor: `${THEME.userBubble}40`,
-    backdropFilter: 'blur(8px)',
-  };
-
-  // Embossed text style for AI - pressed into the surface
-  const aiTextStyle = {
-    color: '#2D3436', // Utiliser la couleur textPrimary pour une meilleure visibilité
-    textShadow: '1px 1px 1px rgba(255, 255, 255, 0.9), -0.5px -0.5px 0.5px rgba(0, 0, 0, 0.15)',
-  };
-
-  // User text style
-  const userTextStyle = {
-    color: COLORS.textPrimary,
-    textShadow: '0 1px 1px rgba(255, 255, 255, 0.6), 0 -0.5px 0.5px rgba(0, 0, 0, 0.08)',
-  };
-  
   if (!isUser) {
-    // AI message - no bubble, markdown rendered with embossed text
+    // AI message - no bubble, markdown rendered with theme colors
     return (
       <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="max-w-[95%] py-2 px-1">
@@ -52,17 +33,16 @@ export const MessageBubble = memo<{ message: Message }>(({ message }) => {
     );
   }
 
-  // User message - keep bubble
+  // User message - embossed bubble
   return (
     <div className="flex justify-end animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div 
-        className="max-w-[90%] p-4 rounded-3xl rounded-tr-none border border-white/30"
-        style={userBubbleStyle}
+        className="max-w-[90%] p-4 rounded-3xl rounded-tr-none border-glass-border glass-subtle"
+        style={{
+          boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.1)',
+        }}
       >
-        <p 
-          className="text-[13px] leading-relaxed font-semibold font-jakarta" 
-          style={userTextStyle}
-        >
+        <p className="text-[13px] leading-relaxed font-semibold font-jakarta text-text-primary">
           {message.content}
         </p>
       </div>
@@ -87,49 +67,34 @@ const FileItem = memo<{ file: FileInfo }>(({ file }) => {
   };
 
   return (
-    <div 
-      className="p-3 rounded-2xl border border-white/40 animate-in fade-in slide-in-from-bottom-1 duration-300"
-      style={{ 
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',
-        backdropFilter: 'blur(8px)',
-      }}
-    >
+    <div className="glass-subtle p-3 rounded-2xl border-glass-border animate-in fade-in slide-in-from-bottom-1 duration-300">
       <div className="flex items-center gap-3">
-        <div 
-          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: `${COLORS.almostAqua}80` }}
-        >
-          <FileText size={18} className="text-gray-700" />
+        <div className="w-10 h-10 rounded-xl glass-subtle flex items-center justify-center flex-shrink-0">
+          <FileText size={18} className="text-text-secondary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[12px] font-bold truncate text-gray-800 font-jakarta">{file.name}</p>
-          <p className="text-[10px] font-medium opacity-50 truncate font-jakarta">{file.path}</p>
+          <p className="text-[12px] font-bold truncate text-text-primary font-jakarta">{file.name}</p>
+          <p className="text-[10px] font-medium opacity-50 truncate font-jakarta text-text-secondary">{file.path}</p>
         </div>
-        <span className="text-[10px] font-black whitespace-nowrap opacity-50 font-jakarta">
+        <span className="text-[10px] font-black whitespace-nowrap opacity-50 font-jakarta text-text-secondary">
           {file.size}
         </span>
       </div>
       
       {/* Action buttons */}
-      <div className="flex gap-2 mt-3 pt-2 border-t border-black/5">
+      <div className="flex gap-2 mt-3 pt-2 border-t border-glass-border">
         <button
           onClick={handleGo}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 hover:brightness-95"
-          style={{ 
-            backgroundColor: `${COLORS.almostAqua}60`,
-            color: '#555',
-          }}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 hover:brightness-95 glass-subtle text-text-primary"
         >
           <Folder size={12} />
           Go
         </button>
         <button
           onClick={handleCopy}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 hover:brightness-95"
-          style={{ 
-            backgroundColor: copied ? `${COLORS.almostAqua}` : 'rgba(0, 0, 0, 0.05)',
-            color: copied ? '#fff' : '#555',
-          }}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 hover:brightness-95 ${
+            copied ? 'bg-accent text-white' : 'glass-subtle text-text-primary'
+          }`}
         >
           {copied ? <Check size={12} /> : <Copy size={12} />}
           {copied ? 'Copied!' : 'Copy'}
@@ -183,58 +148,37 @@ const MessageItem = memo<{ message: ConversationMessage }>(({ message }) => {
   };
 
   return (
-    <div 
-      className="p-3 rounded-2xl border border-white/40 animate-in fade-in slide-in-from-bottom-1 duration-300"
-      style={{ 
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',
-        backdropFilter: 'blur(8px)',
-      }}
-    >
+    <div className="glass-subtle p-3 rounded-2xl border-glass-border animate-in fade-in slide-in-from-bottom-1 duration-300">
       <div className="flex items-start gap-3">
-        <div 
-          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: `${appColors[message.app] || COLORS.raindropsOnRoses}20` }}
-        >
-          <MessageSquare size={18} style={{ color: appColors[message.app] || '#666' }} />
+        <div className="w-10 h-10 rounded-xl glass-subtle flex items-center justify-center flex-shrink-0">
+          <MessageSquare size={18} className="text-accent" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[11px] font-black text-gray-800 font-jakarta">{message.user}</span>
-            <span 
-              className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-              style={{ 
-                backgroundColor: `${appColors[message.app] || '#666'}15`,
-                color: appColors[message.app] || '#666',
-              }}
-            >
+            <span className="text-[11px] font-black text-text-primary font-jakarta">{message.user}</span>
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full glass-subtle text-accent">
               {message.app}
             </span>
           </div>
-          <p className="text-[12px] font-medium text-gray-600 font-jakarta leading-relaxed">{message.text}</p>
-          <p className="text-[9px] font-medium opacity-40 mt-1 font-jakarta">{message.timestamp}</p>
+          <p className="text-[12px] font-medium text-text-secondary font-jakarta leading-relaxed">{message.text}</p>
+          <p className="text-[9px] font-medium opacity-40 mt-1 font-jakarta text-text-secondary">{message.timestamp}</p>
         </div>
       </div>
       
       {/* Action buttons */}
-      <div className="flex gap-2 mt-3 pt-2 border-t border-black/5">
+      <div className="flex gap-2 mt-3 pt-2 border-t border-glass-border">
         <button
           onClick={handleGo}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 hover:brightness-95"
-          style={{ 
-            backgroundColor: `${appColors[message.app] || COLORS.raindropsOnRoses}20`,
-            color: appColors[message.app] || '#555',
-          }}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 hover:brightness-95 glass-subtle text-accent"
         >
           <ExternalLink size={12} />
           Go
         </button>
         <button
           onClick={handleCopy}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 hover:brightness-95"
-          style={{ 
-            backgroundColor: copied ? COLORS.almostAqua : 'rgba(0, 0, 0, 0.05)',
-            color: copied ? '#fff' : '#555',
-          }}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 hover:brightness-95 ${
+            copied ? 'bg-accent text-white' : 'glass-subtle text-text-primary'
+          }`}
         >
           {copied ? <Check size={12} /> : <Copy size={12} />}
           {copied ? 'Copied!' : 'Copy'}
@@ -265,24 +209,32 @@ const MessageList = memo<{ messages: ConversationMessage[] }>(({ messages }) => 
 ));
 MessageList.displayName = 'MessageList';
 
-const DiskUsage = memo<{ items: FileInfo[] }>(({ items }) => (
-  <div className="mt-4 p-4 bg-white/40 rounded-2xl border border-white/50">
-    <h4 className="text-[10px] font-bold mb-3 uppercase tracking-tighter opacity-40 font-jakarta">
+const DiskUsage = memo<{ items: DiskInfo[] }>(({ items }) => (
+  <div className="mt-4 p-4 glass-subtle rounded-2xl border-glass-border">
+    <h4 className="text-[10px] font-bold mb-3 uppercase tracking-tighter opacity-40 font-jakarta text-text-secondary">
       Disk Analysis
     </h4>
-    <div className="space-y-3">
-      {items.slice(0, 3).map(item => (
-        <div key={item.id} className="space-y-1.5">
-          <div className="flex justify-between text-[10px] font-bold font-jakarta">
-            <span className="truncate max-w-[180px] text-gray-700">{item.name}</span>
-            <span>{item.size}</span>
+    <div className="space-y-4">
+      {items.map(disk => (
+        <div key={disk.id} className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-[13px] font-black text-text-primary font-jakarta">{disk.name}</span>
+            <span className="text-[11px] font-bold text-text-secondary font-jakarta">
+              {disk.usagePercentage}% used
+            </span>
           </div>
-          <div className="h-2 w-full bg-black/5 rounded-full overflow-hidden">
+          <div className="text-[11px] text-text-primary font-jakarta font-medium">
+            {disk.availableSpace} GB available of {disk.totalSpace} GB
+          </div>
+          <div className="text-[11px] text-text-secondary font-jakarta font-medium mb-2">
+            {disk.usedSpace} GB used ({disk.usagePercentage}%)
+          </div>
+          <div className="h-3 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--glass-border)' }}>
             <div 
-              className="h-full transition-all duration-1000" 
+              className="h-full transition-all duration-1000 rounded-full" 
               style={{ 
-                backgroundColor: COLORS.orchidTint, 
-                width: item.size.includes('GB') ? '82%' : '18%' 
+                width: `${disk.usagePercentage}%`,
+                backgroundColor: 'var(--accent)'
               }} 
             />
           </div>
@@ -318,10 +270,7 @@ const CleanupItemCard = memo<{ item: CleanupItem }>(({ item }) => {
 
   if (removed) {
     return (
-      <div 
-        className="p-3 rounded-2xl border border-green-200 animate-in fade-in duration-300"
-        style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)' }}
-      >
+      <div className="p-3 rounded-2xl border border-green-500/30 animate-in fade-in duration-300 bg-green-500/10">
         <div className="flex items-center gap-2 text-green-600">
           <CheckCircle size={16} />
           <span className="text-[11px] font-bold font-jakarta">
@@ -334,11 +283,8 @@ const CleanupItemCard = memo<{ item: CleanupItem }>(({ item }) => {
 
   if (archived) {
     return (
-      <div 
-        className="p-3 rounded-2xl border border-purple-200 animate-in fade-in duration-300"
-        style={{ backgroundColor: `${COLORS.orchidTint}30` }}
-      >
-        <div className="flex items-center gap-2" style={{ color: COLORS.fukuBrand }}>
+      <div className="p-3 rounded-2xl border border-accent/30 animate-in fade-in duration-300 bg-accent/10">
+        <div className="flex items-center gap-2 text-accent">
           <Archive size={16} />
           <span className="text-[11px] font-bold font-jakarta">
             {item.name} archived — searchable via Skhoot
@@ -349,53 +295,41 @@ const CleanupItemCard = memo<{ item: CleanupItem }>(({ item }) => {
   }
 
   return (
-    <div 
-      className="p-4 rounded-2xl border border-white/40 animate-in fade-in slide-in-from-bottom-1 duration-300"
-      style={{ 
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',
-        backdropFilter: 'blur(8px)',
-      }}
-    >
+    <div className="glass-subtle p-4 rounded-2xl border-glass-border animate-in fade-in slide-in-from-bottom-1 duration-300">
       <div className="flex items-start gap-3">
-        <div 
-          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ 
-            backgroundColor: item.canRemove ? `${COLORS.lemonIcing}80` : `${COLORS.raindropsOnRoses}80` 
-          }}
-        >
-          <Folder size={18} className="text-gray-700" />
+        <div className="w-10 h-10 rounded-xl glass-subtle flex items-center justify-center flex-shrink-0">
+          <Folder size={18} className="text-text-secondary" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-[12px] font-bold truncate text-gray-800 font-jakarta">{item.name}</p>
-            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-black/5 text-gray-500">
+            <p className="text-[12px] font-bold truncate text-text-primary font-jakarta">{item.name}</p>
+            <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full glass-subtle text-text-secondary">
               {item.size}
             </span>
           </div>
-          <p className="text-[10px] font-medium opacity-50 truncate font-jakarta">{item.path}</p>
+          <p className="text-[10px] font-medium opacity-50 truncate font-jakarta text-text-secondary">{item.path}</p>
         </div>
       </div>
 
       {/* Description */}
-      <div className="mt-3 p-2.5 rounded-xl bg-black/[0.03]">
-        <p className="text-[10px] font-medium text-gray-600 font-jakarta leading-relaxed">
+      <div className="mt-3 p-2.5 rounded-xl glass-subtle">
+        <p className="text-[10px] font-medium text-text-secondary font-jakarta leading-relaxed">
           {item.description}
         </p>
       </div>
 
       {/* Consequence warning */}
-      <div 
-        className="mt-2 p-2.5 rounded-xl flex items-start gap-2"
-        style={{ 
-          backgroundColor: item.canRemove ? `${COLORS.almostAqua}30` : `${COLORS.raindropsOnRoses}40` 
-        }}
-      >
+      <div className={`mt-2 p-2.5 rounded-xl flex items-start gap-2 ${
+        item.canRemove ? 'bg-green-500/10 border border-green-500/20' : 'bg-amber-500/10 border border-amber-500/20'
+      }`}>
         {item.canRemove ? (
           <CheckCircle size={14} className="text-green-600 flex-shrink-0 mt-0.5" />
         ) : (
           <AlertTriangle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
         )}
-        <p className="text-[10px] font-semibold font-jakarta leading-relaxed" style={{ color: item.canRemove ? '#166534' : '#92400e' }}>
+        <p className={`text-[10px] font-semibold font-jakarta leading-relaxed ${
+          item.canRemove ? 'text-green-700' : 'text-amber-700'
+        }`}>
           {item.consequence}
         </p>
       </div>
@@ -423,11 +357,9 @@ const CleanupItemCard = memo<{ item: CleanupItem }>(({ item }) => {
           <button
             onClick={handleArchive}
             disabled={isRemoving || isArchiving}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 disabled:opacity-50"
-            style={{ 
-              backgroundColor: isArchiving ? COLORS.orchidTint : `${COLORS.orchidTint}30`,
-              color: isArchiving ? '#fff' : COLORS.fukuBrand,
-            }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 disabled:opacity-50 ${
+              isArchiving ? 'bg-accent text-white' : 'glass-subtle text-accent hover:bg-accent/10'
+            }`}
           >
             <Archive size={12} className={isArchiving ? 'animate-pulse' : ''} />
             {isArchiving ? 'Archiving...' : 'Archive'}
@@ -514,37 +446,23 @@ export const SearchingIndicator = memo<{ type: 'files' | 'messages' | 'disk' | '
 
   return (
     <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div 
-        className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-        style={{ 
-          backgroundColor: `${COLORS.orchidTint}30`,
-          border: '1px solid rgba(255, 255, 255, 0.3)',
-        }}
-      >
+      <div className="flex items-center gap-3 px-4 py-3 rounded-2xl glass-subtle border-glass-border">
         <div className="relative">
-          <div 
-            className="w-8 h-8 rounded-xl flex items-center justify-center"
-            style={{ backgroundColor: `${COLORS.orchidTint}50` }}
-          >
-            <span className="text-gray-600 animate-pulse">{icons[type]}</span>
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center glass-subtle">
+            <span className="text-accent animate-pulse">{icons[type]}</span>
           </div>
           {/* Scanning animation */}
           <div 
             className="absolute inset-0 rounded-xl overflow-hidden"
             style={{ 
-              background: `linear-gradient(90deg, transparent 0%, ${COLORS.orchidTint}40 50%, transparent 100%)`,
+              background: `linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%)`,
+              opacity: 0.3,
               animation: 'scan 1.5s ease-in-out infinite',
             }}
           />
         </div>
         <div>
-          <p 
-            className="text-[12px] font-bold font-jakarta"
-            style={{ 
-              color: '#555',
-              textShadow: '1px 1px 1px rgba(255, 255, 255, 0.9)',
-            }}
-          >
+          <p className="text-[12px] font-bold font-jakarta text-text-primary">
             {labels[type]}
           </p>
           <div className="flex gap-1 mt-1">

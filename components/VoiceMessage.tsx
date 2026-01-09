@@ -1,6 +1,5 @@
 import React, { useState, memo, useRef, useEffect } from 'react';
 import { Send, X, MessageSquare } from 'lucide-react';
-import { COLORS, THEME, GLASS_STYLES } from '../constants';
 
 interface VoiceMessageProps {
   transcript: string;
@@ -64,8 +63,8 @@ export const VoiceMessage = memo<VoiceMessageProps>(({
               }
             }
           `}</style>
-          <div className="bg-gray-200 rounded-full p-3 flex items-center justify-center">
-            <MessageSquare size={20} className="text-gray-500" />
+          <div className="glass-subtle rounded-full p-3 flex items-center justify-center">
+            <MessageSquare size={20} className="text-text-secondary" />
           </div>
         </div>
       </div>
@@ -85,17 +84,12 @@ export const VoiceMessage = memo<VoiceMessageProps>(({
         
         <div 
           ref={contentRef}
-          className="rounded-3xl rounded-tr-none border border-white/30"
-          style={{ backgroundColor: `${THEME.userBubble}40`, backdropFilter: 'blur(8px)' }}
+          className="glass-elevated rounded-3xl rounded-tr-none border-glass-border"
         >
           <div className={isCompact ? 'p-3 space-y-1.5' : 'p-4 space-y-2'}>
             {transcript && (
               <p 
-                className={`leading-relaxed font-semibold font-jakarta ${isCompact ? 'text-[12px]' : 'text-[13px]'}`}
-                style={{ 
-                  color: COLORS.textPrimary,
-                  textShadow: '0 1px 1px rgba(255, 255, 255, 0.6), 0 -0.5px 0.5px rgba(0, 0, 0, 0.08)',
-                }}
+                className={`leading-relaxed font-semibold font-jakarta text-text-primary ${isCompact ? 'text-[12px]' : 'text-[13px]'}`}
               >
                 {transcript}
               </p>
@@ -103,8 +97,7 @@ export const VoiceMessage = memo<VoiceMessageProps>(({
             
             {pendingText && (
               <p 
-                className={`leading-relaxed font-medium opacity-60 italic font-jakarta animate-pulse ${isCompact ? 'text-[10px]' : 'text-[11px]'}`}
-                style={{ color: COLORS.textSecondary }}
+                className={`leading-relaxed font-medium opacity-60 italic font-jakarta animate-pulse text-text-secondary ${isCompact ? 'text-[10px]' : 'text-[11px]'}`}
               >
                 {pendingText}
               </p>
@@ -116,22 +109,14 @@ export const VoiceMessage = memo<VoiceMessageProps>(({
             <div className={`flex items-center ${isCompact ? 'px-3 pb-2.5 gap-1.5' : 'px-4 pb-3 gap-2'}`}>
               <button
                 onClick={onSend}
-                className={`${buttonSize} flex items-center justify-center active:scale-90 border border-black/5 text-gray-700 hover:brightness-95 transition-all`}
-                style={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                  ...GLASS_STYLES.base,
-                  boxShadow: '0 2px 4px -1px rgba(0,0,0,0.1), 0 1px 2px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05)',
-                }}
+                className={`${buttonSize} flex items-center justify-center active:scale-90 glass-subtle text-text-primary hover:brightness-95 transition-all`}
               >
                 <Send size={iconSize} />
               </button>
               
               <button
                 onClick={handleDiscard}
-                className={`${buttonSize} flex items-center justify-center active:scale-90 border border-black/5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all`}
-                style={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                }}
+                className={`${buttonSize} flex items-center justify-center active:scale-90 glass-subtle text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all`}
               >
                 <X size={iconSize} />
               </button>

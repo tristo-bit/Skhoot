@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
-import { MOCK_FILES, MOCK_MESSAGES } from "../constants";
+import { MOCK_FILES, MOCK_MESSAGES } from "../src/constants";
 import { Message } from "../types";
 
 const findFileFunction: FunctionDeclaration = {

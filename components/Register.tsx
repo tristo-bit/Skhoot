@@ -1,5 +1,4 @@
 import React, { useState, memo } from 'react';
-import { COLORS, THEME } from '../constants';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, Loader2, User as UserIcon } from 'lucide-react';
 import { authService } from '../services/auth';
 import { User } from '../types';
@@ -49,7 +48,7 @@ const SSOButton = memo<{
     <button
       onClick={onClick}
       disabled={isLoading}
-      className="w-full flex items-center justify-center gap-3 p-3 rounded-xl border border-black/5 transition-all hover:bg-white/60 active:scale-[0.98] disabled:opacity-50"
+      className="w-full flex items-center justify-center gap-3 p-3 rounded-xl border border-black/5 transition-all hover:bg-white/10 dark:hover:bg-white/5 active:scale-[0.98] disabled:opacity-50"
       style={{ backgroundColor: 'rgba(255,255,255,0.4)' }}
     >
       {isLoading ? <Loader2 size={20} className="animate-spin" /> : icons[provider]}
@@ -161,7 +160,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin, onClos
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-black/5 bg-white/50 text-sm font-jakarta placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-300/50"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-black/5 glass-subtle text-sm font-jakarta placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-300/50"
                 />
               </div>
             </div>
@@ -175,7 +174,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin, onClos
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-black/5 bg-white/50 text-sm font-jakarta placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-300/50"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-black/5 glass-subtle text-sm font-jakarta placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-300/50"
                 />
               </div>
             </div>
@@ -189,7 +188,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin, onClos
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-3 rounded-xl border border-black/5 bg-white/50 text-sm font-jakarta placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-300/50"
+                  className="w-full pl-10 pr-10 py-3 rounded-xl border border-black/5 glass-subtle text-sm font-jakarta placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-300/50"
                 />
                 <button
                   type="button"
@@ -210,7 +209,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin, onClos
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-black/5 bg-white/50 text-sm font-jakarta placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-300/50"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-black/5 glass-subtle text-sm font-jakarta placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-300/50"
                 />
               </div>
             </div>

@@ -7,19 +7,19 @@ import Register from './components/Register';
 import UserPanel from './components/UserPanel';
 import FilesPanel from './components/FilesPanel';
 import TraceabilityPanel from './components/TraceabilityPanel';
-import { COLORS, THEME } from './constants';
 import { Menu, X, Settings, User as UserIcon, FolderOpen } from 'lucide-react';
 import { GlassButton } from './components/shared';
 import { chatStorage } from './services/chatStorage';
 import { authService } from './services/auth';
 import { Chat, Message, User } from './types';
+import { ThemeProvider } from './src/contexts/ThemeContext';
 
 const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
   <img src="/skhoot-purple.svg" alt="Skhoot" width={size} height={size} />
 ));
 SkhootLogo.displayName = 'SkhootLogo';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -140,41 +140,29 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div 
-      className="flex h-screen w-full items-center justify-center p-4 overflow-hidden" 
-      style={{ backgroundColor: THEME.background }}
-    >
+    <div className="flex h-screen w-full items-center justify-center p-4 overflow-hidden bg-bg-primary">
       {/* Background blurs */}
-      <BackgroundBlur position="top-[5%] left-[15%]" color={COLORS.orchidTint} />
-      <BackgroundBlur position="bottom-[5%] right-[15%]" color={COLORS.almostAqua} />
+      <BackgroundBlur position="top-[5%] left-[15%]" />
+      <BackgroundBlur position="bottom-[5%] right-[15%]" />
 
       {/* Main container */}
-      <div 
-        className="relative z-10 w-full max-w-[480px] h-[720px] flex flex-col rounded-[40px] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] overflow-hidden" 
-        style={{ 
-          backgroundColor: 'rgba(255,255,255,0.4)', 
-          backdropFilter: 'blur(30px)' 
-        }}
-      >
+      <div className="relative z-10 w-full max-w-[480px] h-[720px] flex flex-col rounded-[40px] shadow-2xl overflow-hidden glass-elevated">
         {/* Header */}
         <header className="relative z-30 px-6 py-5 flex items-center justify-between">
           {/* Left side with morphing background */}
           <div className="flex items-center gap-4 relative">
             {/* Morphing background that extends from sidebar */}
             <div 
-              className={`absolute -left-6 -top-5 -bottom-5 rounded-r-3xl transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+              className={`absolute -left-6 -top-5 -bottom-5 rounded-r-3xl transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] bg-bg-secondary ${
                 isSidebarOpen ? 'w-64 opacity-100' : 'w-0 opacity-0'
               }`}
-              style={{ 
-                backgroundColor: THEME.sidebar,
-              }}
             >
               <div className="absolute inset-0 bg-black/5 rounded-r-3xl" />
             </div>
             
             <button 
               onClick={toggleSidebar}
-              className="relative z-10 p-1.5 hover:bg-black/5 rounded-lg transition-all text-gray-600 active:scale-95"
+              className="relative z-10 p-1.5 hover:bg-black/5 rounded-lg transition-all text-text-secondary active:scale-95"
               aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
             >
               <div className="relative w-[18px] h-[18px]">
@@ -199,10 +187,7 @@ const App: React.FC = () => {
               }`}
             >
               <SkhootLogo size={18} />
-              <span 
-                className="text-sm font-black tracking-[0.2em] font-jakarta" 
-                style={{ color: COLORS.fukuBrand }}
-              >
+              <span className="text-sm font-black tracking-[0.2em] font-jakarta text-fuku-brand">
                 SKHOOT
               </span>
             </div>
@@ -289,12 +274,15 @@ const App: React.FC = () => {
   );
 };
 
-const BackgroundBlur = memo<{ position: string; color: string }>(({ position, color }) => (
-  <div 
-    className={`absolute ${position} w-[600px] h-[600px] rounded-full blur-[150px] opacity-40 animate-pulse pointer-events-none`} 
-    style={{ backgroundColor: color }} 
-  />
+const BackgroundBlur = memo<{ position: string }>(({ position }) => (
+  <div className={`absolute ${position} w-[600px] h-[600px] rounded-full blur-[150px] opacity-40 animate-pulse pointer-events-none bg-orchid-tint dark:bg-almost-aqua`} />
 ));
 BackgroundBlur.displayName = 'BackgroundBlur';
+
+const App: React.FC = () => (
+  <ThemeProvider>
+    <AppContent />
+  </ThemeProvider>
+);
 
 export default App;

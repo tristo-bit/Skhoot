@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { COLORS, WELCOME_MESSAGES, QUICK_ACTIONS, MOCK_FILES, MOCK_MESSAGES } from '../constants';
+import { COLORS, WELCOME_MESSAGES, QUICK_ACTIONS, MOCK_FILES, MOCK_MESSAGES } from '../src/constants';
 import { Message } from '../types';
 import { geminiService } from '../services/gemini';
 import { Conversations } from './Conversations';

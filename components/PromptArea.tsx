@@ -1,6 +1,6 @@
 import React, { memo, forwardRef, useRef, useEffect, useState } from 'react';
 import { Send, Square, Search, MessageSquare, HardDrive, Trash2, Mic } from 'lucide-react';
-import { COLORS, QUICK_ACTIONS, GLASS_STYLES } from '../constants';
+import { COLORS, QUICK_ACTIONS, GLASS_STYLES } from '../src/constants';
 import { SoundWave } from './shared';
 
 // Icon mapping for quick actions
@@ -23,21 +23,22 @@ interface QuickActionButtonProps {
 const QuickActionButton = memo<QuickActionButtonProps>(({ id, icon, color, isActive, onClick, style }) => (
   <button 
     onClick={onClick}
-    className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black border transition-all duration-300 whitespace-nowrap font-jakarta outline-none ${
+    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 font-jakarta outline-none glass-subtle w-full ${
       isActive 
-        ? 'scale-[1.02] animate-pulse border-black/20' 
-        : 'border-black/5 opacity-80 hover:opacity-100 active:scale-95'
+        ? 'text-text-primary' 
+        : 'text-text-secondary hover:scale-[1.02] active:scale-95'
     }`}
     style={{ 
-      backgroundColor: color,
-      color: COLORS.textPrimary,
+      backgroundColor: `${color}${isActive ? '20' : '15'}`,
+      backdropFilter: 'blur(8px) saturate(1.1)',
+      WebkitBackdropFilter: 'blur(8px) saturate(1.1)',
       boxShadow: isActive 
-        ? `inset 0 2px 4px rgba(0,0,0,0.2), inset 0 -1px 2px rgba(255,255,255,0.3), 0 4px 8px -2px ${color}40`
-        : '0 2px 4px -1px rgba(0,0,0,0.1), 0 1px 2px rgba(255,255,255,0.5)',
+        ? 'inset 0 3px 6px rgba(0, 0, 0, 0.25), inset 0 1px 3px rgba(0, 0, 0, 0.2)' 
+        : '0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04)',
       ...style
     }}
   >
-    <span className={isActive ? 'animate-bounce' : ''}>{icon}</span>
+    <span className={isActive ? 'animate-pulse' : ''}>{icon}</span>
     {id}
   </button>
 ));
@@ -107,15 +108,12 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
   return (
     <div className="absolute bottom-0 left-0 right-0 px-6 pb-6 pt-4 pointer-events-none z-20">
       <div 
-        className={`rounded-[32px] p-2.5 flex flex-col shadow-2xl border pointer-events-auto ${
-          activeMode ? 'ring-2 ring-white/30' : ''
-        }`} 
+        className="rounded-[32px] p-2.5 flex flex-col shadow-2xl pointer-events-auto glass-elevated"
         style={{ 
-          backgroundColor: activeMode ? `${activeColor}20` : 'rgba(255, 255, 255, 0.85)', 
-          backdropFilter: 'blur(20px)',
-          borderColor: activeMode ? `${activeColor}30` : 'rgba(255, 255, 255, 0.5)',
-          boxShadow: '0 -8px 32px -4px rgba(0, 0, 0, 0.1), 0 4px 16px -2px rgba(0, 0, 0, 0.08)',
-          transition: `background-color 0.5s ${smoothEasing}, border-color 0.5s ${smoothEasing}, box-shadow 0.5s ${smoothEasing}`,
+          background: activeMode 
+            ? `linear-gradient(135deg, ${activeColor}08, ${activeColor}04)` 
+            : undefined,
+          transition: `background 0.5s ${smoothEasing}, border-color 0.5s ${smoothEasing}, box-shadow 0.5s ${smoothEasing}`,
         }}
       >
         {/* Quick Actions - animated container with grid for smooth height */}
@@ -136,7 +134,7 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
                 paddingBottom: 12,
               }}
             >
-              <div className="flex gap-2 overflow-x-auto px-2 py-1 no-scrollbar">
+              <div className="grid grid-cols-4 gap-2 px-2 py-1">
                 {QUICK_ACTIONS.map((action, index) => (
                   <QuickActionButton
                     key={action.id}
@@ -190,8 +188,7 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
                 onChange={onInputChange}
                 onKeyDown={onKeyDown}
                 placeholder={placeholder}
-                className="w-full bg-transparent border-none outline-none py-2 text-[14px] font-semibold placeholder:text-gray-400 placeholder:font-medium font-jakarta"
-                style={{ color: '#1e1e1e' }}
+                className="w-full bg-transparent border-none outline-none py-2 text-[14px] font-semibold placeholder:text-text-secondary placeholder:font-medium font-jakarta text-text-primary"
               />
             </div>
           </div>
@@ -200,11 +197,12 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
           <div className="flex items-center gap-1.5 pr-1">
             <button 
               onClick={onMicClick}
-              className={`relative p-3 hover:bg-black/5 rounded-2xl active:scale-90 ${
+              className={`relative p-3 hover:bg-black/5 dark:hover:bg-white/5 rounded-2xl active:scale-90 ${
                 isRecording ? 'text-red-500 animate-pulse bg-red-50' : 
-                isOpera ? 'text-amber-500' : 'text-gray-400'
+                isOpera ? 'text-amber-500' : 'text-text-secondary'
               }`}
               style={{
+                backgroundColor: isRecording ? '#ef444440' : isOpera ? '#f59e0b20' : '#8b5cf620',
                 transition: `all 0.4s cubic-bezier(0.22, 1, 0.36, 1)`,
               }}
               aria-label={
@@ -239,16 +237,23 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
                 <button 
                   onClick={onSend}
                   disabled={isLoading}
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center active:scale-90 border border-black/5 ${
-                    (hasContent || hasPendingVoiceMessage) && !isLoading ? 'text-gray-700' : 'text-gray-400'
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center active:scale-90 ${
+                    (hasContent || hasPendingVoiceMessage) && !isLoading ? 'text-text-primary' : 'text-text-secondary'
                   } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   style={{ 
-                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                    ...GLASS_STYLES.base,
-                    boxShadow: '0 2px 4px -1px rgba(0,0,0,0.1), 0 1px 2px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05)',
+                    backgroundColor: (hasContent || hasPendingVoiceMessage) && !isLoading ? '#3b82f640' : '#3b82f620',
                     opacity: isRecording ? 0 : 1,
                     transform: isRecording ? 'scale(0.85)' : 'scale(1)',
                     transition: `opacity 0.35s ${smoothEasing}, transform 0.4s ${smoothEasing}, background-color 0.2s ease`,
+                    boxShadow: 'none !important',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = 'none !important';
+                    e.currentTarget.style.filter = 'none';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = 'none !important';
+                    e.currentTarget.style.filter = 'none';
                   }}
                   aria-label="Send message"
                 >
@@ -270,15 +275,11 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
       {/* Opera Voice Input Notification */}
       {showOperaNotification && (
         <div 
-          className="absolute bottom-full left-4 right-4 mb-2 p-3 rounded-2xl border border-amber-200 animate-in fade-in slide-in-from-bottom-2 duration-300"
-          style={{ 
-            backgroundColor: 'rgba(251, 191, 36, 0.1)',
-            backdropFilter: 'blur(8px)',
-          }}
+          className="absolute bottom-full left-4 right-4 mb-2 p-3 rounded-2xl border border-amber-200 dark:border-amber-600 animate-in fade-in slide-in-from-bottom-2 duration-300 glass-subtle"
         >
           <div className="flex items-start gap-2">
-            <div className="w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="text-[10px] font-bold text-white">!</span>
+            <div className="w-5 h-5 rounded-full bg-amber-400 dark:bg-amber-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-[10px] font-bold text-white dark:text-amber-900">!</span>
             </div>
             <div>
               <p className="text-[11px] font-bold text-amber-700 font-jakarta">

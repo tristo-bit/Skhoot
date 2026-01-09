@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Copy, Trash2, Eye, AlertTriangle } from 'lucide-react';
-import { COLORS, GLASS_STYLES } from '../constants';
+import { COLORS, GLASS_STYLES } from '../src/constants';
 import { FileInfo } from '../types';
 
 interface DuplicateGroup {

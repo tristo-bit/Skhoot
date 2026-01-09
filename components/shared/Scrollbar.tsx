@@ -1,5 +1,5 @@
 import React from 'react';
-import { COLORS } from '../../constants';
+import { COLORS } from '../../src/constants';
 
 // Custom scrollbar styles using the app's color palette
 export const scrollbarStyles = `
