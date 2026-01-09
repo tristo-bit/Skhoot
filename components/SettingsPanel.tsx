@@ -1,6 +1,5 @@
 import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { COLORS, GLASS_STYLES } from '../constants';
-import { X, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList } from 'lucide-react';
 import { X, Bot, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList, ExternalLink, Mail, Bug } from 'lucide-react';
 
 interface SettingsPanelProps {
