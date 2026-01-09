@@ -26,6 +26,15 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
   const [aiEnabled, setAiEnabled] = useState(true);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   
+  // Privacy panel states
+  const [newEmail, setNewEmail] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  
   // Audio settings state
   const [inputDevices, setInputDevices] = useState<AudioDevice[]>([]);
   const [outputDevices, setOutputDevices] = useState<AudioDevice[]>([]);
@@ -47,6 +56,100 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
   const outputGainRef = useRef<GainNode | null>(null);
 
   const toggleAi = useCallback(() => setAiEnabled(v => !v), []);
+
+  // Privacy panel functions
+  const handleUpdateEmail = async () => {
+    if (!newEmail || !newEmail.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+    
+    setIsUpdatingEmail(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      alert('Confirmation email sent to your new address. Please check your inbox.');
+      setNewEmail('');
+    } catch (error) {
+      alert('Failed to send confirmation email. Please try again.');
+    } finally {
+      setIsUpdatingEmail(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword) {
+      alert('Please enter your current password');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      alert('New password must be at least 6 characters long');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      alert('New passwords do not match');
+      return;
+    }
+    
+    setIsChangingPassword(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      alert('Password changed successfully. Confirmation email sent to your account.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      alert('Failed to change password. Please try again.');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleDownloadData = async () => {
+    setIsDownloading(true);
+    try {
+      // Simulate data preparation
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Create mock data
+      const userData = {
+        profile: {
+          email: 'user@example.com',
+          createdAt: new Date().toISOString(),
+        },
+        conversations: [
+          {
+            id: '1',
+            title: 'Sample conversation',
+            messages: ['Hello', 'Hi there!'],
+            createdAt: new Date().toISOString(),
+          }
+        ],
+        settings: {
+          aiEnabled: aiEnabled,
+          theme: 'default',
+        }
+      };
+      
+      // Create and download file
+      const blob = new Blob([JSON.stringify(userData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `skhoot-data-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      alert('Your data has been downloaded successfully!');
+    } catch (error) {
+      alert('Failed to download data. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   // Get available audio devices
   useEffect(() => {
@@ -282,6 +385,127 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
   const handleBack = () => {
     setActivePanel(null);
   };
+
+  const renderPrivacyPanel = () => (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <button 
+          onClick={handleBack}
+          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
+        >
+          <ChevronRight size={18} className="rotate-180" />
+        </button>
+        <h3 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
+          Privacy Settings
+        </h3>
+      </div>
+
+      {/* Change Email */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-gray-700">Email Address</label>
+        <p className="text-xs text-gray-500 font-jakarta">
+          A confirmation email will be sent to your new address. You must accept the change from that email to complete the update.
+        </p>
+        <div className="flex gap-3">
+          <input
+            type="email"
+            placeholder="Enter new email address"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            className="flex-1 p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleUpdateEmail}
+            disabled={isUpdatingEmail || !newEmail}
+            className="px-4 py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: COLORS.fukuBrand }}
+          >
+            {isUpdatingEmail ? 'Sending...' : 'Update'}
+          </button>
+        </div>
+      </div>
+
+      {/* Change Password */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-gray-700">Password</label>
+        <p className="text-xs text-gray-500 font-jakarta">
+          A confirmation email will be sent to your current account email address.
+        </p>
+        <div className="space-y-3">
+          <input
+            type="password"
+            placeholder="Current password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="password"
+            placeholder="New password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="password"
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleChangePassword}
+            disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
+            className="w-full p-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: COLORS.fukuBrand }}
+          >
+            {isChangingPassword ? 'Changing...' : 'Change Password'}
+          </button>
+        </div>
+      </div>
+
+      {/* Download Personal Data */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-gray-700">Data Export</label>
+        <p className="text-xs text-gray-500 font-jakarta">
+          Download all your personal data including conversations, settings, and preferences
+        </p>
+        <div className="p-4 rounded-xl border border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-bold font-jakarta text-gray-700">Personal Data Archive</p>
+              <p className="text-xs text-gray-500 font-jakarta">Includes all conversations and settings</p>
+            </div>
+            <button
+              onClick={handleDownloadData}
+              disabled={isDownloading}
+              className="px-4 py-2 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: '#2563eb' }}
+            >
+              {isDownloading ? 'Preparing...' : 'Download'}
+            </button>
+          </div>
+          <div className="text-xs text-gray-400 font-jakarta">
+            Last export: Never • Format: JSON
+          </div>
+        </div>
+      </div>
+
+      {/* Privacy Notice */}
+      <div className="p-4 rounded-xl border bg-[#d9e2eb]" style={{ borderColor: '#c1d0db' }}>
+        <div className="flex items-start gap-3">
+          <Shield size={16} className="text-[#5a7a94] mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-bold font-jakarta text-[#3d5a73] mb-1">Privacy Notice</p>
+            <p className="text-xs text-[#5a7a94] font-jakarta">
+              Your data is encrypted and stored securely. We never share your personal information with third parties.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderSoundPanel = () => (
     <div className="space-y-6">
@@ -530,6 +754,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
         <div className="p-6 space-y-4 overflow-y-auto max-h-[500px] no-scrollbar">
           {activePanel === 'Sound' ? (
             renderSoundPanel()
+          ) : activePanel === 'Privacy' ? (
+            renderPrivacyPanel()
           ) : (
             <>
               {/* AI Section */}
