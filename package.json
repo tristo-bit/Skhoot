@@ -5,10 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:no-open": "vite --host --open false",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:ubuntu": "tauri build --target x86_64-unknown-linux-gnu"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.0.0",
+    "@tauri-apps/plugin-shell": "^2.0.0",
     "@google/genai": "^1.35.0",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
@@ -16,6 +24,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
+    "@tauri-apps/cli": "^2.9.6",
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

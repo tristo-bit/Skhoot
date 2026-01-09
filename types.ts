@@ -26,6 +26,16 @@ export interface FileInfo {
   lastUsed: string;
 }
 
+export interface DiskInfo {
+  id: string;
+  name: string;
+  totalSpace: number; // in GB
+  usedSpace: number; // in GB
+  availableSpace: number; // in GB
+  usagePercentage: number;
+  type: 'internal' | 'external' | 'network';
+}
+
 export interface CleanupItem {
   id: string;
   name: string;

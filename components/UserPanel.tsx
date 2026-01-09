@@ -1,6 +1,6 @@
 import React, { useState, useCallback, memo, useRef } from 'react';
-import { COLORS, GLASS_STYLES } from '../constants';
 import { X, Camera, Upload, Key, Crown, User as UserIcon } from 'lucide-react';
+import { COLORS } from '../src/constants';
 
 interface UserPanelProps {
   onClose: () => void;
@@ -164,17 +164,13 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
       onClick={onClose}
     >
       <div 
-        className="w-[90%] max-w-[400px] max-h-[80%] rounded-3xl overflow-hidden shadow-2xl border border-black/5 animate-in zoom-in-95 duration-300"
-        style={{ 
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          backdropFilter: 'blur(20px)'
-        }}
+        className="w-[90%] max-w-[400px] h-[500px] rounded-3xl overflow-hidden glass-elevated animate-in zoom-in-95 duration-300 flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-5 flex items-center justify-between border-b border-black/5">
+        <div className="px-6 py-5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
+            <h2 className="text-lg font-black font-jakarta text-text-primary">
               User Profile
             </h2>
             {(hasProfileChanges || hasNameChanges) && (
@@ -183,7 +179,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
           </div>
           <button 
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500 active:scale-90"
+            className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary active:scale-90"
             aria-label="Close user panel"
           >
             <X size={18} />
@@ -191,27 +187,26 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6 overflow-y-auto max-h-[500px] no-scrollbar">
-          
-          {/* Profile Picture Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-bold font-jakarta text-gray-700">Profile Picture</label>
-              {hasProfileChanges && (
-                <button
-                  onClick={handleSaveProfile}
-                  className="px-3 py-1 rounded-lg text-xs font-bold font-jakarta transition-all text-white"
-                  style={{ backgroundColor: COLORS.orchidTint, filter: 'saturate(1.8)' }}
-                >
-                  Save Photo
-                </button>
-              )}
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full p-6 space-y-6 overflow-y-auto no-scrollbar">
+            
+            {/* Profile Picture Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-bold font-jakarta text-text-primary">Profile Picture</label>
+                {hasProfileChanges && (
+                  <button
+                    onClick={handleSaveProfile}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold font-jakarta transition-all text-white bg-accent"
+                  >
+                    Save Photo
+                  </button>
+                )}
             </div>
             <div className="flex flex-col items-center gap-4">
               {/* Profile Image Display */}
               <div 
-                className="relative w-24 h-24 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden cursor-pointer transition-all hover:border-gray-400"
-                style={{ backgroundColor: profileImage ? 'transparent' : `${COLORS.orchidTint}20` }}
+                className="relative w-24 h-24 rounded-full border-2 border-dashed border-glass-border flex items-center justify-center overflow-hidden cursor-pointer transition-all hover:border-accent glass-subtle"
                 onDrop={handleImageDrop}
                 onDragOver={handleDragOver}
                 onClick={triggerFileInput}
@@ -224,8 +219,8 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-1">
-                    <UserIcon size={24} className="text-gray-400" />
-                    <span className="text-xs text-gray-400 font-jakarta">Drop or click</span>
+                    <UserIcon size={24} className="text-text-secondary" />
+                    <span className="text-xs text-text-secondary font-jakarta">Drop or click</span>
                   </div>
                 )}
                 
@@ -238,8 +233,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
               {/* Upload Button */}
               <button
                 onClick={triggerFileInput}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
-                style={{ backgroundColor: '#c0b7c9', filter: 'saturate(1.8)' }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm font-jakarta transition-all text-white bg-accent"
               >
                 <Upload size={16} />
                 Upload Photo
@@ -259,12 +253,11 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
           {/* Name Section */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-bold font-jakarta text-gray-700">Personal Information</label>
+              <label className="text-sm font-bold font-jakarta text-text-primary">Personal Information</label>
               {hasNameChanges && (
                 <button
                   onClick={handleSaveName}
-                  className="px-3 py-1 rounded-lg text-xs font-bold font-jakarta transition-all text-white"
-                  style={{ backgroundColor: COLORS.orchidTint, filter: 'saturate(1.8)' }}
+                  className="px-3 py-1 rounded-lg text-xs font-bold font-jakarta transition-all text-white bg-accent"
                 >
                   Save Name
                 </button>
@@ -273,32 +266,32 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
             
             {/* First Name */}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-600 font-jakarta">First Name</label>
+              <label className="text-xs font-medium text-text-secondary font-jakarta">First Name</label>
               <input
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                 placeholder="Enter your first name"
               />
             </div>
             
             {/* Last Name */}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-600 font-jakarta">Last Name</label>
+              <label className="text-xs font-medium text-text-secondary font-jakarta">Last Name</label>
               <input
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                 placeholder="Enter your last name"
               />
             </div>
             
             {/* Email Section */}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-gray-600 font-jakarta">Email Address</label>
-              <div className="p-3 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium font-jakarta text-gray-600">
+              <label className="text-xs font-medium text-text-secondary font-jakarta">Email Address</label>
+              <div className="p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-text-secondary">
                 {userEmail}
               </div>
             </div>
@@ -306,26 +299,25 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
 
           {/* Plan Section */}
           <div className="space-y-3">
-            <label className="text-sm font-bold font-jakarta text-gray-700">Subscription Plan</label>
+            <label className="text-sm font-bold font-jakarta text-text-primary">Subscription Plan</label>
             <div className="grid grid-cols-2 gap-3">
               {/* Guest Plan */}
               <button
                 onClick={() => handlePlanChange('guest')}
-                className={`p-4 rounded-xl border transition-all ${
+                className={`p-4 rounded-xl transition-all ${
                   plan === 'guest' 
-                    ? 'bg-purple-50' 
-                    : 'border-gray-200 bg-white hover:bg-gray-50'
+                    ? 'glass-subtle border border-accent' 
+                    : 'glass-subtle hover:glass'
                 }`}
-                style={plan === 'guest' ? { borderColor: '#c0b7c9', filter: 'saturate(1.8)' } : undefined}
               >
                 <div className="flex flex-col items-center gap-2">
-                  <UserIcon size={20} className={plan === 'guest' ? 'text-gray-400' : 'text-gray-400'} style={plan === 'guest' ? { color: '#c0b7c9' } : undefined} />
+                  <UserIcon size={20} className={plan === 'guest' ? 'text-accent' : 'text-text-secondary'} />
                   <span className={`text-sm font-bold font-jakarta ${
-                    plan === 'guest' ? 'text-gray-600' : 'text-gray-600'
-                  }`} style={plan === 'guest' ? { color: '#c0b7c9' } : undefined}>
+                    plan === 'guest' ? 'text-accent' : 'text-text-secondary'
+                  }`}>
                     Guest
                   </span>
-                  <span className="text-xs text-gray-500 font-jakarta">Free access</span>
+                  <span className="text-xs text-text-secondary font-jakarta">Free access</span>
                 </div>
               </button>
               
@@ -333,34 +325,33 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
               <button
                 onClick={() => handlePlanChange('subscribed')}
                 disabled={plan === 'guest'}
-                className={`p-4 rounded-xl border transition-all relative ${
+                className={`p-4 rounded-xl transition-all relative ${
                   plan === 'subscribed' 
-                    ? 'bg-purple-50' 
+                    ? 'glass-subtle border border-accent' 
                     : plan === 'guest'
-                    ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-60'
-                    : 'border-gray-200 bg-white hover:bg-gray-50'
+                    ? 'glass-subtle cursor-not-allowed opacity-60'
+                    : 'glass-subtle hover:glass'
                 }`}
-                style={plan === 'subscribed' ? { borderColor: '#c0b7c9' } : undefined}
               >
                 <div className="flex flex-col items-center gap-2">
-                  <Crown size={20} className={plan === 'subscribed' ? 'text-gray-400' : 'text-gray-400'} style={plan === 'subscribed' ? { color: '#c0b7c9' } : undefined} />
+                  <Crown size={20} className={plan === 'subscribed' ? 'text-accent' : 'text-text-secondary'} />
                   <span className={`text-sm font-bold font-jakarta ${
-                    plan === 'subscribed' ? 'text-gray-600' : 'text-gray-600'
-                  }`} style={plan === 'subscribed' ? { color: '#c0b7c9' } : undefined}>
+                    plan === 'subscribed' ? 'text-accent' : 'text-text-secondary'
+                  }`}>
                     Subscribed
                   </span>
-                  <span className="text-xs text-gray-500 font-jakarta">Premium features</span>
+                  <span className="text-xs text-text-secondary font-jakarta">Premium features</span>
                 </div>
                 
                 {/* Lock overlay for guest users */}
                 {plan === 'guest' && (
                   <div 
-                    className="absolute inset-0 flex items-center justify-center bg-white/90 rounded-xl cursor-pointer hover:bg-white/95 transition-all"
+                    className="absolute inset-0 flex items-center justify-center glass-subtle rounded-xl cursor-pointer hover:glass transition-all"
                     onClick={() => setShowUpgradePanel(true)}
                   >
                     <div className="text-center">
-                      <img src="/skhoot-purple.svg" alt="Skhoot" className="w-6 h-6 mx-auto mb-1 opacity-60" />
-                      <span className="text-xs font-bold text-gray-600 font-jakarta">Upgrade</span>
+                      <img src="/skhoot-purple.svg" alt="Skhoot" className="w-6 h-6 mx-auto mb-1 opacity-60 dark:opacity-40 dark:brightness-90" />
+                      <span className="text-xs font-bold text-text-primary font-jakarta">Upgrade</span>
                     </div>
                   </div>
                 )}
@@ -370,11 +361,10 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
             {/* Upgrade message for guest users */}
             {plan === 'guest' && (
               <div 
-                className="p-3 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 cursor-pointer hover:bg-gradient-to-r hover:from-purple-100 hover:to-pink-100 transition-all"
-                style={{ borderColor: '#c0b7c9', borderWidth: '1px', borderStyle: 'solid', filter: 'saturate(1.8)' }}
+                className="p-3 rounded-xl glass-subtle cursor-pointer hover:glass transition-all"
                 onClick={() => setShowUpgradePanel(true)}
               >
-                <p className="text-xs font-jakarta text-center" style={{ color: '#c0b7c9', filter: 'saturate(1.8)' }}>
+                <p className="text-xs font-jakarta text-center text-accent">
                   <span className="font-bold">Unlock premium features!</span> Upgrade to access advanced AI capabilities and priority support.
                 </p>
               </div>
@@ -384,20 +374,16 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
           {/* API Key Section */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-bold font-jakarta text-gray-700">API Configuration</label>
+              <label className="text-sm font-bold font-jakarta text-text-primary">API Configuration</label>
               {connectionStatus === 'success' && (
                 <button
                   onClick={handleSaveApiKey}
                   disabled={isApiKeySaved}
                   className={`px-3 py-1 rounded-lg text-xs font-bold font-jakarta transition-all ${
                     isApiKeySaved 
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                      : 'text-white'
+                      ? 'glass-subtle text-text-secondary cursor-not-allowed' 
+                      : 'text-white bg-accent hover:opacity-90'
                   }`}
-                  style={!isApiKeySaved ? { 
-                    backgroundColor: '#c0b7c9', 
-                    filter: 'saturate(1.8)'
-                  } : undefined}
                 >
                   {isApiKeySaved ? (
                     <div className="flex items-center gap-2">
@@ -410,7 +396,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                 </button>
               )}
             </div>
-            <p className="text-xs text-gray-500 font-jakarta">
+            <p className="text-xs text-text-secondary font-jakarta">
               Connect your API key to unlock advanced features and personalized responses.
             </p>
             
@@ -431,19 +417,18 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                       setIsApiKeySaved(false);
                     }
                   }}
-                  className={`w-full p-3 pr-12 rounded-xl border text-sm font-medium font-jakarta focus:outline-none focus:ring-2 ${
+                  className={`w-full p-3 pr-12 rounded-xl text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 ${
                     connectionStatus === 'success' 
-                      ? 'bg-gray-50 focus:ring-gray-400' 
+                      ? 'glass-subtle focus:ring-accent' 
                       : connectionStatus === 'error'
-                      ? 'border-red-300 bg-red-50 focus:ring-red-500'
-                      : 'border-gray-200 bg-white focus:ring-purple-500'
+                      ? 'glass-subtle focus:ring-red-500'
+                      : 'glass-subtle focus:ring-accent'
                   }`}
-                  style={connectionStatus === 'success' ? { borderColor: '#d9e2eb' } : undefined}
                   placeholder="Enter your API key"
                 />
                 <button
                   onClick={() => setShowApiKey(!showApiKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors"
                 >
                   <Key size={16} />
                 </button>
@@ -453,9 +438,9 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
               {connectionMessage && (
                 <div className={`p-2 rounded-lg text-xs font-medium font-jakarta ${
                   connectionStatus === 'success' 
-                    ? 'text-gray-700' 
-                    : 'bg-red-100 text-red-700 border border-red-200'
-                }`} style={connectionStatus === 'success' ? { backgroundColor: '#d9e2eb', borderColor: '#d9e2eb', borderWidth: '1px', borderStyle: 'solid' } : undefined}>
+                    ? 'glass-subtle text-text-primary' 
+                    : 'glass-subtle text-red-400'
+                }`}>
                   {connectionMessage}
                 </div>
               )}
@@ -465,12 +450,11 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                 disabled={isTestingConnection || !apiKey.trim()}
                 className={`w-full py-2 px-4 rounded-xl text-sm font-bold font-jakarta transition-all ${
                   isTestingConnection
-                    ? 'text-white cursor-not-allowed'
+                    ? 'text-white bg-accent cursor-not-allowed'
                     : connectionStatus === 'success'
-                    ? 'text-gray-700 hover:opacity-90'
-                    : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    ? 'glass-subtle text-text-primary hover:glass'
+                    : 'glass-subtle text-text-primary hover:glass'
                 }`}
-                style={isTestingConnection ? { backgroundColor: '#c0b7c9' } : connectionStatus === 'success' ? { backgroundColor: '#d9e2eb' } : undefined}
               >
                 {isTestingConnection ? (
                   <div className="flex items-center justify-center gap-2">
@@ -516,11 +500,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
         {showUpgradePanel && (
           <div className="absolute inset-0 backdrop-blur-sm flex items-center justify-center z-50">
             <div 
-              className="w-[90%] max-w-[350px] rounded-2xl overflow-hidden shadow-2xl"
-              style={{ 
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(20px)'
-              }}
+              className="w-[90%] max-w-[350px] rounded-2xl overflow-hidden shadow-2xl glass-elevated"
             >
               {/* Upgrade Header */}
               <div className="px-6 py-5 text-center border-b border-black/5">
@@ -528,7 +508,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                   onClick={handleStartBilling}
                   className="hover:scale-105 transition-transform cursor-pointer"
                 >
-                  <img src="/skhoot-purple.svg" alt="Skhoot" className="w-12 h-12 mx-auto mb-3" style={{ filter: `hue-rotate(20deg) saturate(1.2)` }} />
+                  <img src="/skhoot-purple.svg" alt="Skhoot" className="w-12 h-12 mx-auto mb-3 dark:brightness-90" style={{ filter: `hue-rotate(20deg) saturate(1.2)` }} />
                 </button>
                 <h3 className="text-xl font-black font-jakarta mb-2" style={{ color: '#1e1e1e' }}>
                   Upgrade to Premium
@@ -541,46 +521,45 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
               {/* Features */}
               <div className="px-6 py-4 space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.orchidTint }} />
-                  <span className="text-sm font-jakarta text-gray-700">Advanced AI responses</span>
+                  <div className="w-2 h-2 rounded-full bg-accent" />
+                  <span className="text-sm font-jakarta text-text-primary">Advanced AI responses</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.orchidTint }} />
-                  <span className="text-sm font-jakarta text-gray-700">Priority customer support</span>
+                  <div className="w-2 h-2 rounded-full bg-accent" />
+                  <span className="text-sm font-jakarta text-text-primary">Priority customer support</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.orchidTint }} />
-                  <span className="text-sm font-jakarta text-gray-700">Unlimited file searches</span>
+                  <div className="w-2 h-2 rounded-full bg-accent" />
+                  <span className="text-sm font-jakarta text-text-primary">Unlimited file searches</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.orchidTint }} />
-                  <span className="text-sm font-jakarta text-gray-700">Custom API integrations</span>
+                  <div className="w-2 h-2 rounded-full bg-accent" />
+                  <span className="text-sm font-jakarta text-text-primary">Custom API integrations</span>
                 </div>
               </div>
 
               {/* Pricing */}
-              <div className="px-6 py-4 bg-gradient-to-r from-purple-50 to-pink-50">
+              <div className="px-6 py-4 glass-subtle">
                 <div className="text-center">
                   <div className="flex items-baseline justify-center gap-1 mb-2">
-                    <span className="text-2xl font-black font-jakarta" style={{ color: COLORS.orchidTint }}>$9.99</span>
-                    <span className="text-sm text-gray-600 font-jakarta">/month</span>
+                    <span className="text-2xl font-black font-jakarta text-accent">$9.99</span>
+                    <span className="text-sm text-text-secondary font-jakarta">/month</span>
                   </div>
-                  <p className="text-xs text-gray-500 font-jakarta">Cancel anytime • 7-day free trial</p>
+                  <p className="text-xs text-text-secondary font-jakarta">Cancel anytime • 7-day free trial</p>
                 </div>
               </div>
 
               {/* Actions */}
               <div className="px-6 py-4 space-y-3">
                 <button
-                  className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
-                  style={{ backgroundColor: COLORS.orchidTint }}
+                  className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white bg-accent"
                   onClick={handleStartBilling}
                 >
                   Start Free Trial
                 </button>
                 <button
                   onClick={() => setShowUpgradePanel(false)}
-                  className="w-full py-2 text-sm font-jakarta text-gray-600 hover:text-gray-800 transition-colors"
+                  className="w-full py-2 text-sm font-jakarta text-text-secondary hover:text-text-primary transition-colors"
                 >
                   Maybe later
                 </button>
@@ -593,11 +572,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
         {showBillingPanel && (
           <div className="absolute inset-0 backdrop-blur-sm flex items-center justify-center z-50">
             <div 
-              className="w-[95%] max-w-[450px] max-h-[90%] rounded-2xl overflow-hidden shadow-2xl border border-black/5"
-              style={{ 
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(20px)'
-              }}
+              className="w-[95%] max-w-[450px] max-h-[90%] rounded-2xl overflow-hidden shadow-2xl border border-black/5 glass-elevated"
             >
               {/* Billing Header */}
               <div className="px-6 py-5 flex items-center justify-between border-b border-black/5">
@@ -630,35 +605,35 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
               <div className="px-6 py-4 space-y-6 overflow-y-auto max-h-[450px]">
                 
                 {/* Plan Summary */}
-                <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200">
+                <div className="p-4 rounded-xl glass-subtle">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-bold text-sm font-jakarta text-gray-700">Skhoot Premium</span>
-                    <span className="text-lg font-black font-jakarta" style={{ color: COLORS.orchidTint }}>$9.99/mo</span>
+                    <span className="font-bold text-sm font-jakarta text-text-primary">Skhoot Premium</span>
+                    <span className="text-lg font-black font-jakarta text-accent">$9.99/mo</span>
                   </div>
-                  <p className="text-xs text-gray-600 font-jakarta">7-day free trial • Cancel anytime</p>
+                  <p className="text-xs text-text-secondary font-jakarta">7-day free trial • Cancel anytime</p>
                 </div>
 
                 {/* Payment Method */}
                 <div className="space-y-3">
-                  <label className="text-sm font-bold font-jakarta text-gray-700">Payment Method</label>
+                  <label className="text-sm font-bold font-jakarta text-text-primary">Payment Method</label>
                   
                   {/* Card Input */}
                   <div className="space-y-3">
                     <input
                       type="text"
                       placeholder="Card number"
-                      className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                     />
                     <div className="grid grid-cols-2 gap-3">
                       <input
                         type="text"
                         placeholder="MM/YY"
-                        className="p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                       />
                       <input
                         type="text"
                         placeholder="CVC"
-                        className="p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                       />
                     </div>
                   </div>
@@ -666,35 +641,35 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
 
                 {/* Billing Address */}
                 <div className="space-y-3">
-                  <label className="text-sm font-bold font-jakarta text-gray-700">Billing Address</label>
+                  <label className="text-sm font-bold font-jakarta text-text-primary">Billing Address</label>
                   <div className="space-y-3">
                     <input
                       type="email"
                       placeholder="Email address"
                       defaultValue={userEmail}
-                      className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                     />
                     <input
                       type="text"
                       placeholder="Full name"
                       defaultValue={`${firstName} ${lastName}`}
-                      className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                     />
                     <input
                       type="text"
                       placeholder="Address"
-                      className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      className="w-full p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                     />
                     <div className="grid grid-cols-2 gap-3">
                       <input
                         type="text"
                         placeholder="City"
-                        className="p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                       />
                       <input
                         type="text"
                         placeholder="ZIP code"
-                        className="p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                       />
                     </div>
                   </div>
@@ -703,16 +678,15 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                 {/* Terms */}
                 <div className="flex items-start gap-3">
                   <input type="checkbox" className="mt-1" />
-                  <p className="text-xs text-gray-600 font-jakarta">
-                    I agree to the <span className="text-purple-600 underline cursor-pointer">Terms of Service</span> and <span className="text-purple-600 underline cursor-pointer">Privacy Policy</span>
+                  <p className="text-xs text-text-secondary font-jakarta">
+                    I agree to the <span className="text-accent underline cursor-pointer">Terms of Service</span> and <span className="text-accent underline cursor-pointer">Privacy Policy</span>
                   </p>
                 </div>
 
                 {/* Billing Footer - Now inside scrollable area */}
                 <div className="space-y-3 pt-4">
                   <button
-                    className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
-                    style={{ backgroundColor: '#c0b7c9', filter: 'saturate(1.8)' }}
+                    className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white bg-accent"
                     onClick={() => {
                       console.log('Start 7-Day Free Trial');
                       // Here you would process the trial signup
@@ -720,7 +694,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                   >
                     Start 7-Day Free Trial
                   </button>
-                  <p className="text-xs text-center text-gray-500 font-jakarta">
+                  <p className="text-xs text-center text-text-secondary font-jakarta">
                     You won't be charged until your trial ends
                   </p>
                 </div>
@@ -729,6 +703,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

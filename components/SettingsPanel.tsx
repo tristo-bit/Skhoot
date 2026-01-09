@@ -1,6 +1,8 @@
 import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { COLORS, GLASS_STYLES } from '../constants';
 import { X, Bot, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList, ExternalLink, Mail, Bug } from 'lucide-react';
+import { useTheme } from '../src/contexts/ThemeContext';
+import { GLASS_STYLES } from '../src/constants';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -14,15 +16,15 @@ interface AudioDevice {
 }
 
 const SETTINGS_ITEMS = [
-  { icon: Volume2, label: 'Sound', color: COLORS.almostAqua },
-  // { icon: Bell, label: 'Notifications', color: COLORS.raindropsOnRoses },
-  { icon: Palette, label: 'Appearance', color: COLORS.lemonIcing },
-  { icon: Shield, label: 'Privacy', color: COLORS.iceMelt },
-  { icon: ClipboardList, label: 'Activity Log', color: COLORS.orchidTint },
-  { icon: HelpCircle, label: 'Help Center', color: COLORS.peachDust },
+  { icon: Volume2, label: 'Sound', color: 'almost-aqua' },
+  { icon: Palette, label: 'Appearance', color: 'lemon-icing' },
+  { icon: Shield, label: 'Privacy', color: 'ice-melt' },
+  { icon: ClipboardList, label: 'Activity Log', color: 'orchid-tint' },
+  { icon: HelpCircle, label: 'Help Center', color: 'peach-dust' },
 ] as const;
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceability }) => {
+  const { theme, setTheme } = useTheme();
   const [activePanel, setActivePanel] = useState<string | null>(null);
   
   // Privacy panel states
@@ -56,8 +58,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
   const [autoSensitivity, setAutoSensitivity] = useState(true);
   const [manualSensitivity, setManualSensitivity] = useState(50);
   
-  // Appearance settings state
-  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>('system');
+  // AI settings state
+  const [aiEnabled, setAiEnabled] = useState(true);
+  
+  // Appearance settings state - now using theme context
+  // const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>('system');
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -664,149 +669,28 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
     </div>
   );
 
-  const renderPrivacyPanel = () => (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button 
-          onClick={handleBack}
-          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
-        >
-          <ChevronRight size={18} className="rotate-180" />
-        </button>
-        <h3 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
-          Privacy Settings
-        </h3>
-      </div>
-
-      {/* Change Email */}
-      <div className="space-y-3">
-        <label className="text-sm font-bold font-jakarta text-gray-700">Email Address</label>
-        <p className="text-xs text-gray-500 font-jakarta">
-          A confirmation email will be sent to your new address. You must accept the change from that email to complete the update.
-        </p>
-        <div className="flex gap-3">
-          <input
-            type="email"
-            placeholder="Enter new email address"
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-            className="flex-1 p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleUpdateEmail}
-            disabled={isUpdatingEmail || !newEmail}
-            className="px-4 py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: COLORS.fukuBrand }}
-          >
-            {isUpdatingEmail ? 'Sending...' : 'Update'}
-          </button>
-        </div>
-      </div>
-
-      {/* Change Password */}
-      <div className="space-y-3">
-        <label className="text-sm font-bold font-jakarta text-gray-700">Password</label>
-        <p className="text-xs text-gray-500 font-jakarta">
-          A confirmation email will be sent to your current account email address.
-        </p>
-        <div className="space-y-3">
-          <input
-            type="password"
-            placeholder="Current password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="password"
-            placeholder="New password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="password"
-            placeholder="Confirm new password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleChangePassword}
-            disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
-            className="w-full p-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: COLORS.fukuBrand }}
-          >
-            {isChangingPassword ? 'Changing...' : 'Change Password'}
-          </button>
-        </div>
-      </div>
-
-      {/* Download Personal Data */}
-      <div className="space-y-3">
-        <label className="text-sm font-bold font-jakarta text-gray-700">Data Export</label>
-        <p className="text-xs text-gray-500 font-jakarta">
-          Download all your personal data including conversations, settings, and preferences
-        </p>
-        <div className="p-4 rounded-xl border border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-sm font-bold font-jakarta text-gray-700">Personal Data Archive</p>
-              <p className="text-xs text-gray-500 font-jakarta">Includes all conversations and settings</p>
-            </div>
-            <button
-              onClick={handleDownloadData}
-              disabled={isDownloading}
-              className="px-4 py-2 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: '#2563eb' }}
-            >
-              {isDownloading ? 'Preparing...' : 'Download'}
-            </button>
-          </div>
-          <div className="text-xs text-gray-400 font-jakarta">
-            Last export: Never • Format: JSON
-          </div>
-        </div>
-      </div>
-
-      {/* Privacy Notice */}
-      <div className="p-4 rounded-xl border bg-[#d9e2eb]" style={{ borderColor: '#c1d0db' }}>
-        <div className="flex items-start gap-3">
-          <Shield size={16} className="text-[#5a7a94] mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-bold font-jakarta text-[#3d5a73] mb-1">Privacy Notice</p>
-            <p className="text-xs text-[#5a7a94] font-jakarta">
-              Your data is encrypted and stored securely. We never share your personal information with third parties.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   const renderSoundPanel = () => (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button 
           onClick={handleBack}
-          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
+          className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary"
         >
           <ChevronRight size={18} className="rotate-180" />
         </button>
-        <h3 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
+        <h3 className="text-lg font-black font-jakarta text-text-primary">
           Sound Settings
         </h3>
       </div>
 
       {/* Input Device */}
       <div className="space-y-3">
-        <label className="text-sm font-bold font-jakarta text-gray-700">Input Device</label>
+        <label className="text-sm font-bold font-jakarta text-text-primary">Input Device</label>
         <select
           value={selectedInputDevice}
           onChange={(e) => handleInputDeviceChange(e.target.value)}
-          className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
         >
           {inputDevices.map(device => (
             <option key={device.deviceId} value={device.deviceId}>
@@ -818,11 +702,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
 
       {/* Output Device */}
       <div className="space-y-3">
-        <label className="text-sm font-bold font-jakarta text-gray-700">Output Device</label>
+        <label className="text-sm font-bold font-jakarta text-text-primary">Output Device</label>
         <select
           value={selectedOutputDevice}
           onChange={(e) => handleOutputDeviceChange(e.target.value)}
-          className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
         >
           {outputDevices.map(device => (
             <option key={device.deviceId} value={device.deviceId}>
@@ -835,72 +719,67 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
       {/* Input Volume */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-bold font-jakarta text-gray-700">Input Volume</label>
-          <span className="text-sm font-medium text-gray-500">{inputVolume}%</span>
+          <label className="text-sm font-bold font-jakarta text-text-primary">Input Volume</label>
+          <span className="text-sm font-medium text-text-secondary">{inputVolume}%</span>
         </div>
         <div className="flex items-center gap-3">
-          <VolumeX size={16} className="text-gray-400" />
+          <VolumeX size={16} className="text-text-secondary" />
           <input
             type="range"
             min="0"
             max="100"
             value={inputVolume}
             onChange={(e) => setInputVolume(Number(e.target.value))}
-            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-purple"
-            style={{
-              background: `linear-gradient(to right, ${COLORS.fukuBrand} 0%, ${COLORS.fukuBrand} ${inputVolume}%, #e5e7eb ${inputVolume}%, #e5e7eb 100%)`
-            }}
+            className="flex-1 h-2 bg-glass-border rounded-lg appearance-none cursor-pointer slider-accent"
           />
-          <Volume2 size={16} className="text-gray-400" />
+          <Volume2 size={16} className="text-text-secondary" />
         </div>
       </div>
 
       {/* Output Volume */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-bold font-jakarta text-gray-700">Output Volume</label>
-          <span className="text-sm font-medium text-gray-500">{outputVolume}%</span>
+          <label className="text-sm font-bold font-jakarta text-text-primary">Output Volume</label>
+          <span className="text-sm font-medium text-text-secondary">{outputVolume}%</span>
         </div>
         <div className="flex items-center gap-3">
-          <VolumeX size={16} className="text-gray-400" />
+          <VolumeX size={16} className="text-text-secondary" />
           <input
             type="range"
             min="0"
             max="100"
             value={outputVolume}
             onChange={(e) => setOutputVolume(Number(e.target.value))}
-            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-purple"
-            style={{
-              background: `linear-gradient(to right, ${COLORS.fukuBrand} 0%, ${COLORS.fukuBrand} ${outputVolume}%, #e5e7eb ${outputVolume}%, #e5e7eb 100%)`
-            }}
+            className="flex-1 h-2 bg-glass-border rounded-lg appearance-none cursor-pointer slider-accent"
           />
-          <Volume2 size={16} className="text-gray-400" />
+          <Volume2 size={16} className="text-text-secondary" />
         </div>
       </div>
 
       {/* Microphone Test */}
       <div className="space-y-3">
-        <label className="text-sm font-bold font-jakarta text-gray-700">Microphone Test</label>
-        <p className="text-xs text-gray-500 font-jakarta">
+        <label className="text-sm font-bold font-jakarta text-text-primary">Microphone Test</label>
+        <p className="text-xs text-text-secondary font-jakarta">
           Mic acting up? Give it a hoot and say something silly... We'll echo it right back!
         </p>
         <div className="flex items-center gap-4">
           <button
             onClick={handleMicTest}
-            className={`px-4 py-2 rounded-xl font-bold text-sm font-jakarta transition-all text-white`}
-            style={{ backgroundColor: isTesting ? '#ef4444' : COLORS.fukuBrand }}
+            className={`px-4 py-2 rounded-xl font-bold text-sm font-jakarta transition-all text-white ${
+              isTesting ? 'bg-red-500' : 'bg-accent'
+            }`}
           >
             {isTesting ? 'Stop Test' : 'Let\'s Hoot!'}
           </button>
           
           {/* Audio Level Visualization - Soundwave Simplifiée */}
-          <div className="flex-1 flex items-center justify-center gap-0.5 h-8 bg-gray-100 rounded-lg p-1">
+          <div className="flex-1 flex items-center justify-center gap-0.5 h-8 glass-subtle rounded-lg p-1">
             {waveformData.map((sample, i) => {
               if (!isTesting) {
                 return (
                   <div
                     key={i}
-                    className="w-1 rounded-full bg-gray-300"
+                    className="w-1 rounded-full bg-glass-border"
                     style={{ height: '4px' }}
                   />
                 );
@@ -920,7 +799,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
                     height: `${Math.max(baseHeight, Math.min(height, maxHeight + baseHeight))}px`,
                     backgroundColor: amplitude > 0.1 
                       ? `hsl(${280 - amplitude * 100}, 70%, 50%)` 
-                      : '#a855f7'
+                      : 'var(--accent)'
                   }}
                 />
               );
@@ -931,20 +810,19 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
 
       {/* Voice Sensitivity */}
       <div className="space-y-3">
-        <label className="text-sm font-bold font-jakarta text-gray-700">Voice Sensitivity</label>
+        <label className="text-sm font-bold font-jakarta text-text-primary">Voice Sensitivity</label>
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium text-gray-600">Auto Detection</span>
+          <span className="text-sm font-medium text-text-secondary">Auto Detection</span>
           <button
             onClick={() => {
               setAutoSensitivity(!autoSensitivity);
               console.log(`🎛️ Sensitivity mode changed to: ${!autoSensitivity ? 'AUTO (3x)' : 'MANUAL'}`);
             }}
             className={`w-12 h-6 rounded-full transition-all ${
-              autoSensitivity ? '' : 'bg-gray-300'
+              autoSensitivity ? 'bg-accent' : 'bg-glass-border'
             }`}
-            style={{ backgroundColor: autoSensitivity ? COLORS.fukuBrand : undefined }}
           >
-            <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${
+            <div className={`w-5 h-5 glass-subtle rounded-full shadow transition-transform ${
               autoSensitivity ? 'translate-x-6' : 'translate-x-0.5'
             }`} />
           </button>
@@ -953,8 +831,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
         {!autoSensitivity && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-600">Manual Sensitivity</span>
-              <span className="text-sm font-medium text-gray-500">{manualSensitivity}%</span>
+              <span className="text-sm font-medium text-text-secondary">Manual Sensitivity</span>
+              <span className="text-sm font-medium text-text-secondary">{manualSensitivity}%</span>
             </div>
             <input
               type="range"
@@ -966,38 +844,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
                 setManualSensitivity(newValue);
                 console.log(`🎛️ Manual sensitivity changed to: ${newValue}% (${(newValue / 25).toFixed(1)}x multiplier)`);
               }}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-purple"
-              style={{
-                background: `linear-gradient(to right, ${COLORS.fukuBrand} 0%, ${COLORS.fukuBrand} ${manualSensitivity}%, #e5e7eb ${manualSensitivity}%, #e5e7eb 100%)`
-              }}
+              className="w-full h-2 bg-glass-border rounded-lg appearance-none cursor-pointer slider-accent"
             />
           </div>
         )}
       </div>
-      
-      {/* CSS pour les sliders violets */}
-      <style jsx>{`
-        .slider-purple::-webkit-slider-thumb {
-          appearance: none;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: ${COLORS.fukuBrand};
-          cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        .slider-purple::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: ${COLORS.fukuBrand};
-          cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-      `}</style>
     </div>
   );
 
@@ -1007,19 +858,19 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
       <div className="flex items-center gap-3 mb-6">
         <button 
           onClick={handleBack}
-          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
+          className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary"
         >
           <ChevronRight size={18} className="rotate-180" />
         </button>
-        <h3 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
+        <h3 className="text-lg font-black font-jakarta text-text-primary">
           Appearance
         </h3>
       </div>
 
       {/* Theme Selection */}
       <div className="space-y-3">
-        <label className="text-sm font-bold font-jakarta text-gray-700">Theme</label>
-        <p className="text-xs text-gray-500 font-jakarta">
+        <label className="text-sm font-bold font-jakarta text-text-primary">Theme</label>
+        <p className="text-xs text-text-secondary font-jakarta">
           Choose your preferred theme or let the system decide
         </p>
         
@@ -1031,29 +882,29 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
           ].map((option) => (
             <button
               key={option.value}
-              onClick={() => setThemeMode(option.value as 'light' | 'dark' | 'system')}
-              className={`w-full p-4 rounded-xl border transition-all text-left ${
-                themeMode === option.value
-                  ? 'border-purple-300 bg-purple-50'
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
+              onClick={() => setTheme(option.value as 'light' | 'dark' | 'system')}
+              className={`w-full p-4 rounded-xl transition-all text-left ${
+                theme === option.value
+                  ? 'glass-subtle'
+                  : 'glass-subtle hover:glass-elevated'
               }`}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-bold font-jakarta text-gray-900">
+                  <p className="text-sm font-bold font-jakarta text-text-primary">
                     {option.label}
                   </p>
-                  <p className="text-xs text-gray-500 font-jakarta">
+                  <p className="text-xs text-text-secondary font-jakarta">
                     {option.description}
                   </p>
                 </div>
-                <div className={`w-4 h-4 rounded-full border-2 ${
-                  themeMode === option.value
-                    ? 'border-purple-500 bg-purple-500'
-                    : 'border-gray-300'
+                <div className={`w-4 h-4 rounded-full ${
+                  theme === option.value
+                    ? 'bg-accent'
+                    : 'glass-subtle'
                 }`}>
-                  {themeMode === option.value && (
-                    <div className="w-full h-full rounded-full bg-white scale-50" />
+                  {theme === option.value && (
+                    <div className="w-full h-full rounded-full glass-subtle scale-50" />
                   )}
                 </div>
               </div>
@@ -1064,12 +915,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
 
       {/* Coming Soon Section */}
       <div className="space-y-3">
-        <label className="text-sm font-bold font-jakarta text-gray-700">More Options</label>
-        <div className="p-4 rounded-xl border border-gray-200 bg-gray-50">
-          <p className="text-sm font-medium font-jakarta text-gray-600">
+        <label className="text-sm font-bold font-jakarta text-text-primary">More Options</label>
+        <div className="p-4 rounded-xl glass-subtle">
+          <p className="text-sm font-medium font-jakarta text-text-primary">
             More appearance customization options coming soon!
           </p>
-          <p className="text-xs text-gray-500 font-jakarta mt-1">
+          <p className="text-xs text-text-secondary font-jakarta mt-1">
             Font size, accent colors, and layout preferences
           </p>
         </div>
@@ -1083,21 +934,17 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
       onClick={onClose}
     >
       <div 
-        className="w-[90%] max-w-[400px] max-h-[90%] rounded-3xl overflow-hidden shadow-2xl border border-black/5 animate-in zoom-in-95 duration-300"
-        style={{ 
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          backdropFilter: 'blur(20px)'
-        }}
+        className="w-[90%] max-w-[400px] max-h-[80%] rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 glass-elevated"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-5 flex items-center justify-between border-b border-black/5">
-          <h2 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
+        <div className="px-6 py-5 flex items-center justify-between">
+          <h2 className="text-lg font-black font-jakarta text-text-primary">
             Settings
           </h2>
           <button 
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500 active:scale-90"
+            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-text-secondary active:scale-90"
             aria-label="Close settings"
           >
             <X size={18} />
@@ -1139,11 +986,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-black/5">
-          <p 
-            className="text-[10px] font-medium font-jakarta text-center opacity-40" 
-            style={{ color: '#1e1e1e' }}
-          >
+        <div className="px-6 py-4">
+          <p className="text-[10px] font-medium font-jakarta text-center opacity-40 text-text-primary">
             Skhoot v1.0
           </p>
         </div>
@@ -1174,9 +1018,9 @@ const SettingsToggle = memo<{
   color: string;
 }>(({ icon, label, description, enabled, onToggle, color }) => (
   <div 
-    className="flex items-center justify-between p-4 rounded-2xl border border-black/5 transition-all"
+    className="flex items-center justify-between p-4 rounded-2xl transition-all"
     style={{ 
-      backgroundColor: enabled ? `${color}30` : 'rgba(255, 255, 255, 0.5)',
+      backgroundColor: enabled ? `${color}30` : 'var(--glass-bg)',
       boxShadow: GLASS_STYLES.subtle.boxShadow,
     }}
   >
@@ -1198,14 +1042,13 @@ const Toggle = memo<{ enabled: boolean; onToggle: () => void }>(({ enabled, onTo
   <button 
     onClick={onToggle}
     className={`w-12 h-7 rounded-full transition-all duration-300 relative ${
-      enabled ? '' : 'bg-black/10'
+      enabled ? 'bg-accent' : 'bg-glass-border'
     }`}
-    style={{ backgroundColor: enabled ? COLORS.fukuBrand : undefined }}
     role="switch"
     aria-checked={enabled}
   >
     <div 
-      className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${
+      className={`absolute top-1 w-5 h-5 rounded-full glass-subtle shadow-md transition-all duration-300 ${
         enabled ? 'left-6' : 'left-1'
       }`}
     />
@@ -1221,30 +1064,25 @@ const SettingsItem = memo<{
 }>(({ icon, label, color, onClick }) => (
   <button 
     onClick={onClick}
-    className="flex items-center justify-between w-full p-4 rounded-2xl border border-black/5 transition-all hover:brightness-[1.02] active:scale-[0.99]"
-    style={{ 
-      backgroundColor: 'rgba(255, 255, 255, 0.5)',
-      boxShadow: GLASS_STYLES.subtle.boxShadow,
-    }}
+    className="flex items-center justify-between w-full p-4 rounded-2xl transition-all hover:brightness-[1.02] active:scale-[0.99] glass-subtle"
   >
     <div className="flex items-center gap-3">
       <IconBox color={color}>{icon}</IconBox>
-      <p className="text-sm font-bold font-jakarta" style={{ color: '#1e1e1e' }}>{label}</p>
+      <p className="text-sm font-bold font-jakarta text-text-primary">{label}</p>
     </div>
-    <ChevronRight size={18} className="text-gray-400" />
+    <ChevronRight size={18} className="text-text-secondary" />
   </button>
 ));
 SettingsItem.displayName = 'SettingsItem';
 
 const IconBox = memo<{ color: string; children: React.ReactNode }>(({ color, children }) => (
   <div 
-    className="w-10 h-10 rounded-xl flex items-center justify-center border border-black/5"
+    className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${color}/60`}
     style={{ 
-      backgroundColor: `${color}60`,
       boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.4), inset 0 -1px 1px rgba(0,0,0,0.05)'
     }}
   >
-    <span style={{ color: COLORS.textPrimary }}>{children}</span>
+    <span className="text-text-primary">{children}</span>
   </div>
 ));
 IconBox.displayName = 'IconBox';

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Mode Test - Skhoot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .font-jakarta { font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(0, 0, 0, 0.08);
+            --text-primary: #2D3436;
+            --text-secondary: #888888;
+            --bg-primary: #F0F0F0;
+            --bg-secondary: #FFFFFF;
+            --accent: #DDEBF4;
+        }
+
+        .dark {
+            --glass-bg: rgba(30, 30, 30, 0.95);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #e5e5e5;
+            --text-secondary: #a0a0a0;
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #2a2a2a;
+            --accent: #3b82f6;
+        }
+
+        .glass-subtle {
+            background-color: var(--glass-bg);
+            backdrop-filter: blur(8px) saturate(1.05);
+            border: 1px solid var(--glass-border);
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'text-primary': 'var(--text-primary)',
+                        'text-secondary': 'var(--text-secondary)',
+                        'glass-border': 'var(--glass-border)',
+                        'accent': 'var(--accent)',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="p-8">
+    <div class="max-w-md mx-auto space-y-6">
+        <h1 class="text-2xl font-bold font-jakarta text-text-primary">Dark Mode Test</h1>
+        
+        <!-- Subscription Plan Section -->
+        <div class="space-y-3">
+            <label class="text-sm font-bold font-jakarta text-text-primary">Subscription Plan</label>
+            <div class="grid grid-cols-2 gap-3">
+                <!-- Guest Plan -->
+                <div class="p-4 rounded-xl border glass-subtle border-accent">
+                    <div class="flex flex-col items-center gap-2">
+                        <span class="text-sm font-bold font-jakarta text-accent">Guest</span>
+                        <span class="text-xs text-text-secondary font-jakarta">Free access</span>
+                    </div>
+                </div>
+                
+                <!-- Subscribed Plan -->
+                <div class="p-4 rounded-xl border border-glass-border glass-subtle">
+                    <div class="flex flex-col items-center gap-2">
+                        <span class="text-sm font-bold font-jakarta text-text-secondary">Subscribed</span>
+                        <span class="text-xs text-text-secondary font-jakarta">Premium features</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Upgrade message -->
+            <div class="p-3 rounded-xl glass-subtle border border-accent">
+                <p class="text-xs font-jakarta text-center text-accent">
+                    <span class="font-bold">Unlock premium features!</span> Upgrade to access advanced AI capabilities and priority support.
+                </p>
+            </div>
+        </div>
+
+        <!-- API Configuration Section -->
+        <div class="space-y-3">
+            <label class="text-sm font-bold font-jakarta text-text-primary">API Configuration</label>
+            <p class="text-xs text-text-secondary font-jakarta">
+                Connect your API key to unlock advanced features and personalized responses.
+            </p>
+            
+            <input
+                type="password"
+                placeholder="Enter your API key"
+                class="w-full p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+            
+            <button class="w-full py-2 px-4 rounded-xl text-sm font-bold font-jakarta transition-all border border-glass-border glass-subtle text-text-primary hover:glass">
+                Test Connection
+            </button>
+        </div>
+
+        <!-- Toggle Dark Mode -->
+        <button 
+            onclick="document.documentElement.classList.toggle('dark')"
+            class="w-full py-2 px-4 rounded-xl text-sm font-bold font-jakarta transition-all text-white bg-accent"
+        >
+            Toggle Dark Mode
+        </button>
+    </div>
+</body>
+</html>

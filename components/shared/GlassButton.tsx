@@ -1,5 +1,4 @@
 import React, { memo, type ReactNode, type CSSProperties } from 'react';
-import { GLASS_STYLES } from '../../constants';
 
 interface GlassButtonProps {
   children: ReactNode;
@@ -38,20 +37,24 @@ export const GlassButton = memo<GlassButtonProps>(({
     <button 
       onClick={onClick}
       disabled={disabled}
+      data-tauri-drag-region="false"
+      data-no-drag
       className={`
         ${SIZE_MAP[size]}
         flex items-center justify-center 
         transition-all duration-200
-        border border-black/5
+        glass-subtle
         ${hoverClass}
-        ${isActive ? 'text-gray-700' : 'text-gray-500'}
+        ${isActive ? 'text-text-primary' : 'text-text-secondary'}
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
         ${className}
       `}
-      style={{ 
-        backgroundColor: 'rgba(255, 255, 255, 0.5)',
-        ...GLASS_STYLES.base,
-        boxShadow: '0 2px 4px -1px rgba(0,0,0,0.08), inset 0 1px 2px rgba(255,255,255,0.3), inset 0 -1px 1px rgba(0,0,0,0.03)',
+      style={{
+        backdropFilter: 'blur(8px) saturate(1.1)',
+        WebkitBackdropFilter: 'blur(8px) saturate(1.1)',
+        boxShadow: isActive 
+          ? 'inset 0 2px 4px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.1)' 
+          : '0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.2)',
         ...style,
       }}
     >
