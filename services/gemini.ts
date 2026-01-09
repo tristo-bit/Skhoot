@@ -63,7 +63,11 @@ const analyzeLogsFunction: FunctionDeclaration = {
 export const geminiService = {
   async chat(message: string, history: any[] = []) {
     // Creating a new GoogleGenAI instance inside the function to ensure up-to-date API key access
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY not found in environment variables');
+    }
+    const ai = new GoogleGenAI({ apiKey });
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-2.0-flash',

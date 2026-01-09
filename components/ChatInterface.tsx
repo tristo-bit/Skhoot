@@ -271,12 +271,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       timestamp: new Date()
     };
 
-    // Build history from current messages before updating state
+    // Build history from current messages BEFORE adding the new user message
     const history = messages.map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }]
     }));
 
+    // Add user message to state immediately
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setVoiceTranscript('');
@@ -299,10 +300,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       setMessages(prev => [...prev, assistantMsg]);
     } catch (error) {
       console.error('Chat error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: `Sorry, I encountered an error: ${errorMessage}. Please check your API key configuration.`,
         type: 'text',
         timestamp: new Date()
       }]);
