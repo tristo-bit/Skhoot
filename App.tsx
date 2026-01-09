@@ -5,8 +5,10 @@ import SettingsPanel from './components/SettingsPanel';
 import Login from './components/Login';
 import Register from './components/Register';
 import UserPanel from './components/UserPanel';
+import FilesPanel from './components/FilesPanel';
+import TraceabilityPanel from './components/TraceabilityPanel';
 import { COLORS, THEME } from './constants';
-import { Menu, X, Settings, User as UserIcon } from 'lucide-react';
+import { Menu, X, Settings, User as UserIcon, FolderOpen } from 'lucide-react';
 import { GlassButton } from './components/shared';
 import { chatStorage } from './services/chatStorage';
 import { authService } from './services/auth';
@@ -39,6 +41,8 @@ const App: React.FC = () => {
     }
   }, []);
   const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
+  const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
+  const [isTraceabilityOpen, setIsTraceabilityOpen] = useState(false);
 
   const handleNewChat = useCallback(() => {
     pendingChatIdRef.current = null; // Clear any pending chat
@@ -120,6 +124,15 @@ const App: React.FC = () => {
   
   const openUserPanel = useCallback(() => setIsUserPanelOpen(true), []);
   const closeUserPanel = useCallback(() => setIsUserPanelOpen(false), []);
+  
+  const openFilesPanel = useCallback(() => setIsFilesPanelOpen(true), []);
+  const closeFilesPanel = useCallback(() => setIsFilesPanelOpen(false), []);
+  
+  const openTraceability = useCallback(() => {
+    setIsSettingsOpen(false);
+    setIsTraceabilityOpen(true);
+  }, []);
+  const closeTraceability = useCallback(() => setIsTraceabilityOpen(false), []);
 
   const handleClose = useCallback(() => {
     window.location.reload();
@@ -195,6 +208,9 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2 relative z-10">
+            <GlassButton onClick={openFilesPanel} aria-label="Files & Storage">
+              <FolderOpen size={18} />
+            </GlassButton>
             <GlassButton onClick={openUserPanel} aria-label="User profile">
               <UserIcon size={18} />
             </GlassButton>
@@ -231,7 +247,13 @@ const App: React.FC = () => {
         </div>
 
         {/* Settings */}
-        {isSettingsOpen && <SettingsPanel onClose={closeSettings} />}
+        {isSettingsOpen && <SettingsPanel onClose={closeSettings} onOpenTraceability={openTraceability} />}
+
+        {/* Traceability/Activity Log */}
+        {isTraceabilityOpen && <TraceabilityPanel onClose={closeTraceability} />}
+
+        {/* Files Panel */}
+        {isFilesPanelOpen && <FilesPanel onClose={closeFilesPanel} />}
 
         {/* Auth Views */}
         {authView === 'login' && (

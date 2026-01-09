@@ -1,9 +1,10 @@
 import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { COLORS, GLASS_STYLES } from '../constants';
-import { X, Bot, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX } from 'lucide-react';
+import { X, Bot, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList } from 'lucide-react';
 
 interface SettingsPanelProps {
   onClose: () => void;
+  onOpenTraceability?: () => void;
 }
 
 interface AudioDevice {
@@ -17,10 +18,11 @@ const SETTINGS_ITEMS = [
   { icon: Bell, label: 'Notifications', color: COLORS.raindropsOnRoses },
   { icon: Palette, label: 'Appearance', color: COLORS.lemonIcing },
   { icon: Shield, label: 'Privacy', color: COLORS.iceMelt },
+  { icon: ClipboardList, label: 'Activity Log', color: COLORS.orchidTint },
   { icon: HelpCircle, label: 'Help Center', color: COLORS.peachDust },
 ] as const;
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceability }) => {
   const [aiEnabled, setAiEnabled] = useState(true);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   
@@ -270,6 +272,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
   }, []);
 
   const handleSettingClick = (label: string) => {
+    if (label === 'Activity Log' && onOpenTraceability) {
+      onOpenTraceability();
+      return;
+    }
     setActivePanel(label);
   };
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { COLORS, WELCOME_MESSAGES, QUICK_ACTIONS } from '../constants';
+import { COLORS, WELCOME_MESSAGES, QUICK_ACTIONS, MOCK_FILES, MOCK_MESSAGES } from '../constants';
 import { Message } from '../types';
 import { geminiService } from '../services/gemini';
 import { Conversations } from './Conversations';
@@ -16,6 +16,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [searchType, setSearchType] = useState<'files' | 'messages' | 'disk' | 'cleanup' | null>(null);
   const [activeMode, setActiveMode] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -51,6 +52,166 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       onMessagesChange(messages);
     }
   }, [messages, onMessagesChange]);
+
+  // Demo event listener for console commands
+  useEffect(() => {
+    const handleDemoEvent = (event: CustomEvent) => {
+      const { type, data } = event.detail;
+      
+      // Hide empty state
+      if (isEmptyStateVisible) {
+        setIsEmptyStateExiting(true);
+        setTimeout(() => {
+          setIsEmptyStateVisible(false);
+          setIsEmptyStateExiting(false);
+        }, 100);
+      }
+
+      switch (type) {
+        case 'search-files': {
+          // Add user message
+          const userMsg: Message = {
+            id: Date.now().toString(),
+            role: 'user',
+            content: `Find my ${data.query} files`,
+            type: 'text',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, userMsg]);
+          setIsLoading(true);
+          setSearchType('files');
+          
+          // Simulate search delay then show results
+          setTimeout(() => {
+            setSearchType(null);
+            setIsLoading(false);
+            const assistantMsg: Message = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: `I found ${data.results.length} files matching "${data.query}":`,
+              type: 'file_list',
+              data: data.results,
+              timestamp: new Date()
+            };
+            setMessages(prev => [...prev, assistantMsg]);
+          }, 2000);
+          break;
+        }
+        
+        case 'search-messages': {
+          const userMsg: Message = {
+            id: Date.now().toString(),
+            role: 'user',
+            content: `Find messages about ${data.query}`,
+            type: 'text',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, userMsg]);
+          setIsLoading(true);
+          setSearchType('messages');
+          
+          setTimeout(() => {
+            setSearchType(null);
+            setIsLoading(false);
+            const assistantMsg: Message = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: `Found ${data.results.length} messages:`,
+              type: 'message_list',
+              data: data.results,
+              timestamp: new Date()
+            };
+            setMessages(prev => [...prev, assistantMsg]);
+          }, 2000);
+          break;
+        }
+        
+        case 'analyze-disk': {
+          const userMsg: Message = {
+            id: Date.now().toString(),
+            role: 'user',
+            content: 'Analyze my disk space',
+            type: 'text',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, userMsg]);
+          setIsLoading(true);
+          setSearchType('disk');
+          
+          setTimeout(() => {
+            setSearchType(null);
+            setIsLoading(false);
+            const assistantMsg: Message = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: 'Here\'s your disk usage analysis:',
+              type: 'disk_usage',
+              data: data.results,
+              timestamp: new Date()
+            };
+            setMessages(prev => [...prev, assistantMsg]);
+          }, 2500);
+          break;
+        }
+        
+        case 'show-markdown': {
+          const userMsg: Message = {
+            id: Date.now().toString(),
+            role: 'user',
+            content: 'Show me markdown formatting',
+            type: 'text',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, userMsg]);
+          setIsLoading(true);
+          
+          setTimeout(() => {
+            setIsLoading(false);
+            const assistantMsg: Message = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: data.content,
+              type: 'text',
+              timestamp: new Date()
+            };
+            setMessages(prev => [...prev, assistantMsg]);
+          }, 1000);
+          break;
+        }
+
+        case 'cleanup': {
+          const userMsg: Message = {
+            id: Date.now().toString(),
+            role: 'user',
+            content: 'Help me clean up and free some space',
+            type: 'text',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, userMsg]);
+          setIsLoading(true);
+          setSearchType('cleanup');
+          
+          setTimeout(() => {
+            setSearchType(null);
+            setIsLoading(false);
+            const assistantMsg: Message = {
+              id: (Date.now() + 1).toString(),
+              role: 'assistant',
+              content: 'I\'ve scanned your system and found some items that could be cleaned up. Here\'s what I found:',
+              type: 'cleanup',
+              data: data.results,
+              timestamp: new Date()
+            };
+            setMessages(prev => [...prev, assistantMsg]);
+          }, 3000);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('skhoot-demo', handleDemoEvent as EventListener);
+    return () => window.removeEventListener('skhoot-demo', handleDemoEvent as EventListener);
+  }, [isEmptyStateVisible]);
 
   // Effects
   useEffect(() => {
@@ -284,9 +445,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
     setPendingVoiceText('');
     setIsLoading(true);
     setActiveMode(null);
+    
+    // Determine search type based on message content or active mode
+    const lowerMessage = messageText.toLowerCase();
+    if (lowerMessage.includes('file') || lowerMessage.includes('find') || lowerMessage.includes('search') || lowerMessage.includes('where') || lowerMessage.includes('locate')) {
+      setSearchType('files');
+    } else if (lowerMessage.includes('message') || lowerMessage.includes('conversation') || lowerMessage.includes('chat') || lowerMessage.includes('said')) {
+      setSearchType('messages');
+    } else if (lowerMessage.includes('disk') || lowerMessage.includes('space') || lowerMessage.includes('storage')) {
+      setSearchType('disk');
+    } else if (lowerMessage.includes('cleanup') || lowerMessage.includes('clean up') || lowerMessage.includes('free space') || lowerMessage.includes('remove')) {
+      setSearchType('cleanup');
+    } else {
+      setSearchType(null);
+    }
 
     try {
       const result = await geminiService.chat(messageText, history);
+      
+      // Clear search type when done
+      setSearchType(null);
       
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -300,6 +478,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       setMessages(prev => [...prev, assistantMsg]);
     } catch (error) {
       console.error('Chat error:', error);
+      setSearchType(null);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
@@ -333,6 +512,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         ref={scrollRef}
         messages={messages}
         isLoading={isLoading}
+        searchType={searchType}
         isRecording={isRecording}
         hasPendingVoiceMessage={hasPendingVoiceMessage}
         voiceTranscript={voiceTranscript}
