@@ -1,7 +1,7 @@
 import React, { forwardRef, memo } from 'react';
 import { COLORS, GLASS_STYLES } from '../constants';
 import { Message } from '../types';
-import { MessageBubble, LoadingIndicator } from './Messages';
+import { MessageBubble, LoadingIndicator, SearchingIndicator } from './Messages';
 import { VoiceMessage } from './VoiceMessage';
 import { TypewriterText, ScrollbarStyles } from './shared';
 
@@ -64,6 +64,7 @@ EmptyState.displayName = 'EmptyState';
 interface ConversationsProps {
   messages: Message[];
   isLoading: boolean;
+  searchType: 'files' | 'messages' | 'disk' | 'cleanup' | null;
   isRecording: boolean;
   hasPendingVoiceMessage: boolean;
   voiceTranscript: string;
@@ -78,6 +79,7 @@ interface ConversationsProps {
 export const Conversations = forwardRef<HTMLDivElement, ConversationsProps>(({
   messages,
   isLoading,
+  searchType,
   isRecording,
   hasPendingVoiceMessage,
   voiceTranscript,
@@ -125,8 +127,10 @@ export const Conversations = forwardRef<HTMLDivElement, ConversationsProps>(({
           />
         )}
         
-        {/* Loading indicator */}
-        {isLoading && <LoadingIndicator />}
+        {/* Search/Loading indicator */}
+        {isLoading && (
+          searchType ? <SearchingIndicator type={searchType} /> : <LoadingIndicator />
+        )}
       </div>
     </div>
   );

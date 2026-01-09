@@ -3,7 +3,7 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  type: 'text' | 'file_list' | 'message_list' | 'analysis' | 'disk_usage';
+  type: 'text' | 'file_list' | 'message_list' | 'analysis' | 'disk_usage' | 'cleanup';
   data?: any;
   timestamp: Date;
 }
@@ -24,6 +24,18 @@ export interface FileInfo {
   category: string;
   safeToRemove: boolean;
   lastUsed: string;
+}
+
+export interface CleanupItem {
+  id: string;
+  name: string;
+  path: string;
+  size: string;
+  type: 'folder' | 'file';
+  canRemove: boolean;
+  description: string;
+  consequence: string;
+  lastAccessed: string;
 }
 
 export interface ConversationMessage {
