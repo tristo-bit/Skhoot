@@ -11,6 +11,8 @@ import { Menu, X, Settings, User as UserIcon, FolderOpen } from 'lucide-react';
 import { GlassButton } from './components/shared';
 import { chatStorage } from './services/chatStorage';
 import { authService } from './services/auth';
+import { initScaleManager, destroyScaleManager } from './services/scaleManager';
+import { initUIConfig } from './services/uiConfig';
 import { Chat, Message, User } from './types';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 
@@ -31,6 +33,14 @@ const AppContent: React.FC = () => {
   const pendingChatIdRef = useRef<string | null>(null);
 
   // Load chats and auth state on mount
+  useEffect(() => {
+    initUIConfig();
+    initScaleManager();
+    return () => {
+      destroyScaleManager();
+    };
+  }, []);
+
   useEffect(() => {
     const loadedChats = chatStorage.getChats();
     setChats(loadedChats);
@@ -135,20 +145,78 @@ const AppContent: React.FC = () => {
   }, []);
   const closeTraceability = useCallback(() => setIsTraceabilityOpen(false), []);
 
-  const handleClose = useCallback(() => {
-    window.location.reload();
+  const handleClose = useCallback(async () => {
+    try {
+      const [{ getCurrent }, { exit }] = await Promise.all([
+        import('@tauri-apps/api/window'),
+        import('@tauri-apps/api/app'),
+      ]);
+      await getCurrent().close();
+      await exit(0);
+    } catch {
+      window.close();
+    }
+  }, []);
+
+  const startWindowDrag = useCallback(async () => {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    await getCurrentWindow().startDragging();
+  }, []);
+
+  const handleDragMouseDown = useCallback(async (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-no-drag]')) return;
+    try {
+      await startWindowDrag();
+    } catch {
+      // noop
+    }
+  }, [startWindowDrag]);
+
+  const handleBackgroundDrag = useCallback(async (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    if (e.target !== e.currentTarget) return;
+    try {
+      await startWindowDrag();
+    } catch {
+      // noop
+    }
+  }, [startWindowDrag]);
+
+  const handleResizeMouseDown = useCallback(async (direction: 'East' | 'North' | 'NorthEast' | 'NorthWest' | 'South' | 'SouthEast' | 'SouthWest' | 'West') => {
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      await getCurrentWindow().startResizeDragging(direction);
+    } catch {
+      // noop
+    }
   }, []);
 
   return (
-    <div className="flex h-screen w-full items-center justify-center p-4 overflow-hidden bg-bg-primary">
+    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-bg-primary">
+      {/* Resize handles (borderless window) */}
+      <div className="absolute inset-0 pointer-events-none z-50">
+        <div className="absolute top-0 left-0 right-0 h-6 cursor-n-resize pointer-events-auto" onMouseDown={() => handleResizeMouseDown('North')} />
+        <div className="absolute bottom-0 left-0 right-0 h-6 cursor-s-resize pointer-events-auto" onMouseDown={() => handleResizeMouseDown('South')} />
+        <div className="absolute top-0 bottom-0 left-0 w-6 cursor-w-resize pointer-events-auto" onMouseDown={() => handleResizeMouseDown('West')} />
+        <div className="absolute top-0 bottom-0 right-0 w-6 cursor-e-resize pointer-events-auto" onMouseDown={() => handleResizeMouseDown('East')} />
+        <div className="absolute top-0 left-0 w-8 h-8 cursor-nw-resize pointer-events-auto" onMouseDown={() => handleResizeMouseDown('NorthWest')} />
+        <div className="absolute top-0 right-0 w-8 h-8 cursor-ne-resize pointer-events-auto" onMouseDown={() => handleResizeMouseDown('NorthEast')} />
+        <div className="absolute bottom-0 left-0 w-8 h-8 cursor-sw-resize pointer-events-auto" onMouseDown={() => handleResizeMouseDown('SouthWest')} />
+        <div className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize pointer-events-auto" onMouseDown={() => handleResizeMouseDown('SouthEast')} />
+      </div>
       {/* Background blurs */}
       <BackgroundBlur position="top-[5%] left-[15%]" />
       <BackgroundBlur position="bottom-[5%] right-[15%]" />
 
       {/* Main container */}
-      <div className="relative z-10 w-full max-w-[480px] h-[720px] flex flex-col rounded-[40px] shadow-2xl overflow-hidden glass-elevated">
+      <div className="relative z-10 w-full h-full flex flex-col rounded-[32px] shadow-2xl overflow-hidden glass-elevated">
         {/* Header */}
-        <header className="relative z-30 px-6 py-5 flex items-center justify-between">
+        <header
+          className="relative z-30 px-6 py-5 flex items-center justify-between cursor-move select-none"
+          onMouseDown={handleDragMouseDown}
+        >
           {/* Left side with morphing background */}
           <div className="flex items-center gap-4 relative">
             {/* Morphing background that extends from sidebar */}
@@ -162,6 +230,7 @@ const AppContent: React.FC = () => {
             
             <button 
               onClick={toggleSidebar}
+              data-no-drag
               className="relative z-10 p-1.5 hover:bg-black/5 rounded-lg transition-all text-text-secondary active:scale-95"
               aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
             >
@@ -193,7 +262,7 @@ const AppContent: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex items-center gap-2 relative z-10">
+          <div className="flex items-center gap-2 relative z-10" data-no-drag>
             <GlassButton onClick={openFilesPanel} aria-label="Utility">
               <FolderOpen size={18} />
             </GlassButton>
@@ -261,14 +330,20 @@ const AppContent: React.FC = () => {
         {isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
 
         {/* Main content */}
-        <main className="flex-1 relative overflow-hidden flex flex-col">
-          <ChatInterface 
-            key={currentChatId ?? 'new-chat'} 
-            chatId={currentChatId}
-            initialMessages={currentChat?.messages || []}
-            onMessagesChange={handleMessagesChange}
-          />
+        <main
+          className="flex-1 relative overflow-hidden flex flex-col p-2"
+          onMouseDown={handleBackgroundDrag}
+        >
+          <div className="flex-1 relative overflow-hidden" data-tauri-drag-region="false">
+            <ChatInterface 
+              key={currentChatId ?? 'new-chat'} 
+              chatId={currentChatId}
+              initialMessages={currentChat?.messages || []}
+              onMessagesChange={handleMessagesChange}
+            />
+          </div>
         </main>
+
       </div>
     </div>
   );

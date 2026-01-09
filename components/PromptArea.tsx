@@ -23,7 +23,7 @@ interface QuickActionButtonProps {
 const QuickActionButton = memo<QuickActionButtonProps>(({ id, icon, color, isActive, onClick, style }) => (
   <button 
     onClick={onClick}
-    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 font-jakarta outline-none glass-subtle w-full ${
+    className={`quick-action-button flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 font-jakarta outline-none glass-subtle w-full ${
       isActive 
         ? 'text-text-primary' 
         : 'text-text-secondary hover:scale-[1.02] active:scale-95'
@@ -38,8 +38,8 @@ const QuickActionButton = memo<QuickActionButtonProps>(({ id, icon, color, isAct
       ...style
     }}
   >
-    <span className={isActive ? 'animate-pulse' : ''}>{icon}</span>
-    {id}
+    <span className={`quick-action-icon ${isActive ? 'animate-pulse' : ''}`}>{icon}</span>
+    <span className="quick-action-label">{id}</span>
   </button>
 ));
 QuickActionButton.displayName = 'QuickActionButton';
@@ -106,14 +106,24 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
   const smoothEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 px-6 pb-6 pt-4 pointer-events-none z-20">
+    <div
+      className="absolute bottom-0 left-0 right-0 pointer-events-none z-20"
+      style={{
+        paddingLeft: 'var(--prompt-area-x)',
+        paddingRight: 'var(--prompt-area-x)',
+        paddingTop: 'var(--prompt-area-y)',
+        paddingBottom: 'var(--prompt-area-x)',
+      }}
+    >
       <div 
-        className="rounded-[32px] p-2.5 flex flex-col shadow-2xl pointer-events-auto glass-elevated"
+        className="prompt-panel flex flex-col shadow-2xl pointer-events-auto glass-elevated"
         style={{ 
           background: activeMode 
             ? `linear-gradient(135deg, ${activeColor}08, ${activeColor}04)` 
             : undefined,
           transition: `background 0.5s ${smoothEasing}, border-color 0.5s ${smoothEasing}, box-shadow 0.5s ${smoothEasing}`,
+          padding: 'var(--prompt-panel-padding)',
+          borderRadius: 'var(--prompt-panel-radius)',
         }}
       >
         {/* Quick Actions - animated container with grid for smooth height */}
@@ -134,7 +144,16 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
                 paddingBottom: 12,
               }}
             >
-              <div className="grid grid-cols-4 gap-2 px-2 py-1">
+              <div
+                className="quick-action-grid grid grid-cols-4"
+                style={{
+                  gap: 'calc(var(--scale-space-2) * var(--spacing-scale))',
+                  paddingLeft: 'calc(var(--scale-space-2) * var(--spacing-scale))',
+                  paddingRight: 'calc(var(--scale-space-2) * var(--spacing-scale))',
+                  paddingTop: 'calc(var(--scale-space-1) * var(--spacing-scale))',
+                  paddingBottom: 'calc(var(--scale-space-2) * var(--spacing-scale))',
+                }}
+              >
                 {QUICK_ACTIONS.map((action, index) => (
                   <QuickActionButton
                     key={action.id}
@@ -147,6 +166,9 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
                       opacity: showQuickActions ? 1 : 0,
                       transform: showQuickActions ? 'scale(1)' : 'scale(0.92)',
                       transition: `opacity 0.35s ${smoothEasing} ${showQuickActions ? index * 0.04 : (QUICK_ACTIONS.length - 1 - index) * 0.02}s, transform 0.4s ${smoothEasing} ${showQuickActions ? index * 0.04 : 0}s`,
+                      fontSize: 'calc(var(--scale-font-sm) * var(--text-scale))',
+                      padding: 'calc(8px * var(--component-scale) * var(--scale)) calc(12px * var(--component-scale) * var(--scale))',
+                      borderRadius: 'calc(12px * var(--component-scale) * var(--scale))',
                     }}
                   />
                 ))}
@@ -158,7 +180,13 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
         {/* Input Row */}
         <div className="flex items-center gap-2">
           {/* SoundWave replaces input when recording */}
-          <div className="flex-1 relative pl-2" style={{ minHeight: 40 }}>
+          <div
+            className="flex-1 relative"
+            style={{
+              paddingLeft: 'calc(var(--scale-space-2) * var(--spacing-scale))',
+              minHeight: 'calc(40px * var(--component-scale) * var(--scale))',
+            }}
+          >
             <div
               style={{
                 opacity: isRecording ? 1 : 0,
@@ -188,22 +216,35 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
                 onChange={onInputChange}
                 onKeyDown={onKeyDown}
                 placeholder={placeholder}
-                className="w-full bg-transparent border-none outline-none py-2 text-[14px] font-semibold placeholder:text-text-secondary placeholder:font-medium font-jakarta text-text-primary"
+                className="w-full bg-transparent border-none outline-none font-semibold placeholder:text-text-secondary placeholder:font-medium font-jakarta text-text-primary"
+                style={{
+                  fontSize: 'var(--prompt-input-font)',
+                  paddingTop: 'calc(var(--scale-space-1) * var(--spacing-scale))',
+                  paddingBottom: 'calc(var(--scale-space-1) * var(--spacing-scale))',
+                }}
               />
             </div>
           </div>
           
           {/* Action Buttons */}
-          <div className="flex items-center gap-1.5 pr-1">
+          <div
+            className="flex items-center"
+            style={{
+              gap: 'calc(var(--scale-space-2) * var(--spacing-scale))',
+              paddingRight: 'calc(var(--scale-space-1) * var(--spacing-scale))',
+            }}
+          >
             <button 
               onClick={onMicClick}
-              className={`relative p-3 hover:bg-black/5 dark:hover:bg-white/5 rounded-2xl active:scale-90 ${
+              className={`relative hover:bg-black/5 dark:hover:bg-white/5 rounded-2xl active:scale-90 ${
                 isRecording ? 'text-red-500 animate-pulse bg-red-50' : 
                 isOpera ? 'text-amber-500' : 'text-text-secondary'
               }`}
               style={{
                 backgroundColor: isRecording ? '#ef444440' : isOpera ? '#f59e0b20' : '#8b5cf620',
                 transition: `all 0.4s cubic-bezier(0.22, 1, 0.36, 1)`,
+                padding: 'calc(12px * var(--component-scale) * var(--scale))',
+                borderRadius: 'calc(16px * var(--component-scale) * var(--scale))',
               }}
               aria-label={
                 isRecording ? 'Stop recording' : 
@@ -216,7 +257,7 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
                 'Voice input not supported in this browser'
               }
             >
-              <Mic size={22} />
+              <Mic size={22} style={{ width: 'calc(22px * var(--icon-scale) * var(--scale-text))', height: 'calc(22px * var(--icon-scale) * var(--scale-text))' }} />
               {/* Opera indicator */}
               {isOpera && !isRecording && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full flex items-center justify-center">
@@ -237,7 +278,7 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
                 <button 
                   onClick={onSend}
                   disabled={isLoading}
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center active:scale-90 ${
+                  className={`rounded-2xl flex items-center justify-center active:scale-90 ${
                     (hasContent || hasPendingVoiceMessage) && !isLoading ? 'text-text-primary' : 'text-text-secondary'
                   } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   style={{ 
@@ -246,6 +287,9 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
                     transform: isRecording ? 'scale(0.85)' : 'scale(1)',
                     transition: `opacity 0.35s ${smoothEasing}, transform 0.4s ${smoothEasing}, background-color 0.2s ease`,
                     boxShadow: 'none !important',
+                    width: 'calc(48px * var(--component-scale) * var(--scale))',
+                    height: 'calc(48px * var(--component-scale) * var(--scale))',
+                    borderRadius: 'calc(16px * var(--component-scale) * var(--scale))',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.boxShadow = 'none !important';
@@ -258,10 +302,16 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
                   aria-label="Send message"
                 >
                   {isLoading ? (
-                    <Square size={18} fill="currentColor" className="animate-pulse" />
+                    <Square
+                      size={18}
+                      fill="currentColor"
+                      className="animate-pulse"
+                      style={{ width: 'calc(18px * var(--icon-scale) * var(--scale-text))', height: 'calc(18px * var(--icon-scale) * var(--scale-text))' }}
+                    />
                   ) : (
                     <Send 
-                      size={22} 
+                      size={22}
+                      style={{ width: 'calc(22px * var(--icon-scale) * var(--scale-text))', height: 'calc(22px * var(--icon-scale) * var(--scale-text))' }}
                       className={(hasContent || hasPendingVoiceMessage) ? 'animate-in zoom-in duration-200' : 'opacity-50'} 
                     />
                   )}

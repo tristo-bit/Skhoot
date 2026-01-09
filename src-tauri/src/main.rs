@@ -2,5 +2,18 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-  app_lib::run();
+  tauri::Builder::default()
+    .plugin(tauri_plugin_shell::init())
+    .plugin(tauri_plugin_dialog::init())
+    .setup(|app| {
+      #[cfg(desktop)]
+      {
+        // Use an empty app-wide menu to avoid showing a menubar.
+        let menu = tauri::menu::Menu::new(app.handle())?;
+        app.set_menu(menu)?;
+      }
+      Ok(())
+    })
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
 }

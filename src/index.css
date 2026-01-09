@@ -4,6 +4,17 @@
 
 @layer base {
   :root {
+    /* Proportional scaling factor (set by ScaleManager) */
+    --scale: 1;
+    --height-scale: 1;
+    --scale-text: 1;
+
+    /* Granular scaling factors (set by uiConfig) */
+    --text-scale: 1;
+    --spacing-scale: 1;
+    --icon-scale: 1;
+    --component-scale: 1;
+
     /* Light theme variables */
     --glass-bg: rgba(255, 255, 255, 0.85);
     --glass-border: rgba(0, 0, 0, 0.08);
@@ -24,6 +35,111 @@
     --shadow-key: 0 2px 8px rgba(0, 0, 0, 0.08);
     --highlight-inner: inset 0 1px 2px rgba(255, 255, 255, 0.4);
     --highlight-edge: inset 0 -1px 1px rgba(0, 0, 0, 0.04);
+
+    /* Scaled spacing (width/height proportional) */
+    --scale-space-1: calc(4px * var(--scale));
+    --scale-space-2: calc(8px * var(--scale));
+    --scale-space-3: calc(12px * var(--scale));
+    --scale-space-4: calc(16px * var(--scale));
+    --scale-space-5: calc(20px * var(--scale));
+    --scale-space-6: calc(24px * var(--scale));
+
+    /* Scaled font sizes (width proportional) */
+    --scale-font-sm: calc(12px * var(--scale-text));
+    --scale-font-base: calc(14px * var(--scale-text));
+    --scale-font-lg: calc(16px * var(--scale-text));
+    --scale-font-xl: calc(18px * var(--scale-text));
+    --scale-font-2xl: calc(24px * var(--scale-text));
+    --scale-font-3xl: calc(32px * var(--scale-text));
+
+    /* User-scaled values (granular scaling) */
+    --scaled-text-xs: calc(10px * var(--text-scale));
+    --scaled-text-sm: calc(12px * var(--text-scale));
+    --scaled-text-base: calc(14px * var(--text-scale));
+    --scaled-text-lg: calc(16px * var(--text-scale));
+    --scaled-text-xl: calc(18px * var(--text-scale));
+    --scaled-text-2xl: calc(24px * var(--text-scale));
+    --scaled-text-3xl: calc(32px * var(--text-scale));
+
+    --scaled-space-1: calc(4px * var(--spacing-scale));
+    --scaled-space-2: calc(8px * var(--spacing-scale));
+    --scaled-space-3: calc(12px * var(--spacing-scale));
+    --scaled-space-4: calc(16px * var(--spacing-scale));
+    --scaled-space-5: calc(20px * var(--spacing-scale));
+    --scaled-space-6: calc(24px * var(--spacing-scale));
+
+    --scaled-icon-sm: calc(14px * var(--icon-scale));
+    --scaled-icon-md: calc(18px * var(--icon-scale));
+    --scaled-icon-lg: calc(24px * var(--icon-scale));
+    --scaled-icon-xl: calc(32px * var(--icon-scale));
+
+    --scaled-btn-height: calc(36px * var(--component-scale));
+    --scaled-input-height: calc(40px * var(--component-scale));
+    --scaled-card-padding: calc(16px * var(--component-scale));
+
+    --prompt-area-x: calc(var(--scale-space-4) * var(--spacing-scale));
+    --prompt-area-y: calc(var(--scale-space-3) * var(--spacing-scale));
+    --prompt-panel-padding: calc(10px * var(--component-scale) * var(--scale));
+    --prompt-panel-radius: calc(32px * var(--component-scale) * var(--scale));
+    --prompt-input-font: calc(var(--scale-font-base) * var(--text-scale));
+  }
+
+  .compact-mode .quick-action-label {
+    display: inline;
+  }
+
+  .compact-mode .quick-action-icon {
+    display: none;
+  }
+
+  .compact-mode .quick-action-button {
+    padding-left: calc(var(--scale-space-2) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-2) * var(--spacing-scale));
+  }
+
+  .micro-mode .quick-action-label {
+    display: none;
+  }
+
+  .micro-mode .quick-action-icon {
+    display: inline;
+  }
+
+  .micro-mode .quick-action-button {
+    padding-left: calc(var(--scale-space-2) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-2) * var(--spacing-scale));
+  }
+
+  .compact-mode .quick-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .compact-mode {
+    --prompt-area-x: calc(var(--scale-space-3) * var(--spacing-scale));
+    --prompt-area-y: calc(var(--scale-space-2) * var(--spacing-scale));
+    --prompt-panel-padding: calc(8px * var(--component-scale) * var(--scale));
+    --prompt-panel-radius: calc(24px * var(--component-scale) * var(--scale));
+    --prompt-input-font: calc(var(--scale-font-base) * 0.95 * var(--text-scale));
+  }
+
+  .mobile-mode .quick-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mobile-mode {
+    --prompt-area-x: calc(var(--scale-space-2) * var(--spacing-scale));
+    --prompt-area-y: calc(var(--scale-space-2) * var(--spacing-scale));
+    --prompt-panel-padding: calc(6px * var(--component-scale) * var(--scale));
+    --prompt-panel-radius: calc(20px * var(--component-scale) * var(--scale));
+    --prompt-input-font: calc(var(--scale-font-base) * 0.9 * var(--text-scale));
+  }
+
+  .micro-mode {
+    --prompt-area-x: calc(var(--scale-space-1) * var(--spacing-scale));
+    --prompt-area-y: calc(var(--scale-space-1) * var(--spacing-scale));
+    --prompt-panel-padding: calc(4px * var(--component-scale) * var(--scale));
+    --prompt-panel-radius: calc(18px * var(--component-scale) * var(--scale));
+    --prompt-input-font: calc(var(--scale-font-base) * 0.85 * var(--text-scale));
   }
 
   .dark {

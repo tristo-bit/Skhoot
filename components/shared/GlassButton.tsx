@@ -37,6 +37,8 @@ export const GlassButton = memo<GlassButtonProps>(({
     <button 
       onClick={onClick}
       disabled={disabled}
+      data-tauri-drag-region="false"
+      data-no-drag
       className={`
         ${SIZE_MAP[size]}
         flex items-center justify-center 
