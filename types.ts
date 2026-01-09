@@ -39,3 +39,17 @@ export interface SearchResult {
   messages?: ConversationMessage[];
   analysis?: string;
 }
+
+export interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  avatar?: string;
+  provider: 'email' | 'google' | 'microsoft' | 'apple';
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}
