@@ -233,37 +233,6 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
                 </button>
               </div>
             </div>
-            {/* Send button - hidden during recording */}
-            {!isRecording && (
-              <button 
-                onClick={onSend}
-                disabled={isLoading}
-                className={`w-12 h-12 rounded-2xl transition-all flex items-center justify-center active:scale-90 border border-black/5 ${
-                  (hasContent || hasPendingVoiceMessage) && !isLoading ? 'text-gray-700' : 'text-gray-400'
-                } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${
-                  hasPendingVoiceMessage ? 'animate-pulse shadow-lg' : ''
-                }`}
-                style={{ 
-                  backgroundColor: hasPendingVoiceMessage ? 'rgba(192, 183, 201, 0.2)' : 'rgba(255, 255, 255, 0.7)',
-                  ...GLASS_STYLES.base,
-                  boxShadow: hasPendingVoiceMessage 
-                    ? '0 4px 12px -2px rgba(192, 183, 201, 0.4), 0 2px 8px rgba(192, 183, 201, 0.2), inset 0 1px 2px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05)'
-                    : '0 2px 4px -1px rgba(0,0,0,0.1), 0 1px 2px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05)'
-                }}
-                aria-label="Send message"
-              >
-                {isLoading ? (
-                  <Square size={18} fill="currentColor" className="animate-pulse" />
-                ) : (
-                  <Send 
-                    size={22} 
-                    className={`${(hasContent || hasPendingVoiceMessage) ? 'animate-in zoom-in duration-200' : 'opacity-50'} ${
-                      hasPendingVoiceMessage ? 'animate-bounce' : ''
-                    }`}
-                  />
-                )}
-              </button>
-            )}
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
-import React, { useState, memo } from 'react';
+import React, { useState, memo, useRef, useEffect } from 'react';
 import { Send, X, MessageSquare } from 'lucide-react';
-import { COLORS, THEME } from '../constants';
+import { COLORS, THEME, GLASS_STYLES } from '../constants';
 
 interface VoiceMessageProps {
   transcript: string;
@@ -19,8 +19,17 @@ export const VoiceMessage = memo<VoiceMessageProps>(({
   isRecording, 
   isPending 
 }) => {
-  const [isHovering, setIsHovering] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
+  const [isCompact, setIsCompact] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  
+  // Check if content is small and adjust button size accordingly
+  useEffect(() => {
+    if (contentRef.current) {
+      const width = contentRef.current.offsetWidth;
+      setIsCompact(width < 180);
+    }
+  }, [transcript, pendingText]);
   
   const handleDiscard = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -62,6 +71,9 @@ export const VoiceMessage = memo<VoiceMessageProps>(({
       </div>
     );
   }
+
+  const buttonSize = isCompact ? 'w-8 h-8 rounded-xl' : 'w-10 h-10 rounded-2xl';
+  const iconSize = isCompact ? 14 : 18;
   
   return (
     <div className="flex justify-end animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -72,16 +84,18 @@ export const VoiceMessage = memo<VoiceMessageProps>(({
         )}
         
         <div 
-          className="rounded-3xl rounded-tr-none shadow-sm border border-black/5 relative overflow-hidden"
-          style={{ backgroundColor: THEME.userBubble }}
-          onMouseEnter={() => setIsHovering(true)}
-          onMouseLeave={() => setIsHovering(false)}
+          ref={contentRef}
+          className="rounded-3xl rounded-tr-none border border-white/30"
+          style={{ backgroundColor: `${THEME.userBubble}40`, backdropFilter: 'blur(8px)' }}
         >
-          <div className="p-4 space-y-2">
+          <div className={isCompact ? 'p-3 space-y-1.5' : 'p-4 space-y-2'}>
             {transcript && (
               <p 
-                className="text-[13px] leading-relaxed font-semibold font-jakarta" 
-                style={{ color: COLORS.textPrimary }}
+                className={`leading-relaxed font-semibold font-jakarta ${isCompact ? 'text-[12px]' : 'text-[13px]'}`}
+                style={{ 
+                  color: COLORS.textPrimary,
+                  textShadow: '0 1px 1px rgba(255, 255, 255, 0.6), 0 -0.5px 0.5px rgba(0, 0, 0, 0.08)',
+                }}
               >
                 {transcript}
               </p>
@@ -89,7 +103,7 @@ export const VoiceMessage = memo<VoiceMessageProps>(({
             
             {pendingText && (
               <p 
-                className="text-[11px] leading-relaxed font-medium opacity-60 italic font-jakarta animate-pulse" 
+                className={`leading-relaxed font-medium opacity-60 italic font-jakarta animate-pulse ${isCompact ? 'text-[10px]' : 'text-[11px]'}`}
                 style={{ color: COLORS.textSecondary }}
               >
                 {pendingText}
@@ -97,46 +111,33 @@ export const VoiceMessage = memo<VoiceMessageProps>(({
             )}
           </div>
           
-          {/* Pending state overlay with Send | Discard */}
+          {/* Pending state - action buttons below text */}
           {isPending && (
-            <div 
-              className={`absolute inset-0 flex items-center justify-center gap-4 transition-all duration-200 ${
-                isHovering ? 'opacity-100' : 'opacity-0'
-              }`}
-              style={{ 
-                backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                backdropFilter: 'blur(2px)',
-              }}
-            >
+            <div className={`flex items-center ${isCompact ? 'px-3 pb-2.5 gap-1.5' : 'px-4 pb-3 gap-2'}`}>
               <button
                 onClick={onSend}
-                className="flex items-center gap-1.5 px-4 py-2 bg-white/90 hover:bg-white rounded-full transition-all hover:scale-105 active:scale-95"
+                className={`${buttonSize} flex items-center justify-center active:scale-90 border border-black/5 text-gray-700 hover:brightness-95 transition-all`}
+                style={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                  ...GLASS_STYLES.base,
+                  boxShadow: '0 2px 4px -1px rgba(0,0,0,0.1), 0 1px 2px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05)',
+                }}
               >
-                <Send size={14} className="text-gray-700" />
-                <span className="text-xs font-semibold text-gray-700">Send</span>
+                <Send size={iconSize} />
               </button>
-              
-              <div className="w-px h-6 bg-white/30" />
               
               <button
                 onClick={handleDiscard}
-                className="flex items-center gap-1.5 px-4 py-2 bg-white/20 hover:bg-red-500/80 rounded-full transition-all hover:scale-105 active:scale-95 group"
+                className={`${buttonSize} flex items-center justify-center active:scale-90 border border-black/5 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all`}
+                style={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                }}
               >
-                <X size={14} className="text-white group-hover:text-white" />
-                <span className="text-xs font-semibold text-white">Discard</span>
+                <X size={iconSize} />
               </button>
             </div>
           )}
         </div>
-        
-        {/* Pending confirmation text */}
-        {isPending && (
-          <div className="flex justify-end mt-2">
-            <p className="text-xs font-jakarta text-gray-400 animate-pulse">
-              Waiting for your confirmation
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
