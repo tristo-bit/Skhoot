@@ -66,7 +66,7 @@ export const geminiService = {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.0-flash',
         contents: [
           ...history,
           { role: 'user', parts: [{ text: message }] }
@@ -82,6 +82,11 @@ export const geminiService = {
           ]}],
         },
       });
+
+      // Handle case where response might be empty
+      if (!response) {
+        return { text: "I'm here to help! What can I assist you with?", type: 'text' };
+      }
 
       const functionCalls = response.functionCalls;
       
@@ -107,7 +112,7 @@ export const geminiService = {
 
         // Continuing the generation with tool response part including the function call id
         const finalResponse = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
+          model: 'gemini-2.0-flash',
           contents: [
             ...history,
             { role: 'user', parts: [{ text: message }] },
@@ -117,13 +122,13 @@ export const geminiService = {
         });
 
         return {
-          text: finalResponse.text,
+          text: finalResponse?.text || "Here's what I found.",
           type: result?.type || 'text',
           data: result?.data
         };
       }
 
-      return { text: response.text, type: 'text' };
+      return { text: response.text || "I'm here! How can I help you?", type: 'text' };
     } catch (error) {
       console.error("Gemini Error:", error);
       return { text: "I'm sorry, I encountered an issue accessing your system index.", type: 'text' };

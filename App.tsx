@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, memo } from 'react';
+import React, { useState, useCallback, useEffect, memo, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import SettingsPanel from './components/SettingsPanel';
@@ -24,6 +24,9 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [authView, setAuthView] = useState<'none' | 'login' | 'register'>('none');
+  
+  // Track pending chat creation to avoid remounting during first message
+  const pendingChatIdRef = useRef<string | null>(null);
 
   // Load chats and auth state on mount
   useEffect(() => {
@@ -38,6 +41,7 @@ const App: React.FC = () => {
   const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
 
   const handleNewChat = useCallback(() => {
+    pendingChatIdRef.current = null; // Clear any pending chat
     const newChat = chatStorage.createChat();
     chatStorage.saveChat(newChat);
     setChats(chatStorage.getChats());
@@ -46,6 +50,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleSelectChat = useCallback((chatId: string) => {
+    pendingChatIdRef.current = null; // Clear any pending chat
     setCurrentChatId(chatId);
     setIsSidebarOpen(false);
   }, []);
@@ -59,24 +64,34 @@ const App: React.FC = () => {
   }, [currentChatId]);
 
   const handleMessagesChange = useCallback((messages: Message[]) => {
-    if (!currentChatId) {
-      // Create a new chat if none exists
+    if (!currentChatId && !pendingChatIdRef.current) {
+      // Create a new chat if none exists and we're not already creating one
       const newChat = chatStorage.createChat();
+      pendingChatIdRef.current = newChat.id;
       newChat.messages = messages;
       newChat.title = chatStorage.generateTitle(messages);
       newChat.updatedAt = new Date();
       chatStorage.saveChat(newChat);
       setChats(chatStorage.getChats());
-      setCurrentChatId(newChat.id);
+      // Don't update currentChatId yet - wait until conversation is established
     } else {
-      // Update existing chat
-      const chat = chatStorage.getChat(currentChatId);
-      if (chat) {
-        chat.messages = messages;
-        chat.title = chatStorage.generateTitle(messages);
-        chat.updatedAt = new Date();
-        chatStorage.saveChat(chat);
-        setChats(chatStorage.getChats());
+      // Update existing chat (use pending ID if we just created one)
+      const chatId = currentChatId || pendingChatIdRef.current;
+      if (chatId) {
+        const chat = chatStorage.getChat(chatId);
+        if (chat) {
+          chat.messages = messages;
+          chat.title = chatStorage.generateTitle(messages);
+          chat.updatedAt = new Date();
+          chatStorage.saveChat(chat);
+          setChats(chatStorage.getChats());
+          
+          // Now that we have a response, update the currentChatId
+          if (!currentChatId && pendingChatIdRef.current) {
+            setCurrentChatId(pendingChatIdRef.current);
+            pendingChatIdRef.current = null;
+          }
+        }
       }
     }
   }, [currentChatId]);
@@ -239,7 +254,7 @@ const App: React.FC = () => {
         {/* Main content */}
         <main className="flex-1 relative overflow-hidden flex flex-col">
           <ChatInterface 
-            key={currentChatId || 'new'} 
+            key={currentChatId ?? 'new-chat'} 
             chatId={currentChatId}
             initialMessages={currentChat?.messages || []}
             onMessagesChange={handleMessagesChange}

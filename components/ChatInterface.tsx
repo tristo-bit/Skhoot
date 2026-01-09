@@ -271,6 +271,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       timestamp: new Date()
     };
 
+    // Build history from current messages before updating state
+    const history = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setVoiceTranscript('');
@@ -279,11 +285,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
     setActiveMode(null);
 
     try {
-      const history = messages.map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }]
-      }));
-
       const result = await geminiService.chat(messageText, history);
       
       const assistantMsg: Message = {
