@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { Search } from 'lucide-react';
 import { COLORS, THEME } from '../constants';
 import { Message, FileInfo } from '../types';
+import { MarkdownRenderer } from './shared';
 
 export const MessageBubble = memo<{ message: Message }>(({ message }) => {
   const isUser = message.role === 'user';
@@ -12,12 +13,6 @@ export const MessageBubble = memo<{ message: Message }>(({ message }) => {
     backdropFilter: 'blur(8px)',
   };
 
-  // Embossed text style for AI - pressed into the surface
-  const aiTextStyle = {
-    color: '#555',
-    textShadow: '1px 1px 1px rgba(255, 255, 255, 0.9), -0.5px -0.5px 0.5px rgba(0, 0, 0, 0.15)',
-  };
-
   // User text style
   const userTextStyle = {
     color: COLORS.textPrimary,
@@ -25,16 +20,11 @@ export const MessageBubble = memo<{ message: Message }>(({ message }) => {
   };
   
   if (!isUser) {
-    // AI message - no bubble, just embossed text
+    // AI message - no bubble, markdown rendered with embossed text
     return (
       <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="max-w-[90%] py-2 px-1">
-          <p 
-            className="text-[13px] leading-relaxed font-semibold font-jakarta" 
-            style={aiTextStyle}
-          >
-            {message.content}
-          </p>
+          <MarkdownRenderer content={message.content} />
 
           {message.type === 'file_list' && message.data && (
             <FileList files={message.data} />
