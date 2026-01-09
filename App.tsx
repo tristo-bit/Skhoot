@@ -42,10 +42,7 @@ const App: React.FC = () => {
 
   const handleNewChat = useCallback(() => {
     pendingChatIdRef.current = null; // Clear any pending chat
-    const newChat = chatStorage.createChat();
-    chatStorage.saveChat(newChat);
-    setChats(chatStorage.getChats());
-    setCurrentChatId(newChat.id);
+    setCurrentChatId(null); // Set to null to start a fresh chat
     setIsSidebarOpen(false);
   }, []);
 
@@ -64,8 +61,11 @@ const App: React.FC = () => {
   }, [currentChatId]);
 
   const handleMessagesChange = useCallback((messages: Message[]) => {
+    // Only create/save chat if there are actually messages (user has sent something)
+    if (messages.length === 0) return;
+    
     if (!currentChatId && !pendingChatIdRef.current) {
-      // Create a new chat if none exists and we're not already creating one
+      // Create a new chat only when user sends first message
       const newChat = chatStorage.createChat();
       pendingChatIdRef.current = newChat.id;
       newChat.messages = messages;
@@ -73,7 +73,8 @@ const App: React.FC = () => {
       newChat.updatedAt = new Date();
       chatStorage.saveChat(newChat);
       setChats(chatStorage.getChats());
-      // Don't update currentChatId yet - wait until conversation is established
+      setCurrentChatId(newChat.id); // Set immediately since user has sent a message
+      pendingChatIdRef.current = null;
     } else {
       // Update existing chat (use pending ID if we just created one)
       const chatId = currentChatId || pendingChatIdRef.current;
