@@ -933,11 +933,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
       onClick={onClose}
     >
       <div 
-        className="w-[90%] max-w-[400px] max-h-[90%] rounded-3xl overflow-hidden shadow-2xl border border-black/5 animate-in zoom-in-95 duration-300"
-        style={{ 
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          backdropFilter: 'blur(20px)'
-        }}
         className="w-[90%] max-w-[400px] max-h-[80%] rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 glass-elevated"
         onClick={e => e.stopPropagation()}
       >
