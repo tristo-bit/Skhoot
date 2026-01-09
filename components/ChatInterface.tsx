@@ -1,170 +1,205 @@
-import React, { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
-import { COLORS, THEME, WELCOME_MESSAGES, QUICK_ACTIONS, GLASS_STYLES } from '../constants';
-import { Message, FileInfo } from '../types';
-import { Send, Plus, Square, Search, MessageSquare, HardDrive, Trash2, Circle, Mic, StopCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { COLORS, WELCOME_MESSAGES, QUICK_ACTIONS } from '../constants';
+import { Message } from '../types';
 import { geminiService } from '../services/gemini';
-import { TypewriterText } from './shared';
+import { Conversations } from './Conversations';
+import { PromptArea } from './PromptArea';
 
-// Memoized logo component
-const SkhootLogo = memo(({ size = 64 }: { size?: number }) => (
-  <img 
-    src="/skhoot-purple.svg" 
-    alt="Skhoot" 
-    width={size} 
-    height={size}
-    style={{ filter: 'drop-shadow(1px 2px 2px rgba(0,0,0,0.25)) drop-shadow(-1px -1px 1px rgba(255,255,255,0.4))' }}
-  />
-));
-SkhootLogo.displayName = 'SkhootLogo';
+interface ChatInterfaceProps {
+  chatId: string | null;
+  initialMessages: Message[];
+  onMessagesChange: (messages: Message[]) => void;
+}
 
-// Icon mapping for quick actions
-const QUICK_ACTION_ICONS: Record<string, React.ReactNode> = {
-  Files: <Search size={14} />,
-  Messages: <MessageSquare size={14} />,
-  Space: <HardDrive size={14} />,
-  Cleanup: <Trash2 size={14} />,
-};
-
-const ChatInterface: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessagesChange }) => {
+  // State
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
-  const [placeholder, setPlaceholder] = useState('Skhoot is listening...');
   const [isLoading, setIsLoading] = useState(false);
   const [activeMode, setActiveMode] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [pendingVoiceText, setPendingVoiceText] = useState('');
+  const [hasPendingVoiceMessage, setHasPendingVoiceMessage] = useState(false);
+  const [audioLevels, setAudioLevels] = useState<number[]>([0.2, 0.4, 0.6, 0.3, 0.5, 0.7, 0.4, 0.8]);
   const [welcomeMessage] = useState(() => 
     WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)]
   );
+  const [isEmptyStateVisible, setIsEmptyStateVisible] = useState(initialMessages.length === 0);
+  const [isEmptyStateExiting, setIsEmptyStateExiting] = useState(false);
   
-  const [micPermission, setMicPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  // Refs
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
+  // Computed values
   const activeColor = useMemo(() => {
     const action = QUICK_ACTIONS.find(a => a.id === activeMode);
     return action?.color ?? COLORS.almostAqua;
   }, [activeMode]);
 
-  const hasContent = input.trim().length > 0;
-  const isEmpty = messages.length === 0;
+  const hasMessages = messages.length > 0;
+  const hasVoiceContent = voiceTranscript.length > 0 || pendingVoiceText.length > 0;
 
-  // Auto-scroll on new messages
+  // Notify parent when messages change
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
-  const initSpeechRecognition = () => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      const recognition = new SpeechRecognition();
-      
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = navigator.language || 'en-US';
-      recognition.maxAlternatives = 1;
-      
-      recognition.onstart = () => {
-        console.log('Speech recognition started');
-        setIsRecording(true);
-        setPlaceholder('🎤 Listening in any language...');
-      };
-      
-      recognition.onresult = (event: any) => {
-        console.log('Speech recognition result:', event);
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) {
-            transcript += event.results[i][0].transcript;
-          } else {
-            // Show interim results
-            const interimTranscript = event.results[i][0].transcript;
-            setInput(transcript + interimTranscript);
-          }
-        }
-        if (transcript) {
-          setInput(transcript.trim());
-        }
-      };
-      
-      recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsRecording(false);
-        
-        // Handle different error types
-        switch (event.error) {
-          case 'no-speech':
-            setPlaceholder('No speech detected, try again');
-            break;
-          case 'audio-capture':
-            setPlaceholder('Microphone not accessible');
-            break;
-          case 'not-allowed':
-            setMicPermission('denied');
-            setPlaceholder('Microphone permission denied');
-            break;
-          case 'network':
-            setPlaceholder('Network error, check connection');
-            break;
-          case 'aborted':
-            setPlaceholder('Speech recognition aborted');
-            break;
-          default:
-            setPlaceholder('Speech recognition error');
-        }
-        
-        setTimeout(() => setPlaceholder('Skhoot is listening...'), 3000);
-      };
-      
-      recognition.onend = () => {
-        console.log('Speech recognition ended');
-        setIsRecording(false);
-        setPlaceholder('Skhoot is listening...');
-      };
-      
-      return recognition;
+    if (messages.length > 0) {
+      onMessagesChange(messages);
     }
-    return null;
-  };
+  }, [messages, onMessagesChange]);
 
-  const handleMicClick = () => {
-    console.log('🎤 Mic clicked, isRecording:', isRecording);
+  // Effects
+  useEffect(() => {
+    const shouldHide = hasMessages || (isRecording && hasVoiceContent);
     
+    if (shouldHide && isEmptyStateVisible && !isEmptyStateExiting) {
+      setIsEmptyStateExiting(true);
+      const timer = setTimeout(() => {
+        setIsEmptyStateVisible(false);
+        setIsEmptyStateExiting(false);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [hasMessages, isRecording, hasVoiceContent, isEmptyStateVisible, isEmptyStateExiting]);
+
+  // Smooth auto-scroll
+  useEffect(() => {
+    if (scrollRef.current) {
+      const scrollElement = scrollRef.current;
+      const targetScroll = scrollElement.scrollHeight;
+      const currentScroll = scrollElement.scrollTop;
+      const distance = targetScroll - currentScroll - scrollElement.clientHeight;
+      
+      if (distance > 0) {
+        const startTime = performance.now();
+        const duration = Math.min(600, Math.max(300, distance * 0.5));
+        
+        const animateScroll = (currentTime: number) => {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const easeOut = 1 - Math.pow(1 - progress, 3);
+          
+          scrollElement.scrollTop = currentScroll + (distance + scrollElement.clientHeight) * easeOut;
+          
+          if (progress < 1) {
+            requestAnimationFrame(animateScroll);
+          }
+        };
+        
+        requestAnimationFrame(animateScroll);
+      }
+    }
+  }, [messages, voiceTranscript, pendingVoiceText, hasPendingVoiceMessage]);
+
+  // Audio visualization
+  useEffect(() => {
+    let animationId: number;
+    
+    const updateAudioLevels = () => {
+      if (analyserRef.current && isRecording) {
+        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+        analyserRef.current.getByteFrequencyData(dataArray);
+        
+        const bands = 8;
+        const bandSize = Math.floor(dataArray.length / bands);
+        const levels: number[] = [];
+        
+        for (let i = 0; i < bands; i++) {
+          let sum = 0;
+          for (let j = i * bandSize; j < (i + 1) * bandSize; j++) {
+            sum += dataArray[j];
+          }
+          const level = Math.max(0.1, (sum / bandSize) / 255);
+          levels.push(level);
+        }
+        
+        setAudioLevels(levels);
+        animationId = requestAnimationFrame(updateAudioLevels);
+      }
+    };
+    
+    if (isRecording && analyserRef.current) {
+      updateAudioLevels();
+    }
+    
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
+  }, [isRecording]);
+
+  // Handlers
+  const stopRecording = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    analyserRef.current = null;
+    setIsRecording(false);
+  }, []);
+
+  const handleMicClick = async () => {
     try {
-      // Check if speech recognition is supported
       if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         alert('Speech recognition not supported in this browser');
         return;
       }
       
       if (isRecording) {
-        // Stop recording when clicked again
-        console.log('🔴 Stopping recording...');
-        if (recognitionRef.current) {
-          recognitionRef.current.stop();
+        stopRecording();
+        const fullTranscript = (voiceTranscript + ' ' + pendingVoiceText).trim();
+        if (fullTranscript) {
+          setVoiceTranscript(fullTranscript);
+          setPendingVoiceText('');
+          setHasPendingVoiceMessage(true);
+        } else {
+          setVoiceTranscript('');
+          setPendingVoiceText('');
+          setHasPendingVoiceMessage(false);
         }
-        setIsRecording(false);
-        setPlaceholder('Skhoot is listening...');
         return;
       }
       
       // Start recording
-      console.log('🟢 Starting recording...');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        audioContextRef.current = new AudioContext();
+        const source = audioContextRef.current.createMediaStreamSource(stream);
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = 256;
+        source.connect(analyserRef.current);
+      } catch (audioError) {
+        console.warn('Could not setup audio visualization:', audioError);
+      }
       
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
       const recognition = new SpeechRecognition();
       
-      recognition.continuous = true; // Keep listening continuously
+      recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = navigator.language || 'en-US';
       
       recognition.onstart = () => {
-        console.log('✅ Recording started successfully');
         setIsRecording(true);
-        setPlaceholder('🎤 Listening... Click send button to confirm');
+        setVoiceTranscript('');
+        setPendingVoiceText('');
       };
       
       recognition.onresult = (event: any) => {
-        console.log('✅ Got speech result');
         let finalTranscript = '';
         let interimTranscript = '';
         
@@ -177,44 +212,24 @@ const ChatInterface: React.FC = () => {
           }
         }
         
-        const fullTranscript = (finalTranscript + interimTranscript).trim();
-        if (fullTranscript) {
-          console.log('📝 Transcript:', fullTranscript);
-          setInput(fullTranscript);
-        }
+        setVoiceTranscript(finalTranscript.trim());
+        setPendingVoiceText(interimTranscript.trim());
       };
       
       recognition.onerror = (event: any) => {
-        console.error('❌ Recognition error:', event.error);
-        
-        // Don't stop on 'no-speech' error, just continue
-        if (event.error === 'no-speech') {
-          console.log('No speech detected, but continuing to listen...');
-          return;
-        }
-        
-        setIsRecording(false);
-        setPlaceholder('Error: ' + event.error);
-        setTimeout(() => setPlaceholder('Skhoot is listening...'), 2000);
+        if (event.error === 'no-speech') return;
+        stopRecording();
+        setVoiceTranscript('');
+        setPendingVoiceText('');
       };
       
       recognition.onend = () => {
-        console.log('✅ Recognition ended, restarting if still recording...');
-        
-        // Auto-restart if we're still supposed to be recording
-        if (isRecording) {
-          setTimeout(() => {
-            if (isRecording && recognitionRef.current) {
-              try {
-                recognitionRef.current.start();
-                console.log('🔄 Auto-restarted recognition');
-              } catch (e) {
-                console.log('Could not restart:', e);
-              }
-            }
-          }, 100);
-        } else {
-          setPlaceholder('Skhoot is listening...');
+        if (recognitionRef.current && isRecording) {
+          try {
+            recognitionRef.current.start();
+          } catch (e) {
+            // Ignore restart errors
+          }
         }
       };
       
@@ -222,58 +237,81 @@ const ChatInterface: React.FC = () => {
       recognition.start();
       
     } catch (error) {
-      console.error('❌ Error:', error);
-      setIsRecording(false);
-      setPlaceholder('Skhoot is listening...');
+      console.error('Recording error:', error);
+      stopRecording();
     }
   };
 
-  const handleSend = useCallback(async () => {
-    if (!input.trim() || isLoading) return;
+  const handleDiscardVoice = useCallback(() => {
+    setVoiceTranscript('');
+    setPendingVoiceText('');
+    setHasPendingVoiceMessage(false);
+  }, []);
 
-    // Stop any ongoing recording when sending
-    if (isRecording && recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsRecording(false);
+  const handleSend = useCallback(async () => {
+    const messageText = voiceTranscript.trim() || input.trim();
+    if (!messageText || isLoading) return;
+
+    stopRecording();
+    setHasPendingVoiceMessage(false);
+
+    if (isEmptyStateVisible) {
+      setIsEmptyStateExiting(true);
+      setTimeout(() => {
+        setIsEmptyStateVisible(false);
+        setIsEmptyStateExiting(false);
+      }, 100);
     }
 
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input,
+      content: messageText,
       type: 'text',
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMsg]);
-    const currentInput = input;
     setInput('');
-    setPlaceholder('Skhoot is listening...');
+    setVoiceTranscript('');
+    setPendingVoiceText('');
     setIsLoading(true);
     setActiveMode(null);
 
-    const history = messages.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
-    }));
+    try {
+      const history = messages.map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }));
 
-    const result = await geminiService.chat(currentInput, history);
-    
-    setMessages(prev => [...prev, {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: result.text || '',
-      type: result.type as Message['type'],
-      data: result.data,
-      timestamp: new Date()
-    }]);
-    setIsLoading(false);
-  }, [input, isLoading, messages]);
+      const result = await geminiService.chat(messageText, history);
+      
+      const assistantMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: result.text || 'I received your message.',
+        type: (result.type as Message['type']) || 'text',
+        data: result.data,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, assistantMsg]);
+    } catch (error) {
+      console.error('Chat error:', error);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again.',
+        type: 'text',
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [input, voiceTranscript, isLoading, messages, stopRecording, isEmptyStateVisible]);
 
-  const handleQuickAction = useCallback((mode: string, newPlaceholder: string) => {
-    setInput('');
-    setPlaceholder(newPlaceholder);
-    setActiveMode(mode);
+  const handleQuickAction = useCallback((mode: string, _placeholder: string) => {
+    setActiveMode(prev => prev === mode ? null : mode);
     inputRef.current?.focus();
   }, []);
 
@@ -287,417 +325,39 @@ const ChatInterface: React.FC = () => {
   }, [handleSend]);
 
   return (
-    <div className="flex flex-col h-full w-full">
-      {/* Conversation Area */}
-      <div 
+    <div className="flex flex-col h-full w-full overflow-hidden relative">
+      <Conversations
         ref={scrollRef}
-        className={`flex-1 overflow-y-auto px-6 py-8 space-y-6 scroll-smooth no-scrollbar ${
-          isEmpty ? 'flex flex-col items-center justify-center' : ''
-        }`}
-      >
-        {isEmpty ? (
-          <>
-            <EmptyState welcomeMessage={welcomeMessage} />
-          </>
-        ) : (
-          <>
-            {messages.map(msg => (
-              <MessageBubble key={msg.id} message={msg} />
-            ))}
-            {isLoading && <LoadingIndicator />}
-          </>
-        )}
-      </div>
-
-      {/* Input Controller */}
-      <div className="px-6 pb-8">
-        <div 
-          className={`rounded-[32px] p-2.5 flex flex-col gap-3 shadow-2xl border transition-all duration-300 ${
-            activeMode ? 'ring-2 ring-white/30' : ''
-          }`} 
-          style={{ 
-            backgroundColor: activeMode ? `${activeColor}15` : 'rgba(255, 255, 255, 0.6)', 
-            backdropFilter: 'blur(20px)',
-            borderColor: activeMode ? `${activeColor}30` : 'rgba(0, 0, 0, 0.05)'
-          }}
-        >
-          {isEmpty && (
-            <div className="flex gap-2 overflow-x-auto px-2 py-1 no-scrollbar">
-              {QUICK_ACTIONS.map(action => (
-                <QuickActionButton
-                  key={action.id}
-                  id={action.id}
-                  color={action.color}
-                  icon={QUICK_ACTION_ICONS[action.id]}
-                  isActive={activeMode === action.id}
-                  onClick={() => handleQuickAction(action.id, action.placeholder)}
-                />
-              ))}
-            </div>
-          )}
-          
-          <div className="flex items-center gap-2">
-            <button 
-              className="p-3 hover:bg-black/5 rounded-2xl transition-all text-gray-500 active:scale-90 group"
-              aria-label="Add attachment"
-            >
-              <Plus 
-                size={22} 
-                className="transition-transform duration-300 ease-out group-hover:rotate-90" 
-              />
-            </button>
-            
-            {/* Audio Visualization */}
-            {isRecording && (
-              <div className="flex items-center gap-1 px-3">
-                {[...Array(5)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-1 rounded-full"
-                    style={{
-                      height: '8px',
-                      background: 'linear-gradient(to top, #60a5fa, #a855f7)',
-                      animation: `audioWave-${i} 1.5s ease-in-out infinite`,
-                    }}
-                  />
-                ))}
-                <style>
-                  {`
-                    @keyframes audioWave-0 {
-                      0%, 100% { height: 8px; opacity: 0.4; }
-                      50% { height: 24px; opacity: 1; }
-                    }
-                    @keyframes audioWave-1 {
-                      0%, 100% { height: 8px; opacity: 0.4; }
-                      50% { height: 20px; opacity: 1; }
-                    }
-                    @keyframes audioWave-2 {
-                      0%, 100% { height: 8px; opacity: 0.4; }
-                      50% { height: 28px; opacity: 1; }
-                    }
-                    @keyframes audioWave-3 {
-                      0%, 100% { height: 8px; opacity: 0.4; }
-                      50% { height: 16px; opacity: 1; }
-                    }
-                    @keyframes audioWave-4 {
-                      0%, 100% { height: 8px; opacity: 0.4; }
-                      50% { height: 22px; opacity: 1; }
-                    }
-                  `}
-                </style>
-              </div>
-            )}
-            
-            <input 
-              ref={inputRef}
-              type="text" 
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              className={`flex-1 bg-transparent border-none outline-none py-2 text-[14px] font-semibold placeholder:text-gray-400 placeholder:font-medium font-jakarta transition-all ${
-                isRecording ? 'placeholder:text-blue-500' : ''
-              }`}
-              style={{ color: '#1e1e1e' }}
-            />
-            
-            <div className="flex items-center gap-1.5 pr-1">
-              <button 
-                onClick={handleMicClick}
-                className={`p-3 hover:bg-black/5 rounded-2xl transition-all active:scale-90 ${
-                  isRecording ? 'text-red-500 animate-pulse bg-red-50' : 'text-gray-400'
-                }`}
-              >
-                <Mic size={22} />
-              </button>
-              
-              <button 
-                onClick={handleSend}
-                disabled={isLoading}
-                className={`w-12 h-12 rounded-2xl transition-all flex items-center justify-center active:scale-90 border border-black/5 ${
-                  hasContent && !isLoading ? 'text-gray-700' : 'text-gray-400'
-                } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                style={{ 
-                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                  ...GLASS_STYLES.base,
-                  boxShadow: '0 2px 4px -1px rgba(0,0,0,0.1), 0 1px 2px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05)'
-                }}
-                aria-label="Send message"
-              >
-                {isLoading ? (
-                  <Square size={18} fill="currentColor" className="animate-pulse" />
-                ) : (
-                  <Send 
-                    size={22} 
-                    className={hasContent ? 'animate-in zoom-in duration-200' : 'opacity-50'} 
-                  />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+        messages={messages}
+        isLoading={isLoading}
+        isRecording={isRecording}
+        hasPendingVoiceMessage={hasPendingVoiceMessage}
+        voiceTranscript={voiceTranscript}
+        pendingVoiceText={pendingVoiceText}
+        welcomeMessage={welcomeMessage}
+        isEmptyStateVisible={isEmptyStateVisible}
+        isEmptyStateExiting={isEmptyStateExiting}
+        onSendVoice={handleSend}
+        onDiscardVoice={handleDiscardVoice}
+      />
+      
+      <PromptArea
+        ref={inputRef}
+        input={input}
+        isLoading={isLoading}
+        isRecording={isRecording}
+        hasPendingVoiceMessage={hasPendingVoiceMessage}
+        activeMode={activeMode}
+        activeColor={activeColor}
+        audioLevels={audioLevels}
+        onInputChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        onSend={handleSend}
+        onMicClick={handleMicClick}
+        onQuickAction={handleQuickAction}
+      />
     </div>
   );
 };
-
-
-// Sub-components
-const EmptyState = memo<{ welcomeMessage: string }>(({ welcomeMessage }) => (
-  <div className="text-center animate-in fade-in zoom-in duration-700 max-w-[340px]">
-    <div 
-      className="w-28 h-28 rounded-[2.5rem] mb-10 mx-auto flex items-center justify-center rotate-[-4deg] transition-all hover:rotate-0 duration-500 border border-black/5 origin-center" 
-      style={{ 
-        backgroundColor: `${COLORS.orchidTint}B0`,
-        ...GLASS_STYLES.base,
-        boxShadow: '0 2px 4px -1px rgba(0,0,0,0.1), 0 1px 2px rgba(255,255,255,0.5), inset 0 2px 4px rgba(255,255,255,0.3), inset 0 -2px 4px rgba(0,0,0,0.1)'
-      }}
-    >
-      <SkhootLogo size={64} />
-    </div>
-    <h2 
-      className="text-2xl font-bold tracking-tight font-jakarta" 
-      style={{ color: '#1e1e1e' }}
-    >
-      <TypewriterText text={welcomeMessage} />
-    </h2>
-  </div>
-));
-EmptyState.displayName = 'EmptyState';
-
-const MessageBubble = memo<{ message: Message }>(({ message }) => {
-  const isUser = message.role === 'user';
-  
-  return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-      <div 
-        className={`max-w-[90%] p-4 rounded-3xl shadow-sm border border-black/5 ${
-          isUser ? 'rounded-tr-none' : 'rounded-tl-none'
-        }`}
-        style={{ backgroundColor: isUser ? THEME.userBubble : THEME.assistantBubble }}
-      >
-        <p 
-          className="text-[13px] leading-relaxed font-semibold font-jakarta" 
-          style={{ color: isUser ? COLORS.textPrimary : '#333333' }}
-        >
-          {message.content}
-        </p>
-
-        {message.type === 'file_list' && message.data && (
-          <FileList files={message.data} />
-        )}
-
-        {message.type === 'disk_usage' && message.data && (
-          <DiskUsage items={message.data} />
-        )}
-      </div>
-    </div>
-  );
-});
-MessageBubble.displayName = 'MessageBubble';
-
-const FileList = memo<{ files: FileInfo[] }>(({ files }) => (
-  <div className="mt-4 space-y-2">
-    {files.map(file => (
-      <div 
-        key={file.id} 
-        className="p-3 bg-white/60 rounded-2xl border border-white/40 flex items-center justify-between"
-      >
-        <div className="flex items-center gap-3">
-          <div 
-            className="w-8 h-8 rounded-xl flex items-center justify-center" 
-            style={{ backgroundColor: COLORS.almostAqua }}
-          >
-            <Search size={14} className="text-gray-700" />
-          </div>
-          <div className="overflow-hidden">
-            <p className="text-[11px] font-bold truncate text-gray-800 font-jakarta">{file.name}</p>
-            <p className="text-[9px] font-medium opacity-50 truncate font-jakarta">{file.path}</p>
-          </div>
-        </div>
-        <span className="text-[9px] font-black whitespace-nowrap ml-2 opacity-60 font-jakarta">
-          {file.size}
-        </span>
-      </div>
-    ))}
-  </div>
-));
-FileList.displayName = 'FileList';
-
-const DiskUsage = memo<{ items: FileInfo[] }>(({ items }) => (
-  <div className="mt-4 p-4 bg-white/40 rounded-2xl border border-white/50">
-    <h4 className="text-[10px] font-bold mb-3 uppercase tracking-tighter opacity-40 font-jakarta">
-      Disk Analysis
-    </h4>
-    <div className="space-y-3">
-      {items.slice(0, 3).map(item => (
-        <div key={item.id} className="space-y-1.5">
-          <div className="flex justify-between text-[10px] font-bold font-jakarta">
-            <span className="truncate max-w-[180px] text-gray-700">{item.name}</span>
-            <span>{item.size}</span>
-          </div>
-          <div className="h-2 w-full bg-black/5 rounded-full overflow-hidden">
-            <div 
-              className="h-full transition-all duration-1000" 
-              style={{ 
-                backgroundColor: COLORS.orchidTint, 
-                width: item.size.includes('GB') ? '82%' : '18%' 
-              }} 
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-));
-DiskUsage.displayName = 'DiskUsage';
-
-const LoadingIndicator = memo(() => (
-  <div className="flex justify-start">
-    <div 
-      className="px-5 py-3 rounded-2xl border border-black/5 animate-pulse flex gap-2 items-center" 
-      style={{ backgroundColor: THEME.assistantBubble }}
-    >
-      {[0, 0.2, 0.4].map((delay, i) => (
-        <div 
-          key={i}
-          className="w-2 h-2 rounded-full animate-bounce bg-black/20"
-          style={{ animationDelay: `${delay}s`, opacity: 0.2 + (i * 0.1) }}
-        />
-      ))}
-    </div>
-  </div>
-));
-LoadingIndicator.displayName = 'LoadingIndicator';
-
-const ActionButton = memo<{ 
-  children: React.ReactNode; 
-  onClick: () => void; 
-  disabled?: boolean;
-  isActive?: boolean;
-  'aria-label'?: string;
-}>(({ children, onClick, disabled, isActive, ...props }) => (
-  <button 
-    onClick={onClick}
-    disabled={disabled}
-    className={`w-12 h-12 rounded-2xl transition-all flex items-center justify-center active:scale-90 border border-black/5 ${
-      isActive ? 'text-gray-700' : 'text-gray-400'
-    } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-    style={{ 
-      backgroundColor: 'rgba(255, 255, 255, 0.7)',
-      ...GLASS_STYLES.base,
-      boxShadow: '0 2px 4px -1px rgba(0,0,0,0.1), 0 1px 2px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05)'
-    }}
-    {...props}
-  >
-    {children}
-  </button>
-));
-ActionButton.displayName = 'ActionButton';
-
-const QuickActionButton = memo<{ 
-  id: string;
-  icon: React.ReactNode;
-  color: string;
-  isActive?: boolean;
-  onClick: () => void;
-}>(({ id, icon, color, isActive, onClick }) => (
-  <button 
-    onClick={onClick}
-    className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black border transition-all duration-300 whitespace-nowrap font-jakarta outline-none ${
-      isActive 
-        ? 'scale-[1.02] animate-pulse border-black/20' 
-        : 'border-black/5 opacity-80 hover:opacity-100 active:scale-95'
-    }`}
-    style={{ 
-      backgroundColor: isActive ? color : color,
-      color: COLORS.textPrimary,
-      boxShadow: isActive 
-        ? `inset 0 2px 4px rgba(0,0,0,0.2), inset 0 -1px 2px rgba(255,255,255,0.3), 0 4px 8px -2px ${color}40`
-        : '0 2px 4px -1px rgba(0,0,0,0.1), 0 1px 2px rgba(255,255,255,0.5)'
-    }}
-  >
-    <span className={isActive ? 'animate-bounce' : ''}>{icon}</span>
-    {id}
-  </button>
-));
-QuickActionButton.displayName = 'QuickActionButton';
-
-const RecordButton = memo<{
-  isRecording: boolean;
-  onToggle: () => void;
-}>(({ isRecording, onToggle }) => {
-  const [isHovering, setIsHovering] = useState(false);
-  const [showStopButton, setShowStopButton] = useState(false);
-
-  useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    
-    if (isHovering && isRecording) {
-      timeout = setTimeout(() => {
-        setShowStopButton(true);
-      }, 2000);
-    } else {
-      setShowStopButton(false);
-    }
-
-    return () => clearTimeout(timeout);
-  }, [isHovering, isRecording]);
-
-  const handleClick = () => {
-    setShowStopButton(false);
-    onToggle();
-  };
-
-  return (
-    <button 
-      onClick={handleClick}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-      className={`w-12 h-12 rounded-2xl transition-all flex items-center justify-center active:scale-90 border border-black/5 ${
-        isRecording ? 'text-red-500' : 'text-gray-500'
-      } ${showStopButton ? 'animate-pulse' : ''}`}
-      style={{ 
-        backgroundColor: 'rgba(255, 255, 255, 0.7)',
-        ...GLASS_STYLES.base,
-        boxShadow: '0 2px 4px -1px rgba(0,0,0,0.1), 0 1px 2px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.05)'
-      }}
-      aria-label={isRecording ? 'Stop recording' : 'Start recording'}
-    >
-      <div className="relative w-6 h-6 flex items-center justify-center">
-        {/* Microphone icon (default state) */}
-        <Mic 
-          size={22} 
-          className={`absolute transition-all duration-300 ${
-            isRecording ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
-          }`}
-        />
-        
-        {/* Recording circle */}
-        <Circle 
-          size={18} 
-          fill="currentColor" 
-          className={`absolute transition-all duration-300 ${
-            isRecording && !showStopButton 
-              ? 'opacity-100 scale-100 animate-pulse' 
-              : 'opacity-0 scale-75'
-          }`}
-        />
-        
-        {/* Stop button (appears on long hover) */}
-        <StopCircle 
-          size={20} 
-          fill="currentColor"
-          className={`absolute transition-all duration-500 ease-out ${
-            showStopButton 
-              ? 'opacity-100 scale-110 animate-pulse' 
-              : 'opacity-0 scale-75'
-          }`}
-        />
-      </div>
-    </button>
-  );
-});
-RecordButton.displayName = 'RecordButton';
 
 export default ChatInterface;

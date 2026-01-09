@@ -8,6 +8,14 @@ export interface Message {
   timestamp: Date;
 }
 
+export interface Chat {
+  id: string;
+  title: string;
+  messages: Message[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface FileInfo {
   id: string;
   name: string;
