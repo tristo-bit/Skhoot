@@ -32,6 +32,13 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
       }
+      /* Hide cursor blink globally except when focused on inputs */
+      * {
+        caret-color: transparent;
+      }
+      input:focus, textarea:focus, [contenteditable="true"]:focus {
+        caret-color: auto;
+      }
     </style>
   <script type="importmap">
 {

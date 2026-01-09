@@ -6,28 +6,61 @@ import { Message, FileInfo } from '../types';
 export const MessageBubble = memo<{ message: Message }>(({ message }) => {
   const isUser = message.role === 'user';
   
+  // User bubble style - keep the frosted glass look
+  const userBubbleStyle = {
+    backgroundColor: `${THEME.userBubble}40`,
+    backdropFilter: 'blur(8px)',
+  };
+
+  // Embossed text style for AI - pressed into the surface
+  const aiTextStyle = {
+    color: '#555',
+    textShadow: '1px 1px 1px rgba(255, 255, 255, 0.9), -0.5px -0.5px 0.5px rgba(0, 0, 0, 0.15)',
+  };
+
+  // User text style
+  const userTextStyle = {
+    color: COLORS.textPrimary,
+    textShadow: '0 1px 1px rgba(255, 255, 255, 0.6), 0 -0.5px 0.5px rgba(0, 0, 0, 0.08)',
+  };
+  
+  if (!isUser) {
+    // AI message - no bubble, just embossed text
+    return (
+      <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="max-w-[90%] py-2 px-1">
+          <p 
+            className="text-[13px] leading-relaxed font-semibold font-jakarta" 
+            style={aiTextStyle}
+          >
+            {message.content}
+          </p>
+
+          {message.type === 'file_list' && message.data && (
+            <FileList files={message.data} />
+          )}
+
+          {message.type === 'disk_usage' && message.data && (
+            <DiskUsage items={message.data} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // User message - keep bubble
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+    <div className="flex justify-end animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div 
-        className={`max-w-[90%] p-4 rounded-3xl shadow-sm border border-black/5 ${
-          isUser ? 'rounded-tr-none' : 'rounded-tl-none'
-        }`}
-        style={{ backgroundColor: isUser ? THEME.userBubble : THEME.assistantBubble }}
+        className="max-w-[90%] p-4 rounded-3xl rounded-tr-none border border-white/30"
+        style={userBubbleStyle}
       >
         <p 
           className="text-[13px] leading-relaxed font-semibold font-jakarta" 
-          style={{ color: isUser ? COLORS.textPrimary : '#333333' }}
+          style={userTextStyle}
         >
           {message.content}
         </p>
-
-        {message.type === 'file_list' && message.data && (
-          <FileList files={message.data} />
-        )}
-
-        {message.type === 'disk_usage' && message.data && (
-          <DiskUsage items={message.data} />
-        )}
       </div>
     </div>
   );
@@ -92,15 +125,16 @@ DiskUsage.displayName = 'DiskUsage';
 
 export const LoadingIndicator = memo(() => (
   <div className="flex justify-start">
-    <div 
-      className="px-5 py-3 rounded-2xl border border-black/5 animate-pulse flex gap-2 items-center" 
-      style={{ backgroundColor: THEME.assistantBubble }}
-    >
-      {[0, 0.2, 0.4].map((delay, i) => (
+    <div className="px-1 py-2 flex gap-1.5 items-center">
+      {[0, 0.15, 0.3].map((delay, i) => (
         <div 
           key={i}
-          className="w-2 h-2 rounded-full animate-bounce bg-black/20"
-          style={{ animationDelay: `${delay}s`, opacity: 0.2 + (i * 0.1) }}
+          className="w-1.5 h-1.5 rounded-full animate-bounce"
+          style={{ 
+            animationDelay: `${delay}s`, 
+            backgroundColor: '#888',
+            boxShadow: '1px 1px 1px rgba(255, 255, 255, 0.9), -0.5px -0.5px 0.5px rgba(0, 0, 0, 0.15)',
+          }}
         />
       ))}
     </div>
