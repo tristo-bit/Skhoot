@@ -22,10 +22,9 @@ SkhootLogo.displayName = 'SkhootLogo';
 
 const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onDeleteChat, chats, currentChatId, user, onSignIn, onSignOut }) => (
   <div 
-    className="w-64 h-full border-r border-black/5 flex flex-col shadow-2xl relative" 
+    className="w-64 h-full border-r border-black/5 flex flex-col relative" 
     style={{ backgroundColor: THEME.sidebar, zIndex: 50 }}
   >
-    <div className="absolute inset-0 bg-black/5 pointer-events-none" />
     
     {/* Sidebar Header */}
     <div className="relative z-10 px-5 py-5 flex items-center gap-4 flex-shrink-0">
