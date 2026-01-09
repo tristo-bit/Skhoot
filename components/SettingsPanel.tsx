@@ -1,8 +1,7 @@
 import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
-import { COLORS, GLASS_STYLES } from '../constants';
 import { X, Bot, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList, ExternalLink, Mail, Bug } from 'lucide-react';
 import { useTheme } from '../src/contexts/ThemeContext';
-import { GLASS_STYLES } from '../src/constants';
+import { COLORS, GLASS_STYLES } from '../src/constants';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -74,19 +73,40 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
 
   // Privacy panel functions
   const handleUpdateEmail = async () => {
-    if (!newEmail || !newEmail.includes('@')) {
-      alert('Please enter a valid email address');
+    // Vérifier si l'email est vide
+    if (!newEmail || newEmail.trim() === '') {
+      alert('Please enter an email address');
+      return;
+    }
+    
+    // Validation du format email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail.trim())) {
+      alert('Please enter a valid email format (example: user@domain.com)');
+      return;
+    }
+    
+    // Vérifier si l'email est différent de l'actuel (simulation)
+    const currentEmail = 'user@example.com'; // En réalité, ceci viendrait de votre état utilisateur
+    if (newEmail.trim().toLowerCase() === currentEmail.toLowerCase()) {
+      alert('This email is already your current email address');
       return;
     }
     
     setIsUpdatingEmail(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      alert('Confirmation email sent to your new address. Please check your inbox.');
+      // Simulate API call to backend
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Simulate email sending
+      console.log(`📧 Confirmation email sent to: ${newEmail.trim()}`);
+      console.log(`📧 Email content: "Please click the link to confirm your new email address: ${newEmail.trim()}"`);
+      
+      alert(`✅ Confirmation email sent to ${newEmail.trim()}!\n\nPlease check your inbox and click the verification link to complete the email change.`);
       setNewEmail('');
     } catch (error) {
-      alert('Failed to send confirmation email. Please try again.');
+      console.error('Email update error:', error);
+      alert('❌ Failed to send confirmation email. Please try again or contact support.');
     } finally {
       setIsUpdatingEmail(false);
     }
@@ -97,25 +117,47 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
       alert('Please enter your current password');
       return;
     }
-    if (!newPassword || newPassword.length < 6) {
-      alert('New password must be at least 6 characters long');
+    if (!newPassword || newPassword.length < 8) {
+      alert('New password must be at least 8 characters long');
+      return;
+    }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
+      alert('Password must contain at least one uppercase letter, one lowercase letter, and one number');
       return;
     }
     if (newPassword !== confirmPassword) {
       alert('New passwords do not match');
       return;
     }
+    if (newPassword === currentPassword) {
+      alert('New password must be different from current password');
+      return;
+    }
     
     setIsChangingPassword(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      alert('Password changed successfully. Confirmation email sent to your account.');
+      // Simulate API call to verify current password and update
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // In a real app, this would call your backend API
+      // const response = await fetch('/api/user/change-password', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ currentPassword, newPassword })
+      // });
+      
+      // Simulate email notification
+      console.log('🔐 Password changed successfully');
+      console.log('📧 Security notification email sent to user');
+      console.log('📧 Email content: "Your password has been successfully changed. If this wasn\'t you, please contact support immediately."');
+      
+      alert('Password changed successfully! A confirmation email has been sent to your account for security purposes.');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (error) {
-      alert('Failed to change password. Please try again.');
+      console.error('Password change error:', error);
+      alert('Failed to change password. Please verify your current password and try again.');
     } finally {
       setIsChangingPassword(false);
     }
@@ -848,6 +890,128 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
             />
           </div>
         )}
+      </div>
+    </div>
+  );
+
+  const renderPrivacyPanel = () => (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <button 
+          onClick={handleBack}
+          className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary"
+        >
+          <ChevronRight size={18} className="rotate-180" />
+        </button>
+        <h3 className="text-lg font-black font-jakarta text-text-primary">
+          Privacy & Security
+        </h3>
+      </div>
+
+      {/* Email Update */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-text-primary">Update Email</label>
+        <p className="text-xs text-text-secondary font-jakarta">
+          Change your account email address
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            placeholder="Enter new email address"
+            className="flex-1 p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+          <button
+            onClick={handleUpdateEmail}
+            disabled={false}
+            className="px-4 py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
+            style={{ 
+              backgroundColor: '#9a8ba3',
+              opacity: 1,
+              cursor: 'pointer'
+            }}
+          >
+            {isUpdatingEmail ? 'Updating...' : 'Update'}
+          </button>
+        </div>
+      </div>
+
+      {/* Password Change */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-text-primary">Change Password</label>
+        <p className="text-xs text-text-secondary font-jakarta">
+          Update your account password
+        </p>
+        <div className="space-y-2">
+          <input
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Current password"
+            className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="New password"
+            className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Confirm new password"
+            className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
+          />
+          <button
+            onClick={handleChangePassword}
+            disabled={false}
+            className="w-full p-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
+            style={{ 
+              backgroundColor: '#9a8ba3',
+              opacity: 1,
+              cursor: 'pointer'
+            }}
+          >
+            {isChangingPassword ? 'Changing...' : 'Change Password'}
+          </button>
+        </div>
+      </div>
+
+      {/* Data Download */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-text-primary">Download Your Data</label>
+        <p className="text-xs text-text-secondary font-jakarta">
+          Export all your conversations and settings
+        </p>
+        <button
+          onClick={handleDownloadData}
+          disabled={false}
+          className="w-full p-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
+          style={{ 
+            backgroundColor: '#9a8ba3',
+            opacity: 1,
+            cursor: 'pointer'
+          }}
+        >
+          {isDownloading ? 'Preparing Download...' : 'Download Data'}
+        </button>
+      </div>
+
+      {/* Privacy Notice */}
+      <div className="p-4 rounded-xl glass-subtle">
+        <div className="flex items-start gap-3">
+          <Shield size={16} className="mt-0.5 flex-shrink-0" style={{ color: '#c0b7c9' }} />
+          <div>
+            <p className="text-sm font-bold font-jakarta text-text-primary mb-1">Your Privacy Matters</p>
+            <p className="text-xs text-text-secondary font-jakarta">
+              We take your privacy seriously. All data is encrypted and stored securely. You can request data deletion at any time.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
