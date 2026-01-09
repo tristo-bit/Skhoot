@@ -1,6 +1,6 @@
 import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { COLORS, GLASS_STYLES } from '../constants';
-import { X, Bot, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList } from 'lucide-react';
+import { X, Bot, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList, ExternalLink, Mail, Bug } from 'lucide-react';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -34,6 +34,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
   const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  
+  // Help Center states
+  const [bugReport, setBugReport] = useState('');
+  const [supportRequest, setSupportRequest] = useState('');
+  const [isSubmittingBug, setIsSubmittingBug] = useState(false);
+  const [isRequestingSupport, setIsRequestingSupport] = useState(false);
+  const [showBugReportPanel, setShowBugReportPanel] = useState(false);
+  const [showSupportRequestPanel, setShowSupportRequestPanel] = useState(false);
   
   // Audio settings state
   const [inputDevices, setInputDevices] = useState<AudioDevice[]>([]);
@@ -148,6 +156,55 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
       alert('Failed to download data. Please try again.');
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  // Help Center functions
+  const handleOpenDocumentation = () => {
+    window.open('https://docs.skhoot.com', '_blank');
+  };
+
+  const handleRequestSupport = () => {
+    setShowSupportRequestPanel(true);
+  };
+
+  const handleSubmitSupportRequest = async () => {
+    if (!supportRequest.trim()) {
+      alert('Please describe your issue before submitting.');
+      return;
+    }
+    
+    setIsRequestingSupport(true);
+    try {
+      // Simulate sending support request email
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      alert('Support request sent successfully! Our team will respond within 24 hours.');
+      setSupportRequest('');
+      setShowSupportRequestPanel(false);
+    } catch (error) {
+      alert('Failed to send support request. Please try again.');
+    } finally {
+      setIsRequestingSupport(false);
+    }
+  };
+
+  const handleSubmitBugReport = async () => {
+    if (!bugReport.trim()) {
+      alert('Please describe the bug before submitting.');
+      return;
+    }
+    
+    setIsSubmittingBug(true);
+    try {
+      // Simulate sending bug report email
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      alert('Bug report submitted successfully! We will investigate and respond within 24 hours.');
+      setBugReport('');
+      setShowBugReportPanel(false);
+    } catch (error) {
+      alert('Failed to submit bug report. Please try again.');
+    } finally {
+      setIsSubmittingBug(false);
     }
   };
 
@@ -385,6 +442,225 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
   const handleBack = () => {
     setActivePanel(null);
   };
+
+  const renderSupportRequestPanel = () => (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <button 
+          onClick={() => setShowSupportRequestPanel(false)}
+          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
+        >
+          <ChevronRight size={18} className="rotate-180" />
+        </button>
+        <h3 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
+          Request Assistance
+        </h3>
+      </div>
+
+      {/* Skhoot Logo and Welcome Message */}
+      <div className="text-center space-y-4 mb-6">
+        <div className="flex justify-center">
+          <img 
+            src="/skhoot-purple.svg" 
+            alt="Skhoot" 
+            className="w-16 h-16"
+          />
+        </div>
+        <div>
+          <h4 className="text-lg font-bold font-jakarta text-gray-700 mb-2">
+            How can we help you?
+          </h4>
+          <p className="text-sm text-gray-500 font-jakarta">
+            Please describe your issue in detail and our support team will respond via email within 24 hours.
+          </p>
+        </div>
+      </div>
+
+      {/* Support Request Description */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-gray-700">Describe Your Issue</label>
+        <textarea
+          value={supportRequest}
+          onChange={(e) => setSupportRequest(e.target.value)}
+          placeholder="Please provide details about your question or issue. The more information you provide, the better we can assist you..."
+          rows={6}
+          className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+        />
+      </div>
+
+      {/* Submit Button */}
+      <button
+        onClick={handleSubmitSupportRequest}
+        disabled={isRequestingSupport || !supportRequest.trim()}
+        className="w-full p-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ backgroundColor: '#c0b7c9' }}
+      >
+        {isRequestingSupport ? 'Sending Request...' : 'Send Support Request'}
+      </button>
+    </div>
+  );
+
+  const renderBugReportPanel = () => (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <button 
+          onClick={() => setShowBugReportPanel(false)}
+          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
+        >
+          <ChevronRight size={18} className="rotate-180" />
+        </button>
+        <h3 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
+          Report a Bug
+        </h3>
+      </div>
+
+      {/* Skhoot Logo and Welcome Message */}
+      <div className="text-center space-y-4 mb-6">
+        <div className="flex justify-center">
+          <img 
+            src="/skhoot-purple.svg" 
+            alt="Skhoot" 
+            className="w-16 h-16"
+            style={{ filter: 'brightness(0) saturate(100%) invert(12%) sepia(87%) saturate(7426%) hue-rotate(357deg) brightness(95%) contrast(95%)' }}
+          />
+        </div>
+        <div>
+          <h4 className="text-lg font-bold font-jakarta text-gray-700 mb-2">
+            Found a Bug?
+          </h4>
+          <p className="text-sm text-gray-500 font-jakarta">
+            Please describe the issue in detail and our development team will investigate and respond within 24 hours.
+          </p>
+        </div>
+      </div>
+
+      {/* Bug Description */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-gray-700">Describe the Bug</label>
+        <p className="text-xs text-gray-500 font-jakarta">
+          Please provide as much detail as possible about the issue you encountered.
+        </p>
+        <textarea
+          value={bugReport}
+          onChange={(e) => setBugReport(e.target.value)}
+          placeholder="Describe what happened, what you expected to happen, and steps to reproduce the issue..."
+          rows={6}
+          className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+        />
+      </div>
+
+      {/* Submit Button */}
+      <button
+        onClick={handleSubmitBugReport}
+        disabled={isSubmittingBug || !bugReport.trim()}
+        className="w-full p-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ backgroundColor: '#dc2626' }}
+      >
+        {isSubmittingBug ? 'Submitting...' : 'Submit Bug Report'}
+      </button>
+    </div>
+  );
+
+  const renderHelpCenterPanel = () => (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <button 
+          onClick={handleBack}
+          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
+        >
+          <ChevronRight size={18} className="rotate-180" />
+        </button>
+        <h3 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
+          Help Center
+        </h3>
+      </div>
+
+      {/* Documentation */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-gray-700">Documentation</label>
+        <p className="text-xs text-gray-500 font-jakarta">
+          Access our comprehensive guides and tutorials
+        </p>
+        <button
+          onClick={handleOpenDocumentation}
+          className="w-full p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white border flex items-center justify-center" style={{ borderColor: '#c0b7c9' }}>
+              <ExternalLink size={18} style={{ color: '#c0b7c9' }} />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-bold font-jakarta text-gray-700">Open Documentation</p>
+              <p className="text-xs text-gray-500 font-jakarta">View guides, tutorials, and FAQs</p>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-gray-400" />
+        </button>
+      </div>
+
+      {/* Request Support */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-gray-700">Get Support</label>
+        <p className="text-xs text-gray-500 font-jakarta">
+          Need help? Our team will respond within 24 hours
+        </p>
+        <button
+          onClick={handleRequestSupport}
+          className="w-full p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white border flex items-center justify-center" style={{ borderColor: '#c0b7c9' }}>
+              <Mail size={18} style={{ color: '#c0b7c9' }} />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-bold font-jakarta text-gray-700">Request Assistance</p>
+              <p className="text-xs text-gray-500 font-jakarta">Contact our support team</p>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-gray-400" />
+        </button>
+      </div>
+
+      {/* Report Bug */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-gray-700">Report Issues</label>
+        <p className="text-xs text-gray-500 font-jakarta">
+          Found a bug? Help us improve by reporting it
+        </p>
+        <button
+          onClick={() => setShowBugReportPanel(true)}
+          className="w-full p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+              <Bug size={18} className="text-red-600" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-bold font-jakarta text-gray-700">Report a Bug</p>
+              <p className="text-xs text-gray-500 font-jakarta">Submit bug reports and issues</p>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-gray-400" />
+        </button>
+      </div>
+
+      {/* Contact Info */}
+      <div className="p-4 rounded-xl border bg-[#d9e2eb]" style={{ borderColor: '#c1d0db' }}>
+        <div className="flex items-start gap-3">
+          <HelpCircle size={16} className="text-[#5a7a94] mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-bold font-jakarta text-[#3d5a73] mb-1">Need Immediate Help?</p>
+            <p className="text-xs text-[#5a7a94] font-jakarta">
+              For urgent issues, all support requests and bug reports are handled within 24 hours by our dedicated team.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderPrivacyPanel = () => (
     <div className="space-y-6">
@@ -729,7 +1005,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
       onClick={onClose}
     >
       <div 
-        className="w-[90%] max-w-[400px] max-h-[80%] rounded-3xl overflow-hidden shadow-2xl border border-black/5 animate-in zoom-in-95 duration-300"
+        className="w-[90%] max-w-[400px] max-h-[90%] rounded-3xl overflow-hidden shadow-2xl border border-black/5 animate-in zoom-in-95 duration-300"
         style={{ 
           backgroundColor: 'rgba(255, 255, 255, 0.9)',
           backdropFilter: 'blur(20px)'
@@ -751,11 +1027,18 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-4 overflow-y-auto max-h-[500px] no-scrollbar">
-          {activePanel === 'Sound' ? (
+        <div className="overflow-y-scroll" style={{ maxHeight: '500px' }}>
+          <div className="p-6 space-y-4">
+          {showBugReportPanel ? (
+            renderBugReportPanel()
+          ) : showSupportRequestPanel ? (
+            renderSupportRequestPanel()
+          ) : activePanel === 'Sound' ? (
             renderSoundPanel()
           ) : activePanel === 'Privacy' ? (
             renderPrivacyPanel()
+          ) : activePanel === 'Help Center' ? (
+            renderHelpCenterPanel()
           ) : (
             <>
               {/* AI Section */}
@@ -784,6 +1067,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
               </SettingsSection>
             </>
           )}
+          </div>
         </div>
 
         {/* Footer */}
