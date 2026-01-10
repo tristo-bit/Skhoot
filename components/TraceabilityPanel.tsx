@@ -2,6 +2,7 @@ import React, { memo, useState } from 'react';
 import { X, Search, FileText, MessageSquare, Archive, Trash2, HardDrive, CheckCircle, XCircle, Clock, Filter, ChevronLeft } from 'lucide-react';
 import { COLORS } from '../src/constants';
 import { MOCK_ACTION_LOGS } from '../browser-test/demo';
+import { BackButton, CloseButton, Button } from './buttonFormat';
 
 interface TraceabilityPanelProps {
   onClose: () => void;
@@ -65,12 +66,7 @@ const TraceabilityPanel: React.FC<TraceabilityPanelProps> = ({ onClose, onBack }
         {/* Header */}
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button 
-              onClick={onBack || onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary"
-            >
-              <ChevronLeft size={18} />
-            </button>
+            <BackButton onClick={onBack || onClose} />
             <div>
               <h2 className="text-lg font-black font-jakarta text-text-primary">
                 Activity Log
@@ -80,12 +76,7 @@ const TraceabilityPanel: React.FC<TraceabilityPanelProps> = ({ onClose, onBack }
               </p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:glass-subtle rounded-xl transition-all active:scale-95"
-          >
-            <X size={18} className="text-text-secondary" />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         {/* Filters */}

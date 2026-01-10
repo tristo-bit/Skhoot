@@ -2,6 +2,7 @@ import React, { useState, memo } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, Loader2 } from 'lucide-react';
 import { authService } from '../services/auth';
 import { User } from '../types';
+import { CloseButton, Button, IconButton, SubmitButton } from './buttonFormat';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -102,12 +103,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister, onClose }) =
     >
       {/* Header */}
       <div className="px-6 py-5 flex items-center gap-4">
-        <button
-          onClick={onClose}
-          className="p-1.5 hover:bg-black/5 rounded-lg transition-all text-gray-600 active:scale-95"
-        >
-          <ArrowLeft size={18} />
-        </button>
+        <CloseButton onClick={onClose} />
         <span className="text-sm font-black tracking-[0.2em] font-jakarta" style={{ color: COLORS.fukuBrand }}>
           SIGN IN
         </span>
@@ -163,24 +159,25 @@ const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister, onClose }) =
                   placeholder="••••••••"
                   className="w-full pl-10 pr-10 py-3 rounded-xl border border-black/5 glass-subtle text-sm font-jakarta placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-300/50"
                 />
-                <button
+                <IconButton
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  icon={showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  variant="ghost"
+                  size="sm"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                />
               </div>
             </div>
 
-            <button
+            <SubmitButton
               type="submit"
-              disabled={isLoading}
-              className="w-full py-3 rounded-xl font-semibold text-sm text-white transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-50 font-jakarta"
+              isSubmitting={isLoading}
+              submitText="Sign In"
+              submittingText="Signing In..."
+              variant="primary"
               style={{ backgroundColor: COLORS.fukuBrand }}
-            >
-              {isLoading ? <Loader2 size={18} className="animate-spin mx-auto" /> : 'Sign In'}
-            </button>
+            />
           </form>
 
           {/* Switch to Register */}

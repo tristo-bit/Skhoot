@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Copy, Trash2, Eye, AlertTriangle } from 'lucide-react';
 import { COLORS, GLASS_STYLES } from '../src/constants';
 import { FileInfo } from '../types';
+import { IconButton } from './buttonFormat';
 
 interface DuplicateGroup {
   id: string;
@@ -88,12 +89,20 @@ export const DuplicateDetector: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button className="p-1 rounded hover:bg-black/5">
-                    <Eye className="w-4 h-4" style={{ color: COLORS.textSecondary }} />
-                  </button>
-                  <button className="p-1 rounded hover:bg-black/5">
-                    <Trash2 className="w-4 h-4" style={{ color: COLORS.textSecondary }} />
-                  </button>
+                  <IconButton
+                    icon={<Eye size={16} />}
+                    onClick={() => console.log('View file:', file.name)}
+                    variant="ghost"
+                    size="sm"
+                    ariaLabel="View file"
+                  />
+                  <IconButton
+                    icon={<Trash2 size={16} />}
+                    onClick={() => console.log('Delete file:', file.name)}
+                    variant="ghost"
+                    size="sm"
+                    ariaLabel="Delete file"
+                  />
                 </div>
               </div>
             ))}

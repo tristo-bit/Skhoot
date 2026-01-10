@@ -1,8 +1,8 @@
 import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
-import { COLORS, GLASS_STYLES } from '../src/constants';
-import { Bot, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList, ExternalLink, Mail, Bug } from 'lucide-react';
+import { ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList, ExternalLink, Mail, Bug } from 'lucide-react';
 import { useTheme } from '../src/contexts/ThemeContext';
 import { Modal } from './shared';
+import { BackButton, Button, ToggleButton, SubmitButton, SwitchToggle } from './buttonFormat';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -542,12 +542,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button 
-          onClick={() => setShowSupportRequestPanel(false)}
-          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
-        >
-          <ChevronRight size={18} className="rotate-180" />
-        </button>
+        <BackButton onClick={() => setShowSupportRequestPanel(false)} />
         <h3 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
           Request Assistance
         </h3>
@@ -585,14 +580,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
       </div>
 
       {/* Submit Button */}
-      <button
+      <SubmitButton
         onClick={handleSubmitSupportRequest}
-        disabled={isRequestingSupport || !supportRequest.trim()}
-        className="w-full p-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ backgroundColor: '#c0b7c9' }}
-      >
-        {isRequestingSupport ? 'Sending Request...' : 'Send Support Request'}
-      </button>
+        disabled={!supportRequest.trim()}
+        isSubmitting={isRequestingSupport}
+        submitText="Send Support Request"
+        submittingText="Sending Request..."
+        variant="violet"
+      />
     </div>
   );
 
@@ -600,12 +595,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button 
-          onClick={() => setShowBugReportPanel(false)}
-          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
-        >
-          <ChevronRight size={18} className="rotate-180" />
-        </button>
+        <BackButton onClick={() => setShowBugReportPanel(false)} />
         <h3 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
           Report a Bug
         </h3>
@@ -647,14 +637,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
       </div>
 
       {/* Submit Button */}
-      <button
+      <SubmitButton
         onClick={handleSubmitBugReport}
-        disabled={isSubmittingBug || !bugReport.trim()}
-        className="w-full p-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ backgroundColor: '#dc2626' }}
-      >
-        {isSubmittingBug ? 'Submitting...' : 'Submit Bug Report'}
-      </button>
+        disabled={!bugReport.trim()}
+        isSubmitting={isSubmittingBug}
+        submitText="Submit Bug Report"
+        submittingText="Submitting..."
+        variant="danger"
+      />
     </div>
   );
 
@@ -662,12 +652,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button 
-          onClick={handleBack}
-          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
-        >
-          <ChevronRight size={18} className="rotate-180" />
-        </button>
+        <BackButton onClick={handleBack} />
         <h3 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
           Help Center
         </h3>
@@ -851,14 +836,13 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
           Mic acting up? Give it a hoot and say something silly... We'll echo it right back!
         </p>
         <div className="flex items-center gap-4">
-          <button
+          <Button
             onClick={handleMicTest}
-            className={`px-4 py-2 rounded-xl font-bold text-sm font-jakarta transition-all text-white ${
-              isTesting ? 'bg-red-500' : 'bg-accent'
-            }`}
+            variant={isTesting ? "danger" : "primary"}
+            size="md"
           >
             {isTesting ? 'Stop Test' : 'Let\'s Hoot!'}
-          </button>
+          </Button>
           
           {/* Audio Level Visualization - Soundwave Simplifiée */}
           <div className="flex-1 flex items-center justify-center gap-0.5 h-8 glass-subtle rounded-lg p-1">
@@ -901,19 +885,13 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
         <label className="text-sm font-bold font-jakarta text-text-primary">Voice Sensitivity</label>
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium text-text-secondary">Auto Detection</span>
-          <button
-            onClick={() => {
-              setAutoSensitivity(!autoSensitivity);
-              console.log(`🎛️ Sensitivity mode changed to: ${!autoSensitivity ? 'AUTO (3x)' : 'MANUAL'}`);
+          <SwitchToggle
+            isToggled={autoSensitivity}
+            onToggle={(toggled) => {
+              setAutoSensitivity(toggled);
+              console.log(`🎛️ Sensitivity mode changed to: ${toggled ? 'AUTO (3x)' : 'MANUAL'}`);
             }}
-            className={`w-12 h-6 rounded-full transition-all ${
-              autoSensitivity ? 'bg-accent' : 'bg-glass-border'
-            }`}
-          >
-            <div className={`w-5 h-5 glass-subtle rounded-full shadow transition-transform ${
-              autoSensitivity ? 'translate-x-6' : 'translate-x-0.5'
-            }`} />
-          </button>
+          />
         </div>
         
         {!autoSensitivity && (
@@ -944,12 +922,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button 
-          onClick={handleBack}
-          className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary"
-        >
-          <ChevronRight size={18} className="rotate-180" />
-        </button>
+        <BackButton onClick={handleBack} />
         <h3 className="text-lg font-black font-jakarta text-text-primary">
           Privacy & Security
         </h3>
@@ -973,20 +946,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
             placeholder="Enter new email address"
             className="flex-1 p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
-          <button
-            onClick={() => {
-              console.log('Update button clicked!');
-              handleUpdateEmail();
-            }}
-            className="px-4 py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
-            style={{ 
-              backgroundColor: '#9a8ba3',
-              opacity: 1,
-              cursor: 'pointer'
-            }}
-          >
-            {isUpdatingEmail ? 'Updating...' : 'Update'}
-          </button>
+          <SubmitButton
+            onClick={handleUpdateEmail}
+            isSubmitting={isUpdatingEmail}
+            submitText="Update"
+            submittingText="Updating..."
+            variant="primary"
+            size="md"
+          />
         </div>
         
         {/* Email Error Message */}
@@ -1044,20 +1011,15 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
             placeholder="Confirm new password"
             className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
-          <button
-            onClick={() => {
-              console.log('Change Password button clicked!');
-              handleChangePassword();
-            }}
-            className="w-full p-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
-            style={{ 
-              backgroundColor: '#9a8ba3',
-              opacity: 1,
-              cursor: 'pointer'
-            }}
-          >
-            {isChangingPassword ? 'Changing...' : 'Change Password'}
-          </button>
+          <SubmitButton
+            onClick={handleChangePassword}
+            isSubmitting={isChangingPassword}
+            submitText="Change Password"
+            submittingText="Changing..."
+            variant="primary"
+            size="md"
+            className="w-full"
+          />
         </div>
         
         {/* Password Error Message */}
@@ -1081,20 +1043,15 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
         <p className="text-xs text-text-secondary font-jakarta">
           Export all your conversations and settings
         </p>
-        <button
-          onClick={() => {
-            console.log('Download Data button clicked!');
-            handleDownloadData();
-          }}
-          className="w-full p-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
-          style={{ 
-            backgroundColor: '#9a8ba3',
-            opacity: 1,
-            cursor: 'pointer'
-          }}
+        <Button
+          onClick={handleDownloadData}
+          variant="primary"
+          size="md"
+          className="w-full"
+          disabled={isDownloading}
         >
           {isDownloading ? 'Preparing Download...' : 'Download Data'}
-        </button>
+        </Button>
       </div>
 
       {/* Privacy Notice */}
@@ -1116,12 +1073,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button 
-          onClick={handleBack}
-          className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary"
-        >
-          <ChevronRight size={18} className="rotate-180" />
-        </button>
+        <BackButton onClick={handleBack} />
         <h3 className="text-lg font-black font-jakarta text-text-primary">
           Appearance
         </h3>
@@ -1140,35 +1092,31 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
             { value: 'dark', label: 'Dark', description: 'Always use dark theme' },
             { value: 'system', label: 'System', description: 'Follow system preference' }
           ].map((option) => (
-            <button
+            <Button
               key={option.value}
               onClick={() => setTheme(option.value as 'light' | 'dark' | 'system')}
-              className={`w-full p-4 rounded-xl transition-all text-left ${
-                theme === option.value
-                  ? 'glass-subtle'
-                  : 'glass-subtle hover:glass-elevated'
-              }`}
+              variant={theme === option.value ? "primary" : "ghost"}
+              size="lg"
+              className="w-full justify-between text-left"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold font-jakarta text-text-primary">
-                    {option.label}
-                  </p>
-                  <p className="text-xs text-text-secondary font-jakarta">
-                    {option.description}
-                  </p>
-                </div>
-                <div className={`w-4 h-4 rounded-full ${
-                  theme === option.value
-                    ? 'bg-accent'
-                    : 'glass-subtle'
-                }`}>
-                  {theme === option.value && (
-                    <div className="w-full h-full rounded-full glass-subtle scale-50" />
-                  )}
-                </div>
+              <div>
+                <p className="text-sm font-bold font-jakarta text-text-primary">
+                  {option.label}
+                </p>
+                <p className="text-xs text-text-secondary font-jakarta">
+                  {option.description}
+                </p>
               </div>
-            </button>
+              <div className={`w-4 h-4 rounded-full ${
+                theme === option.value
+                  ? 'bg-accent'
+                  : 'glass-subtle'
+              }`}>
+                {theme === option.value && (
+                  <div className="w-full h-full rounded-full glass-subtle scale-50" />
+                )}
+              </div>
+            </Button>
           ))}
         </div>
       </div>
@@ -1276,10 +1224,9 @@ const SettingsToggle = memo<{
   color: string;
 }>(({ icon, label, description, enabled, onToggle, color }) => (
   <div 
-    className="settings-item flex items-center justify-between p-4 rounded-2xl transition-all"
+    className="settings-item flex items-center justify-between p-4 rounded-2xl transition-all glass-subtle"
     style={{ 
       backgroundColor: enabled ? `${color}30` : 'var(--glass-bg)',
-      boxShadow: GLASS_STYLES.subtle.boxShadow,
     }}
   >
     <div className="flex items-center gap-3">

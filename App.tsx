@@ -8,7 +8,7 @@ import UserPanel from './components/UserPanel';
 import FilesPanel from './components/FilesPanel';
 import TraceabilityPanel from './components/TraceabilityPanel';
 import { Menu, X, Settings, User as UserIcon, FolderOpen } from 'lucide-react';
-import { GlassButton } from './components/shared';
+import { IconButton } from './components/buttonFormat';
 import { chatStorage } from './services/chatStorage';
 import { authService } from './services/auth';
 import { initScaleManager, destroyScaleManager } from './services/scaleManager';
@@ -314,22 +314,35 @@ const AppContent: React.FC = () => {
           </div>
           
           <div className="header-actions flex items-center gap-2 relative z-10" data-no-drag>
-            <GlassButton onClick={openFilesPanel} ariaLabel="Utility">
-              <FolderOpen size={18} />
-            </GlassButton>
-            <GlassButton onClick={openUserPanel} ariaLabel="User profile">
-              <UserIcon size={18} />
-            </GlassButton>
-            <GlassButton onClick={openSettings} ariaLabel="Settings">
-              <Settings size={18} />
-            </GlassButton>
-            <GlassButton 
+            <IconButton 
+              icon={<FolderOpen size={18} />}
+              onClick={openFilesPanel} 
+              aria-label="Utility"
+              variant="glass"
+              size="md"
+            />
+            <IconButton 
+              icon={<UserIcon size={18} />}
+              onClick={openUserPanel} 
+              aria-label="User profile"
+              variant="glass"
+              size="md"
+            />
+            <IconButton 
+              icon={<Settings size={18} />}
+              onClick={openSettings} 
+              aria-label="Settings"
+              variant="glass"
+              size="md"
+            />
+            <IconButton 
+              icon={<X size={18} />}
               onClick={handleClose} 
+              aria-label="Close"
+              variant="glass"
+              size="md"
               className="hover:bg-red-500/10 hover:text-red-500"
-              ariaLabel="Close"
-            >
-              <X size={18} />
-            </GlassButton>
+            />
           </div>
           </header>
 

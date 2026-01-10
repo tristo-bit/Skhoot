@@ -2,6 +2,7 @@ import React, { useState, useCallback, memo, useRef } from 'react';
 import { Camera, Upload, Key, Crown, User as UserIcon, X, ChevronLeft } from 'lucide-react';
 import { COLORS } from '../src/constants';
 import { Modal } from './shared';
+import { CloseButton, SaveButton, UploadButton, ConnectionButton, PremiumButton, Button, IconButton, PlanButton, BackButton } from './buttonFormat';
 
 interface UserPanelProps {
   onClose: () => void;
@@ -204,12 +205,11 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
           <div className="flex items-center justify-between">
             <label className="text-sm font-bold font-jakarta text-text-primary">Profile Picture</label>
             {hasProfileChanges && (
-              <button
+              <SaveButton
                 onClick={handleSaveProfile}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold font-jakarta transition-all text-white bg-accent"
-              >
-                Save Photo
-              </button>
+                saveText="Save Photo"
+                size="xs"
+              />
             )}
           </div>
           <div className="flex flex-col items-center gap-4">
@@ -240,14 +240,10 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
             </div>
 
             {/* Upload Button */}
-            <button
+            <UploadButton
               onClick={triggerFileInput}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
-              style={{ backgroundColor: '#9a8ba3' }}
-            >
-              <Upload size={16} />
-              Upload Photo
-            </button>
+              uploadText="Upload Photo"
+            />
 
             {/* Hidden file input */}
             <input
@@ -265,12 +261,11 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
             <div className="flex items-center justify-between">
               <label className="text-sm font-bold font-jakarta text-text-primary">Personal Information</label>
               {hasNameChanges && (
-                <button
+                <SaveButton
                   onClick={handleSaveName}
-                  className="px-3 py-1 rounded-lg text-xs font-bold font-jakarta transition-all text-white bg-accent"
-                >
-                  Save Name
-                </button>
+                  saveText="Save Name"
+                  size="xs"
+                />
               )}
             </div>
             
@@ -312,49 +307,24 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
             <label className="text-sm font-bold font-jakarta text-text-primary">Subscription Plan</label>
             <div className="grid grid-cols-2 gap-3">
               {/* Guest Plan */}
-              <button
+              <PlanButton
                 onClick={() => handlePlanChange('guest')}
-                className={`p-4 rounded-xl transition-all ${
-                  plan === 'guest' 
-                    ? 'glass-subtle border-2' 
-                    : 'glass-subtle hover:glass'
-                }`}
-                style={plan === 'guest' ? { borderColor: '#9a8ba3' } : {}}
-              >
-                <div className="flex flex-col items-center gap-2">
-                  <UserIcon size={20} className={plan === 'guest' ? 'text-text-primary' : 'text-text-secondary'} style={plan === 'guest' ? { color: '#9a8ba3' } : {}} />
-                  <span className={`text-sm font-bold font-jakarta ${
-                    plan === 'guest' ? 'text-text-primary' : 'text-text-secondary'
-                  }`} style={plan === 'guest' ? { color: '#9a8ba3' } : {}}>
-                    Guest
-                  </span>
-                  <span className="text-xs text-text-secondary font-jakarta">Free access</span>
-                </div>
-              </button>
+                isActive={plan === 'guest'}
+                icon={<UserIcon size={20} />}
+                title="Guest"
+                description="Free access"
+              />
               
               {/* Subscribed Plan */}
-              <button
+              <PlanButton
                 onClick={() => handlePlanChange('subscribed')}
                 disabled={plan === 'guest'}
-                className={`p-4 rounded-xl transition-all relative ${
-                  plan === 'subscribed' 
-                    ? 'glass-subtle border-2' 
-                    : plan === 'guest'
-                    ? 'glass-subtle cursor-not-allowed opacity-60'
-                    : 'glass-subtle hover:glass'
-                }`}
-                style={plan === 'subscribed' ? { borderColor: '#9a8ba3' } : {}}
+                isActive={plan === 'subscribed'}
+                icon={<Crown size={20} />}
+                title="Subscribed"
+                description="Premium features"
+                className="relative"
               >
-                <div className="flex flex-col items-center gap-2">
-                  <Crown size={20} className={plan === 'subscribed' ? 'text-text-primary' : 'text-text-secondary'} style={plan === 'subscribed' ? { color: '#9a8ba3' } : {}} />
-                  <span className={`text-sm font-bold font-jakarta ${
-                    plan === 'subscribed' ? 'text-text-primary' : 'text-text-secondary'
-                  }`} style={plan === 'subscribed' ? { color: '#9a8ba3' } : {}}>
-                    Subscribed
-                  </span>
-                  <span className="text-xs text-text-secondary font-jakarta">Premium features</span>
-                </div>
-                
                 {/* Lock overlay for guest users */}
                 {plan === 'guest' && (
                   <div 
@@ -367,7 +337,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                     </div>
                   </div>
                 )}
-              </button>
+              </PlanButton>
             </div>
             
             {/* Upgrade message for guest users */}
@@ -389,25 +359,15 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
             <div className="flex items-center justify-between">
               <label className="text-sm font-bold font-jakarta text-text-primary">API Configuration</label>
               {connectionStatus === 'success' && (
-                <button
+                <SaveButton
                   onClick={handleSaveApiKey}
                   disabled={isApiKeySaved}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold font-jakarta transition-all text-white ${
-                    isApiKeySaved 
-                      ? 'cursor-not-allowed opacity-50' 
-                      : 'hover:opacity-90'
-                  }`}
-                  style={{ backgroundColor: '#DDEBF4' }}
-                >
-                  {isApiKeySaved ? (
-                    <div className="flex items-center gap-2">
-                      <span>✓</span>
-                      Saved!
-                    </div>
-                  ) : (
-                    'Save API Key'
-                  )}
-                </button>
+                  isSaved={isApiKeySaved}
+                  saveText="Save API Key"
+                  savedText="Saved!"
+                  variant="blue"
+                  size="sm"
+                />
               )}
             </div>
             <p className="text-xs text-text-secondary font-jakarta">
@@ -440,12 +400,13 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                   }`}
                   placeholder="Enter your API key"
                 />
-                <button
+                <IconButton
                   onClick={() => setShowApiKey(!showApiKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors"
-                >
-                  <Key size={16} />
-                </button>
+                  icon={<Key size={16} />}
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                />
               </div>
               
               {/* Connection Status Message */}
@@ -459,30 +420,14 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                 </div>
               )}
               
-              <button
+              <ConnectionButton
                 onClick={handleTestConnection}
                 disabled={isTestingConnection || !apiKey.trim()}
-                className={`w-full py-3 px-4 rounded-xl text-sm font-bold font-jakarta transition-all text-white ${
-                  isTestingConnection || !apiKey.trim()
-                    ? 'cursor-not-allowed opacity-50'
-                    : 'hover:opacity-90'
-                }`}
-                style={{ backgroundColor: '#DDEBF4' }}
-              >
-                {isTestingConnection ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Testing Connection...
-                  </div>
-                ) : connectionStatus === 'success' ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <span>✓</span>
-                    Connected Successfully
-                  </div>
-                ) : (
-                  'Test Connection'
-                )}
-              </button>
+                isConnected={connectionStatus === 'success'}
+                isTesting={isTestingConnection}
+                testText="Test Connection"
+                connectedText="Connected Successfully"
+              />
             </div>
           </div>
         </div>
@@ -495,12 +440,12 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
             >
               {/* Upgrade Header */}
               <div className="px-6 py-4 text-center">
-                <button 
+                <IconButton 
                   onClick={handleStartBilling}
-                  className="hover:scale-105 transition-transform cursor-pointer"
-                >
-                  <img src="/skhoot-purple.svg" alt="Skhoot" className="w-10 h-10 mx-auto mb-2 dark:brightness-90" style={{ filter: `hue-rotate(20deg) saturate(1.2)` }} />
-                </button>
+                  icon={<img src="/skhoot-purple.svg" alt="Skhoot" className="w-10 h-10 dark:brightness-90" style={{ filter: `hue-rotate(20deg) saturate(1.2)` }} />}
+                  variant="ghost"
+                  className="hover:scale-105 transition-transform cursor-pointer mx-auto mb-2"
+                />
                 <h3 className="text-lg font-black font-jakarta mb-1 text-text-primary">
                   Upgrade to Premium
                 </h3>
@@ -542,19 +487,17 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
 
               {/* Actions */}
               <div className="px-6 py-4 space-y-3">
-                <button
-                  className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90"
-                  style={{ backgroundColor: '#9a8ba3' }}
+                <PremiumButton
                   onClick={handleStartBilling}
-                >
-                  Start Free Trial
-                </button>
-                <button
+                  premiumText="Start Free Trial"
+                />
+                <Button
                   onClick={() => setShowUpgradePanel(false)}
-                  className="w-full py-2 text-sm font-jakarta text-text-secondary hover:text-text-primary transition-colors"
+                  variant="ghost"
+                  className="w-full py-2"
                 >
                   Maybe later
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -573,17 +516,12 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
             closeAriaLabel="Close billing"
             headerContent={(
               <div className="flex items-center gap-3">
-                <button
+                <BackButton
                   onClick={() => {
                     setShowBillingPanel(false);
                     setShowUpgradePanel(true);
                   }}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary"
-                  aria-label="Back"
-                  title="Back"
-                >
-                  <ChevronLeft size={18} />
-                </button>
+                />
                 <h3 className="text-lg font-black font-jakarta text-text-primary">
                   Billing & Payment
                 </h3>
@@ -665,15 +603,11 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
 
             {/* Button Section */}
             <div className="space-y-4 pt-2 pb-8">
-              <button
-                className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90"
-                style={{ backgroundColor: '#9a8ba3' }}
+              <PremiumButton
                 onClick={() => {
                   console.log('Start 7-Day Free Trial');
                 }}
-              >
-                Start 7-Day Free Trial
-              </button>
+              />
               <p className="text-xs text-center text-text-secondary font-jakarta">
                 You won't be charged until your trial ends
               </p>

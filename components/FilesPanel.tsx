@@ -2,6 +2,7 @@ import React, { memo, useState } from 'react';
 import { HardDrive, Link2, Archive, RefreshCw, Plus, Trash2, FolderOpen, Check } from 'lucide-react';
 import { MOCK_CONNECTED_APPS, MOCK_ARCHIVED_FILES } from '../browser-test/demo';
 import { Modal } from './shared';
+import { TabButton } from './buttonFormat';
 
 interface FilesPanelProps {
   onClose: () => void;
@@ -13,23 +14,12 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<Tab>('disks');
   const [connectedApps, setConnectedApps] = useState(MOCK_CONNECTED_APPS);
   const [archivedFiles, setArchivedFiles] = useState(MOCK_ARCHIVED_FILES);
-  const [clickedTab, setClickedTab] = useState<Tab | null>(null);
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'disks', label: 'Disks', icon: <HardDrive size={14} /> },
     { id: 'apps', label: 'Apps', icon: <Link2 size={14} /> },
     { id: 'archive', label: 'Archive', icon: <Archive size={14} /> },
   ];
-
-  const handleTabClick = (tabId: Tab) => {
-    setClickedTab(tabId);
-    setActiveTab(tabId);
-    
-    // Reset clicked state after animation
-    setTimeout(() => {
-      setClickedTab(null);
-    }, 200);
-  };
 
   const toggleAppConnection = (appId: string) => {
     setConnectedApps(apps => 
@@ -56,29 +46,13 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
     >
       <div className="files-panel-tabs px-4 py-2 flex gap-1 flex-shrink-0">
         {tabs.map(tab => (
-          <button
+          <TabButton
             key={tab.id}
-            onClick={() => handleTabClick(tab.id)}
-            aria-label={tab.label}
-            title={tab.label}
-            className={`files-panel-tab flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[11px] font-bold font-jakarta transition-all duration-200 ${
-              activeTab === tab.id 
-                ? 'glass-subtle text-text-primary' 
-                : 'hover:glass-subtle text-text-secondary'
-            } ${
-              clickedTab === tab.id 
-                ? 'bg-gray-300 dark:bg-gray-700 shadow-inner transform scale-95' 
-                : ''
-            }`}
-            style={clickedTab === tab.id ? {
-              backgroundColor: '#d1d5db',
-              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
-              filter: 'brightness(0.8)'
-            } : {}}
-          >
-            <span className="files-tab-icon">{tab.icon}</span>
-            <span className="files-tab-label">{tab.label}</span>
-          </button>
+            label={tab.label}
+            icon={tab.icon}
+            isActive={activeTab === tab.id}
+            onTabClick={() => setActiveTab(tab.id)}
+          />
         ))}
       </div>
       <div className="files-panel-content flex-1 overflow-hidden">

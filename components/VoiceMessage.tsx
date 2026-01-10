@@ -1,5 +1,6 @@
 import React, { useState, memo, useRef, useEffect } from 'react';
 import { Send, X, MessageSquare } from 'lucide-react';
+import { IconButton } from './buttonFormat';
 
 interface VoiceMessageProps {
   transcript: string;
@@ -107,19 +108,21 @@ export const VoiceMessage = memo<VoiceMessageProps>(({
           {/* Pending state - action buttons below text */}
           {isPending && (
             <div className={`flex items-center ${isCompact ? 'px-3 pb-2.5 gap-1.5' : 'px-4 pb-3 gap-2'}`}>
-              <button
+              <IconButton
                 onClick={onSend}
-                className={`${buttonSize} flex items-center justify-center active:scale-90 glass-subtle text-text-primary hover:brightness-95 transition-all`}
-              >
-                <Send size={iconSize} />
-              </button>
+                icon={<Send size={iconSize} />}
+                variant="glass"
+                size={isCompact ? 'sm' : 'md'}
+                className="text-text-primary hover:brightness-95"
+              />
               
-              <button
+              <IconButton
                 onClick={handleDiscard}
-                className={`${buttonSize} flex items-center justify-center active:scale-90 glass-subtle text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all`}
-              >
-                <X size={iconSize} />
-              </button>
+                icon={<X size={iconSize} />}
+                variant="ghost"
+                size={isCompact ? 'sm' : 'md'}
+                className="text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+              />
             </div>
           )}
         </div>

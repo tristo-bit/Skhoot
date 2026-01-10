@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { CloseButton } from '../buttonFormat';
 
 interface ModalProps {
   title?: string;
@@ -48,14 +49,12 @@ export const Modal: React.FC<ModalProps> = ({
             )}
           </div>
           {showClose && (
-            <button
+            <CloseButton
               onClick={onClose}
-              className="modal-close w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary active:scale-90"
+              className="modal-close"
               aria-label={closeAriaLabel}
               title={closeAriaLabel}
-            >
-              <X size={18} />
-            </button>
+            />
           )}
         </div>
       )}

@@ -2,6 +2,8 @@ import React, { memo, useState } from 'react';
 import { Search, FileText, MessageSquare, ExternalLink, Copy, Check, Folder, Trash2, Archive, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Message, FileInfo, ConversationMessage, CleanupItem, DiskInfo } from '../types';
 import { MarkdownRenderer } from './shared';
+import { Button, IconButton } from './buttonFormat';
+import { COLORS } from '../src/constants';
 
 export const MessageBubble = memo<{ message: Message }>(({ message }) => {
   const isUser = message.role === 'user';
@@ -83,22 +85,26 @@ const FileItem = memo<{ file: FileInfo }>(({ file }) => {
       
       {/* Action buttons */}
       <div className="flex gap-2 mt-3 pt-2 border-t border-glass-border">
-        <button
+        <Button
           onClick={handleGo}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 hover:brightness-95 glass-subtle text-text-primary"
+          variant="glass"
+          size="xs"
+          icon={<Folder size={12} />}
+          iconPosition="left"
+          className="flex-1 text-text-primary"
         >
-          <Folder size={12} />
           Go
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={handleCopy}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 hover:brightness-95 ${
-            copied ? 'bg-accent text-white' : 'glass-subtle text-text-primary'
-          }`}
+          variant={copied ? 'primary' : 'glass'}
+          size="xs"
+          icon={copied ? <Check size={12} /> : <Copy size={12} />}
+          iconPosition="left"
+          className="flex-1"
         >
-          {copied ? <Check size={12} /> : <Copy size={12} />}
           {copied ? 'Copied!' : 'Copy'}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -167,22 +173,26 @@ const MessageItem = memo<{ message: ConversationMessage }>(({ message }) => {
       
       {/* Action buttons */}
       <div className="flex gap-2 mt-3 pt-2 border-t border-glass-border">
-        <button
+        <Button
           onClick={handleGo}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 hover:brightness-95 glass-subtle text-accent"
+          variant="glass"
+          size="xs"
+          icon={<ExternalLink size={12} />}
+          iconPosition="left"
+          className="flex-1 text-accent"
         >
-          <ExternalLink size={12} />
           Go
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={handleCopy}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 hover:brightness-95 ${
-            copied ? 'bg-accent text-white' : 'glass-subtle text-text-primary'
-          }`}
+          variant={copied ? 'primary' : 'glass'}
+          size="xs"
+          icon={copied ? <Check size={12} /> : <Copy size={12} />}
+          iconPosition="left"
+          className="flex-1"
         >
-          {copied ? <Check size={12} /> : <Copy size={12} />}
           {copied ? 'Copied!' : 'Copy'}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -342,28 +352,30 @@ const CleanupItemCard = memo<{ item: CleanupItem }>(({ item }) => {
       {/* Action buttons */}
       {item.canRemove && (
         <div className="flex gap-2 mt-3 pt-3 border-t border-black/5">
-          <button
+          <Button
             onClick={handleRemove}
             disabled={isRemoving || isArchiving}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 disabled:opacity-50"
-            style={{ 
-              backgroundColor: isRemoving ? COLORS.raindropsOnRoses : 'rgba(239, 68, 68, 0.1)',
-              color: isRemoving ? '#fff' : '#dc2626',
-            }}
+            variant="danger"
+            size="xs"
+            icon={<Trash2 size={12} className={isRemoving ? 'animate-spin' : ''} />}
+            iconPosition="left"
+            className="flex-1"
+            loading={isRemoving}
           >
-            <Trash2 size={12} className={isRemoving ? 'animate-spin' : ''} />
             {isRemoving ? 'Removing...' : 'Remove'}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleArchive}
             disabled={isRemoving || isArchiving}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[10px] font-bold font-jakarta transition-all active:scale-95 disabled:opacity-50 ${
-              isArchiving ? 'bg-accent text-white' : 'glass-subtle text-accent hover:bg-accent/10'
-            }`}
+            variant={isArchiving ? 'primary' : 'glass'}
+            size="xs"
+            icon={<Archive size={12} className={isArchiving ? 'animate-pulse' : ''} />}
+            iconPosition="left"
+            className="flex-1"
+            loading={isArchiving}
           >
-            <Archive size={12} className={isArchiving ? 'animate-pulse' : ''} />
             {isArchiving ? 'Archiving...' : 'Archive'}
-          </button>
+          </Button>
         </div>
       )}
     </div>

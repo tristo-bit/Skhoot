@@ -1,7 +1,8 @@
 import React, { memo, forwardRef, useRef, useEffect, useState } from 'react';
 import { Send, Square, Search, MessageSquare, HardDrive, Trash2, Mic } from 'lucide-react';
-import { COLORS, QUICK_ACTIONS, GLASS_STYLES } from '../src/constants';
+import { QUICK_ACTIONS } from '../src/constants';
 import { SoundWave } from './shared';
+import { IconButton, Button } from './buttonFormat';
 
 // Icon mapping for quick actions
 const QUICK_ACTION_ICONS: Record<string, React.ReactNode> = {
@@ -21,14 +22,16 @@ interface QuickActionButtonProps {
 }
 
 const QuickActionButton = memo<QuickActionButtonProps>(({ id, icon, color, isActive, onClick, style }) => (
-  <button 
+  <Button 
     onClick={onClick}
     aria-label={id}
     title={id}
-    className={`quick-action-button flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 font-jakarta outline-none glass-subtle w-full ${
+    variant="glass"
+    size="sm"
+    className={`quick-action-button flex items-center justify-center gap-2 text-xs font-medium w-full ${
       isActive 
         ? 'text-text-primary' 
-        : 'text-text-secondary hover:scale-[1.02] active:scale-95'
+        : 'text-text-secondary hover:scale-[1.02]'
     }`}
     style={{ 
       backgroundColor: `${color}${isActive ? '20' : '15'}`,
@@ -42,7 +45,7 @@ const QuickActionButton = memo<QuickActionButtonProps>(({ id, icon, color, isAct
   >
     <span className={`quick-action-icon ${isActive ? 'animate-pulse' : ''}`}>{icon}</span>
     <span className="quick-action-label">{id}</span>
-  </button>
+  </Button>
 ));
 QuickActionButton.displayName = 'QuickActionButton';
 
@@ -253,37 +256,37 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
               paddingRight: 'calc(var(--scale-space-1) * var(--spacing-scale))',
             }}
           >
-            <button 
-              onClick={onMicClick}
-              className={`relative hover:bg-black/5 dark:hover:bg-white/5 rounded-2xl active:scale-90 ${
-                isRecording ? 'text-red-500 animate-pulse bg-red-50' : 
-                isOpera ? 'text-amber-500' : 'text-text-secondary'
-              }`}
-              style={{
-                backgroundColor: isRecording ? '#ef444440' : isOpera ? '#f59e0b20' : '#8b5cf620',
-                transition: `all 0.4s cubic-bezier(0.22, 1, 0.36, 1)`,
-                padding: 'calc(12px * var(--component-scale) * var(--scale))',
-                borderRadius: 'calc(16px * var(--component-scale) * var(--scale))',
-              }}
-              aria-label={
-                isRecording ? 'Stop recording' : 
-                isOpera ? 'Voice input (Opera fallback)' : 
-                'Start recording'
-              }
-              title={
-                isOpera ? 'Voice input not supported in Opera - click for text input fallback' :
-                isSpeechSupported ? 'Click to start voice recording' :
-                'Voice input not supported in this browser'
-              }
-            >
-              <Mic size={22} style={{ width: 'calc(22px * var(--icon-scale) * var(--scale-text))', height: 'calc(22px * var(--icon-scale) * var(--scale-text))' }} />
+            <div className="relative">
+              <IconButton
+                icon={<Mic size={22} style={{ width: 'calc(22px * var(--icon-scale) * var(--scale-text))', height: 'calc(22px * var(--icon-scale) * var(--scale-text))' }} />}
+                onClick={onMicClick}
+                variant={isRecording ? "glass" : isOpera ? "glass" : "ghost"}
+                size="lg"
+                className={`${isRecording ? 'animate-pulse' : ''}`}
+                aria-label={
+                  isRecording ? 'Stop recording' : 
+                  isOpera ? 'Voice input (Opera fallback)' : 
+                  'Start recording'
+                }
+                title={
+                  isOpera ? 'Voice input not supported in Opera - click for text input fallback' :
+                  isSpeechSupported ? 'Click to start voice recording' :
+                  'Voice input not supported in this browser'
+                }
+                style={{
+                  backgroundColor: isRecording ? '#ef444440' : isOpera ? '#f59e0b20' : '#8b5cf620',
+                  transition: `all 0.4s cubic-bezier(0.22, 1, 0.36, 1)`,
+                  padding: 'calc(12px * var(--component-scale) * var(--scale))',
+                  borderRadius: 'calc(16px * var(--component-scale) * var(--scale))',
+                }}
+              />
               {/* Opera indicator */}
               {isOpera && !isRecording && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full flex items-center justify-center">
                   <span className="text-[8px] font-bold text-white">!</span>
                 </div>
               )}
-            </button>
+            </div>
             
             {/* Send button - animated hide during recording */}
             <div
@@ -294,33 +297,8 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
               }}
             >
               <div style={{ overflow: 'hidden' }}>
-                <button 
-                  onClick={onSend}
-                  disabled={isLoading}
-                  className={`rounded-2xl flex items-center justify-center active:scale-90 ${
-                    (hasContent || hasPendingVoiceMessage) && !isLoading ? 'text-text-primary' : 'text-text-secondary'
-                  } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  style={{ 
-                    backgroundColor: (hasContent || hasPendingVoiceMessage) && !isLoading ? '#3b82f640' : '#3b82f620',
-                    opacity: isRecording ? 0 : 1,
-                    transform: isRecording ? 'scale(0.85)' : 'scale(1)',
-                    transition: `opacity 0.35s ${smoothEasing}, transform 0.4s ${smoothEasing}, background-color 0.2s ease`,
-                    boxShadow: 'none !important',
-                    width: 'calc(48px * var(--component-scale) * var(--scale))',
-                    height: 'calc(48px * var(--component-scale) * var(--scale))',
-                    borderRadius: 'calc(16px * var(--component-scale) * var(--scale))',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = 'none !important';
-                    e.currentTarget.style.filter = 'none';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = 'none !important';
-                    e.currentTarget.style.filter = 'none';
-                  }}
-                  aria-label="Send message"
-                >
-                  {isLoading ? (
+                <IconButton
+                  icon={isLoading ? (
                     <Square
                       size={18}
                       fill="currentColor"
@@ -334,7 +312,22 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
                       className={(hasContent || hasPendingVoiceMessage) ? 'animate-in zoom-in duration-200' : 'opacity-50'} 
                     />
                   )}
-                </button>
+                  onClick={onSend}
+                  disabled={isLoading}
+                  variant={(hasContent || hasPendingVoiceMessage) && !isLoading ? "glass" : "ghost"}
+                  size="lg"
+                  aria-label="Send message"
+                  style={{ 
+                    backgroundColor: (hasContent || hasPendingVoiceMessage) && !isLoading ? '#3b82f640' : '#3b82f620',
+                    opacity: isRecording ? 0 : 1,
+                    transform: isRecording ? 'scale(0.85)' : 'scale(1)',
+                    transition: `opacity 0.35s ${smoothEasing}, transform 0.4s ${smoothEasing}, background-color 0.2s ease`,
+                    boxShadow: 'none !important',
+                    width: 'calc(48px * var(--component-scale) * var(--scale))',
+                    height: 'calc(48px * var(--component-scale) * var(--scale))',
+                    borderRadius: 'calc(16px * var(--component-scale) * var(--scale))',
+                  }}
+                />
               </div>
             </div>
           </div>

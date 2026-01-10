@@ -1,6 +1,7 @@
 import React, { memo, useState, useEffect } from 'react';
 import { Search, Plus, X, MessageSquare, LogIn, LogOut } from 'lucide-react';
 import { Chat, User } from '../types';
+import { CloseButton, Button, IconButton } from './buttonFormat';
 
 interface SidebarProps {
   onNewChat: () => void;
@@ -26,13 +27,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onD
     
     {/* Sidebar Header */}
     <div className="relative z-10 px-5 py-5 flex items-center gap-4 flex-shrink-0">
-      <button 
+      <CloseButton 
         onClick={onClose}
-        className="p-1.5 hover:bg-black/5 rounded-lg transition-all text-text-secondary active:scale-95"
-        aria-label="Close menu"
-      >
-        <X size={18} />
-      </button>
+        className="p-1.5 hover:bg-black/5 rounded-lg"
+      />
       <div className="flex items-center gap-2">
         <SkhootLogo size={18} />
         <span 
@@ -126,16 +124,17 @@ const ChatItem = memo<ChatItemProps>(({ chat, isActive, onSelect, onDelete }) =>
           </p>
         </div>
         {/* Delete button - always visible */}
-        <button
+        <IconButton
+          icon={<X size={14} />}
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
-          className="p-1.5 rounded-lg text-text-secondary hover:bg-red-500/10 hover:text-red-500 transition-all flex-shrink-0"
-          aria-label="Remove conversation"
-        >
-          <X size={14} />
-        </button>
+          variant="ghost"
+          size="sm"
+          className="text-text-secondary hover:bg-red-500/10 hover:text-red-500 transition-all flex-shrink-0"
+          ariaLabel="Remove conversation"
+        />
       </div>
     </div>
   );
@@ -220,13 +219,13 @@ const NewSearchButton = memo<{ onClick: () => void }>(({ onClick }) => {
   };
 
   return (
-    <button 
+    <Button
       onClick={handleClick}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
-      className="flex items-center gap-3 w-full p-3.5 rounded-2xl transition-all active:scale-95 glass-elevated hover:brightness-105 group text-text-primary"
-    >
-      <div className="w-8 h-8 rounded-xl flex items-center justify-center glass-subtle overflow-hidden">
+      variant="glass"
+      size="lg"
+      icon={
         <Plus 
           size={18} 
           className={`text-text-primary ${
@@ -238,9 +237,12 @@ const NewSearchButton = memo<{ onClick: () => void }>(({ onClick }) => {
           }`}
           style={isSnappingBack ? getSnapBackStyle() : {}}
         />
-      </div>
+      }
+      iconPosition="left"
+      className="flex items-center gap-3 w-full p-3.5 rounded-2xl transition-all active:scale-95 glass-elevated hover:brightness-105 group text-text-primary"
+    >
       <span className="text-sm font-black tracking-tight font-jakarta">New Search</span>
-    </button>
+    </Button>
   );
 });
 NewSearchButton.displayName = 'NewSearchButton';
@@ -249,13 +251,18 @@ const AuthButton = memo<{ user: User | null; onSignIn: () => void; onSignOut: ()
   ({ user, onSignIn, onSignOut }) => {
     if (user) {
       return (
-        <button
+        <Button
           onClick={onSignOut}
-          className="flex items-center gap-3 w-full p-3 rounded-xl transition-all hover:bg-white/10 dark:hover:bg-white/5 active:scale-[0.98] group"
+          variant="ghost"
+          size="lg"
+          icon={
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold font-jakarta bg-accent">
+              {user.displayName.charAt(0).toUpperCase()}
+            </div>
+          }
+          iconPosition="left"
+          className="flex items-center gap-3 w-full p-3 rounded-xl transition-all hover:bg-white/10 dark:hover:bg-white/5 active:scale-[0.98] group justify-start"
         >
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold font-jakarta bg-accent">
-            {user.displayName.charAt(0).toUpperCase()}
-          </div>
           <div className="flex-1 text-left min-w-0">
             <p className="text-[12px] font-bold text-text-primary truncate font-jakarta">
               {user.displayName}
@@ -265,20 +272,21 @@ const AuthButton = memo<{ user: User | null; onSignIn: () => void; onSignOut: ()
             </p>
           </div>
           <LogOut size={14} className="text-text-secondary group-hover:text-red-500 transition-colors" />
-        </button>
+        </Button>
       );
     }
 
     return (
-      <button
+      <Button
         onClick={onSignIn}
+        variant="glass"
+        size="lg"
+        icon={<LogIn size={16} className="text-text-primary" />}
+        iconPosition="left"
         className="flex items-center gap-3 w-full p-3.5 rounded-2xl transition-all active:scale-95 glass-elevated hover:brightness-105 text-text-primary"
       >
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center glass-subtle">
-          <LogIn size={16} className="text-text-primary" />
-        </div>
         <span className="text-sm font-black tracking-tight font-jakarta">Sign In</span>
-      </button>
+      </Button>
     );
   }
 );
