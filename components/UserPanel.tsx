@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo, useRef } from 'react';
-import { Camera, Upload, Key, Crown, User as UserIcon } from 'lucide-react';
+import { Camera, Upload, Key, Crown, User as UserIcon, X } from 'lucide-react';
 import { COLORS } from '../src/constants';
 import { Modal } from './shared';
 
@@ -179,67 +179,85 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
           )}
         </>
       )}
+      footer={(
+        <div className="flex justify-between items-center">
+          <p className="text-[10px] font-medium font-jakarta opacity-40 text-text-primary">
+            Profile v1.0
+          </p>
+          <div className="flex gap-2">
+            {(hasProfileChanges || hasNameChanges) ? (
+              <span className="px-4 py-2 text-xs font-medium font-jakarta text-orange-600">
+                Unsaved changes
+              </span>
+            ) : (
+              <span className="px-4 py-2 text-xs font-medium font-jakarta text-gray-400">
+                All changes saved
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     >
       <div className="space-y-6">
         {/* Profile Picture Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-bold font-jakarta text-text-primary">Profile Picture</label>
-                {hasProfileChanges && (
-                  <button
-                    onClick={handleSaveProfile}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold font-jakarta transition-all text-white bg-accent"
-                  >
-                    Save Photo
-                  </button>
-                )}
-            </div>
-            <div className="flex flex-col items-center gap-4">
-              {/* Profile Image Display */}
-              <div 
-                className="relative w-24 h-24 rounded-full border-2 border-dashed border-glass-border flex items-center justify-center overflow-hidden cursor-pointer transition-all hover:border-accent glass-subtle"
-                onDrop={handleImageDrop}
-                onDragOver={handleDragOver}
-                onClick={triggerFileInput}
-              >
-                {profileImage ? (
-                  <img 
-                    src={profileImage} 
-                    alt="Profile" 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-1">
-                    <UserIcon size={24} className="text-text-secondary" />
-                    <span className="text-xs text-text-secondary font-jakarta">Drop or click</span>
-                  </div>
-                )}
-                
-                {/* Camera overlay */}
-                <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
-                  <Camera size={20} className="text-white" />
-                </div>
-              </div>
-              
-              {/* Upload Button */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-bold font-jakarta text-text-primary">Profile Picture</label>
+            {hasProfileChanges && (
               <button
-                onClick={triggerFileInput}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
-                style={{ backgroundColor: '#9a8ba3' }}
+                onClick={handleSaveProfile}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold font-jakarta transition-all text-white bg-accent"
               >
-                <Upload size={16} />
-                Upload Photo
+                Save Photo
               </button>
-              
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
+            )}
+          </div>
+          <div className="flex flex-col items-center gap-4">
+            {/* Profile Image Display */}
+            <div
+              className="relative w-24 h-24 rounded-full border-2 border-dashed border-glass-border flex items-center justify-center overflow-hidden cursor-pointer transition-all hover:border-accent glass-subtle"
+              onDrop={handleImageDrop}
+              onDragOver={handleDragOver}
+              onClick={triggerFileInput}
+            >
+              {profileImage ? (
+                <img
+                  src={profileImage}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-1">
+                  <UserIcon size={24} className="text-text-secondary" />
+                  <span className="text-xs text-text-secondary font-jakarta">Drop or click</span>
+                </div>
+              )}
+
+              {/* Camera overlay */}
+              <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
+                <Camera size={20} className="text-white" />
+              </div>
             </div>
+
+            {/* Upload Button */}
+            <button
+              onClick={triggerFileInput}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
+              style={{ backgroundColor: '#9a8ba3' }}
+            >
+              <Upload size={16} />
+              Upload Photo
+            </button>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+          </div>
           </div>
 
           {/* Name Section */}
@@ -467,30 +485,6 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
               </button>
             </div>
           </div>
-
-          </div>
-
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-black/5 flex justify-between items-center">
-          <p 
-            className="text-[10px] font-medium font-jakarta opacity-40" 
-            style={{ color: '#1e1e1e' }}
-          >
-            Profile v1.0
-          </p>
-          <div className="flex gap-2">
-            {(hasProfileChanges || hasNameChanges) ? (
-              <span className="px-4 py-2 text-xs font-medium font-jakarta text-orange-600">
-                Unsaved changes
-              </span>
-            ) : (
-              <span className="px-4 py-2 text-xs font-medium font-jakarta text-gray-400">
-                All changes saved
-              </span>
-            )}
-          </div>
         </div>
 
         {/* Upgrade Panel */}
@@ -706,7 +700,6 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
             </div>
           </div>
         )}
-      </div>
     </Modal>
   );
 };
