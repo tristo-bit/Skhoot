@@ -110,6 +110,13 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
       return;
     }
 
+    // Basic format validation - API key should be at least 20 characters and contain alphanumeric
+    if (apiKey.length < 20 || !/^[a-zA-Z0-9\-_]+$/.test(apiKey)) {
+      setConnectionStatus('error');
+      setConnectionMessage('Invalid API key format. Must be at least 20 characters with letters, numbers, hyphens, or underscores only.');
+      return;
+    }
+
     setIsTestingConnection(true);
     setConnectionStatus('idle');
     setConnectionMessage('');
@@ -118,24 +125,20 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
       // Simulate API call - replace with your actual API endpoint
       await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
       
-      // Mock validation - replace with actual API key validation
-      if (apiKey.length < 10) {
-        throw new Error('Invalid API key format');
-      }
-      
-      // Simulate random success/failure for demo
-      const isValid = Math.random() > 0.3; // 70% success rate
+      // Mock validation - in real app, this would call your API
+      // For demo: keys starting with 'sk-' are valid, others fail
+      const isValid = apiKey.startsWith('sk-') || apiKey.startsWith('API-') || apiKey.length >= 32;
       
       if (isValid) {
         setConnectionStatus('success');
-        setConnectionMessage('API key validated successfully!');
+        setConnectionMessage('✅ API key validated successfully! Connection established.');
         console.log('✅ API Key validated:', apiKey);
       } else {
-        throw new Error('Invalid API key or insufficient permissions');
+        throw new Error('Invalid API key or insufficient permissions. Please check your key and try again.');
       }
     } catch (error) {
       setConnectionStatus('error');
-      setConnectionMessage(error instanceof Error ? error.message : 'Connection failed');
+      setConnectionMessage(error instanceof Error ? error.message : 'Connection failed. Please check your API key.');
       console.error('❌ API Key validation failed:', error);
     } finally {
       setIsTestingConnection(false);
@@ -233,7 +236,8 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
               {/* Upload Button */}
               <button
                 onClick={triggerFileInput}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm font-jakarta transition-all text-white bg-accent"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
+                style={{ backgroundColor: '#9a8ba3' }}
               >
                 <Upload size={16} />
                 Upload Photo
@@ -306,15 +310,16 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                 onClick={() => handlePlanChange('guest')}
                 className={`p-4 rounded-xl transition-all ${
                   plan === 'guest' 
-                    ? 'glass-subtle border border-accent' 
+                    ? 'glass-subtle border-2' 
                     : 'glass-subtle hover:glass'
                 }`}
+                style={plan === 'guest' ? { borderColor: '#9a8ba3' } : {}}
               >
                 <div className="flex flex-col items-center gap-2">
-                  <UserIcon size={20} className={plan === 'guest' ? 'text-accent' : 'text-text-secondary'} />
+                  <UserIcon size={20} className={plan === 'guest' ? 'text-text-primary' : 'text-text-secondary'} style={plan === 'guest' ? { color: '#9a8ba3' } : {}} />
                   <span className={`text-sm font-bold font-jakarta ${
-                    plan === 'guest' ? 'text-accent' : 'text-text-secondary'
-                  }`}>
+                    plan === 'guest' ? 'text-text-primary' : 'text-text-secondary'
+                  }`} style={plan === 'guest' ? { color: '#9a8ba3' } : {}}>
                     Guest
                   </span>
                   <span className="text-xs text-text-secondary font-jakarta">Free access</span>
@@ -327,17 +332,18 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                 disabled={plan === 'guest'}
                 className={`p-4 rounded-xl transition-all relative ${
                   plan === 'subscribed' 
-                    ? 'glass-subtle border border-accent' 
+                    ? 'glass-subtle border-2' 
                     : plan === 'guest'
                     ? 'glass-subtle cursor-not-allowed opacity-60'
                     : 'glass-subtle hover:glass'
                 }`}
+                style={plan === 'subscribed' ? { borderColor: '#9a8ba3' } : {}}
               >
                 <div className="flex flex-col items-center gap-2">
-                  <Crown size={20} className={plan === 'subscribed' ? 'text-accent' : 'text-text-secondary'} />
+                  <Crown size={20} className={plan === 'subscribed' ? 'text-text-primary' : 'text-text-secondary'} style={plan === 'subscribed' ? { color: '#9a8ba3' } : {}} />
                   <span className={`text-sm font-bold font-jakarta ${
-                    plan === 'subscribed' ? 'text-accent' : 'text-text-secondary'
-                  }`}>
+                    plan === 'subscribed' ? 'text-text-primary' : 'text-text-secondary'
+                  }`} style={plan === 'subscribed' ? { color: '#9a8ba3' } : {}}>
                     Subscribed
                   </span>
                   <span className="text-xs text-text-secondary font-jakarta">Premium features</span>
@@ -351,7 +357,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                   >
                     <div className="text-center">
                       <img src="/skhoot-purple.svg" alt="Skhoot" className="w-6 h-6 mx-auto mb-1 opacity-60 dark:opacity-40 dark:brightness-90" />
-                      <span className="text-xs font-bold text-text-primary font-jakarta">Upgrade</span>
+                      <span className="text-xs font-bold font-jakarta" style={{ color: '#9a8ba3' }}>Upgrade</span>
                     </div>
                   </div>
                 )}
@@ -364,8 +370,9 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                 className="p-3 rounded-xl glass-subtle cursor-pointer hover:glass transition-all"
                 onClick={() => setShowUpgradePanel(true)}
               >
-                <p className="text-xs font-jakarta text-center text-accent">
-                  <span className="font-bold">Unlock premium features!</span> Upgrade to access advanced AI capabilities and priority support.
+                <p className="text-xs font-jakarta text-center">
+                  <span className="font-bold" style={{ color: '#9a8ba3' }}>Unlock premium features!</span> 
+                  <span className="text-text-secondary"> Upgrade to access advanced AI capabilities and priority support.</span>
                 </p>
               </div>
             )}
@@ -379,11 +386,12 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                 <button
                   onClick={handleSaveApiKey}
                   disabled={isApiKeySaved}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold font-jakarta transition-all ${
+                  className={`px-4 py-2 rounded-lg text-sm font-bold font-jakarta transition-all text-white ${
                     isApiKeySaved 
-                      ? 'glass-subtle text-text-secondary cursor-not-allowed' 
-                      : 'text-white bg-accent hover:opacity-90'
+                      ? 'cursor-not-allowed opacity-50' 
+                      : 'hover:opacity-90'
                   }`}
+                  style={{ backgroundColor: '#DDEBF4' }}
                 >
                   {isApiKeySaved ? (
                     <div className="flex items-center gap-2">
@@ -436,10 +444,10 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
               
               {/* Connection Status Message */}
               {connectionMessage && (
-                <div className={`p-2 rounded-lg text-xs font-medium font-jakarta ${
+                <div className={`p-3 rounded-xl text-sm font-medium font-jakarta ${
                   connectionStatus === 'success' 
-                    ? 'glass-subtle text-text-primary' 
-                    : 'glass-subtle text-red-400'
+                    ? 'bg-green-100 border border-green-200 text-green-700' 
+                    : 'bg-red-100 border border-red-200 text-red-700'
                 }`}>
                   {connectionMessage}
                 </div>
@@ -448,13 +456,12 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
               <button
                 onClick={handleTestConnection}
                 disabled={isTestingConnection || !apiKey.trim()}
-                className={`w-full py-2 px-4 rounded-xl text-sm font-bold font-jakarta transition-all ${
-                  isTestingConnection
-                    ? 'text-white bg-accent cursor-not-allowed'
-                    : connectionStatus === 'success'
-                    ? 'glass-subtle text-text-primary hover:glass'
-                    : 'glass-subtle text-text-primary hover:glass'
+                className={`w-full py-3 px-4 rounded-xl text-sm font-bold font-jakarta transition-all text-white ${
+                  isTestingConnection || !apiKey.trim()
+                    ? 'cursor-not-allowed opacity-50'
+                    : 'hover:opacity-90'
                 }`}
+                style={{ backgroundColor: '#DDEBF4' }}
               >
                 {isTestingConnection ? (
                   <div className="flex items-center justify-center gap-2">
@@ -471,6 +478,8 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                 )}
               </button>
             </div>
+          </div>
+
           </div>
 
         </div>
@@ -498,51 +507,51 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
 
         {/* Upgrade Panel */}
         {showUpgradePanel && (
-          <div className="absolute inset-0 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="absolute inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div 
-              className="w-[90%] max-w-[350px] rounded-2xl overflow-hidden shadow-2xl glass-elevated"
+              className="w-full max-w-[350px] max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl glass-elevated"
             >
               {/* Upgrade Header */}
-              <div className="px-6 py-5 text-center border-b border-black/5">
+              <div className="px-6 py-4 text-center">
                 <button 
                   onClick={handleStartBilling}
                   className="hover:scale-105 transition-transform cursor-pointer"
                 >
-                  <img src="/skhoot-purple.svg" alt="Skhoot" className="w-12 h-12 mx-auto mb-3 dark:brightness-90" style={{ filter: `hue-rotate(20deg) saturate(1.2)` }} />
+                  <img src="/skhoot-purple.svg" alt="Skhoot" className="w-10 h-10 mx-auto mb-2 dark:brightness-90" style={{ filter: `hue-rotate(20deg) saturate(1.2)` }} />
                 </button>
-                <h3 className="text-xl font-black font-jakarta mb-2" style={{ color: '#1e1e1e' }}>
+                <h3 className="text-lg font-black font-jakarta mb-1 text-text-primary">
                   Upgrade to Premium
                 </h3>
-                <p className="text-sm text-gray-600 font-jakarta">
+                <p className="text-sm text-text-secondary font-jakarta">
                   Unlock advanced AI features and priority support
                 </p>
               </div>
 
               {/* Features */}
-              <div className="px-6 py-4 space-y-3">
+              <div className="px-6 py-3 space-y-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-accent" />
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#9a8ba3' }} />
                   <span className="text-sm font-jakarta text-text-primary">Advanced AI responses</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-accent" />
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#9a8ba3' }} />
                   <span className="text-sm font-jakarta text-text-primary">Priority customer support</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-accent" />
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#9a8ba3' }} />
                   <span className="text-sm font-jakarta text-text-primary">Unlimited file searches</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-accent" />
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#9a8ba3' }} />
                   <span className="text-sm font-jakarta text-text-primary">Custom API integrations</span>
                 </div>
               </div>
 
               {/* Pricing */}
-              <div className="px-6 py-4 glass-subtle">
+              <div className="px-6 py-3 glass-subtle">
                 <div className="text-center">
-                  <div className="flex items-baseline justify-center gap-1 mb-2">
-                    <span className="text-2xl font-black font-jakarta text-accent">$9.99</span>
+                  <div className="flex items-baseline justify-center gap-1 mb-1">
+                    <span className="text-2xl font-black font-jakarta text-text-primary" style={{ color: '#9a8ba3' }}>$9.99</span>
                     <span className="text-sm text-text-secondary font-jakarta">/month</span>
                   </div>
                   <p className="text-xs text-text-secondary font-jakarta">Cancel anytime • 7-day free trial</p>
@@ -552,7 +561,8 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
               {/* Actions */}
               <div className="px-6 py-4 space-y-3">
                 <button
-                  className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white bg-accent"
+                  className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90"
+                  style={{ backgroundColor: '#9a8ba3' }}
                   onClick={handleStartBilling}
                 >
                   Start Free Trial
@@ -570,23 +580,22 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
 
         {/* Billing Panel */}
         {showBillingPanel && (
-          <div className="absolute inset-0 backdrop-blur-sm flex items-center justify-center z-50">
-            <div 
-              className="w-[95%] max-w-[450px] max-h-[90%] rounded-2xl overflow-hidden shadow-2xl border border-black/5 glass-elevated"
-            >
-              {/* Billing Header */}
-              <div className="px-6 py-5 flex items-center justify-between border-b border-black/5">
+          <div className="absolute inset-0 backdrop-blur-sm flex items-start justify-center z-50 pt-4 pb-4">
+            <div className="w-full max-w-[450px] max-h-[92vh] rounded-2xl glass-elevated shadow-2xl overflow-hidden">
+              
+              {/* Header - Always visible */}
+              <div className="px-6 py-4 border-b border-glass-border flex items-center justify-between bg-white/90 backdrop-blur-sm">
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => {
                       setShowBillingPanel(false);
                       setShowUpgradePanel(true);
                     }}
-                    className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
+                    className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary"
                   >
                     ←
                   </button>
-                  <h3 className="text-lg font-black font-jakarta" style={{ color: '#1e1e1e' }}>
+                  <h3 className="text-lg font-black font-jakarta text-text-primary">
                     Billing & Payment
                   </h3>
                 </div>
@@ -595,98 +604,101 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                     setShowBillingPanel(false);
                     setShowUpgradePanel(false);
                   }}
-                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-gray-500"
+                  className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              {/* Billing Content */}
-              <div className="px-6 py-4 space-y-6 overflow-y-auto max-h-[450px]">
+              {/* Scrollable Content */}
+              <div 
+                className="overflow-y-scroll px-6 py-4 space-y-6"
+                style={{ 
+                  height: 'calc(92vh - 90px)',
+                  scrollBehavior: 'smooth',
+                  paddingBottom: '2rem',
+                  minHeight: '600px'
+                }}
+              >
                 
                 {/* Plan Summary */}
                 <div className="p-4 rounded-xl glass-subtle">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-bold text-sm font-jakarta text-text-primary">Skhoot Premium</span>
-                    <span className="text-lg font-black font-jakarta text-accent">$9.99/mo</span>
+                    <span className="text-lg font-black font-jakarta" style={{ color: '#9a8ba3' }}>$9.99/mo</span>
                   </div>
                   <p className="text-xs text-text-secondary font-jakarta">7-day free trial • Cancel anytime</p>
                 </div>
 
                 {/* Payment Method */}
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <label className="text-sm font-bold font-jakarta text-text-primary">Payment Method</label>
-                  
-                  {/* Card Input */}
-                  <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Card number"
+                    className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
                     <input
                       type="text"
-                      placeholder="Card number"
-                      className="w-full p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+                      placeholder="MM/YY"
+                      className="p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        placeholder="MM/YY"
-                        className="p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-                      />
-                      <input
-                        type="text"
-                        placeholder="CVC"
-                        className="p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      placeholder="CVC"
+                      className="p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
                   </div>
                 </div>
 
                 {/* Billing Address */}
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <label className="text-sm font-bold font-jakarta text-text-primary">Billing Address</label>
-                  <div className="space-y-3">
+                  <input
+                    type="email"
+                    placeholder="Email address"
+                    defaultValue={userEmail}
+                    className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Full name"
+                    defaultValue={`${firstName} ${lastName}`}
+                    className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Address"
+                    className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
                     <input
-                      type="email"
-                      placeholder="Email address"
-                      defaultValue={userEmail}
-                      className="w-full p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+                      type="text"
+                      placeholder="City"
+                      className="p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
                     <input
                       type="text"
-                      placeholder="Full name"
-                      defaultValue={`${firstName} ${lastName}`}
-                      className="w-full p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+                      placeholder="ZIP code"
+                      className="p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
-                    <input
-                      type="text"
-                      placeholder="Address"
-                      className="w-full p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        type="text"
-                        placeholder="City"
-                        className="p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-                      />
-                      <input
-                        type="text"
-                        placeholder="ZIP code"
-                        className="p-3 rounded-xl border border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-                      />
-                    </div>
                   </div>
                 </div>
 
                 {/* Terms */}
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-3 py-4">
                   <input type="checkbox" className="mt-1" />
                   <p className="text-xs text-text-secondary font-jakarta">
-                    I agree to the <span className="text-accent underline cursor-pointer">Terms of Service</span> and <span className="text-accent underline cursor-pointer">Privacy Policy</span>
+                    I agree to the <span className="underline cursor-pointer" style={{ color: '#9a8ba3' }}>Terms of Service</span> and <span className="underline cursor-pointer" style={{ color: '#9a8ba3' }}>Privacy Policy</span>
                   </p>
                 </div>
 
-                {/* Billing Footer - Now inside scrollable area */}
-                <div className="space-y-3 pt-4">
+                {/* Button Section */}
+                <div className="space-y-4 pt-6 pb-16">
                   <button
-                    className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white bg-accent"
+                    className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90"
+                    style={{ backgroundColor: '#9a8ba3' }}
                     onClick={() => {
                       console.log('Start 7-Day Free Trial');
                       // Here you would process the trial signup
@@ -699,11 +711,13 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                   </p>
                 </div>
 
+                {/* Extra padding to ensure scroll reaches bottom */}
+                <div className="h-24"></div>
+
               </div>
             </div>
           </div>
         )}
-        </div>
       </div>
     </div>
   );
