@@ -9,6 +9,8 @@ interface GlassButtonProps {
   className?: string;
   hoverEffect?: 'scale' | 'brightness' | 'none';
   style?: CSSProperties;
+  ariaLabel?: string;
+  title?: string;
 }
 
 const SIZE_MAP = {
@@ -26,6 +28,8 @@ export const GlassButton = memo<GlassButtonProps>(({
   className = '',
   hoverEffect = 'scale',
   style,
+  ariaLabel,
+  title,
 }) => {
   const hoverClass = {
     scale: 'hover:scale-[1.02] active:scale-95',
@@ -39,6 +43,8 @@ export const GlassButton = memo<GlassButtonProps>(({
       disabled={disabled}
       data-tauri-drag-region="false"
       data-no-drag
+      aria-label={ariaLabel}
+      title={title ?? ariaLabel}
       className={`
         ${SIZE_MAP[size]}
         flex items-center justify-center 

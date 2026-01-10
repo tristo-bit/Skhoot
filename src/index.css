@@ -16,7 +16,8 @@
     --component-scale: 1;
 
     /* Light theme variables */
-    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-opacity-level: 0.85;
+    --glass-bg: rgba(255, 255, 255, var(--glass-opacity-level));
     --glass-border: rgba(0, 0, 0, 0.08);
     --text-primary: #2D3436;
     --text-secondary: #888888;
@@ -86,6 +87,7 @@
     --header-actions-shift: 0px;
     --header-btn-scale: 1;
     --app-radius: 32px;
+    --prompt-area-height: calc(200px * var(--component-scale) * var(--scale));
   }
 
   .compact-mode .quick-action-label {
@@ -223,6 +225,9 @@
   .app-glass {
     border: none;
     box-shadow: none;
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   .app-glass::before {
@@ -278,6 +283,140 @@
 
   .mobile-mode .settings-panel-body,
   .micro-mode .settings-panel-body {
+    padding: calc(var(--scale-space-2) * var(--spacing-scale));
+  }
+
+  .files-panel {
+    border-radius: calc(24px * var(--component-scale) * var(--scale));
+  }
+
+  .files-panel-header,
+  .files-panel-tabs {
+    padding-left: calc(var(--scale-space-4) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-4) * var(--spacing-scale));
+  }
+
+  .files-panel-body {
+    padding: calc(var(--scale-space-4) * var(--spacing-scale));
+    overflow: hidden;
+  }
+
+  .files-panel-tab {
+    font-size: calc(11px * var(--scale-text));
+  }
+
+  .compact-mode .files-panel {
+    width: 94vw;
+    height: 88vh;
+    max-height: 520px;
+    border-radius: calc(20px * var(--component-scale) * var(--scale));
+  }
+
+  .compact-mode .files-panel-header,
+  .compact-mode .files-panel-tabs {
+    padding-left: calc(var(--scale-space-3) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-3) * var(--spacing-scale));
+  }
+
+  .compact-mode .files-panel-body {
+    padding: calc(var(--scale-space-3) * var(--spacing-scale));
+  }
+
+  .mobile-mode .files-panel,
+  .micro-mode .files-panel {
+    width: 96vw;
+    height: 90vh;
+    max-height: none;
+    border-radius: calc(16px * var(--component-scale) * var(--scale));
+  }
+
+  .mobile-mode .files-panel-header,
+  .mobile-mode .files-panel-tabs,
+  .micro-mode .files-panel-header,
+  .micro-mode .files-panel-tabs {
+    padding-left: calc(var(--scale-space-2) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-2) * var(--spacing-scale));
+  }
+
+  .mobile-mode .files-panel-body,
+  .micro-mode .files-panel-body {
+    padding: calc(var(--scale-space-2) * var(--spacing-scale));
+  }
+
+  .micro-mode .files-tab-label {
+    display: none;
+  }
+
+  .micro-mode .files-panel-tab {
+    padding-left: calc(var(--scale-space-2) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-2) * var(--spacing-scale));
+  }
+
+  .modal-overlay {
+    background-color: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-panel {
+    width: 92vw;
+    max-width: 420px;
+    height: 86vh;
+    max-height: 560px;
+    border-radius: calc(24px * var(--component-scale) * var(--scale));
+    overflow: hidden;
+  }
+
+  .modal-header,
+  .modal-footer {
+    padding-left: calc(var(--scale-space-4) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-4) * var(--spacing-scale));
+    flex-shrink: 0;
+  }
+
+  .modal-header {
+    padding-top: calc(var(--scale-space-3) * var(--spacing-scale));
+    padding-bottom: calc(var(--scale-space-3) * var(--spacing-scale));
+  }
+
+  .modal-body {
+    padding: calc(var(--scale-space-4) * var(--spacing-scale));
+  }
+
+  .compact-mode .modal-panel {
+    width: 94vw;
+    height: 88vh;
+    max-height: 520px;
+    border-radius: calc(20px * var(--component-scale) * var(--scale));
+  }
+
+  .compact-mode .modal-header,
+  .compact-mode .modal-footer {
+    padding-left: calc(var(--scale-space-3) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-3) * var(--spacing-scale));
+  }
+
+  .compact-mode .modal-body {
+    padding: calc(var(--scale-space-3) * var(--spacing-scale));
+  }
+
+  .mobile-mode .modal-panel,
+  .micro-mode .modal-panel {
+    width: 96vw;
+    height: 90vh;
+    max-height: none;
+    border-radius: calc(16px * var(--component-scale) * var(--scale));
+  }
+
+  .mobile-mode .modal-header,
+  .mobile-mode .modal-footer,
+  .micro-mode .modal-header,
+  .micro-mode .modal-footer {
+    padding-left: calc(var(--scale-space-2) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-2) * var(--spacing-scale));
+  }
+
+  .mobile-mode .modal-body,
+  .micro-mode .modal-body {
     padding: calc(var(--scale-space-2) * var(--spacing-scale));
   }
 
@@ -372,6 +511,7 @@
     --prompt-panel-radius: calc(20px * var(--component-scale) * var(--scale));
     --prompt-panel-bottom-offset: 2px;
     --prompt-input-font: calc(var(--scale-font-base) * 0.95 * var(--text-scale));
+    --prompt-area-height: calc(180px * var(--component-scale) * var(--scale));
   }
 
   .mobile-mode .quick-action-grid {
@@ -385,6 +525,7 @@
     --prompt-panel-radius: calc(14px * var(--component-scale) * var(--scale));
     --prompt-panel-bottom-offset: 4px;
     --prompt-input-font: calc(var(--scale-font-base) * 0.9 * var(--text-scale));
+    --prompt-area-height: calc(160px * var(--component-scale) * var(--scale));
   }
 
   .micro-mode {
@@ -394,11 +535,13 @@
     --prompt-panel-radius: calc(10px * var(--component-scale) * var(--scale));
     --prompt-panel-bottom-offset: 6px;
     --prompt-input-font: calc(var(--scale-font-base) * 0.85 * var(--text-scale));
+    --prompt-area-height: calc(140px * var(--component-scale) * var(--scale));
   }
 
   .dark {
     /* Professional Linux dark theme variables */
-    --glass-bg: rgba(30, 30, 30, 0.95);
+    --glass-opacity-level: 0.95;
+    --glass-bg: rgba(30, 30, 30, var(--glass-opacity-level));
     --glass-border: rgba(255, 255, 255, 0.08);
     --text-primary: #e5e5e5;
     --text-secondary: #a0a0a0;

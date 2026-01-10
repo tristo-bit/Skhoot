@@ -1,6 +1,7 @@
 import React, { useState, useCallback, memo, useRef } from 'react';
-import { X, Camera, Upload, Key, Crown, User as UserIcon } from 'lucide-react';
+import { Camera, Upload, Key, Crown, User as UserIcon } from 'lucide-react';
 import { COLORS } from '../src/constants';
+import { Modal } from './shared';
 
 interface UserPanelProps {
   onClose: () => void;
@@ -162,38 +163,25 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
   }, [apiKey]);
 
   return (
-    <div 
-      className="absolute inset-0 z-30 flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={onClose}
+    <Modal
+      onClose={onClose}
+      panelClassName="user-panel"
+      headerClassName="user-panel-header"
+      bodyClassName="user-panel-body"
+      closeAriaLabel="Close user panel"
+      headerContent={(
+        <>
+          <h2 className="text-lg font-black font-jakarta text-text-primary">
+            User Profile
+          </h2>
+          {(hasProfileChanges || hasNameChanges) && (
+            <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" title="Unsaved changes" />
+          )}
+        </>
+      )}
     >
-      <div 
-        className="w-[90%] max-w-[400px] h-[500px] rounded-3xl overflow-hidden glass-elevated animate-in zoom-in-95 duration-300 flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-6 py-5 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black font-jakarta text-text-primary">
-              User Profile
-            </h2>
-            {(hasProfileChanges || hasNameChanges) && (
-              <div className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" title="Unsaved changes" />
-            )}
-          </div>
-          <button 
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary active:scale-90"
-            aria-label="Close user panel"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-hidden">
-          <div className="h-full p-6 space-y-6 overflow-y-auto no-scrollbar">
-            
-            {/* Profile Picture Section */}
+      <div className="space-y-6">
+        {/* Profile Picture Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-bold font-jakarta text-text-primary">Profile Picture</label>
@@ -719,7 +707,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
           </div>
         )}
       </div>
-    </div>
+    </Modal>
   );
 };
 

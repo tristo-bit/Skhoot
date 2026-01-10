@@ -1,6 +1,7 @@
 import React, { memo, useState } from 'react';
-import { X, HardDrive, Link2, Archive, RefreshCw, Plus, Trash2, FolderOpen, Check } from 'lucide-react';
+import { HardDrive, Link2, Archive, RefreshCw, Plus, Trash2, FolderOpen, Check } from 'lucide-react';
 import { MOCK_CONNECTED_APPS, MOCK_ARCHIVED_FILES } from '../browser-test/demo';
+import { Modal } from './shared';
 
 interface FilesPanelProps {
   onClose: () => void;
@@ -34,59 +35,44 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
   };
 
   return (
-    <div 
-      className="absolute inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)', backdropFilter: 'blur(4px)' }}
-      onClick={onClose}
+    <Modal
+      title="Utility"
+      onClose={onClose}
+      panelClassName="files-panel"
+      headerClassName="files-panel-header"
+      bodyClassName="files-panel-body"
+      closeAriaLabel="Close utility"
     >
-      <div className="w-[90%] max-w-[400px] h-[500px] rounded-3xl overflow-hidden glass-elevated animate-in zoom-in-95 duration-300 flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-lg font-black font-jakarta text-text-primary">
-            Utility
-          </h2>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:glass-subtle rounded-xl transition-all active:scale-95"
+      <div className="files-panel-tabs px-4 py-2 flex gap-1 flex-shrink-0">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            aria-label={tab.label}
+            title={tab.label}
+            className={`files-panel-tab flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[11px] font-bold font-jakarta transition-all ${
+              activeTab === tab.id 
+                ? 'glass-subtle text-text-primary' 
+                : 'hover:glass-subtle text-text-secondary'
+            }`}
           >
-            <X size={18} className="text-text-secondary" />
+            <span className="files-tab-icon">{tab.icon}</span>
+            <span className="files-tab-label">{tab.label}</span>
           </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="px-4 py-2 flex gap-1 flex-shrink-0">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[11px] font-bold font-jakarta transition-all ${
-                activeTab === tab.id 
-                  ? 'glass-subtle text-text-primary' 
-                  : 'hover:glass-subtle text-text-secondary'
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-hidden">
-          <div className="h-full p-4 overflow-y-auto no-scrollbar">
-            {activeTab === 'disks' && <DisksTab />}
-            {activeTab === 'apps' && (
-              <AppsTab apps={connectedApps} onToggle={toggleAppConnection} />
-            )}
-            {activeTab === 'archive' && (
-              <ArchiveTab files={archivedFiles} onDelete={deleteArchive} />
-            )}
-          </div>
+        ))}
+      </div>
+      <div className="files-panel-content flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto no-scrollbar">
+          {activeTab === 'disks' && <DisksTab />}
+          {activeTab === 'apps' && (
+            <AppsTab apps={connectedApps} onToggle={toggleAppConnection} />
+          )}
+          {activeTab === 'archive' && (
+            <ArchiveTab files={archivedFiles} onDelete={deleteArchive} />
+          )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 
@@ -130,7 +116,11 @@ const DisksTab = memo(() => {
         </div>
       ))}
       
-      <button className="w-full p-3 rounded-xl border border-dashed border-glass-border text-[11px] font-bold font-jakarta text-text-secondary hover:glass-subtle transition-all flex items-center justify-center gap-2">
+      <button
+        className="w-full p-3 rounded-xl border border-dashed border-glass-border text-[11px] font-bold font-jakarta text-text-secondary hover:glass-subtle transition-all flex items-center justify-center gap-2"
+        aria-label="Add External Drive"
+        title="Add External Drive"
+      >
         <Plus size={14} />
         Add External Drive
       </button>
@@ -165,6 +155,8 @@ const AppsTab = memo<AppsTabProps>(({ apps, onToggle }) => (
         </div>
         <button
           onClick={() => onToggle(app.id)}
+          aria-label={app.connected ? `Disconnect ${app.name}` : `Connect ${app.name}`}
+          title={app.connected ? `Disconnect ${app.name}` : `Connect ${app.name}`}
           className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-jakarta transition-all flex items-center gap-1.5 ${
             app.connected 
               ? 'bg-green-500/10 text-green-600' 
@@ -228,12 +220,18 @@ const ArchiveTab = memo<ArchiveTabProps>(({ files, onDelete }) => (
             </div>
           </div>
           <div className="flex gap-2 mt-3">
-            <button className="flex-1 py-2 rounded-lg text-[10px] font-bold font-jakarta glass-subtle text-text-primary hover:glass-elevated transition-all flex items-center justify-center gap-1.5">
+            <button
+              className="flex-1 py-2 rounded-lg text-[10px] font-bold font-jakarta glass-subtle text-text-primary hover:glass-elevated transition-all flex items-center justify-center gap-1.5"
+              aria-label={`Restore ${file.name}`}
+              title={`Restore ${file.name}`}
+            >
               <FolderOpen size={12} />
               Restore
             </button>
             <button 
               onClick={() => onDelete(file.id)}
+              aria-label={`Delete ${file.name}`}
+              title={`Delete ${file.name}`}
               className="py-2 px-3 rounded-lg text-[10px] font-bold font-jakarta text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
             >
               <Trash2 size={12} />

@@ -37,9 +37,10 @@ function clamp(value: number, min: number, max: number): number {
 
 function applyScale(state: ScaleState): void {
   const root = document.documentElement;
-  const textScale = clamp(state.scale, 0.85, 1);
+  const textScaleBase = Math.min(state.scale, state.heightScale);
+  const textScale = Math.round(clamp(textScaleBase, 0.85, 1) * 20) / 20;
   const headerBtnScale = clamp(state.scale, 0.7, 1);
-  const headerShift = state.isMicro ? 20 : state.isMobile ? 14 : state.isCompact ? 8 : 0;
+  const headerShift = state.isMicro ? 28 : state.isMobile ? 18 : state.isCompact ? 10 : 0;
   root.style.setProperty('--scale', state.scale.toString());
   root.style.setProperty('--height-scale', state.heightScale.toString());
   root.style.setProperty('--scale-text', textScale.toString());

@@ -23,6 +23,8 @@ interface QuickActionButtonProps {
 const QuickActionButton = memo<QuickActionButtonProps>(({ id, icon, color, isActive, onClick, style }) => (
   <button 
     onClick={onClick}
+    aria-label={id}
+    title={id}
     className={`quick-action-button flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 font-jakarta outline-none glass-subtle w-full ${
       isActive 
         ? 'text-text-primary' 
@@ -52,14 +54,14 @@ interface PromptAreaProps {
   activeMode: string | null;
   activeColor: string;
   audioLevels: number[];
-  onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
   onSend: () => void;
   onMicClick: () => void;
   onQuickAction: (mode: string, placeholder: string) => void;
 }
 
-export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
+export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   input,
   isLoading,
   isRecording,
@@ -82,6 +84,7 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
   const isSpeechSupported = !isOpera && (('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window));
   
   const quickActionsRef = useRef<HTMLDivElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const [quickActionsHeight, setQuickActionsHeight] = useState(52);
   const [showOperaNotification, setShowOperaNotification] = useState(false);
   
@@ -101,6 +104,15 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
       if (height > 0) setQuickActionsHeight(height);
     }
   }, []);
+
+  useEffect(() => {
+    const el = textAreaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const max = parseFloat(getComputedStyle(el).maxHeight || '0');
+    const next = Math.min(el.scrollHeight, max || el.scrollHeight);
+    el.style.height = `${next}px`;
+  }, [input]);
 
   // Smooth easing for buttery animations
   const smoothEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
@@ -210,18 +222,24 @@ export const PromptArea = forwardRef<HTMLInputElement, PromptAreaProps>(({
                 transition: `opacity 0.4s ${smoothEasing}, transform 0.5s ${smoothEasing}`,
               }}
             >
-              <input 
-                ref={ref}
-                type="text" 
+              <textarea 
+                ref={(node) => {
+                  textAreaRef.current = node;
+                  if (typeof ref === 'function') ref(node);
+                  else if (ref) (ref as React.MutableRefObject<HTMLTextAreaElement | null>).current = node;
+                }}
+                rows={1}
                 value={input}
                 onChange={onInputChange}
                 onKeyDown={onKeyDown}
                 placeholder={placeholder}
-                className="w-full bg-transparent border-none outline-none font-semibold placeholder:text-text-secondary placeholder:font-medium font-jakarta text-text-primary"
+                className="w-full bg-transparent border-none outline-none font-semibold placeholder:text-text-secondary placeholder:font-medium font-jakarta text-text-primary resize-none"
                 style={{
                   fontSize: 'var(--prompt-input-font)',
                   paddingTop: 'calc(var(--scale-space-1) * var(--spacing-scale))',
                   paddingBottom: 'calc(var(--scale-space-1) * var(--spacing-scale))',
+                  maxHeight: 'calc(140px * var(--component-scale) * var(--scale))',
+                  overflowY: 'auto',
                 }}
               />
             </div>

@@ -1,7 +1,8 @@
 import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { COLORS, GLASS_STYLES } from '../src/constants';
-import { X, Bot, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList, ExternalLink, Mail, Bug } from 'lucide-react';
+import { Bot, ChevronRight, Volume2, Bell, Shield, Palette, HelpCircle, Mic, VolumeX, ClipboardList, ExternalLink, Mail, Bug } from 'lucide-react';
 import { useTheme } from '../src/contexts/ThemeContext';
+import { Modal } from './shared';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -24,6 +25,17 @@ const SETTINGS_ITEMS = [
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceability }) => {
   const { theme, setTheme } = useTheme();
+  const [uiOpacity, setUiOpacity] = useState(() => {
+    if (typeof window === 'undefined') return 0.85;
+    const stored = window.localStorage.getItem('skhoot-ui-opacity');
+    const parsed = stored ? parseFloat(stored) : NaN;
+    if (!Number.isNaN(parsed)) return parsed;
+    const cssValue = getComputedStyle(document.documentElement)
+      .getPropertyValue('--glass-opacity-level')
+      .trim();
+    const cssParsed = cssValue ? parseFloat(cssValue) : NaN;
+    return Number.isNaN(cssParsed) ? 0.85 : cssParsed;
+  });
   const [activePanel, setActivePanel] = useState<string | null>(null);
   
   // Privacy panel states
@@ -76,6 +88,33 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
   const outputGainRef = useRef<GainNode | null>(null);
 
   const toggleAi = useCallback(() => setAiEnabled(v => !v), []);
+
+  const applyOpacity = useCallback((value: number) => {
+    const root = document.documentElement;
+    const level = Math.min(1, Math.max(0.5, value));
+    const light = Math.max(0.1, level - 0.15);
+    const heavy = Math.min(1, level + 0.1);
+    const isDark = root.classList.contains('dark');
+    const base = isDark ? '30, 30, 30' : '255, 255, 255';
+
+    root.style.setProperty('--glass-opacity-level', level.toString());
+    root.style.setProperty('--glass-opacity-light', light.toString());
+    root.style.setProperty('--glass-opacity-medium', level.toString());
+    root.style.setProperty('--glass-opacity-heavy', heavy.toString());
+    root.style.setProperty('--glass-bg', `rgba(${base}, ${level})`);
+
+    window.localStorage.setItem('skhoot-ui-opacity', level.toString());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    applyOpacity(uiOpacity);
+  }, [uiOpacity, applyOpacity]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    applyOpacity(uiOpacity);
+  }, [theme, uiOpacity, applyOpacity]);
 
   // Privacy panel functions
   const handleUpdateEmail = async () => {
@@ -1134,6 +1173,28 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
         </div>
       </div>
 
+      {/* Opacity */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-text-primary">Opacity</label>
+        <p className="text-xs text-text-secondary font-jakarta">
+          Adjust the glass opacity of the UI
+        </p>
+        <div className="flex items-center gap-3">
+          <input
+            type="range"
+            min={50}
+            max={100}
+            value={Math.round(uiOpacity * 100)}
+            onChange={(e) => setUiOpacity(parseInt(e.target.value, 10) / 100)}
+            className="w-full"
+            aria-label="Opacity"
+          />
+          <span className="text-xs font-bold font-jakarta text-text-secondary">
+            {Math.round(uiOpacity * 100)}%
+          </span>
+        </div>
+      </div>
+
       {/* Coming Soon Section */}
       <div className="space-y-3">
         <label className="text-sm font-bold font-jakarta text-text-primary">More Options</label>
@@ -1150,70 +1211,46 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
   );
 
   return (
-    <div 
-      className="absolute inset-0 z-30 flex items-center justify-center bg-black/20 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={onClose}
+    <Modal
+      title="Settings"
+      onClose={onClose}
+      panelClassName="settings-panel"
+      headerClassName="settings-panel-header"
+      bodyClassName="settings-panel-body"
+      footerClassName="settings-panel-footer"
+      closeAriaLabel="Close settings"
+      footer={(
+        <p className="text-[10px] font-medium font-jakarta text-center opacity-40 text-text-primary">
+          Skhoot v1.0
+        </p>
+      )}
     >
-      <div 
-        className="settings-panel w-[92vw] max-w-[420px] h-[86vh] max-h-[560px] rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 glass-elevated flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="settings-panel-header px-6 py-5 flex items-center justify-between">
-          <h2 className="text-lg font-black font-jakarta text-text-primary">
-            Settings
-          </h2>
-          <button 
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-text-secondary active:scale-90"
-            aria-label="Close settings"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="settings-panel-content flex-1 overflow-y-auto">
-          <div className="settings-panel-body p-6 space-y-4">
-          {showBugReportPanel ? (
-            renderBugReportPanel()
-          ) : showSupportRequestPanel ? (
-            renderSupportRequestPanel()
-          ) : activePanel === 'Sound' ? (
-            renderSoundPanel()
-          ) : activePanel === 'Privacy' ? (
-            renderPrivacyPanel()
-          ) : activePanel === 'Appearance' ? (
-            renderAppearancePanel()
-          ) : activePanel === 'Help Center' ? (
-            renderHelpCenterPanel()
-          ) : (
-            <>
-              {/* General Section */}
-              {/* <SettingsSection title="General"> */}
-                {SETTINGS_ITEMS.map(item => (
-                  <SettingsItem 
-                    key={item.label}
-                    icon={<item.icon size={18} />} 
-                    label={item.label} 
-                    color={item.color}
-                    onClick={() => handleSettingClick(item.label)}
-                  />
-                ))}
-              {/* </SettingsSection> */}
-            </>
-          )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="settings-panel-footer px-6 py-4">
-          <p className="text-[10px] font-medium font-jakarta text-center opacity-40 text-text-primary">
-            Skhoot v1.0
-          </p>
-        </div>
-      </div>
-    </div>
+      {showBugReportPanel ? (
+        renderBugReportPanel()
+      ) : showSupportRequestPanel ? (
+        renderSupportRequestPanel()
+      ) : activePanel === 'Sound' ? (
+        renderSoundPanel()
+      ) : activePanel === 'Privacy' ? (
+        renderPrivacyPanel()
+      ) : activePanel === 'Appearance' ? (
+        renderAppearancePanel()
+      ) : activePanel === 'Help Center' ? (
+        renderHelpCenterPanel()
+      ) : (
+        <>
+          {SETTINGS_ITEMS.map(item => (
+            <SettingsItem 
+              key={item.label}
+              icon={<item.icon size={18} />} 
+              label={item.label} 
+              color={item.color}
+              onClick={() => handleSettingClick(item.label)}
+            />
+          ))}
+        </>
+      )}
+    </Modal>
   );
 };
 

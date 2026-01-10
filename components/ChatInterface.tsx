@@ -30,7 +30,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
   const [isEmptyStateExiting, setIsEmptyStateExiting] = useState(false);
   
   // Refs
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -575,13 +575,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
     inputRef.current?.focus();
   }, []);
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     if (activeMode && !e.target.value) setActiveMode(null);
   }, [activeMode]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSend();
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   }, [handleSend]);
 
   return (

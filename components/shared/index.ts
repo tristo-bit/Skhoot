@@ -3,3 +3,4 @@ export { TypewriterText } from './TypewriterText';
 export { SoundWave } from './SoundWave';
 export { ScrollbarStyles } from './Scrollbar';
 export { MarkdownRenderer } from './MarkdownRenderer';
+export { Modal } from './Modal';

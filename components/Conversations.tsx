@@ -95,9 +95,13 @@ export const Conversations = forwardRef<HTMLDivElement, ConversationsProps>(({
       <ScrollbarStyles />
       <div 
         ref={ref}
-        className={`h-full overflow-y-auto px-6 pt-4 pb-36 space-y-6 custom-scrollbar ${
+        className={`overflow-y-auto px-6 pt-4 space-y-6 custom-scrollbar ${
           showEmptyState ? 'flex flex-col items-center justify-center' : ''
         }`}
+        style={{
+          height: 'calc(100% - var(--prompt-area-height))',
+          paddingBottom: 'calc(var(--scale-space-4) * var(--spacing-scale))',
+        }}
       >
         {/* Empty State */}
         {showEmptyState && (

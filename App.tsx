@@ -281,6 +281,7 @@ const AppContent: React.FC = () => {
               data-no-drag
               className="header-sidebar-btn relative z-10 p-1.5 hover:bg-black/5 rounded-lg transition-all text-text-secondary active:scale-95"
               aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
+              title={isSidebarOpen ? 'Close menu' : 'Open menu'}
             >
               <div className="relative w-[18px] h-[18px]">
                 <Menu 
@@ -313,19 +314,19 @@ const AppContent: React.FC = () => {
           </div>
           
           <div className="header-actions flex items-center gap-2 relative z-10" data-no-drag>
-            <GlassButton onClick={openFilesPanel} aria-label="Utility">
+            <GlassButton onClick={openFilesPanel} ariaLabel="Utility">
               <FolderOpen size={18} />
             </GlassButton>
-            <GlassButton onClick={openUserPanel} aria-label="User profile">
+            <GlassButton onClick={openUserPanel} ariaLabel="User profile">
               <UserIcon size={18} />
             </GlassButton>
-            <GlassButton onClick={openSettings} aria-label="Settings">
+            <GlassButton onClick={openSettings} ariaLabel="Settings">
               <Settings size={18} />
             </GlassButton>
             <GlassButton 
               onClick={handleClose} 
               className="hover:bg-red-500/10 hover:text-red-500"
-              aria-label="Close"
+              ariaLabel="Close"
             >
               <X size={18} />
             </GlassButton>
