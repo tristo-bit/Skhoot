@@ -35,6 +35,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   
+  // UI validation states
+  const [emailError, setEmailError] = useState('');
+  const [emailSuccess, setEmailSuccess] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  
   // Help Center states
   const [bugReport, setBugReport] = useState('');
   const [supportRequest, setSupportRequest] = useState('');
@@ -73,91 +79,92 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
 
   // Privacy panel functions
   const handleUpdateEmail = async () => {
+    setEmailError('');
+    setEmailSuccess('');
+    
     // Vérifier si l'email est vide
     if (!newEmail || newEmail.trim() === '') {
-      alert('Please enter an email address');
+      setEmailError('Please enter an email address');
       return;
     }
     
     // Validation du format email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(newEmail.trim())) {
-      alert('Please enter a valid email format (example: user@domain.com)');
+      setEmailError('Invalid email format. Please use format: user@domain.com');
       return;
     }
     
     // Vérifier si l'email est différent de l'actuel (simulation)
-    const currentEmail = 'user@example.com'; // En réalité, ceci viendrait de votre état utilisateur
+    const currentEmail = 'user@example.com';
     if (newEmail.trim().toLowerCase() === currentEmail.toLowerCase()) {
-      alert('This email is already your current email address');
+      setEmailError('This email is already your current email address');
       return;
     }
     
     setIsUpdatingEmail(true);
     try {
-      // Simulate API call to backend
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Simulate email sending
-      console.log(`📧 Confirmation email sent to: ${newEmail.trim()}`);
-      console.log(`📧 Email content: "Please click the link to confirm your new email address: ${newEmail.trim()}"`);
-      
-      alert(`✅ Confirmation email sent to ${newEmail.trim()}!\n\nPlease check your inbox and click the verification link to complete the email change.`);
+      setEmailSuccess(`Confirmation email sent to ${newEmail.trim()}! Check your inbox.`);
       setNewEmail('');
     } catch (error) {
-      console.error('Email update error:', error);
-      alert('❌ Failed to send confirmation email. Please try again or contact support.');
+      setEmailError('Failed to send confirmation email. Please try again.');
     } finally {
       setIsUpdatingEmail(false);
     }
   };
 
   const handleChangePassword = async () => {
-    if (!currentPassword) {
-      alert('Please enter your current password');
+    setPasswordError('');
+    setPasswordSuccess('');
+    
+    // Vérifications des champs vides
+    if (!currentPassword || currentPassword.trim() === '') {
+      setPasswordError('Please enter your current password');
       return;
     }
-    if (!newPassword || newPassword.length < 8) {
-      alert('New password must be at least 8 characters long');
+    if (!newPassword || newPassword.trim() === '') {
+      setPasswordError('Please enter a new password');
       return;
     }
+    if (!confirmPassword || confirmPassword.trim() === '') {
+      setPasswordError('Please confirm your new password');
+      return;
+    }
+    
+    // Validation de la longueur du mot de passe
+    if (newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters long');
+      return;
+    }
+    
+    // Validation de la complexité du mot de passe
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
-      alert('Password must contain at least one uppercase letter, one lowercase letter, and one number');
+      setPasswordError('Password must contain: uppercase letter, lowercase letter, and number');
       return;
     }
+    
+    // Vérification que les mots de passe correspondent
     if (newPassword !== confirmPassword) {
-      alert('New passwords do not match');
+      setPasswordError('New passwords do not match');
       return;
     }
+    
+    // Vérification que le nouveau mot de passe est différent de l'ancien
     if (newPassword === currentPassword) {
-      alert('New password must be different from current password');
+      setPasswordError('New password must be different from current password');
       return;
     }
     
     setIsChangingPassword(true);
     try {
-      // Simulate API call to verify current password and update
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // In a real app, this would call your backend API
-      // const response = await fetch('/api/user/change-password', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ currentPassword, newPassword })
-      // });
-      
-      // Simulate email notification
-      console.log('🔐 Password changed successfully');
-      console.log('📧 Security notification email sent to user');
-      console.log('📧 Email content: "Your password has been successfully changed. If this wasn\'t you, please contact support immediately."');
-      
-      alert('Password changed successfully! A confirmation email has been sent to your account for security purposes.');
+      setPasswordSuccess('Password changed successfully! Security email sent to your account.');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (error) {
-      console.error('Password change error:', error);
-      alert('Failed to change password. Please verify your current password and try again.');
+      setPasswordError('Failed to change password. Please try again.');
     } finally {
       setIsChangingPassword(false);
     }
@@ -919,13 +926,19 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
           <input
             type="email"
             value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
+            onChange={(e) => {
+              setNewEmail(e.target.value);
+              setEmailError('');
+              setEmailSuccess('');
+            }}
             placeholder="Enter new email address"
             className="flex-1 p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
           <button
-            onClick={handleUpdateEmail}
-            disabled={false}
+            onClick={() => {
+              console.log('Update button clicked!');
+              handleUpdateEmail();
+            }}
             className="px-4 py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
             style={{ 
               backgroundColor: '#9a8ba3',
@@ -936,6 +949,20 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
             {isUpdatingEmail ? 'Updating...' : 'Update'}
           </button>
         </div>
+        
+        {/* Email Error Message */}
+        {emailError && (
+          <div className="p-3 rounded-xl bg-red-100 border border-red-200">
+            <p className="text-sm font-medium text-red-700">❌ {emailError}</p>
+          </div>
+        )}
+        
+        {/* Email Success Message */}
+        {emailSuccess && (
+          <div className="p-3 rounded-xl bg-green-100 border border-green-200">
+            <p className="text-sm font-medium text-green-700">✅ {emailSuccess}</p>
+          </div>
+        )}
       </div>
 
       {/* Password Change */}
@@ -948,27 +975,41 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
           <input
             type="password"
             value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
+            onChange={(e) => {
+              setCurrentPassword(e.target.value);
+              setPasswordError('');
+              setPasswordSuccess('');
+            }}
             placeholder="Current password"
             className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
           <input
             type="password"
             value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
+            onChange={(e) => {
+              setNewPassword(e.target.value);
+              setPasswordError('');
+              setPasswordSuccess('');
+            }}
             placeholder="New password"
             className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
           <input
             type="password"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={(e) => {
+              setConfirmPassword(e.target.value);
+              setPasswordError('');
+              setPasswordSuccess('');
+            }}
             placeholder="Confirm new password"
             className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
           <button
-            onClick={handleChangePassword}
-            disabled={false}
+            onClick={() => {
+              console.log('Change Password button clicked!');
+              handleChangePassword();
+            }}
             className="w-full p-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
             style={{ 
               backgroundColor: '#9a8ba3',
@@ -979,6 +1020,20 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
             {isChangingPassword ? 'Changing...' : 'Change Password'}
           </button>
         </div>
+        
+        {/* Password Error Message */}
+        {passwordError && (
+          <div className="p-3 rounded-xl bg-red-100 border border-red-200">
+            <p className="text-sm font-medium text-red-700">❌ {passwordError}</p>
+          </div>
+        )}
+        
+        {/* Password Success Message */}
+        {passwordSuccess && (
+          <div className="p-3 rounded-xl bg-green-100 border border-green-200">
+            <p className="text-sm font-medium text-green-700">✅ {passwordSuccess}</p>
+          </div>
+        )}
       </div>
 
       {/* Data Download */}
@@ -988,8 +1043,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
           Export all your conversations and settings
         </p>
         <button
-          onClick={handleDownloadData}
-          disabled={false}
+          onClick={() => {
+            console.log('Download Data button clicked!');
+            handleDownloadData();
+          }}
           className="w-full p-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white"
           style={{ 
             backgroundColor: '#9a8ba3',
