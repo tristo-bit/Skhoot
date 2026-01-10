@@ -11,7 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
-backend/target
+
+# Rust/Cargo
+backend/target/
+backend/Cargo.lock
 backend/.env
 backend/.env.*
 
@@ -26,4 +29,36 @@ backend/.env.*
 *.sln
 *.sw?
 
-*.env # added by zach
+# Environment files
+*.env
+.env
+.env.*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build artifacts
+target/
+debug/
+release/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# IDE files
+*.iml
+.idea/
+.vscode/settings.json
+
+# Documentation Projects
+documentation/codex-main

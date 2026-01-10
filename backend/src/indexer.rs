@@ -1,3 +1,6 @@
+//! File indexer for content extraction and database storage
+#![allow(dead_code)]
+
 use walkdir::WalkDir;
 use notify::{Watcher, RecursiveMode, Event, EventKind};
 use tokio::sync::mpsc;

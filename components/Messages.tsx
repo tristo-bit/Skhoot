@@ -16,7 +16,10 @@ export const MessageBubble = memo<{ message: Message }>(({ message }) => {
           <MarkdownRenderer content={message.content} />
 
           {message.type === 'file_list' && message.data && (
-            <FileList files={message.data} />
+            <FileList 
+              files={message.data} 
+              searchInfo={(message as any).searchInfo}
+            />
           )}
 
           {message.type === 'message_list' && message.data && (
@@ -53,8 +56,8 @@ export const MessageBubble = memo<{ message: Message }>(({ message }) => {
 });
 MessageBubble.displayName = 'MessageBubble';
 
-// File item with Go/Copy buttons
-const FileItem = memo<{ file: FileInfo }>(({ file }) => {
+// File item with Go/Copy buttons and enhanced search info
+const FileItem = memo<{ file: FileInfo; searchInfo?: any }>(({ file, searchInfo }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -77,6 +80,27 @@ const FileItem = memo<{ file: FileInfo }>(({ file }) => {
         <div className="flex-1 min-w-0">
           <p className="text-[12px] font-bold truncate text-text-primary font-jakarta">{file.name}</p>
           <p className="text-[10px] font-medium opacity-50 truncate font-jakarta text-text-secondary">{file.path}</p>
+          
+          {/* Enhanced search info */}
+          {(file as any).score && (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full glass-subtle text-accent">
+                Score: {(file as any).score}
+              </span>
+              {(file as any).source && (
+                <span className="text-[9px] font-medium text-text-secondary">
+                  via {(file as any).source}
+                </span>
+              )}
+            </div>
+          )}
+          
+          {/* Show snippet if available */}
+          {(file as any).snippet && (
+            <p className="text-[10px] font-medium text-text-secondary mt-1 italic">
+              "{(file as any).snippet.substring(0, 60)}..."
+            </p>
+          )}
         </div>
         <span className="text-[10px] font-black whitespace-nowrap opacity-50 font-jakarta text-text-secondary">
           {file.size}
@@ -111,11 +135,66 @@ const FileItem = memo<{ file: FileInfo }>(({ file }) => {
 });
 FileItem.displayName = 'FileItem';
 
-const FileList = memo<{ files: FileInfo[] }>(({ files }) => (
+const FileList = memo<{ files: FileInfo[]; searchInfo?: any }>(({ files, searchInfo }) => (
   <div className="mt-4 space-y-2">
+    {/* Search info header */}
+    {searchInfo && (
+      <div className="p-3 rounded-xl glass-subtle border-glass-border mb-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Search size={14} className="text-accent" />
+            <span className="text-[11px] font-bold text-text-primary font-jakarta">
+              Search Results
+            </span>
+          </div>
+          <span className="text-[10px] font-medium text-text-secondary">
+            {searchInfo.executionTime}ms
+          </span>
+        </div>
+        
+        <div className="flex items-center gap-4 text-[10px] font-medium text-text-secondary">
+          <span>Query: "{searchInfo.query}"</span>
+          <span>Mode: {searchInfo.mode}</span>
+          <span>Found: {searchInfo.totalResults}</span>
+        </div>
+        
+        {/* AI Suggestions */}
+        {searchInfo.suggestions && searchInfo.suggestions.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-glass-border">
+            <p className="text-[9px] font-bold text-text-secondary mb-1">💡 Suggestions:</p>
+            <div className="flex flex-wrap gap-1">
+              {searchInfo.suggestions.slice(0, 3).map((suggestion: any, i: number) => (
+                <span 
+                  key={i}
+                  className="text-[9px] px-2 py-1 rounded-full glass-subtle text-accent cursor-pointer hover:glass-elevated transition-all"
+                  title={suggestion.reason}
+                >
+                  {suggestion.suggestion}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Error message if fallback */}
+        {searchInfo.error && (
+          <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <p className="text-[9px] font-medium text-amber-700">
+              ⚠️ {searchInfo.error}
+            </p>
+          </div>
+        )}
+      </div>
+    )}
+    
     {files.length === 0 ? (
       <div className="p-4 text-center opacity-50">
         <p className="text-[11px] font-semibold font-jakarta">No files found</p>
+        {searchInfo && (
+          <p className="text-[10px] font-medium text-text-secondary mt-1">
+            Try a different search term or check if the backend is running
+          </p>
+        )}
       </div>
     ) : (
       files.map((file, index) => (
@@ -123,7 +202,7 @@ const FileList = memo<{ files: FileInfo[] }>(({ files }) => (
           key={file.id} 
           style={{ animationDelay: `${index * 0.05}s` }}
         >
-          <FileItem file={file} />
+          <FileItem file={file} searchInfo={searchInfo} />
         </div>
       ))
     )}

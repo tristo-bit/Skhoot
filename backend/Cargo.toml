@@ -3,6 +3,10 @@ name = "skhoot-backend"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "file-search-tui"
+path = "src/bin/file_search_tui.rs"
+
 [dependencies]
 axum = "0.7"
 tokio = { version = "1.0", features = ["full"] }
@@ -30,3 +34,29 @@ base64 = "0.21"
 futures = "0.3"
 tokio-stream = "0.1"
 crossbeam-channel = "0.5"
+
+# File search dependencies
+ignore = "0.4"
+nucleo-matcher = "0.3"
+tempfile = "3.0"
+
+# TUI dependencies
+crossterm = "0.27"
+ratatui = "0.24"
+clap = { version = "4.0", features = ["derive"] }
+
+# Performance: Release profile optimizations
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# Performance: Dev profile with some optimizations for faster iteration
+[profile.dev]
+opt-level = 1
+
+# Performance: Dependencies optimized even in dev mode
+[profile.dev.package."*"]
+opt-level = 2

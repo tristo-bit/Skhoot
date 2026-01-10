@@ -551,6 +551,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         content: (result.text || 'I received your message.').trim(),
         type: (result.type as Message['type']) || 'text',
         data: result.data || undefined,
+        searchInfo: result.searchInfo || undefined,
         timestamp: new Date()
       };
       

@@ -11,9 +11,12 @@ use tower_http::cors::CorsLayer;
 use tracing::info;
 
 mod ai;
+mod api;
+mod cli_engine;
 mod db;
 mod indexer;
 mod search;
+mod search_engine;
 mod config;
 mod error;
 
@@ -23,14 +26,17 @@ use db::Database;
 use ai::AIManager;
 use indexer::FileIndexer;
 use search::SearchEngine;
+use search_engine::{SearchManager, SearchManagerFactory};
 
 #[derive(Clone)]
 pub struct AppState {
+    #[allow(dead_code)]
     config: Arc<AppConfig>,
     db: Database,
     ai_manager: AIManager,
     indexer: FileIndexer,
     search_engine: SearchEngine,
+    file_search_manager: SearchManager,
 }
 
 #[derive(Serialize)]
@@ -98,6 +104,10 @@ async fn main() -> anyhow::Result<()> {
     let ai_manager = AIManager::new();
     let indexer = FileIndexer::new(db.clone()).await?;
     let search_engine = SearchEngine::new(db.clone(), ai_manager.clone()).await?;
+    
+    // Initialize the new file search manager
+    let working_dir = std::env::current_dir()?;
+    let file_search_manager = SearchManagerFactory::create_ai_optimized(working_dir);
 
     let state = AppState {
         config,
@@ -105,6 +115,7 @@ async fn main() -> anyhow::Result<()> {
         ai_manager,
         indexer,
         search_engine,
+        file_search_manager,
     };
 
     let app = Router::new()
@@ -113,6 +124,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/ai/detect-provider", post(detect_provider))
         .route("/api/v1/search", get(search_files))
         .route("/api/v1/index/start", post(start_indexing))
+        .nest("/api/v1", api::search::search_routes())
         .with_state(state)
         .layer(
             CorsLayer::new()

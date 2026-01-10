@@ -7,7 +7,8 @@ import Register from './components/Register';
 import UserPanel from './components/UserPanel';
 import FilesPanel from './components/FilesPanel';
 import TraceabilityPanel from './components/TraceabilityPanel';
-import { Menu, X, Settings, User as UserIcon, FolderOpen } from 'lucide-react';
+import { FileSearchTest } from './components/FileSearchTest';
+import { Menu, X, Settings, User as UserIcon, FolderOpen, Search } from 'lucide-react';
 import { IconButton } from './components/buttonFormat';
 import { chatStorage } from './services/chatStorage';
 import { authService } from './services/auth';
@@ -49,10 +50,22 @@ const AppContent: React.FC = () => {
     if (authState.isAuthenticated && authState.user) {
       setUser(authState.user);
     }
+
+    // Add keyboard shortcut for file search test
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'F') {
+        e.preventDefault();
+        setIsFileSearchTestOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
   const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
   const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
   const [isTraceabilityOpen, setIsTraceabilityOpen] = useState(false);
+  const [isFileSearchTestOpen, setIsFileSearchTestOpen] = useState(false);
 
   const handleNewChat = useCallback(() => {
     pendingChatIdRef.current = null; // Clear any pending chat
@@ -144,6 +157,9 @@ const AppContent: React.FC = () => {
     setIsTraceabilityOpen(true);
   }, []);
   const closeTraceability = useCallback(() => setIsTraceabilityOpen(false), []);
+
+  const openFileSearchTest = useCallback(() => setIsFileSearchTestOpen(true), []);
+  const closeFileSearchTest = useCallback(() => setIsFileSearchTestOpen(false), []);
 
   const handleClose = useCallback(async () => {
     try {
@@ -315,6 +331,15 @@ const AppContent: React.FC = () => {
           
           <div className="header-actions flex items-center gap-2 relative z-10" data-no-drag>
             <IconButton 
+              icon={<Search size={18} />}
+              onClick={openFileSearchTest} 
+              aria-label="Test File Search"
+              variant="glass"
+              size="md"
+              className="hover:bg-blue-500/10 hover:text-blue-500"
+              title="Test File Search Integration (Ctrl+Shift+F)"
+            />
+            <IconButton 
               icon={<FolderOpen size={18} />}
               onClick={openFilesPanel} 
               aria-label="Utility"
@@ -392,6 +417,9 @@ const AppContent: React.FC = () => {
         
         {/* User Panel */}
         {isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
+
+        {/* File Search Test */}
+        {isFileSearchTestOpen && <FileSearchTest onClose={closeFileSearchTest} />}
 
         {/* Main content */}
           <main

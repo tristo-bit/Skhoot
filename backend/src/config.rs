@@ -1,3 +1,6 @@
+//! Application configuration
+#![allow(dead_code)]
+
 use anyhow::Result;
 use std::env;
 

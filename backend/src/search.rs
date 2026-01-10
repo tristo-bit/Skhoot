@@ -1,3 +1,6 @@
+//! Search engine for file content and metadata
+#![allow(dead_code)]
+
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use crate::db::{Database, FileRecord};

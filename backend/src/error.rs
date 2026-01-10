@@ -1,3 +1,6 @@
+//! Application error types
+#![allow(dead_code)]
+
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},

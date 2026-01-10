@@ -5,6 +5,7 @@ export interface Message {
   content: string;
   type: 'text' | 'file_list' | 'message_list' | 'analysis' | 'disk_usage' | 'cleanup';
   data?: any;
+  searchInfo?: any; // Enhanced search information from backend
   timestamp: Date;
 }
 
