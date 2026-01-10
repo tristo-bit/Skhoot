@@ -85,6 +85,7 @@
     --prompt-input-font: calc(var(--scale-font-base) * var(--text-scale));
     --header-actions-shift: 0px;
     --header-btn-scale: 1;
+    --app-radius: 32px;
   }
 
   .compact-mode .quick-action-label {
@@ -139,10 +140,22 @@
     display: inline-flex;
   }
 
+  .compact-mode .header-sidebar-btn {
+    transform: translateX(4px);
+  }
+
+  .mobile-mode .header-sidebar-btn {
+    transform: translateX(8px);
+  }
+
+  .micro-mode .header-sidebar-btn {
+    transform: translateX(10px);
+  }
+
   .compact-mode .header-bar {
     padding-left: calc(var(--scale-space-3) * var(--spacing-scale));
     padding-right: calc(var(--scale-space-3) * var(--spacing-scale));
-    padding-top: calc(var(--scale-space-2) * var(--spacing-scale));
+    padding-top: calc(var(--scale-space-5) * var(--spacing-scale));
     padding-bottom: calc(var(--scale-space-2) * var(--spacing-scale));
     column-gap: calc(var(--scale-space-1) * var(--spacing-scale));
   }
@@ -171,6 +184,7 @@
   .micro-mode .header-bar {
     padding-left: calc(var(--scale-space-2) * var(--spacing-scale));
     padding-right: calc(var(--scale-space-3) * var(--spacing-scale));
+    padding-top: calc(var(--scale-space-5) * var(--spacing-scale));
     column-gap: calc(var(--scale-space-1) * var(--spacing-scale));
     grid-template-columns: 1fr auto;
   }
@@ -182,6 +196,7 @@
     margin-right: calc(var(--scale-space-2) * var(--spacing-scale));
     justify-self: end;
     margin-top: calc(var(--scale-space-1) * var(--spacing-scale));
+    transform: translateX(calc(-1 * var(--header-actions-shift, 0px) / 2));
   }
 
   .micro-mode .header-bar {
@@ -212,6 +227,125 @@
 
   .app-glass::before {
     content: none;
+  }
+
+  .settings-panel {
+    border-radius: calc(24px * var(--component-scale) * var(--scale));
+  }
+
+  .settings-panel-header,
+  .settings-panel-footer {
+    padding-left: calc(var(--scale-space-4) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-4) * var(--spacing-scale));
+  }
+
+  .settings-panel-body {
+    padding: calc(var(--scale-space-4) * var(--spacing-scale));
+  }
+
+  .compact-mode .settings-panel {
+    width: 94vw;
+    height: 88vh;
+    max-height: 520px;
+    border-radius: calc(20px * var(--component-scale) * var(--scale));
+  }
+
+  .compact-mode .settings-panel-header,
+  .compact-mode .settings-panel-footer {
+    padding-left: calc(var(--scale-space-3) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-3) * var(--spacing-scale));
+  }
+
+  .compact-mode .settings-panel-body {
+    padding: calc(var(--scale-space-3) * var(--spacing-scale));
+  }
+
+  .mobile-mode .settings-panel,
+  .micro-mode .settings-panel {
+    width: 96vw;
+    height: 90vh;
+    max-height: none;
+    border-radius: calc(16px * var(--component-scale) * var(--scale));
+  }
+
+  .mobile-mode .settings-panel-header,
+  .mobile-mode .settings-panel-footer,
+  .micro-mode .settings-panel-header,
+  .micro-mode .settings-panel-footer {
+    padding-left: calc(var(--scale-space-2) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-2) * var(--spacing-scale));
+  }
+
+  .mobile-mode .settings-panel-body,
+  .micro-mode .settings-panel-body {
+    padding: calc(var(--scale-space-2) * var(--spacing-scale));
+  }
+
+  .settings-item {
+    padding: calc(var(--scale-space-4) * var(--spacing-scale));
+    border-radius: calc(16px * var(--component-scale) * var(--scale));
+  }
+
+  .settings-icon {
+    width: calc(36px * var(--component-scale) * var(--scale));
+    height: calc(36px * var(--component-scale) * var(--scale));
+    border-radius: calc(12px * var(--component-scale) * var(--scale));
+  }
+
+  .settings-toggle {
+    width: calc(48px * var(--component-scale) * var(--scale));
+    height: calc(28px * var(--component-scale) * var(--scale));
+  }
+
+  .settings-toggle-knob {
+    width: calc(20px * var(--component-scale) * var(--scale));
+    height: calc(20px * var(--component-scale) * var(--scale));
+  }
+
+  .compact-mode .settings-item {
+    padding: calc(var(--scale-space-3) * var(--spacing-scale));
+    border-radius: calc(14px * var(--component-scale) * var(--scale));
+  }
+
+  .compact-mode .settings-icon {
+    width: calc(32px * var(--component-scale) * var(--scale));
+    height: calc(32px * var(--component-scale) * var(--scale));
+    border-radius: calc(10px * var(--component-scale) * var(--scale));
+  }
+
+  .compact-mode .settings-toggle {
+    width: calc(42px * var(--component-scale) * var(--scale));
+    height: calc(24px * var(--component-scale) * var(--scale));
+  }
+
+  .compact-mode .settings-toggle-knob {
+    width: calc(18px * var(--component-scale) * var(--scale));
+    height: calc(18px * var(--component-scale) * var(--scale));
+  }
+
+  .mobile-mode .settings-item,
+  .micro-mode .settings-item {
+    padding: calc(var(--scale-space-2) * var(--spacing-scale));
+    border-radius: calc(12px * var(--component-scale) * var(--scale));
+  }
+
+  .mobile-mode .settings-icon,
+  .micro-mode .settings-icon {
+    width: calc(28px * var(--component-scale) * var(--scale));
+    height: calc(28px * var(--component-scale) * var(--scale));
+    border-radius: calc(9px * var(--component-scale) * var(--scale));
+  }
+
+  .mobile-mode .settings-toggle,
+  .micro-mode .settings-toggle {
+    width: calc(36px * var(--component-scale) * var(--scale));
+    height: calc(22px * var(--component-scale) * var(--scale));
+  }
+
+  .mobile-mode .settings-toggle-knob,
+  .micro-mode .settings-toggle-knob {
+    width: calc(16px * var(--component-scale) * var(--scale));
+    height: calc(16px * var(--component-scale) * var(--scale));
   }
 
   .micro-mode .quick-action-label {
@@ -302,6 +436,7 @@
     width: 100%;
     height: 100%;
     background-color: transparent;
+    font-size: calc(16px * var(--scale-text));
   }
 
   #root {

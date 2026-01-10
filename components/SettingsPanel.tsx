@@ -1155,11 +1155,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
       onClick={onClose}
     >
       <div 
-        className="w-[90%] max-w-[400px] max-h-[80%] rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 glass-elevated"
+        className="settings-panel w-[92vw] max-w-[420px] h-[86vh] max-h-[560px] rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 glass-elevated flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-5 flex items-center justify-between">
+        <div className="settings-panel-header px-6 py-5 flex items-center justify-between">
           <h2 className="text-lg font-black font-jakarta text-text-primary">
             Settings
           </h2>
@@ -1173,8 +1173,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
         </div>
 
         {/* Content */}
-        <div className="overflow-y-scroll" style={{ maxHeight: '500px' }}>
-          <div className="p-6 space-y-4">
+        <div className="settings-panel-content flex-1 overflow-y-auto">
+          <div className="settings-panel-body p-6 space-y-4">
           {showBugReportPanel ? (
             renderBugReportPanel()
           ) : showSupportRequestPanel ? (
@@ -1207,7 +1207,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceabili
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4">
+        <div className="settings-panel-footer px-6 py-4">
           <p className="text-[10px] font-medium font-jakarta text-center opacity-40 text-text-primary">
             Skhoot v1.0
           </p>
@@ -1239,7 +1239,7 @@ const SettingsToggle = memo<{
   color: string;
 }>(({ icon, label, description, enabled, onToggle, color }) => (
   <div 
-    className="flex items-center justify-between p-4 rounded-2xl transition-all"
+    className="settings-item flex items-center justify-between p-4 rounded-2xl transition-all"
     style={{ 
       backgroundColor: enabled ? `${color}30` : 'var(--glass-bg)',
       boxShadow: GLASS_STYLES.subtle.boxShadow,
@@ -1262,14 +1262,14 @@ SettingsToggle.displayName = 'SettingsToggle';
 const Toggle = memo<{ enabled: boolean; onToggle: () => void }>(({ enabled, onToggle }) => (
   <button 
     onClick={onToggle}
-    className={`w-12 h-7 rounded-full transition-all duration-300 relative ${
+    className={`settings-toggle w-12 h-7 rounded-full transition-all duration-300 relative ${
       enabled ? 'bg-accent' : 'bg-glass-border'
     }`}
     role="switch"
     aria-checked={enabled}
   >
     <div 
-      className={`absolute top-1 w-5 h-5 rounded-full glass-subtle shadow-md transition-all duration-300 ${
+      className={`settings-toggle-knob absolute top-1 w-5 h-5 rounded-full glass-subtle shadow-md transition-all duration-300 ${
         enabled ? 'left-6' : 'left-1'
       }`}
     />
@@ -1285,7 +1285,7 @@ const SettingsItem = memo<{
 }>(({ icon, label, color, onClick }) => (
   <button 
     onClick={onClick}
-    className="flex items-center justify-between w-full p-4 rounded-2xl transition-all hover:brightness-[1.02] active:scale-[0.99] glass-subtle"
+    className="settings-item flex items-center justify-between w-full p-4 rounded-2xl transition-all hover:brightness-[1.02] active:scale-[0.99] glass-subtle"
   >
     <div className="flex items-center gap-3">
       <IconBox color={color}>{icon}</IconBox>
@@ -1298,7 +1298,7 @@ SettingsItem.displayName = 'SettingsItem';
 
 const IconBox = memo<{ color: string; children: React.ReactNode }>(({ color, children }) => (
   <div 
-    className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${color}/60`}
+    className={`settings-icon w-10 h-10 rounded-xl flex items-center justify-center bg-${color}/60`}
     style={{ 
       boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.4), inset 0 -1px 1px rgba(0,0,0,0.05)'
     }}
