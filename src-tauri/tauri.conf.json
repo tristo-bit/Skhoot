@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.skhoot.desktop-seeker",
   "build": {
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "npm run build && cd backend && cargo build --release",
     "beforeDevCommand": "npm run dev",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173"
@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src http://localhost:5173 tauri://localhost https://hub.docker.com https://cdn.jsdelivr.net; img-src 'self' data: https://cdn.jsdelivr.net https://*.docker.com https://*.githubusercontent.com; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; connect-src http://localhost:5173 http://localhost:3001 tauri://localhost https://hub.docker.com https://cdn.jsdelivr.net https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com; img-src 'self' data: https://cdn.jsdelivr.net https://*.docker.com https://*.githubusercontent.com; style-src 'self' 'unsafe-inline'"
     }
   },
   "plugins": {
