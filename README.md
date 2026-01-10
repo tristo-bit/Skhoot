@@ -36,6 +36,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1yPnxkAry7gQ3SPvIsRQW4e
 - **Markdown Support**: Full markdown rendering in responses
 - **File Search Integration**: AI automatically detects when file search is needed and provides intelligent suggestions with detailed search context
 - **Search Result Enhancement**: File search results display comprehensive metadata including query details, execution time, search mode, and AI-generated suggestions for query refinement
+- **Smart Error Handling**: Specific error messages for API key issues, quota limits, and network problems with actionable guidance
 
 ### 🎨 Modern Design System
 - **Embossed Glassmorphism**: Tactile, interactive design with depth
@@ -81,7 +82,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1yPnxkAry7gQ3SPvIsRQW4e
    # Build and start the backend
    cd backend
    cargo build --release
-   cargo run
+   cargo run --bin skhoot-backend
    # Backend will start on http://localhost:3001
    ```
 
@@ -114,18 +115,21 @@ View your app in AI Studio: https://ai.studio/apps/drive/1yPnxkAry7gQ3SPvIsRQW4e
 **Available Scripts:**
 
 **Backend Development:**
-- `cargo run` - Start Rust backend search engine (from backend/ directory)
-- `cargo test` - Run backend tests
-- `cargo build --release` - Build optimized backend
+- `npm run backend:dev` - Start Rust backend search engine (runs `cargo run --bin skhoot-backend`)
+- `npm run backend:build` - Build optimized backend
+- `npm run backend:test` - Run backend tests
+- `cargo run --bin skhoot-backend` - Start backend directly (from backend/ directory)
 
 **Web Development:**
 - `npm run dev` - Start web development server (opens browser automatically)
 - `npm run dev:no-open` - Start web development server without opening browser
+- `npm run dev:full` - Start both backend and frontend concurrently
 - `npm run build` - Build web version for production
 - `npm run preview` - Preview web production build
 
 **Desktop Development:**
 - `npm run tauri:dev` - Start desktop development with hot reload
+- `npm run tauri:full` - Start both backend and Tauri dev server concurrently (recommended for full-stack development)
 - `npm run tauri:build` - Build desktop app for current platform
 - `npm run tauri:build:ubuntu` - Build desktop app for Ubuntu/Linux
 - `npm run tauri` - Run Tauri CLI commands
@@ -241,7 +245,7 @@ Skhoot includes a built-in **File Search Test Interface** accessible via the sea
 - **Debug Information**: Access detailed search results and error messages in the browser console
 
 **To use the File Search Test Interface:**
-1. Ensure the Rust backend is running: `cd backend && cargo run`
+1. Ensure the Rust backend is running: `npm run backend:dev` or `cd backend && cargo run --bin skhoot-backend`
 2. Click the search icon (🔍) in the header
 3. Test various search queries like "main", "*.rs", "config", etc.
 4. Use the "Test AI Suggestion Detection" button to verify AI integration
@@ -295,6 +299,13 @@ skhootDemo.showMarkdown()
 - Configure demo data in `browser-test/demo.ts`
 
 ## 📝 Recent Updates
+
+### Enhanced Gemini Error Handling
+- **Specific Error Messages**: AI chat now provides targeted error messages for different failure scenarios
+- **API Key Validation**: Clear guidance when API key is invalid or missing
+- **Quota Management**: Helpful messages when API rate limits are exceeded
+- **Network Diagnostics**: Informative feedback for connection issues with troubleshooting hints
+- **Debug Support**: Detailed error information available in browser console for developers
 
 ### File Search Testing Interface
 - **New Testing Panel**: Added interactive file search test interface accessible via header search icon (🔍)

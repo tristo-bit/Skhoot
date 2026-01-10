@@ -2,6 +2,11 @@
 name = "skhoot-backend"
 version = "0.1.0"
 edition = "2021"
+default-run = "skhoot-backend"
+
+[[bin]]
+name = "skhoot-backend"
+path = "src/main.rs"
 
 [[bin]]
 name = "file-search-tui"

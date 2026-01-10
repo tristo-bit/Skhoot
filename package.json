@@ -11,8 +11,9 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
+    "tauri:full": "concurrently \"npm run backend:dev\" \"npm run tauri:dev\"",
     "tauri:build:ubuntu": "tauri build --target x86_64-unknown-linux-gnu",
-    "backend:dev": "cd backend && cargo run",
+    "backend:dev": "cd backend && cargo run --bin skhoot-backend",
     "backend:build": "cd backend && cargo build --release",
     "backend:test": "cd backend && cargo test",
     "dev:full": "concurrently \"npm run backend:dev\" \"npm run dev\""

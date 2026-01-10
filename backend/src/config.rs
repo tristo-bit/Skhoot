@@ -20,7 +20,7 @@ impl AppConfig {
         std::fs::create_dir_all(&data_dir)?;
         
         Ok(Self {
-            database_url: format!("sqlite://{}/skhoot.db", data_dir),
+            database_url: format!("sqlite://{}/skhoot.db?mode=rwc", data_dir),
             port: 3001,
             host: "127.0.0.1".to_string(),
             index_paths: vec![

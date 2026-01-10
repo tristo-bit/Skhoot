@@ -339,9 +339,21 @@ Respond naturally and use the appropriate search functions when needed.`,
 
       const responseText = response.text || "I'm here! How can I help you?";
       return { text: responseText, type: 'text' };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Gemini Error:", error);
-      return { text: "I'm sorry, I encountered an issue. Please make sure the backend is running and try again.", type: 'text' };
+      
+      // Provide more specific error messages
+      if (error?.message?.includes('API key')) {
+        return { text: "API key error: Please check that your VITE_GEMINI_API_KEY is valid in the .env file.", type: 'text' };
+      }
+      if (error?.message?.includes('quota') || error?.message?.includes('rate')) {
+        return { text: "API quota exceeded. Please wait a moment and try again.", type: 'text' };
+      }
+      if (error?.message?.includes('network') || error?.message?.includes('fetch')) {
+        return { text: "Network error: Unable to reach the Gemini API. Please check your internet connection.", type: 'text' };
+      }
+      
+      return { text: `I encountered an error: ${error?.message || 'Unknown error'}. Check the browser console for details.`, type: 'text' };
     }
   }
 };
