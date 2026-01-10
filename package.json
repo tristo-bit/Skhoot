@@ -11,13 +11,17 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "tauri:build:ubuntu": "tauri build --target x86_64-unknown-linux-gnu"
+    "tauri:build:ubuntu": "tauri build --target x86_64-unknown-linux-gnu",
+    "backend:dev": "cd backend && cargo run",
+    "backend:build": "cd backend && cargo build --release",
+    "backend:test": "cd backend && cargo test",
+    "dev:full": "concurrently \"npm run backend:dev\" \"npm run dev\""
   },
   "dependencies": {
+    "@google/genai": "^1.35.0",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-dialog": "^2.0.0",
     "@tauri-apps/plugin-shell": "^2.0.0",
-    "@google/genai": "^1.35.0",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
@@ -30,6 +34,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.23",
+    "concurrently": "^8.2.2",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.8.2",
