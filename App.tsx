@@ -193,6 +193,50 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    document.documentElement.style.setProperty('--app-radius', '32px');
+    (async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const win = getCurrentWindow();
+        const update = async () => {
+          const [size, maxed, full, scaleFactor] = await Promise.all([
+            win.outerSize(),
+            win.isMaximized(),
+            win.isFullscreen(),
+            win.scaleFactor(),
+          ]);
+          const screen = (await win.currentMonitor())?.size;
+          const tolerance = Math.max(8, Math.round(8 * (scaleFactor || 1)));
+          const widthFull = Boolean(screen && size.width >= screen.width - tolerance);
+          const heightFull = Boolean(screen && size.height >= screen.height - tolerance);
+          const cssWidthFull = window.innerWidth >= window.screen.availWidth - tolerance;
+          const cssHeightFull = window.innerHeight >= window.screen.availHeight - tolerance;
+          const fullScreenLike = full || maxed || widthFull || heightFull || cssWidthFull || cssHeightFull;
+          const radius = fullScreenLike ? '0px' : '32px';
+          document.documentElement.style.setProperty('--app-radius', radius);
+        };
+        await update();
+        const unlisten1 = await win.onResized(update);
+        const unlisten2 = await win.onScaleChanged(update);
+        const unlisten3 = await win.onFocusChanged(update);
+        window.addEventListener('resize', update);
+        cleanup = () => {
+          unlisten1();
+          unlisten2();
+          unlisten3();
+          window.removeEventListener('resize', update);
+        };
+      } catch {
+        // noop
+      }
+    })();
+    return () => {
+      cleanup?.();
+    };
+  }, []);
+
   return (
     <div className="relative flex h-screen w-full items-center justify-center overflow-hidden">
       {/* Resize handles (borderless window) */}
@@ -207,7 +251,7 @@ const AppContent: React.FC = () => {
         <div className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize pointer-events-auto" onMouseDown={() => handleResizeMouseDown('SouthEast')} />
       </div>
       {/* Visual shell with rounded corners */}
-      <div className="app-shell relative z-10 w-full h-full flex flex-col rounded-[32px] shadow-2xl overflow-hidden bg-bg-primary">
+      <div className="app-shell relative z-10 w-full h-full flex flex-col shadow-2xl overflow-hidden bg-bg-primary rounded-[var(--app-radius)]">
         {/* Background blurs disabled to avoid banding */}
         {/*
         <BackgroundBlur position="top-[5%] left-[15%]" />
@@ -215,7 +259,7 @@ const AppContent: React.FC = () => {
         */}
 
         {/* Main container */}
-        <div className="app-glass relative z-10 w-full h-full flex flex-col rounded-[32px] overflow-hidden glass-elevated">
+        <div className="app-glass relative z-10 w-full h-full flex flex-col overflow-hidden glass-elevated rounded-[var(--app-radius)]">
           {/* Header */}
           <header
             className="header-bar relative z-30 flex items-center justify-between cursor-move select-none"
@@ -235,7 +279,7 @@ const AppContent: React.FC = () => {
             <button 
               onClick={toggleSidebar}
               data-no-drag
-              className="relative z-10 p-1.5 hover:bg-black/5 rounded-lg transition-all text-text-secondary active:scale-95"
+              className="header-sidebar-btn relative z-10 p-1.5 hover:bg-black/5 rounded-lg transition-all text-text-secondary active:scale-95"
               aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
             >
               <div className="relative w-[18px] h-[18px]">
