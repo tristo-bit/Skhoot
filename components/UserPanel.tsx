@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo, useRef } from 'react';
-import { Camera, Upload, Key, Crown, User as UserIcon, X } from 'lucide-react';
+import { Camera, Upload, Key, Crown, User as UserIcon, X, ChevronLeft } from 'lucide-react';
 import { COLORS } from '../src/constants';
 import { Modal } from './shared';
 
@@ -562,143 +562,123 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
 
         {/* Billing Panel */}
         {showBillingPanel && (
-          <div className="absolute inset-0 backdrop-blur-sm flex items-start justify-center z-50 pt-4 pb-4">
-            <div className="w-full max-w-[450px] max-h-[92vh] rounded-2xl glass-elevated shadow-2xl overflow-hidden">
-              
-              {/* Header - Always visible */}
-              <div className="px-6 py-4 border-b border-glass-border flex items-center justify-between bg-white/90 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => {
-                      setShowBillingPanel(false);
-                      setShowUpgradePanel(true);
-                    }}
-                    className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary"
-                  >
-                    ←
-                  </button>
-                  <h3 className="text-lg font-black font-jakarta text-text-primary">
-                    Billing & Payment
-                  </h3>
-                </div>
-                <button 
+          <Modal
+            onClose={() => {
+              setShowBillingPanel(false);
+              setShowUpgradePanel(false);
+            }}
+            panelClassName="w-full max-w-[450px] max-h-[92vh] rounded-2xl overflow-hidden"
+            headerClassName="px-6 py-4 border-b border-glass-border"
+            bodyClassName="px-6 py-4 space-y-6"
+            closeAriaLabel="Close billing"
+            headerContent={(
+              <div className="flex items-center gap-3">
+                <button
                   onClick={() => {
                     setShowBillingPanel(false);
-                    setShowUpgradePanel(false);
+                    setShowUpgradePanel(true);
                   }}
                   className="w-8 h-8 flex items-center justify-center rounded-xl hover:glass-subtle transition-all text-text-secondary"
+                  aria-label="Back"
+                  title="Back"
                 >
-                  <X size={18} />
+                  <ChevronLeft size={18} />
                 </button>
+                <h3 className="text-lg font-black font-jakarta text-text-primary">
+                  Billing & Payment
+                </h3>
               </div>
+            )}
+          >
+            {/* Plan Summary */}
+            <div className="p-4 rounded-xl glass-subtle">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold text-sm font-jakarta text-text-primary">Skhoot Premium</span>
+                <span className="text-lg font-black font-jakarta" style={{ color: '#9a8ba3' }}>$9.99/mo</span>
+              </div>
+              <p className="text-xs text-text-secondary font-jakarta">7-day free trial • Cancel anytime</p>
+            </div>
 
-              {/* Scrollable Content */}
-              <div 
-                className="overflow-y-scroll px-6 py-4 space-y-6"
-                style={{ 
-                  height: 'calc(92vh - 90px)',
-                  scrollBehavior: 'smooth',
-                  paddingBottom: '2rem',
-                  minHeight: '600px'
-                }}
-              >
-                
-                {/* Plan Summary */}
-                <div className="p-4 rounded-xl glass-subtle">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-bold text-sm font-jakarta text-text-primary">Skhoot Premium</span>
-                    <span className="text-lg font-black font-jakarta" style={{ color: '#9a8ba3' }}>$9.99/mo</span>
-                  </div>
-                  <p className="text-xs text-text-secondary font-jakarta">7-day free trial • Cancel anytime</p>
-                </div>
-
-                {/* Payment Method */}
-                <div className="space-y-4">
-                  <label className="text-sm font-bold font-jakarta text-text-primary">Payment Method</label>
-                  <input
-                    type="text"
-                    placeholder="Card number"
-                    className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="text"
-                      placeholder="MM/YY"
-                      className="p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="CVC"
-                      className="p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Billing Address */}
-                <div className="space-y-4">
-                  <label className="text-sm font-bold font-jakarta text-text-primary">Billing Address</label>
-                  <input
-                    type="email"
-                    placeholder="Email address"
-                    defaultValue={userEmail}
-                    className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Full name"
-                    defaultValue={`${firstName} ${lastName}`}
-                    className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Address"
-                    className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="text"
-                      placeholder="City"
-                      className="p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="ZIP code"
-                      className="p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Terms */}
-                <div className="flex items-start gap-3 py-4">
-                  <input type="checkbox" className="mt-1" />
-                  <p className="text-xs text-text-secondary font-jakarta">
-                    I agree to the <span className="underline cursor-pointer" style={{ color: '#9a8ba3' }}>Terms of Service</span> and <span className="underline cursor-pointer" style={{ color: '#9a8ba3' }}>Privacy Policy</span>
-                  </p>
-                </div>
-
-                {/* Button Section */}
-                <div className="space-y-4 pt-6 pb-16">
-                  <button
-                    className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90"
-                    style={{ backgroundColor: '#9a8ba3' }}
-                    onClick={() => {
-                      console.log('Start 7-Day Free Trial');
-                      // Here you would process the trial signup
-                    }}
-                  >
-                    Start 7-Day Free Trial
-                  </button>
-                  <p className="text-xs text-center text-text-secondary font-jakarta">
-                    You won't be charged until your trial ends
-                  </p>
-                </div>
-
-                {/* Extra padding to ensure scroll reaches bottom */}
-                <div className="h-24"></div>
-
+            {/* Payment Method */}
+            <div className="space-y-4">
+              <label className="text-sm font-bold font-jakarta text-text-primary">Payment Method</label>
+              <input
+                type="text"
+                placeholder="Card number"
+                className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  placeholder="MM/YY"
+                  className="p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <input
+                  type="text"
+                  placeholder="CVC"
+                  className="p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
               </div>
             </div>
-          </div>
+
+            {/* Billing Address */}
+            <div className="space-y-4">
+              <label className="text-sm font-bold font-jakarta text-text-primary">Billing Address</label>
+              <input
+                type="email"
+                placeholder="Email address"
+                defaultValue={userEmail}
+                className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <input
+                type="text"
+                placeholder="Full name"
+                defaultValue={`${firstName} ${lastName}`}
+                className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <input
+                type="text"
+                placeholder="Address"
+                className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  placeholder="City"
+                  className="p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <input
+                  type="text"
+                  placeholder="ZIP code"
+                  className="p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+
+            {/* Terms */}
+            <div className="flex items-start gap-3 py-4">
+              <input type="checkbox" className="mt-1" />
+              <p className="text-xs text-text-secondary font-jakarta">
+                I agree to the <span className="underline cursor-pointer" style={{ color: '#9a8ba3' }}>Terms of Service</span> and <span className="underline cursor-pointer" style={{ color: '#9a8ba3' }}>Privacy Policy</span>
+              </p>
+            </div>
+
+            {/* Button Section */}
+            <div className="space-y-4 pt-2 pb-8">
+              <button
+                className="w-full py-3 rounded-xl font-bold text-sm font-jakarta transition-all text-white hover:opacity-90"
+                style={{ backgroundColor: '#9a8ba3' }}
+                onClick={() => {
+                  console.log('Start 7-Day Free Trial');
+                }}
+              >
+                Start 7-Day Free Trial
+              </button>
+              <p className="text-xs text-center text-text-secondary font-jakarta">
+                You won't be charged until your trial ends
+              </p>
+            </div>
+          </Modal>
         )}
     </Modal>
   );
