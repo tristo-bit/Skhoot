@@ -1,8 +1,8 @@
-import { memo } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { FileText, MessageSquare, Search, Trash2 } from 'lucide-react';
 import { COLORS } from '../../src/constants';
 
-export const SearchingIndicator = memo<{ type: 'files' | 'messages' | 'disk' | 'cleanup' }>(({ type }) => {
+export const SearchingIndicator = memo<{ type: 'files' | 'messages' | 'disk' | 'cleanup'; status?: string }>(({ type, status }) => {
   const labels = {
     files: 'Searching files...',
     messages: 'Searching messages...',
@@ -18,20 +18,10 @@ export const SearchingIndicator = memo<{ type: 'files' | 'messages' | 'disk' | '
   };
 
   return (
-    <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div className="flex flex-col items-start gap-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex items-center gap-3 px-4 py-3 rounded-2xl glass-subtle border-glass-border">
-        <div className="relative">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center glass-subtle">
-            <span className="text-accent animate-pulse">{icons[type]}</span>
-          </div>
-          <div 
-            className="absolute inset-0 rounded-xl overflow-hidden"
-            style={{ 
-              background: `linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%)`,
-              opacity: 0.3,
-              animation: 'scan 1.5s ease-in-out infinite',
-            }}
-          />
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center glass-subtle">
+          <span className="text-accent animate-pulse">{icons[type]}</span>
         </div>
         <div>
           <p className="text-[12px] font-bold font-jakarta text-text-primary">
@@ -51,12 +41,11 @@ export const SearchingIndicator = memo<{ type: 'files' | 'messages' | 'disk' | '
           </div>
         </div>
       </div>
-      <style>{`
-        @keyframes scan {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(200%); }
-        }
-      `}</style>
+      {status && (
+        <p className="text-[10px] italic text-text-secondary font-jakarta pl-1 animate-in fade-in duration-200">
+          {status}
+        </p>
+      )}
     </div>
   );
 });

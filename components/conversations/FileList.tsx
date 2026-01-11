@@ -1,8 +1,40 @@
 import { memo, useState } from 'react';
-import { FileText, Copy, Check, Folder, Search, ChevronDown, ChevronUp, Grid, List } from 'lucide-react';
+import { FileText, Copy, Check, Folder, Search, ChevronDown, ChevronUp, Grid, List, ExternalLink } from 'lucide-react';
 import { FileInfo } from '../../types';
 import { Button } from '../buttonFormat';
 import { useSettings } from '../../src/contexts/SettingsContext';
+
+// Helper to open a file directly
+const openFile = async (filePath: string): Promise<boolean> => {
+  // Try backend API first
+  try {
+    const response = await fetch('http://localhost:3001/api/v1/files/open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: filePath }),
+    });
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) return true;
+    }
+  } catch {}
+  
+  // Try Tauri shell plugin
+  try {
+    const { open } = await import('@tauri-apps/plugin-shell');
+    await open(filePath);
+    return true;
+  } catch {}
+  
+  return false;
+};
+
+// Helper to open parent folder
+const openFolder = async (filePath: string): Promise<boolean> => {
+  const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+  const parentDir = lastSlash > 0 ? filePath.substring(0, lastSlash) : filePath;
+  return openFile(parentDir);
+};
 
 export const FileItem = memo<{ file: FileInfo; searchInfo?: any }>(({ file }) => {
   const [copied, setCopied] = useState(false);
@@ -13,49 +45,22 @@ export const FileItem = memo<{ file: FileInfo; searchInfo?: any }>(({ file }) =>
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleOpen = async () => {
+    const success = await openFile(file.path);
+    if (!success) {
+      await navigator.clipboard.writeText(file.path);
+      alert(`📋 Path copied!\n\n${file.path}\n\nTo open the file:\n• Start the backend: cd backend && cargo run\n• Or paste this path in your file manager`);
+    }
+  };
+
   const handleGo = async () => {
-    const fullPath = file.path;
-    
-    // Get the parent directory of the file
-    const getParentDir = (path: string) => {
-      const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-      return lastSlash > 0 ? path.substring(0, lastSlash) : path;
-    };
-    
-    const parentDir = getParentDir(fullPath);
-    
-    // Try backend API first (works in dev mode with backend running)
-    try {
-      const response = await fetch('http://localhost:3001/api/v1/files/open', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: parentDir }),
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          console.log('✅ Opened file location via backend:', parentDir);
-          return;
-        }
-      }
-    } catch (e) {
-      // Backend not available - this is expected in browser-only mode
+    const success = await openFolder(file.path);
+    if (!success) {
+      const lastSlash = Math.max(file.path.lastIndexOf('/'), file.path.lastIndexOf('\\'));
+      const parentDir = lastSlash > 0 ? file.path.substring(0, lastSlash) : file.path;
+      await navigator.clipboard.writeText(parentDir);
+      alert(`📋 Path copied!\n\n${parentDir}\n\nTo open in file explorer:\n• Start the backend: cd backend && cargo run\n• Or paste this path in your file manager`);
     }
-    
-    // Try Tauri shell plugin (works in Tauri app)
-    try {
-      const { open } = await import('@tauri-apps/plugin-shell');
-      await open(parentDir);
-      console.log('✅ Opened file location via Tauri:', parentDir);
-      return;
-    } catch {
-      // Tauri not available - this is expected in browser mode
-    }
-    
-    // Fallback: copy path to clipboard with helpful message
-    await navigator.clipboard.writeText(parentDir);
-    alert(`📋 Path copied!\n\n${parentDir}\n\nTo open in file explorer:\n• Start the backend: cd backend && cargo run\n• Or paste this path in your file manager`);
   };
 
   return (
@@ -110,8 +115,11 @@ export const FileItem = memo<{ file: FileInfo; searchInfo?: any }>(({ file }) =>
       </div>
       
       <div className="flex gap-2 mt-3 pt-2 border-t border-glass-border">
+        <Button onClick={handleOpen} variant="primary" size="xs" icon={<ExternalLink size={12} />} iconPosition="left" className="flex-1">
+          Open
+        </Button>
         <Button onClick={handleGo} variant="glass" size="xs" icon={<Folder size={12} />} iconPosition="left" className="flex-1 text-text-primary">
-          Go
+          Folder
         </Button>
         <Button onClick={handleCopy} variant={copied ? 'primary' : 'glass'} size="xs" icon={copied ? <Check size={12} /> : <Copy size={12} />} iconPosition="left" className="flex-1">
           {copied ? 'Copied!' : 'Copy'}
@@ -132,51 +140,39 @@ export const FileItemGrid = memo<{ file: FileInfo }>(({ file }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleOpen = async () => {
+    const success = await openFile(file.path);
+    if (!success) {
+      await navigator.clipboard.writeText(file.path);
+      alert(`📋 Path copied!\n\n${file.path}`);
+    }
+  };
+
   const handleGo = async () => {
-    const fullPath = file.path;
-    const getParentDir = (path: string) => {
-      const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-      return lastSlash > 0 ? path.substring(0, lastSlash) : path;
-    };
-    const parentDir = getParentDir(fullPath);
-    
-    try {
-      const response = await fetch('http://localhost:3001/api/v1/files/open', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: parentDir }),
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) return;
-      }
-    } catch {}
-    
-    try {
-      const { open } = await import('@tauri-apps/plugin-shell');
-      await open(parentDir);
-      return;
-    } catch {}
-    
-    await navigator.clipboard.writeText(parentDir);
-    alert(`📋 Path copied!\n\n${parentDir}`);
+    const success = await openFolder(file.path);
+    if (!success) {
+      const lastSlash = Math.max(file.path.lastIndexOf('/'), file.path.lastIndexOf('\\'));
+      const parentDir = lastSlash > 0 ? file.path.substring(0, lastSlash) : file.path;
+      await navigator.clipboard.writeText(parentDir);
+      alert(`📋 Path copied!\n\n${parentDir}`);
+    }
   };
 
   return (
-    <div className="glass-subtle p-2 rounded-xl border-glass-border animate-in fade-in duration-200 hover:glass-elevated transition-all group">
-      <div className="flex flex-col items-center text-center gap-1">
-        <div className="w-8 h-8 rounded-lg glass-subtle flex items-center justify-center">
-          <FileText size={14} className="text-text-secondary" />
+    <div className="glass-subtle p-3 rounded-xl border-glass-border animate-in fade-in duration-200 hover:glass-elevated transition-all group">
+      <div className="flex flex-col items-center text-center gap-1.5">
+        <div className="w-10 h-10 rounded-lg glass-subtle flex items-center justify-center">
+          <FileText size={18} className="text-text-secondary" />
         </div>
-        <p className="text-[10px] font-bold truncate w-full text-text-primary font-jakarta" title={file.name}>
+        <p className="text-[11px] font-bold truncate w-full text-text-primary font-jakarta" title={file.name}>
           {file.name}
         </p>
-        <p className="text-[8px] font-medium opacity-50 truncate w-full font-jakarta" title={file.path}>
+        <p className="text-[9px] font-medium opacity-50 truncate w-full font-jakarta" title={file.path}>
           {file.path.split('/').slice(-2).join('/')}
         </p>
         
         {(file as any).relevanceScore !== undefined && (
-          <span className={`text-[8px] font-bold px-1 py-0.5 rounded-full ${
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
             (file as any).relevanceScore >= 80 ? 'bg-green-500/20 text-green-600' :
             (file as any).relevanceScore >= 50 ? 'bg-yellow-500/20 text-yellow-600' :
             'bg-red-500/20 text-red-500'
@@ -185,12 +181,18 @@ export const FileItemGrid = memo<{ file: FileInfo }>(({ file }) => {
           </span>
         )}
         
-        <div className="flex gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={handleGo} className="p-1 rounded glass-subtle hover:glass-elevated" title="Open folder">
-            <Folder size={10} className="text-text-secondary" />
+        <div className="flex gap-1.5 mt-2 w-full">
+          <button onClick={handleOpen} className="flex-1 p-1.5 rounded-lg bg-accent/20 hover:bg-accent/30 transition-colors flex items-center justify-center gap-1" title="Open file">
+            <ExternalLink size={12} className="text-accent" />
+            <span className="text-[9px] font-bold text-accent">Open</span>
           </button>
-          <button onClick={handleCopy} className={`p-1 rounded ${copied ? 'bg-accent/20' : 'glass-subtle hover:glass-elevated'}`} title="Copy path">
-            {copied ? <Check size={10} className="text-accent" /> : <Copy size={10} className="text-text-secondary" />}
+        </div>
+        <div className="flex gap-1.5 w-full">
+          <button onClick={handleGo} className="flex-1 p-1.5 rounded-lg glass-subtle hover:glass-elevated transition-colors flex items-center justify-center" title="Open folder">
+            <Folder size={12} className="text-text-secondary" />
+          </button>
+          <button onClick={handleCopy} className={`flex-1 p-1.5 rounded-lg transition-colors flex items-center justify-center ${copied ? 'bg-accent/20' : 'glass-subtle hover:glass-elevated'}`} title="Copy path">
+            {copied ? <Check size={12} className="text-accent" /> : <Copy size={12} className="text-text-secondary" />}
           </button>
         </div>
       </div>

@@ -20,6 +20,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [searchType, setSearchType] = useState<'files' | 'messages' | 'disk' | 'cleanup' | null>(null);
+  const [searchStatus, setSearchStatus] = useState<string>('');
   const [activeMode, setActiveMode] = useState<string | null>(null);
   const [promptKey, setPromptKey] = useState(0);
   const [welcomeMessage] = useState(() => 
@@ -269,8 +270,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
     setSearchType(getSearchType(messageText));
 
     try {
-      const result = await geminiService.chat(messageText, history);
+      const result = await geminiService.chat(messageText, history, (status) => {
+        setSearchStatus(status);
+      });
       setSearchType(null);
+      setSearchStatus('');
       
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -295,6 +299,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       }
     } catch (error) {
       setSearchType(null);
+      setSearchStatus('');
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
       // Log failed chat
@@ -346,6 +351,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         messages={messages}
         isLoading={isLoading}
         searchType={searchType}
+        searchStatus={searchStatus}
         isRecording={isRecording}
         hasPendingVoiceMessage={hasPendingVoiceMessage}
         voiceTranscript={voiceTranscript}

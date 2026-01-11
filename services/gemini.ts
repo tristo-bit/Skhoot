@@ -216,7 +216,7 @@ function detectCategory(fileType: string, path: string): string {
 }
 
 export const geminiService = {
-  async chat(message: string, history: any[] = []) {
+  async chat(message: string, history: any[] = [], onStatusUpdate?: (status: string) => void) {
     // Creating a new GoogleGenAI instance inside the function to ensure up-to-date API key access
     const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
     
@@ -251,6 +251,15 @@ When users search for conceptual terms (not literal filenames), expand the searc
 - "contract" → query="contract,agreement,nda,terms" with file_types="pdf,doc,docx"
 - "invoice" → query="invoice,receipt,bill,payment" with file_types="pdf,xlsx,xls"
 - "photo" or "picture" → query="photo,picture,image,img" with file_types="jpg,jpeg,png,heic"
+- "documentation about X" or "docs for X" → query="readme,documentation,docs,X" with file_types="md,txt,pdf,doc" and search_path to project directory if mentioned
+- "moebius project" or similar project names → search in /home/moebius/dev/projects/moebius or similar paths
+
+PROJECT DOCUMENTATION SEARCH:
+When users ask for documentation about a project:
+1. First try searching with the project name in the query
+2. Use file_types="md,txt,pdf,doc,docx" to find documentation files
+3. If the project name is mentioned (e.g., "moebius"), set search_path to likely project locations like "/home/moebius/dev/projects/moebius"
+4. Look for README*, docs/*, *.md files
 
 RESULT FILTERING RULES:
 After search results come back, analyze each file path carefully:
@@ -301,6 +310,8 @@ Always be helpful and explain what you found or why you couldn't find what the u
             const args = fc.args as any;
             console.log('🔍 AI triggered file search:', args);
             
+            onStatusUpdate?.(`Searching for "${args.query}"...`);
+            
             // Always use hybrid search - it runs both CLI glob and fuzzy in parallel
             const searchOptions: any = {
               mode: 'hybrid',
@@ -315,10 +326,55 @@ Always be helpful and explain what you found or why you couldn't find what the u
               searchOptions.search_path = args.search_path;
             }
             
+            onStatusUpdate?.(`Running hybrid search (CLI + fuzzy)...`);
             const backendResults = await backendApi.aiFileSearch(args.query, searchOptions);
             const convertedResults = convertFileSearchResults(backendResults, args.file_types);
             
+            // If no results found and query mentions a project name, try searching in project directories
+            if (convertedResults.files.length === 0 || convertedResults.files.length < 5) {
+              const projectKeywords = ['moebius', 'project', 'documentation', 'docs', 'readme'];
+              const queryLower = args.query.toLowerCase();
+              const mentionsProject = projectKeywords.some(kw => queryLower.includes(kw));
+              
+              if (mentionsProject) {
+                onStatusUpdate?.(`Searching in project directories...`);
+                
+                // Try searching in common project locations with documentation patterns
+                const projectPaths = [
+                  '/home/moebius/dev/projects/moebius',
+                  '/home/moebius/dev/projects',
+                  '/home/moebius/Documents',
+                ];
+                
+                for (const projectPath of projectPaths) {
+                  try {
+                    onStatusUpdate?.(`Searching in ${projectPath}...`);
+                    const docResults = await backendApi.searchDocuments(
+                      args.query.split(',')[0], // Use first keyword
+                      'md,txt,pdf,doc,docx',
+                      projectPath
+                    );
+                    
+                    if (docResults.merged_results && docResults.merged_results.length > 0) {
+                      const additionalFiles = convertFileSearchResults(docResults, args.file_types);
+                      // Merge results, avoiding duplicates
+                      const existingPaths = new Set(convertedResults.files.map((f: any) => f.path));
+                      for (const file of additionalFiles.files) {
+                        if (!existingPaths.has(file.path)) {
+                          convertedResults.files.push(file);
+                          existingPaths.add(file.path);
+                        }
+                      }
+                    }
+                  } catch (e) {
+                    console.warn(`Failed to search in ${projectPath}:`, e);
+                  }
+                }
+              }
+            }
+            
             // Always use AI to score and rank results for relevance
+            onStatusUpdate?.(`Scoring ${convertedResults.files.length} results for relevance...`);
             console.log('🤖 Using AI to score', convertedResults.files.length, 'results for relevance');
             
             const scoringResponse = await ai.models.generateContent({
@@ -354,6 +410,7 @@ Be strict! For "pitch deck", only files with "deck", "pitch", "presentation", "i
             const searchMode = 'hybrid';
             
             try {
+              onStatusUpdate?.(`Analyzing results...`);
               const scoringResult = JSON.parse(scoringResponse?.text || '{}');
               const scores = scoringResult.scores || [];
               const topResults = scoringResult.top_results || [];
@@ -476,6 +533,8 @@ Be strict! For "pitch deck", only files with "deck", "pitch", "presentation", "i
             const args = fc.args as any;
             console.log('🔍 AI triggered content search:', args);
             
+            onStatusUpdate?.(`Searching content for "${args.query}"...`);
+            
             const searchOptions: any = {};
             if (args.file_types) searchOptions.file_types = args.file_types;
             if (args.case_sensitive) searchOptions.case_sensitive = args.case_sensitive;
@@ -483,6 +542,8 @@ Be strict! For "pitch deck", only files with "deck", "pitch", "presentation", "i
             
             const backendResults = await backendApi.searchContent(args.query, searchOptions);
             const convertedResults = convertFileSearchResults(backendResults);
+            
+            onStatusUpdate?.(`Filtering ${convertedResults.files.length} results...`);
             
             // Ask AI to filter the results for content search too
             const filterResponse = await ai.models.generateContent({

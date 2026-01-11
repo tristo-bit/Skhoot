@@ -10,6 +10,7 @@ interface MainAreaProps {
   messages: Message[];
   isLoading: boolean;
   searchType: 'files' | 'messages' | 'disk' | 'cleanup' | null;
+  searchStatus?: string;
   isRecording: boolean;
   hasPendingVoiceMessage: boolean;
   voiceTranscript: string;
@@ -31,6 +32,7 @@ export const MainArea = forwardRef<HTMLDivElement, MainAreaProps>(({
   messages,
   isLoading,
   searchType,
+  searchStatus,
   isRecording,
   hasPendingVoiceMessage,
   voiceTranscript,
@@ -155,7 +157,7 @@ export const MainArea = forwardRef<HTMLDivElement, MainAreaProps>(({
           
           {/* Search/Loading indicator */}
           {isLoading && (
-            searchType ? <SearchingIndicator type={searchType} /> : <LoadingIndicator />
+            searchType ? <SearchingIndicator type={searchType} status={searchStatus} /> : <LoadingIndicator />
           )}
         </div>
       </div>
