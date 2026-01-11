@@ -2,6 +2,7 @@ import React, { memo, useState, useEffect } from 'react';
 import { Search, Plus, X, MessageSquare, LogIn, LogOut } from 'lucide-react';
 import { Chat, User } from '../types';
 import { CloseButton, Button, IconButton } from './buttonFormat';
+import { useTheme } from '../src/contexts/ThemeContext';
 
 interface SidebarProps {
   onNewChat: () => void;
@@ -20,26 +21,31 @@ const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
 ));
 SkhootLogo.displayName = 'SkhootLogo';
 
-const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onDeleteChat, chats, currentChatId, user, onSignIn, onSignOut }) => (
-  <div 
-    className="w-64 h-full border-r border-black/5 flex flex-col relative glass z-50" 
-  >
-    
-    {/* Sidebar Header */}
-    <div className="relative z-10 px-5 py-5 flex items-center gap-4 flex-shrink-0">
-      <CloseButton 
-        onClick={onClose}
-        className="p-1.5 hover:bg-black/5 rounded-lg"
-      />
-      <div className="flex items-center gap-2">
-        <SkhootLogo size={18} />
-        <span 
-          className="text-sm font-black tracking-[0.2em] font-jakarta text-fuku-brand" 
-        >
-          SKHOOT
-        </span>
+const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onDeleteChat, chats, currentChatId, user, onSignIn, onSignOut }) => {
+  const { showBranding } = useTheme();
+  
+  return (
+    <div 
+      className="w-64 h-full border-r border-black/5 flex flex-col relative glass z-50" 
+    >
+      
+      {/* Sidebar Header */}
+      <div className="relative z-10 px-5 py-5 flex items-center gap-4 flex-shrink-0">
+        <CloseButton 
+          onClick={onClose}
+          className="p-1.5 hover:bg-black/5 rounded-lg"
+        />
+        {showBranding && (
+          <div className="flex items-center gap-2">
+            <SkhootLogo size={18} />
+            <span 
+              className="text-sm font-black tracking-[0.2em] font-jakarta text-fuku-brand" 
+            >
+              SKHOOT
+            </span>
+          </div>
+        )}
       </div>
-    </div>
     
     {/* New Search Button */}
     <div className="relative z-10 px-5 mb-4 flex-shrink-0">
@@ -81,7 +87,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onD
       <AuthButton user={user} onSignIn={onSignIn} onSignOut={onSignOut} />
     </div>
   </div>
-);
+  );
+};
 
 interface ChatItemProps {
   chat: Chat;

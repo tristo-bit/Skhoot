@@ -7,6 +7,8 @@ interface ThemeContextType {
   theme: Theme;
   resolvedTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
+  showBranding: boolean;
+  setShowBranding: (show: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -15,6 +17,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem('theme');
     return (stored as Theme) || 'system';
+  });
+
+  const [showBranding, setShowBranding] = useState<boolean>(() => {
+    const stored = localStorage.getItem('skhoot-show-branding');
+    return stored !== 'false'; // Default to true
   });
 
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
@@ -57,8 +64,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    localStorage.setItem('skhoot-show-branding', String(showBranding));
+  }, [showBranding]);
+
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme, showBranding, setShowBranding }}>
       {children}
     </ThemeContext.Provider>
   );

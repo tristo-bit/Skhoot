@@ -1,9 +1,10 @@
-import React, { forwardRef, memo } from 'react';
-import { COLORS, GLASS_STYLES } from '../src/constants';
+import React, { forwardRef, memo, useState, useEffect, useMemo } from 'react';
+import { COLORS, GLASS_STYLES, ACTION_PROMPTS, ACTION_ACTIVE_COLORS } from '../src/constants';
 import { Message } from '../types';
 import { MessageBubble, LoadingIndicator, SearchingIndicator } from './Messages';
 import { VoiceMessage } from './VoiceMessage';
 import { TypewriterText, ScrollbarStyles } from './shared';
+import { useTheme } from '../src/contexts/ThemeContext';
 
 // Memoized logo component
 const SkhootLogo = memo(({ size = 64 }: { size?: number }) => (
@@ -20,42 +21,62 @@ SkhootLogo.displayName = 'SkhootLogo';
 interface EmptyStateProps {
   welcomeMessage: string;
   isExiting?: boolean;
+  activeMode?: string | null;
+  promptKey?: number; // Key to force re-randomization
 }
 
-export const EmptyState = memo<EmptyStateProps>(({ welcomeMessage, isExiting = false }) => (
-  <div 
-    className={`text-center max-w-[340px] transition-all duration-600 ease-out ${
-      isExiting ? 'empty-state-exit' : 'animate-in fade-in zoom-in duration-700'
-    }`}
-    style={{
-      opacity: isExiting ? 0 : 1,
-      transform: isExiting ? 'scale(0.8) translateY(-30px)' : 'scale(1) translateY(0)',
-      filter: isExiting ? 'blur(8px)' : 'blur(0px)',
-      transition: 'opacity 500ms cubic-bezier(0.4, 0, 0.2, 1), transform 600ms cubic-bezier(0.4, 0, 0.2, 1), filter 400ms ease-out',
-    }}
-  >
+export const EmptyState = memo<EmptyStateProps>(({ welcomeMessage, isExiting = false, activeMode, promptKey = 0 }) => {
+  const { showBranding } = useTheme();
+  
+  // Pick a random action-specific prompt when a mode is activated
+  const actionPrompt = useMemo(() => {
+    if (!activeMode || !(activeMode in ACTION_PROMPTS)) return '';
+    const prompts = ACTION_PROMPTS[activeMode as keyof typeof ACTION_PROMPTS];
+    return prompts[Math.floor(Math.random() * prompts.length)];
+  }, [activeMode, promptKey]);
+  
+  // Determine which text to display and its color
+  const displayText = activeMode && actionPrompt ? actionPrompt : welcomeMessage;
+  const textColor = activeMode ? ACTION_ACTIVE_COLORS[activeMode as keyof typeof ACTION_ACTIVE_COLORS] : undefined;
+  
+  return (
     <div 
-      className="w-28 h-28 rounded-[2.5rem] mb-10 mx-auto flex items-center justify-center rotate-0 transition-all hover:rotate-[-4deg] duration-500 origin-center glass-subtle" 
-      style={{ 
-        backgroundColor: 'rgba(75, 85, 99, 0.8)',
-        transform: isExiting ? 'rotate(12deg) scale(0.6)' : undefined,
-        transition: 'transform 600ms cubic-bezier(0.4, 0, 0.2, 1)',
-      }}
-    >
-      <SkhootLogo size={64} />
-    </div>
-    <h2 
-      className="text-2xl font-bold tracking-tight font-jakarta text-text-primary" 
-      style={{ 
-        transform: isExiting ? 'translateY(20px)' : 'translateY(0)',
+      className={`text-center max-w-[340px] transition-all duration-600 ease-out ${
+        isExiting ? 'empty-state-exit' : 'animate-in fade-in zoom-in duration-700'
+      }`}
+      style={{
         opacity: isExiting ? 0 : 1,
-        transition: 'transform 400ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms ease-out',
+        transform: isExiting ? 'scale(0.8) translateY(-30px)' : 'scale(1) translateY(0)',
+        filter: isExiting ? 'blur(8px)' : 'blur(0px)',
+        transition: 'opacity 500ms cubic-bezier(0.4, 0, 0.2, 1), transform 600ms cubic-bezier(0.4, 0, 0.2, 1), filter 400ms ease-out',
       }}
     >
-      <TypewriterText text={welcomeMessage} />
-    </h2>
-  </div>
-));
+      {showBranding && (
+        <div 
+          className="w-28 h-28 rounded-[2.5rem] mb-10 mx-auto flex items-center justify-center rotate-0 transition-all hover:rotate-[-4deg] duration-500 origin-center glass-subtle" 
+          style={{ 
+            backgroundColor: 'rgba(75, 85, 99, 0.8)',
+            transform: isExiting ? 'rotate(12deg) scale(0.6)' : undefined,
+            transition: 'transform 600ms cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          <SkhootLogo size={64} />
+        </div>
+      )}
+      <h2 
+        className="text-2xl font-bold tracking-tight font-jakarta" 
+        style={{ 
+          transform: isExiting ? 'translateY(20px)' : 'translateY(0)',
+          opacity: isExiting ? 0 : 1,
+          transition: 'transform 400ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms ease-out, color 300ms ease-out',
+          color: textColor || 'var(--text-primary)',
+        }}
+      >
+        <TypewriterText text={displayText} key={displayText} />
+      </h2>
+    </div>
+  );
+});
 EmptyState.displayName = 'EmptyState';
 
 interface ConversationsProps {
@@ -69,6 +90,8 @@ interface ConversationsProps {
   welcomeMessage: string;
   isEmptyStateVisible: boolean;
   isEmptyStateExiting: boolean;
+  activeMode: string | null;
+  promptKey?: number;
   onSendVoice: () => void;
   onDiscardVoice: () => void;
 }
@@ -84,6 +107,8 @@ export const Conversations = forwardRef<HTMLDivElement, ConversationsProps>(({
   welcomeMessage,
   isEmptyStateVisible,
   isEmptyStateExiting,
+  activeMode,
+  promptKey = 0,
   onSendVoice,
   onDiscardVoice,
 }, ref) => {
@@ -108,6 +133,8 @@ export const Conversations = forwardRef<HTMLDivElement, ConversationsProps>(({
           <EmptyState 
             welcomeMessage={welcomeMessage} 
             isExiting={isEmptyStateExiting}
+            activeMode={activeMode}
+            promptKey={promptKey}
           />
         )}
         

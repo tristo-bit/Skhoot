@@ -44,7 +44,7 @@ export const TypewriterText = memo<TypewriterTextProps>(({
       <span 
         className={`
           inline-block origin-left
-          ${isComplete ? 'hover:scale-x-[1.02] transition-transform duration-300 cursor-default' : ''}
+          ${isComplete ? 'hover:scale-x-[1.02] transition-transform duration-100 cursor-default' : ''}
         `}
       >
         {displayText}

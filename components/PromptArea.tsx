@@ -1,52 +1,75 @@
 import React, { memo, forwardRef, useRef, useEffect, useState } from 'react';
-import { Send, Square, Search, MessageSquare, HardDrive, Trash2, Mic } from 'lucide-react';
+import { Send, Square, Search, Bot, HardDrive, Trash2, Mic } from 'lucide-react';
 import { QUICK_ACTIONS } from '../src/constants';
 import { SoundWave } from './shared';
 import { IconButton, Button } from './buttonFormat';
+import { audioService } from '../services/audioService';
+import { useTheme } from '../src/contexts/ThemeContext';
 
 // Icon mapping for quick actions
-const QUICK_ACTION_ICONS: Record<string, React.ReactNode> = {
-  Files: <Search size={14} />,
-  Messages: <MessageSquare size={14} />,
-  Space: <HardDrive size={14} />,
-  Cleanup: <Trash2 size={14} />,
+const QUICK_ACTION_ICONS: Record<string, (props: { size: number }) => React.ReactNode> = {
+  Files: ({ size }) => <Search size={size} />,
+  Agents: ({ size }) => <Bot size={size} />,
+  Space: ({ size }) => <HardDrive size={size} />,
+  Cleanup: ({ size }) => <Trash2 size={size} />,
 };
 
 interface QuickActionButtonProps {
   id: string;
   icon: React.ReactNode;
   color: string;
+  activeColor: string;
   isActive?: boolean;
   onClick: () => void;
   style?: React.CSSProperties;
 }
 
-const QuickActionButton = memo<QuickActionButtonProps>(({ id, icon, color, isActive, onClick, style }) => (
-  <Button 
-    onClick={onClick}
-    aria-label={id}
-    title={id}
-    variant="glass"
-    size="sm"
-    className={`quick-action-button flex items-center justify-center gap-2 text-xs font-medium w-full ${
-      isActive 
-        ? 'text-text-primary' 
-        : 'text-text-secondary hover:scale-[1.02]'
-    }`}
-    style={{ 
-      backgroundColor: `${color}${isActive ? '20' : '15'}`,
-      backdropFilter: 'blur(8px) saturate(1.1)',
-      WebkitBackdropFilter: 'blur(8px) saturate(1.1)',
-      boxShadow: isActive 
-        ? 'inset 0 3px 6px rgba(0, 0, 0, 0.25), inset 0 1px 3px rgba(0, 0, 0, 0.2)' 
-        : '0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04)',
-      ...style
-    }}
-  >
-    <span className={`quick-action-icon ${isActive ? 'animate-pulse' : ''}`}>{icon}</span>
-    <span className="quick-action-label">{id}</span>
-  </Button>
-));
+const QuickActionButton = memo<QuickActionButtonProps>(({ id, icon, color, activeColor, isActive, onClick, style }) => {
+  const [isAnimating, setIsAnimating] = useState(false);
+  
+  const handleClick = () => {
+    // Trigger animation
+    setIsAnimating(true);
+    setTimeout(() => setIsAnimating(false), 300);
+    onClick();
+  };
+  
+  return (
+    <Button 
+      onClick={handleClick}
+      aria-label={id}
+      title={id}
+      variant="glass"
+      size="sm"
+      className={`quick-action-button flex items-center justify-center gap-2 text-xs font-medium w-full ${
+        isAnimating ? 'scale-95' : ''
+      } ${
+        isActive 
+          ? 'text-text-primary' 
+          : 'text-text-secondary hover:scale-[1.02]'
+      }`}
+      style={{ 
+        backgroundColor: isActive ? `${color}40` : `${color}15`,
+        backdropFilter: 'blur(8px) saturate(1.1)',
+        WebkitBackdropFilter: 'blur(8px) saturate(1.1)',
+        boxShadow: isActive 
+          ? `inset 0 3px 6px rgba(0, 0, 0, 0.25), inset 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 0 2px ${activeColor}40` 
+          : '0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04)',
+        transition: 'all 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
+        ...style
+      }}
+    >
+      <span 
+        className={`quick-action-icon ${isActive ? 'animate-pulse' : ''}`}
+      >
+        {icon}
+      </span>
+      <span className="quick-action-label font-semibold">
+        {id}
+      </span>
+    </Button>
+  );
+});
 QuickActionButton.displayName = 'QuickActionButton';
 
 interface PromptAreaProps {
@@ -78,13 +101,18 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   onMicClick,
   onQuickAction,
 }, ref) => {
+  const { resolvedTheme } = useTheme();
+  const isDarkMode = resolvedTheme === 'dark';
+  
   const hasContent = input.trim().length > 0;
   const showQuickActions = !isRecording && !hasPendingVoiceMessage;
-  const placeholder = hasPendingVoiceMessage ? "Send your message?" : "Skhoot is listening...";
+  const placeholder = hasPendingVoiceMessage 
+    ? "Send your message?" 
+    : "Skhoot is listening...";
   
-  // Detect Opera browser and speech support
+  // Detect Opera browser and speech support using audioService
   const isOpera = navigator.userAgent.indexOf('OPR') !== -1 || navigator.userAgent.indexOf('Opera') !== -1;
-  const isSpeechSupported = !isOpera && (('webkitSpeechRecognition' in window) || ('SpeechRecognition' in window));
+  const isSpeechSupported = audioService.isSpeechRecognitionSupported();
   
   const quickActionsRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -120,6 +148,10 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   // Smooth easing for buttery animations
   const smoothEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
+  // Calculate illumination based on active button
+  const activeIndex = activeMode ? QUICK_ACTIONS.findIndex(a => a.id === activeMode) : -1;
+  const activeAction = activeIndex >= 0 ? QUICK_ACTIONS[activeIndex] : null;
+
   return (
     <div
       className="absolute bottom-0 left-0 right-0 pointer-events-none z-20"
@@ -132,16 +164,34 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
       }}
     >
       <div 
-        className="prompt-panel flex flex-col shadow-2xl pointer-events-auto glass-elevated"
+        className="prompt-panel flex flex-col shadow-2xl pointer-events-auto glass-elevated relative overflow-hidden"
         style={{ 
-          background: activeMode 
-            ? `linear-gradient(135deg, ${activeColor}08, ${activeColor}04)` 
+          background: activeAction 
+            ? isDarkMode 
+              ? `${activeAction.color}08` // Less strong in dark mode
+              : `${activeAction.color}12`
             : undefined,
           transition: `background 0.5s ${smoothEasing}, border-color 0.5s ${smoothEasing}, box-shadow 0.5s ${smoothEasing}`,
           padding: 'var(--prompt-panel-padding)',
           borderRadius: 'var(--prompt-panel-radius)',
         }}
       >
+        {/* Illumination overlay - radial gradient from first button position */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: activeAction
+              ? isDarkMode
+                // Dark mode: less strong, more diffuse
+                ? `radial-gradient(circle at 12.5% 25%, ${activeAction.color}20 0%, ${activeAction.color}10 35%, ${activeAction.color}05 60%, transparent 85%)`
+                // Light mode: original intensity
+                : `radial-gradient(circle at 12.5% 25%, ${activeAction.color}40 0%, ${activeAction.color}20 25%, ${activeAction.color}08 50%, transparent 75%)`
+              : 'none',
+            opacity: activeMode ? 1 : 0,
+            transition: `opacity 0.4s ${smoothEasing}, background 0.4s ${smoothEasing}`,
+            borderRadius: 'inherit',
+          }}
+        />
         {/* Quick Actions - animated container with grid for smooth height */}
         <div 
           style={{
@@ -170,24 +220,28 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
                   paddingBottom: 'calc(var(--scale-space-2) * var(--spacing-scale))',
                 }}
               >
-                {QUICK_ACTIONS.map((action, index) => (
-                  <QuickActionButton
-                    key={action.id}
-                    id={action.id}
-                    color={action.color}
-                    icon={QUICK_ACTION_ICONS[action.id]}
-                    isActive={activeMode === action.id}
-                    onClick={() => onQuickAction(action.id, action.placeholder)}
-                    style={{
-                      opacity: showQuickActions ? 1 : 0,
-                      transform: showQuickActions ? 'scale(1)' : 'scale(0.92)',
-                      transition: `opacity 0.35s ${smoothEasing} ${showQuickActions ? index * 0.04 : (QUICK_ACTIONS.length - 1 - index) * 0.02}s, transform 0.4s ${smoothEasing} ${showQuickActions ? index * 0.04 : 0}s`,
-                      fontSize: 'calc(var(--scale-font-sm) * var(--text-scale))',
-                      padding: 'calc(8px * var(--component-scale) * var(--scale)) calc(12px * var(--component-scale) * var(--scale))',
-                      borderRadius: 'calc(12px * var(--component-scale) * var(--scale))',
-                    }}
-                  />
-                ))}
+                {QUICK_ACTIONS.map((action, index) => {
+                  const isActive = activeMode === action.id;
+                  return (
+                    <QuickActionButton
+                      key={action.id}
+                      id={action.id}
+                      color={action.color}
+                      activeColor={action.activeColor}
+                      icon={QUICK_ACTION_ICONS[action.id]({ size: 14 })}
+                      isActive={isActive}
+                      onClick={() => onQuickAction(action.id, action.placeholder)}
+                      style={{
+                        opacity: showQuickActions ? 1 : 0,
+                        transform: showQuickActions ? 'scale(1)' : 'scale(0.92)',
+                        transition: `opacity 0.35s ${smoothEasing} ${showQuickActions ? index * 0.04 : (QUICK_ACTIONS.length - 1 - index) * 0.02}s, transform 0.4s ${smoothEasing} ${showQuickActions ? index * 0.04 : 0}s`,
+                        fontSize: 'calc(var(--scale-font-sm) * var(--text-scale))',
+                        padding: 'calc(8px * var(--component-scale) * var(--scale)) calc(12px * var(--component-scale) * var(--scale))',
+                        borderRadius: 'calc(12px * var(--component-scale) * var(--scale))',
+                      }}
+                    />
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -323,8 +377,7 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
                     transform: isRecording ? 'scale(0.85)' : 'scale(1)',
                     transition: `opacity 0.35s ${smoothEasing}, transform 0.4s ${smoothEasing}, background-color 0.2s ease`,
                     boxShadow: 'none !important',
-                    width: 'calc(48px * var(--component-scale) * var(--scale))',
-                    height: 'calc(48px * var(--component-scale) * var(--scale))',
+                    padding: 'calc(12px * var(--component-scale) * var(--scale))',
                     borderRadius: 'calc(16px * var(--component-scale) * var(--scale))',
                   }}
                 />

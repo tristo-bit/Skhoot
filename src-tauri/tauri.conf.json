@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src http://localhost:5173 http://localhost:3001 tauri://localhost https://hub.docker.com https://cdn.jsdelivr.net https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com; img-src 'self' data: https://cdn.jsdelivr.net https://*.docker.com https://*.githubusercontent.com; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; connect-src http://localhost:5173 http://localhost:3001 tauri://localhost https://hub.docker.com https://cdn.jsdelivr.net https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com; img-src 'self' data: https://cdn.jsdelivr.net https://*.docker.com https://*.githubusercontent.com; style-src 'self' 'unsafe-inline'; media-src 'self' blob: mediastream:"
     }
   },
   "plugins": {
@@ -48,6 +48,26 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "entitlements": "entitlements.plist",
+      "exceptionDomain": null,
+      "frameworks": [],
+      "minimumSystemVersion": "10.13",
+      "infoPlist": "Info.plist"
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": null,
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    }
   }
 }

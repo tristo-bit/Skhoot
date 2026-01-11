@@ -19,7 +19,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1yPnxkAry7gQ3SPvIsRQW4e
 - **Content Search**: Search inside files with snippet extraction and line number references
 - **Performance Tracking**: Real-time search performance metrics and execution time display
 - **Error Resilience**: Graceful fallback handling with informative error messages
-- **Message Search**: Search through conversations from Slack, Discord, iMessage
+- **Agent Assistance**: Ask specialized agents for help with various tasks
 - **Disk Analysis**: Analyze disk usage and identify large files
 - **Smart Cleanup**: Get recommendations for files safe to remove
 
@@ -28,6 +28,10 @@ View your app in AI Studio: https://ai.studio/apps/drive/1yPnxkAry7gQ3SPvIsRQW4e
 - **Real-time Transcription**: See your speech converted to text in real-time
 - **Audio Visualization**: Visual feedback with waveform display
 - **Browser Compatibility**: Fallback text input for Opera and Firefox
+- **Advanced Audio Service**: Full-featured audio management with device selection, volume control, and sensitivity settings
+- **Microphone Testing**: Real-time audio level monitoring with waveform visualization
+- **Device Hot-Swapping**: Automatic detection and handling of audio device changes
+- **Linux Audio Setup**: Automatic detection and guided setup for Linux audio permissions (audio group membership, PulseAudio/PipeWire)
 
 ### 💬 AI Chat Interface
 - **Conversational AI**: Powered by Google Gemini for natural interactions
@@ -41,11 +45,14 @@ View your app in AI Studio: https://ai.studio/apps/drive/1yPnxkAry7gQ3SPvIsRQW4e
 ### 🎨 Modern Design System
 - **Embossed Glassmorphism**: Tactile, interactive design with depth
 - **Theme Support**: Light and dark mode with smooth transitions
+- **Branding Toggle**: Show or hide Skhoot branding elements (persisted to localStorage)
 - **Responsive Layout**: Optimized for desktop use
 - **Accessibility**: WCAG compliant with proper contrast and focus states
 
 ### ⚙️ Settings & Privacy
-- **Audio Settings**: Configure microphone and speaker devices
+- **Audio Settings**: Configure microphone and speaker devices with real-time testing
+- **Volume Controls**: Independent input/output volume adjustment
+- **Sensitivity Settings**: Auto or manual microphone sensitivity configuration
 - **Privacy Controls**: Manage account settings and data export
 - **Activity Logging**: Track and review your interactions
 - **Help Center**: Built-in support and documentation
@@ -146,6 +153,10 @@ skhoot/
 │   └── Cargo.toml     # Rust dependencies
 ├── components/          # React components
 │   ├── shared/         # Reusable UI components
+│   │   ├── TypewriterText.tsx  # Typewriter text animation
+│   │   ├── GlassButton.tsx     # Glassmorphic button component
+│   │   ├── Modal.tsx           # Modal dialog component
+│   │   └── ...
 │   ├── ChatInterface.tsx
 │   ├── FileSearchTest.tsx  # File search testing interface
 │   ├── SettingsPanel.tsx
@@ -248,6 +259,7 @@ Skhoot is available in two versions:
 - System tray integration
 - Auto-updater support
 - Direct integration with backend search engine
+- **Linux Audio Setup**: Guided audio permission setup with PolicyKit integration for seamless microphone access
 
 **Choose the version that best fits your workflow!**
 
@@ -283,8 +295,8 @@ skhootDemo.searchFiles()
 // Demo AI-powered search suggestions
 skhootDemo.searchSuggestions()
 
-// Demo message search
-skhootDemo.searchMessages()
+// Demo agent assistance
+skhootDemo.askAgent()
 
 // Demo disk analysis
 skhootDemo.analyzeDisk()
@@ -313,11 +325,119 @@ skhootDemo.showMarkdown()
 - Backend runs on `http://localhost:3001` by default
 
 ### Customization
-- Modify `src/constants.ts` for colors and themes
+- Modify `src/constants.ts` for colors, themes, and action prompts
+  - `ACTION_PROMPTS` - Customize placeholder prompts for each QuickAction mode
+  - `ACTION_ACTIVE_COLORS` - Tailwind class mappings for active state colors (light/dark mode)
+  - `QUICK_ACTIONS` - Configure action IDs, colors, `activeColorClass` (Tailwind classes), and default placeholders
 - Update `EMBOSSED_STYLE_GUIDE.md` for design system changes
 - Configure demo data in `browser-test/demo.ts`
 
 ## 📝 Recent Updates
+
+### Quick Action Toggle Behavior
+- **Toggle Off Support**: Clicking an already-active quick action button now toggles it off, returning to the default state
+- **Cleaner UX**: Users can now easily deactivate a mode by clicking the same button again, rather than having to clear the input
+
+### Dynamic Quick Action Illumination
+- **Position-Aware Glow Effect**: When a quick action button is selected, a radial gradient illumination emanates from that button's position at the top of the prompt panel
+- **Background Tint**: The entire prompt panel receives a subtle color tint matching the active action's theme color for cohesive visual feedback
+- **Smooth Transitions**: Illumination and background tint smoothly animate between button positions using cubic-bezier easing
+- **Color-Matched Lighting**: The glow color and background tint match the active action's theme color for visual consistency
+- **Subtle Visual Feedback**: Creates a soft, ambient lighting effect that reinforces which action mode is currently active
+
+### Tailwind-Based Action Colors
+- **Theme-Aware Active Colors**: QuickAction button active states now use Tailwind CSS classes (`text-action-files`, `text-action-agents`, etc.) instead of hardcoded hex colors
+- **Dark Mode Support**: Active colors automatically adapt to dark mode via `dark:text-action-*-dark` class variants
+- **Centralized Theming**: `ACTION_ACTIVE_COLORS` now maps to Tailwind classes for consistent theming across light and dark modes
+- **QUICK_ACTIONS Update**: Each action now uses `activeColorClass` property instead of `activeColor` for Tailwind integration
+
+### Action-Specific Prompts & Active States
+- **50 Unique Prompts Per Action**: Each QuickAction mode (Files, Agents, Space, Cleanup) now has its own pool of 50 randomized placeholder prompts for a more engaging, conversational experience
+- **Natural Language Variety**: Prompts range from simple ("What file do you need?") to conversational ("Lost something? Describe it...") tailored to each action type
+- **Active Color States**: QuickAction buttons and prompt text now feature distinct active colors (darker/more saturated) when selected, providing clear visual feedback
+- **Context-Aware Suggestions**: Placeholder prompts guide users with action-specific language - file descriptions for Files, task automation for Agents, storage analysis for Space, and cleanup guidance for Cleanup
+- **Prompt Re-randomization**: New `promptKey` prop allows forcing a new random prompt selection when the same action is re-activated
+
+### Simplified Placeholder Text
+- **Unified Placeholder**: Prompt area now uses a consistent "Skhoot is listening..." placeholder across all modes
+- **Cleaner UX**: Removed animated typewriter placeholder in favor of simpler, static placeholder text
+- **Voice Message Context**: Shows "Send your message?" when there's a pending voice message
+
+### Quick Actions Update
+- **Agents Quick Action**: Replaced "Messages" quick action with "Agents" for asking specialized agents for help
+- **Updated Placeholder**: New placeholder text "Ask an agent for help..." for the Agents action
+
+### Linux Audio Setup Service
+- **Automatic Detection**: Detects Linux environment and checks audio configuration status in Tauri desktop app
+- **Audio Group Membership**: Checks if user is in the `audio` group and provides guided setup via PolicyKit authentication
+- **Audio Server Detection**: Identifies whether PulseAudio or PipeWire is running
+- **Manual Instructions**: Provides step-by-step manual setup instructions for users who prefer command-line configuration
+- **Tauri Integration**: Uses Tauri commands for native system operations with proper privilege escalation
+
+### Linux Audio Setup UI Banner
+- **In-Settings Banner**: New amber warning banner in Sound settings when Linux audio setup is required
+- **One-Click Fix**: "Fix Audio Permissions" button that triggers PolicyKit authentication to add user to audio group
+- **Status Display**: Shows which issues were detected (missing audio group membership, no audio server)
+- **Success Feedback**: Green success banner with confirmation message after successful fix
+- **Error Handling**: Clear error messages displayed inline when the fix fails
+
+### Smarter Audio Settings Loading
+- **Lazy Permission Request**: Audio settings now load saved preferences (volume, sensitivity) immediately without requesting microphone permission
+- **Permission-Aware Device Enumeration**: Device lists are only populated when permission is already granted, avoiding unnecessary permission prompts
+- **Graceful Fallback**: When permission hasn't been granted, the panel shows the "Enable Microphone" button instead of triggering automatic permission requests
+- **Cached Permission Check**: Uses `audioService.getPermissionStatus()` to check cached permission state before attempting device enumeration
+
+### Improved Microphone Permission UX
+- **Enable Microphone Button**: New prominent "Enable Microphone Access" button shown when permission hasn't been granted yet, with clear visual guidance
+- **Better Error Recovery**: Permission error banner now includes "Try Again" and "Dismiss" buttons for improved user control
+- **Permission Reset**: Users can dismiss errors and reset permission state via `audioService.resetPermission()`
+- **Conditional Device Settings**: Audio device selection controls are now hidden until microphone permission is granted, reducing confusion
+- **Clearer Loading State**: Loading indicator now shows "Requesting microphone access..." for better feedback during permission flow
+
+### Auto-Save Audio Settings
+- **Real-Time Settings Persistence**: Audio settings (device selections, volumes, sensitivity) are now automatically saved whenever they change in the Sound settings panel
+- **Seamless Experience**: No manual save button needed - changes are persisted immediately via `audioService.saveSettings()`
+- **Explicit Permission Request**: New "Request Permission" button allows users to explicitly grant microphone access with clear feedback on success or failure
+- **Device Refresh on Permission**: When permission is granted, the device list automatically refreshes and selects appropriate defaults
+
+### Settings Panel Audio Service Integration
+- **Unified Device Management**: Settings panel now uses the centralized `audioService` for all audio device operations, replacing direct `navigator.mediaDevices` calls
+- **Persistent Audio Settings**: Device selections, volume levels, and sensitivity settings are automatically saved and restored via `audioService.getSettings()`
+- **Device Hot-Swap Support**: Settings panel now listens for audio device changes via `audioService.onDeviceChange()` and automatically refreshes the device list
+- **Smart Default Selection**: Automatically selects default devices when saved devices are unavailable, with preference for system-marked defaults
+- **Permission Status Display**: Shows clear error messages when microphone access is denied, with platform-specific instructions
+
+### Unified Voice Recording Architecture
+- **Audio Service Integration**: Voice recording in ChatInterface now uses the centralized `audioService` for all audio operations, replacing direct browser API calls
+- **Cleaner Permission Flow**: Microphone permission is now requested through `audioService.requestPermission()` before starting recording, with clear error messages
+- **Improved Error Handling**: Speech recognition errors now display platform-specific instructions via `audioService.getPermissionInstructions()`
+- **Better Logging**: All voice-related operations now use `[Voice]` prefixed console logs for easier debugging
+- **Simplified Code**: Removed redundant browser detection functions in favor of `audioService.isSpeechRecognitionSupported()` and `audioService.getPlatform()`
+
+### Enhanced Audio Service API
+- **Input Stream Management**: New `getInputStream()` method for obtaining media streams from selected input devices with automatic fallback to default device
+- **Audio Context Creation**: New `createAudioContext()` method with output device routing support via `setSinkId`
+- **Speech Recognition Factory**: New `createSpeechRecognition()` method for creating pre-configured Web Speech API instances
+- **Microphone Testing**: New `testMicrophone()` method providing real-time audio level and waveform data via callbacks
+- **Device Change Monitoring**: New `onDeviceChange()` method for subscribing to audio device connect/disconnect events
+- **High-Quality Audio**: Configured for 48kHz sample rate with disabled echo cancellation, noise suppression, and auto gain for raw audio capture
+
+### Tauri Microphone Permission Handling
+- **Platform-Specific Guidance**: When microphone access is denied in the Tauri desktop app, users now receive clear instructions for their specific OS (macOS, Windows, Linux)
+- **Tauri Environment Detection**: Automatically detects when running in Tauri vs browser for appropriate error handling
+- **Graceful Fallback**: Continues without audio visualization if microphone access fails for non-permission reasons
+- **Enhanced Logging**: Added console logging for debugging microphone access issues in desktop builds
+
+### Voice Input Error Recovery
+- **Improved Speech Recognition Startup**: Added robust error handling when starting voice recording
+- **Auto-Recovery**: Automatically attempts to restart speech recognition if it was already running
+- **Clear Error Messages**: User-friendly alerts for specific failure scenarios (already started, permission issues, etc.)
+- **Graceful Degradation**: Properly cleans up resources and resets state on startup failures
+
+### Branding Toggle
+- **New Setting**: Added ability to show/hide Skhoot branding elements throughout the UI
+- **Persistent Preference**: Branding visibility preference is saved to localStorage (`skhoot-show-branding`)
+- **Theme Context Integration**: Available via `useTheme()` hook as `showBranding` and `setShowBranding`
 
 ### Custom Search Path Support
 - **Flexible Search Directories**: Both `aiFileSearch` and `searchContent` now accept a `search_path` option to search in custom directories

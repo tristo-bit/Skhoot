@@ -15,7 +15,7 @@ import { authService } from './services/auth';
 import { initScaleManager, destroyScaleManager } from './services/scaleManager';
 import { initUIConfig } from './services/uiConfig';
 import { Chat, Message, User } from './types';
-import { ThemeProvider } from './src/contexts/ThemeContext';
+import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 
 const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
   <img src="/skhoot-purple.svg" alt="Skhoot" width={size} height={size} />
@@ -23,6 +23,7 @@ const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
 SkhootLogo.displayName = 'SkhootLogo';
 
 const AppContent: React.FC = () => {
+  const { showBranding } = useTheme();
   const [chats, setChats] = useState<Chat[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -317,7 +318,7 @@ const AppContent: React.FC = () => {
             
             <div 
               className={`header-logo flex items-center gap-2 relative z-10 transition-all duration-500 ${
-                isSidebarOpen ? 'opacity-0 -translate-x-4' : 'opacity-100 translate-x-0'
+                isSidebarOpen || !showBranding ? 'opacity-0 -translate-x-4' : 'opacity-100 translate-x-0'
               }`}
             >
               <span className="header-logo-icon">
