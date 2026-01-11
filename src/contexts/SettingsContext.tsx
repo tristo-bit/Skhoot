@@ -21,11 +21,17 @@ const DEFAULT_ILLUMINATION: Record<'light' | 'dark', IlluminationSettings> = {
   },
 };
 
+// Default opacity
+const DEFAULT_OPACITY = 0.85;
+
 interface SettingsContextType {
   // Illumination
   illumination: IlluminationSettings;
   setIllumination: (settings: Partial<IlluminationSettings>) => void;
   resetIllumination: (theme: 'light' | 'dark') => void;
+  // Opacity
+  uiOpacity: number;
+  setUiOpacity: (value: number) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -37,6 +43,7 @@ interface StoredSettings {
     light?: Partial<IlluminationSettings>;
     dark?: Partial<IlluminationSettings>;
   };
+  uiOpacity?: number;
 }
 
 export function SettingsProvider({ 
@@ -81,6 +88,43 @@ export function SettingsProvider({
     getIlluminationForTheme(resolvedTheme)
   );
 
+  // Opacity state
+  const [uiOpacity, setUiOpacityState] = useState<number>(() => {
+    if (typeof window === 'undefined') return DEFAULT_OPACITY;
+    const stored = loadSettings();
+    return stored.uiOpacity ?? DEFAULT_OPACITY;
+  });
+
+  // Apply opacity to CSS variables
+  const applyOpacity = useCallback((value: number, isDarkMode: boolean) => {
+    if (typeof window === 'undefined') return;
+    const root = document.documentElement;
+    const level = Math.min(1, Math.max(0.5, value));
+    const light = Math.max(0.1, level - 0.15);
+    const heavy = Math.min(1, level + 0.1);
+    const base = isDarkMode ? '30, 30, 30' : '255, 255, 255';
+
+    root.style.setProperty('--glass-opacity-level', level.toString());
+    root.style.setProperty('--glass-opacity-light', light.toString());
+    root.style.setProperty('--glass-opacity-medium', level.toString());
+    root.style.setProperty('--glass-opacity-heavy', heavy.toString());
+    root.style.setProperty('--glass-bg', `rgba(${base}, ${level})`);
+  }, []);
+
+  // Apply opacity when it changes or theme changes
+  useEffect(() => {
+    applyOpacity(uiOpacity, resolvedTheme === 'dark');
+  }, [uiOpacity, resolvedTheme, applyOpacity]);
+
+  const setUiOpacity = useCallback((value: number) => {
+    const clamped = Math.min(1, Math.max(0.5, value));
+    setUiOpacityState(clamped);
+    
+    // Save to localStorage
+    const stored = loadSettings();
+    saveSettings({ ...stored, uiOpacity: clamped });
+  }, [loadSettings, saveSettings]);
+
   // Update illumination when theme changes
   useEffect(() => {
     setIlluminationState(getIlluminationForTheme(resolvedTheme));
@@ -121,6 +165,8 @@ export function SettingsProvider({
       illumination,
       setIllumination,
       resetIllumination,
+      uiOpacity,
+      setUiOpacity,
     }}>
       {children}
     </SettingsContext.Provider>

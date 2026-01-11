@@ -7,17 +7,11 @@ import { Button } from '../buttonFormat';
 
 interface AppearancePanelProps {
   onBack: () => void;
-  uiOpacity: number;
-  setUiOpacity: (value: number) => void;
 }
 
-export const AppearancePanel: React.FC<AppearancePanelProps> = ({ 
-  onBack, 
-  uiOpacity, 
-  setUiOpacity 
-}) => {
+export const AppearancePanel: React.FC<AppearancePanelProps> = ({ onBack }) => {
   const { theme, setTheme, showBranding, setShowBranding, resolvedTheme } = useTheme();
-  const { illumination, setIllumination, resetIllumination } = useSettings();
+  const { illumination, setIllumination, resetIllumination, uiOpacity, setUiOpacity } = useSettings();
 
   const themeOptions = [
     { value: 'light', label: 'Light', description: 'Always use light theme' },
