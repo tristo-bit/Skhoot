@@ -378,7 +378,7 @@ impl SearchManager {
         if let Some(file_res) = file_results {
             for file_match in &file_res.matches {
                 merged.push(MergedSearchResult {
-                    path: file_match.relative_path.clone(),
+                    path: file_match.path.clone(), // Use full path, not relative
                     relevance_score: (file_match.score as f64) / 1000.0, // Normalize score
                     source_engine: "rust-fuzzy".to_string(),
                     file_type: file_match.file_type.clone(),

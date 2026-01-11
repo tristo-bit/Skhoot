@@ -9,6 +9,7 @@ import FilesPanel from './components/panels/FilesPanel';
 import { ActivityPanel } from './components/activity';
 import { FileSearchTest } from './components/search-engine';
 import { Header, ResizeHandles, AppBackground } from './components/layout';
+import { Background3D } from './components/customization';
 import { useTauriWindow } from './hooks';
 import { chatStorage } from './services/chatStorage';
 import { authService } from './services/auth';
@@ -160,6 +161,8 @@ const AppContent: React.FC = () => {
 
       <div className="app-shell relative z-10 w-full h-full flex flex-col shadow-2xl overflow-hidden bg-bg-primary rounded-[var(--app-radius)]">
         <div className="app-glass relative z-10 w-full h-full flex flex-col overflow-hidden glass-elevated rounded-[var(--app-radius)]">
+          {/* Background layers */}
+          <Background3D />
           <AppBackground activeMode={activeQuickAction} />
           
           <Header

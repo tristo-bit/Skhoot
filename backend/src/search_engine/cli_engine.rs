@@ -309,9 +309,11 @@ impl CliEngine {
         .context("ripgrep content search timed out")?
         .context("Failed to execute ripgrep content search")?;
 
-        if !output.status.success() {
-            return Err(anyhow::anyhow!("ripgrep content search failed: {}", 
-                String::from_utf8_lossy(&output.stderr)));
+        // ripgrep returns exit code 1 when no matches found - that's not an error
+        // Only treat it as error if there's actual stderr output
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if !output.status.success() && !stderr.is_empty() {
+            return Err(anyhow::anyhow!("ripgrep content search failed: {}", stderr));
         }
 
         let files = self.parse_ripgrep_output(&String::from_utf8_lossy(&output.stdout))?;

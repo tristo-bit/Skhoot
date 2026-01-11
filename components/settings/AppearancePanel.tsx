@@ -151,6 +151,28 @@ export const AppearancePanel: React.FC<AppearancePanelProps> = ({ onBack }) => {
           onChange={setShowBranding}
         />
       </div>
+
+      {/* 3D Background - Currently disabled (feature incomplete) */}
+      <div className="space-y-4 opacity-50 pointer-events-none">
+        <div className="flex items-center justify-between">
+          <SectionLabel 
+            label="3D Background" 
+            description="Display a rotating 3D model in the background (Coming soon)" 
+          />
+        </div>
+
+        {/* Enable/Disable - Disabled */}
+        <SettingRow
+          label="Enable 3D Background"
+          description="This feature is currently under development"
+          checked={false}
+          onChange={() => {}}
+        />
+        
+        <p className="text-xs text-text-secondary italic">
+          3D background customization is not yet available. Check back in a future update.
+        </p>
+      </div>
     </div>
   );
 };

@@ -96,6 +96,9 @@ pub async fn search_files(
         dirs::home_dir()
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
     };
+    
+    // Ensure search directory is absolute (canonicalize if possible)
+    let search_dir = search_dir.canonicalize().unwrap_or(search_dir);
 
     // Parse search mode
     let _mode = match params.mode.as_deref() {
@@ -137,6 +140,9 @@ pub async fn search_content(
         dirs::home_dir()
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
     };
+    
+    // Ensure search directory is absolute (canonicalize if possible)
+    let search_dir = search_dir.canonicalize().unwrap_or(search_dir);
 
     let context = SearchContext {
         current_file: None,
@@ -378,48 +384,46 @@ pub async fn open_file_location(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let path = PathBuf::from(&request.path);
     
-    // Determine the directory to open (parent if it's a file)
-    let dir_to_open = if path.is_file() {
-        path.parent().map(|p| p.to_path_buf()).unwrap_or(path.clone())
+    // Ensure we have an absolute path
+    let absolute_path = if path.is_absolute() {
+        path
     } else {
-        path.clone()
+        // If relative, try to resolve from home directory
+        dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+            .join(&path)
     };
+    
+    tracing::info!("Opening file location: {:?}", absolute_path);
     
     // Platform-specific file explorer command
     #[cfg(target_os = "windows")]
     let result = tokio::process::Command::new("explorer")
-        .arg(if path.is_file() {
-            format!("/select,{}", path.display())
-        } else {
-            dir_to_open.display().to_string()
-        })
+        .arg(absolute_path.display().to_string())
         .spawn();
     
     #[cfg(target_os = "macos")]
     let result = tokio::process::Command::new("open")
-        .arg("-R") // Reveal in Finder
-        .arg(&path)
+        .arg(&absolute_path)
         .spawn();
     
     #[cfg(target_os = "linux")]
     let result = {
         // Try xdg-open first, then fall back to common file managers
         let xdg_result = tokio::process::Command::new("xdg-open")
-            .arg(&dir_to_open)
+            .arg(&absolute_path)
             .spawn();
         
         if xdg_result.is_err() {
             // Try nautilus (GNOME)
             let nautilus_result = tokio::process::Command::new("nautilus")
-                .arg("--select")
-                .arg(&path)
+                .arg(&absolute_path)
                 .spawn();
             
             if nautilus_result.is_err() {
                 // Try dolphin (KDE)
                 tokio::process::Command::new("dolphin")
-                    .arg("--select")
-                    .arg(&path)
+                    .arg(&absolute_path)
                     .spawn()
             } else {
                 nautilus_result
@@ -432,7 +436,7 @@ pub async fn open_file_location(
     match result {
         Ok(_) => Ok(Json(serde_json::json!({
             "success": true,
-            "message": format!("Opened file location: {}", path.display())
+            "message": format!("Opened file location: {}", absolute_path.display())
         }))),
         Err(e) => Err(AppError::Internal(format!("Failed to open file location: {}", e)))
     }

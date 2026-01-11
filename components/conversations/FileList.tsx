@@ -2,7 +2,6 @@ import { memo, useState } from 'react';
 import { FileText, Copy, Check, Folder, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { FileInfo } from '../../types';
 import { Button } from '../buttonFormat';
-import { backendApi } from '../../services/backendApi';
 
 export const FileItem = memo<{ file: FileInfo; searchInfo?: any }>(({ file }) => {
   const [copied, setCopied] = useState(false);
@@ -16,18 +15,46 @@ export const FileItem = memo<{ file: FileInfo; searchInfo?: any }>(({ file }) =>
   const handleGo = async () => {
     const fullPath = file.path;
     
+    // Get the parent directory of the file
+    const getParentDir = (path: string) => {
+      const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+      return lastSlash > 0 ? path.substring(0, lastSlash) : path;
+    };
+    
+    const parentDir = getParentDir(fullPath);
+    
+    // Try backend API first (works in dev mode with backend running)
     try {
-      const result = await backendApi.openFileLocation(fullPath);
-      if (result.success) {
-        console.log('✅ Opened file location:', fullPath);
-        return;
+      const response = await fetch('http://localhost:3001/api/v1/files/open', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: parentDir }),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          console.log('✅ Opened file location via backend:', parentDir);
+          return;
+        }
       }
     } catch (e) {
-      console.warn('Backend file open failed:', e);
+      // Backend not available - this is expected in browser-only mode
     }
     
-    await navigator.clipboard.writeText(fullPath);
-    alert(`Path copied to clipboard:\n${fullPath}\n\nOpen your file explorer and paste this path.`);
+    // Try Tauri shell plugin (works in Tauri app)
+    try {
+      const { open } = await import('@tauri-apps/plugin-shell');
+      await open(parentDir);
+      console.log('✅ Opened file location via Tauri:', parentDir);
+      return;
+    } catch {
+      // Tauri not available - this is expected in browser mode
+    }
+    
+    // Fallback: copy path to clipboard with helpful message
+    await navigator.clipboard.writeText(parentDir);
+    alert(`📋 Path copied!\n\n${parentDir}\n\nTo open in file explorer:\n• Start the backend: cd backend && cargo run\n• Or paste this path in your file manager`);
   };
 
   return (

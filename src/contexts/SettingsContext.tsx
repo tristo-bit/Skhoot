@@ -7,6 +7,16 @@ export interface IlluminationSettings {
   diffusion: number; // 0-100 (how spread out the light is)
 }
 
+// 3D Background settings interface
+export interface Background3DSettings {
+  enabled: boolean;
+  modelId: string;
+  customModelPath?: string; // Path to custom GLTF/GLB model
+  rotationDuration: number; // ms for one full rotation (0 = no rotation)
+  opacity: number; // 0-1
+  asciiMode: boolean; // Render as ASCII art
+}
+
 // Default illumination settings per theme
 const DEFAULT_ILLUMINATION: Record<'light' | 'dark', IlluminationSettings> = {
   light: {
@@ -21,6 +31,16 @@ const DEFAULT_ILLUMINATION: Record<'light' | 'dark', IlluminationSettings> = {
   },
 };
 
+// Default 3D background settings
+const DEFAULT_BACKGROUND_3D: Background3DSettings = {
+  enabled: false,
+  modelId: 'cube',
+  customModelPath: undefined,
+  rotationDuration: 10000, // 10 seconds for full rotation
+  opacity: 0.3,
+  asciiMode: false,
+};
+
 // Default opacity
 const DEFAULT_OPACITY = 0.85;
 
@@ -32,6 +52,10 @@ interface SettingsContextType {
   // Opacity
   uiOpacity: number;
   setUiOpacity: (value: number) => void;
+  // 3D Background
+  background3D: Background3DSettings;
+  setBackground3D: (settings: Partial<Background3DSettings>) => void;
+  resetBackground3D: () => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -44,6 +68,7 @@ interface StoredSettings {
     dark?: Partial<IlluminationSettings>;
   };
   uiOpacity?: number;
+  background3D?: Partial<Background3DSettings>;
 }
 
 export function SettingsProvider({ 
@@ -95,6 +120,13 @@ export function SettingsProvider({
     return stored.uiOpacity ?? DEFAULT_OPACITY;
   });
 
+  // 3D Background state
+  const [background3D, setBackground3DState] = useState<Background3DSettings>(() => {
+    if (typeof window === 'undefined') return DEFAULT_BACKGROUND_3D;
+    const stored = loadSettings();
+    return { ...DEFAULT_BACKGROUND_3D, ...stored.background3D };
+  });
+
   // Apply opacity to CSS variables
   const applyOpacity = useCallback((value: number, isDarkMode: boolean) => {
     if (typeof window === 'undefined') return;
@@ -123,6 +155,28 @@ export function SettingsProvider({
     // Save to localStorage
     const stored = loadSettings();
     saveSettings({ ...stored, uiOpacity: clamped });
+  }, [loadSettings, saveSettings]);
+
+  // 3D Background setters
+  const setBackground3D = useCallback((settings: Partial<Background3DSettings>) => {
+    setBackground3DState(prev => {
+      const newSettings = { ...prev, ...settings };
+      
+      // Save to localStorage
+      const stored = loadSettings();
+      saveSettings({ ...stored, background3D: newSettings });
+      
+      return newSettings;
+    });
+  }, [loadSettings, saveSettings]);
+
+  const resetBackground3D = useCallback(() => {
+    setBackground3DState(DEFAULT_BACKGROUND_3D);
+    
+    // Remove from localStorage
+    const stored = loadSettings();
+    delete stored.background3D;
+    saveSettings(stored);
   }, [loadSettings, saveSettings]);
 
   // Update illumination when theme changes
@@ -167,6 +221,9 @@ export function SettingsProvider({
       resetIllumination,
       uiOpacity,
       setUiOpacity,
+      background3D,
+      setBackground3D,
+      resetBackground3D,
     }}>
       {children}
     </SettingsContext.Provider>
@@ -182,4 +239,4 @@ export function useSettings() {
 }
 
 // Export defaults for reference
-export { DEFAULT_ILLUMINATION };
+export { DEFAULT_ILLUMINATION, DEFAULT_BACKGROUND_3D };
