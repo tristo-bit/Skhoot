@@ -128,9 +128,8 @@ async fn main() -> anyhow::Result<()> {
         .with_state(state)
         .layer(
             CorsLayer::new()
-                .allow_origin("http://localhost:5173".parse::<axum::http::HeaderValue>()?)
-                .allow_origin("tauri://localhost".parse::<axum::http::HeaderValue>()?)
-                .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
+                .allow_origin(tower_http::cors::Any)
+                .allow_methods([axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::OPTIONS])
                 .allow_headers([axum::http::header::CONTENT_TYPE]),
         );
 
