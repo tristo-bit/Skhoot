@@ -35,7 +35,7 @@ export interface SearchResponse {
 
 // New file search types matching backend
 export interface FileSearchMatch {
-  score: u32;
+  score: number;
   path: string;
   relative_path: string;
   file_name: string;

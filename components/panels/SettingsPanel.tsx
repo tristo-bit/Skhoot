@@ -1,31 +1,25 @@
 import React, { useState, memo } from 'react';
-import { ChevronRight, Volume2, Shield, Palette, HelpCircle, ClipboardList } from 'lucide-react';
-import { useTheme } from '../src/contexts/ThemeContext';
-import { Modal } from './shared';
-import { AppearancePanel, HelpCenterPanel, PrivacyPanel, SoundPanel } from './settings';
+import { ChevronRight, Volume2, Shield, Palette, HelpCircle } from 'lucide-react';
+import { useTheme } from '../../src/contexts/ThemeContext';
+import { Modal } from '../ui';
+import { AppearancePanel, HelpCenterPanel, PrivacyPanel, SoundPanel } from '../settings';
 
 interface SettingsPanelProps {
   onClose: () => void;
-  onOpenTraceability?: () => void;
 }
 
 const SETTINGS_ITEMS = [
   { icon: Volume2, label: 'Sound', color: 'almost-aqua' },
   { icon: Palette, label: 'Appearance', color: 'lemon-icing' },
   { icon: Shield, label: 'Privacy', color: 'ice-melt' },
-  { icon: ClipboardList, label: 'Activity Log', color: 'orchid-tint' },
   { icon: HelpCircle, label: 'Help Center', color: 'peach-dust' },
 ] as const;
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose, onOpenTraceability }) => {
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
   const { resolvedTheme } = useTheme();
   const [activePanel, setActivePanel] = useState<string | null>(null);
 
   const handleSettingClick = (label: string) => {
-    if (label === 'Activity Log' && onOpenTraceability) {
-      onOpenTraceability();
-      return;
-    }
     setActivePanel(label);
   };
 

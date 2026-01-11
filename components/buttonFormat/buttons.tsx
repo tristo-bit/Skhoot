@@ -2,12 +2,13 @@ import React from 'react';
 
 export interface BaseButtonProps {
   children: React.ReactNode;
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
   className?: string;
   style?: React.CSSProperties;
   type?: 'button' | 'submit' | 'reset';
   'aria-label'?: string;
+  ariaLabel?: string;
   title?: string;
 }
 
@@ -17,6 +18,8 @@ export interface ButtonVariantProps extends BaseButtonProps {
   loading?: boolean;
   icon?: React.ReactNode;
   iconPosition?: 'left' | 'right';
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 const getVariantClasses = (variant: ButtonVariantProps['variant'] = 'primary') => {
@@ -49,7 +52,8 @@ export const BaseButton: React.FC<BaseButtonProps> = ({
   className = '',
   style,
   type = 'button',
-  'aria-label': ariaLabel,
+  'aria-label': ariaLabelProp,
+  ariaLabel,
   title,
   ...props
 }) => {
@@ -64,7 +68,7 @@ export const BaseButton: React.FC<BaseButtonProps> = ({
         ${className}
       `.trim()}
       style={style}
-      aria-label={ariaLabel}
+      aria-label={ariaLabelProp || ariaLabel}
       title={title}
       {...props}
     >
@@ -83,6 +87,8 @@ export const Button: React.FC<ButtonVariantProps> = ({
   disabled,
   style,
   className = '',
+  onMouseEnter,
+  onMouseLeave,
   ...props
 }) => {
   const variantClasses = getVariantClasses(variant);
@@ -112,9 +118,14 @@ export const Button: React.FC<ButtonVariantProps> = ({
   );
 
   return (
-    <BaseButton
+    <button
+      type="button"
       disabled={disabled || loading}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className={`
+        font-bold font-jakarta transition-all duration-200 rounded-xl
+        active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed
         flex items-center justify-center
         ${variantClasses}
         ${sizeClasses}
@@ -124,6 +135,6 @@ export const Button: React.FC<ButtonVariantProps> = ({
       {...props}
     >
       {buttonContent}
-    </BaseButton>
+    </button>
   );
 };

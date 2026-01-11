@@ -1,6 +1,6 @@
 import React from 'react';
 import { TrendingUp, Clock, HardDrive, Zap } from 'lucide-react';
-import { COLORS, GLASS_STYLES } from '../src/constants';
+import { COLORS, GLASS_STYLES } from '../../src/constants';
 
 interface Insight {
   id: string;

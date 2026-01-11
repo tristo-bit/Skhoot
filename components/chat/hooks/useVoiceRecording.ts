@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { audioService } from '../../../services/audioService';
+import { activityLogger } from '../../../services/activityLogger';
 
 interface UseVoiceRecordingOptions {
   onTranscriptChange?: (transcript: string, pending: string) => void;
@@ -191,6 +192,14 @@ export function useVoiceRecording(
           setVoiceTranscript(fullTranscript);
           setPendingVoiceText('');
           setHasPendingVoiceMessage(true);
+          
+          // Log voice input activity
+          activityLogger.log(
+            'Voice Input',
+            fullTranscript.slice(0, 50) + (fullTranscript.length > 50 ? '...' : ''),
+            'Transcription complete',
+            'success'
+          );
         } else {
           setVoiceTranscript('');
           setPendingVoiceText('');

@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { MOCK_FILES, MOCK_MESSAGES } from "../src/constants";
 import { backendApi } from "./backendApi";
+import { activityLogger } from "./activityLogger";
 
 const findFileFunction: FunctionDeclaration = {
   name: 'findFile',
@@ -252,9 +253,27 @@ Respond naturally and use the appropriate search functions when needed.`,
               results: convertedResults.files.length,
               time: convertedResults.searchInfo.executionTime + 'ms'
             });
+
+            // Log the activity
+            activityLogger.log(
+              'File Search',
+              args.query,
+              `Found ${convertedResults.files.length} files`,
+              'success',
+              { executionTime: convertedResults.searchInfo.executionTime }
+            );
             
           } catch (error) {
             console.error('❌ File search failed:', error);
+            
+            // Log the failed activity
+            activityLogger.log(
+              'File Search',
+              (fc.args as any).query,
+              'Search failed - using fallback',
+              'error'
+            );
+            
             // Fallback to mock data if backend fails
             const q = (fc.args as any).query.toLowerCase();
             result = { 
@@ -296,9 +315,27 @@ Respond naturally and use the appropriate search functions when needed.`,
               results: convertedResults.files.length,
               time: convertedResults.searchInfo.executionTime + 'ms'
             });
+
+            // Log the activity
+            activityLogger.log(
+              'Content Search',
+              args.query,
+              `Found ${convertedResults.files.length} files`,
+              'success',
+              { executionTime: convertedResults.searchInfo.executionTime }
+            );
             
           } catch (error) {
             console.error('❌ Content search failed:', error);
+            
+            // Log the failed activity
+            activityLogger.log(
+              'Content Search',
+              (fc.args as any).query,
+              'Search failed',
+              'error'
+            );
+            
             result = { 
               type: 'analysis', 
               content: `I encountered an error while searching for "${(fc.args as any).query}" in file contents. Please try a different search term or check if the backend is running.`
@@ -307,9 +344,26 @@ Respond naturally and use the appropriate search functions when needed.`,
           
         } else if (fc.name === 'findMessage') {
           const q = (fc.args as any).keywords.toLowerCase();
-          result = { type: 'message_list', data: MOCK_MESSAGES.filter(m => m.text.toLowerCase().includes(q) || m.user.toLowerCase().includes(q)) };
+          const messages = MOCK_MESSAGES.filter(m => m.text.toLowerCase().includes(q) || m.user.toLowerCase().includes(q));
+          result = { type: 'message_list', data: messages };
+          
+          // Log the activity
+          activityLogger.log(
+            'Message Search',
+            q,
+            `Found ${messages.length} messages`,
+            'success'
+          );
         } else if (fc.name === 'analyzeDiskSpace') {
           result = { type: 'disk_usage', data: [...MOCK_FILES].sort((b) => b.size.includes('GB') ? 1 : -1) };
+          
+          // Log the activity
+          activityLogger.log(
+            'Disk Analysis',
+            'Full scan',
+            'Analysis complete',
+            'success'
+          );
         } else if (fc.name === 'checkFileSafety') {
           const path = (fc.args as any).filePath;
           const file = MOCK_FILES.find(f => f.path.includes(path) || f.name.includes(path));

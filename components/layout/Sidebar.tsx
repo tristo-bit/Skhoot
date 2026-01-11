@@ -1,8 +1,8 @@
 import React, { memo, useState, useEffect } from 'react';
 import { Search, Plus, X, MessageSquare, LogIn, LogOut } from 'lucide-react';
-import { Chat, User } from '../types';
-import { CloseButton, Button, IconButton } from './buttonFormat';
-import { useTheme } from '../src/contexts/ThemeContext';
+import { Chat, User } from '../../types';
+import { CloseButton, Button, IconButton } from '../buttonFormat';
+import { useTheme } from '../../src/contexts/ThemeContext';
 
 interface SidebarProps {
   onNewChat: () => void;

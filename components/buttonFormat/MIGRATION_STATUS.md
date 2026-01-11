@@ -10,7 +10,7 @@
 - **Register.tsx** - Utilise `CloseButton`, `IconButton`, `SubmitButton` ✅
 - **Login.tsx** - Utilise `CloseButton`, `IconButton`, `SubmitButton` ✅
 - **SettingsPanel.tsx** - Utilise `BackButton`, `SubmitButton`, `Button`, `SwitchToggle` ✅
-- **TraceabilityPanel.tsx** - `BackButton` et `CloseButton` remplacés ✅
+- **TraceabilityPanel.tsx** - Replaced by `ActivityPanel` with proper separation of concerns ✅
 - **Sidebar.tsx** - `CloseButton`, `Button`, `IconButton` remplacés ✅
 - **Modal.tsx** - `CloseButton` remplacé ✅
 - **PromptArea.tsx** - `Button`, `IconButton` pour QuickActions, Mic et Send ✅

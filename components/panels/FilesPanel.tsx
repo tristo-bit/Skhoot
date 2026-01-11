@@ -1,8 +1,8 @@
 import React, { memo, useState } from 'react';
 import { HardDrive, Link2, Archive, RefreshCw, Plus, Trash2, FolderOpen, Check } from 'lucide-react';
-import { MOCK_CONNECTED_APPS, MOCK_ARCHIVED_FILES } from '../browser-test/demo';
-import { Modal } from './shared';
-import { TabButton } from './buttonFormat';
+import { MOCK_CONNECTED_APPS, MOCK_ARCHIVED_FILES } from '../../browser-test/demo';
+import { Modal } from '../ui';
+import { TabButton } from '../buttonFormat';
 
 interface FilesPanelProps {
   onClose: () => void;

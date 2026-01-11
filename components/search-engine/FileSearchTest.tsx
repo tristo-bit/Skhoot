@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Loader2, CheckCircle, XCircle } from 'lucide-react';
-import { backendApi } from '../services/backendApi';
+import { backendApi } from '../../services/backendApi';
 
 interface FileSearchTestProps {
   onClose: () => void;

@@ -1,6 +1,6 @@
 import React, { useState, memo, useRef, useEffect } from 'react';
 import { Send, X, MessageSquare } from 'lucide-react';
-import { IconButton } from './buttonFormat';
+import { IconButton } from '../buttonFormat';
 
 interface VoiceMessageProps {
   transcript: string;
@@ -31,8 +31,7 @@ export const VoiceMessage = memo<VoiceMessageProps>(({
     }
   }, [transcript, pendingText]);
   
-  const handleDiscard = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDiscard = () => {
     setIsDiscarding(true);
     setTimeout(() => {
       onDiscard();

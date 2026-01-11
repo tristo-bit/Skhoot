@@ -1,8 +1,7 @@
-import React, { useState, useCallback, memo, useRef } from 'react';
-import { Camera, Upload, Key, Crown, User as UserIcon, X, ChevronLeft } from 'lucide-react';
-import { COLORS } from '../src/constants';
-import { Modal } from './shared';
-import { CloseButton, SaveButton, UploadButton, ConnectionButton, PremiumButton, Button, IconButton, PlanButton, BackButton } from './buttonFormat';
+import React, { useState, useCallback, useRef } from 'react';
+import { Camera, Key, Crown, User as UserIcon } from 'lucide-react';
+import { Modal } from '../ui';
+import { SaveButton, UploadButton, ConnectionButton, PremiumButton, Button, IconButton, PlanButton, BackButton } from '../buttonFormat';
 
 interface UserPanelProps {
   onClose: () => void;
@@ -71,15 +70,6 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
   const triggerFileInput = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
-
-  const handleSaveChanges = useCallback(() => {
-    // Here you would save the changes to your backend/storage
-    console.log('Saving changes:', { firstName, lastName, profileImage });
-    // For now, just show success and reset changes tracking
-    setHasProfileChanges(false);
-    setHasNameChanges(false);
-    // You could show a toast notification here
-  }, [firstName, lastName, profileImage]);
 
   const handleSaveProfile = useCallback(() => {
     console.log('Saving profile image:', profileImage);

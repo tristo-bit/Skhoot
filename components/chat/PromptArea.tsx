@@ -1,7 +1,7 @@
 import React, { forwardRef, useRef, useEffect, useState } from 'react';
 import { Search, Bot, HardDrive, Trash2 } from 'lucide-react';
 import { QUICK_ACTIONS } from '../../src/constants';
-import { SoundWave } from '../shared';
+import { SoundWave } from '../ui';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { useSettings } from '../../src/contexts/SettingsContext';
 import { QuickActionButton } from './QuickActionButton';

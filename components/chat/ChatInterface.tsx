@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { COLORS, WELCOME_MESSAGES, QUICK_ACTIONS } from '../../src/constants';
 import { Message } from '../../types';
 import { geminiService } from '../../services/gemini';
-import { Conversations } from '../Conversations';
+import { activityLogger } from '../../services/activityLogger';
+import { MainArea } from '../main-area';
 import { PromptArea } from './PromptArea';
 import { useVoiceRecording } from './hooks';
 
@@ -282,9 +283,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       };
       
       setMessages(prev => [...prev, assistantMsg]);
+      
+      // Log AI chat activity (only for non-search responses, searches are logged in gemini service)
+      if (result.type === 'text') {
+        activityLogger.log(
+          'AI Chat',
+          messageText.slice(0, 50) + (messageText.length > 50 ? '...' : ''),
+          'Response received',
+          'success'
+        );
+      }
     } catch (error) {
       setSearchType(null);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      // Log failed chat
+      activityLogger.log(
+        'AI Chat',
+        messageText.slice(0, 50) + (messageText.length > 50 ? '...' : ''),
+        'Error: ' + errorMessage.slice(0, 30),
+        'error'
+      );
+      
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -321,7 +341,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden relative">
-      <Conversations
+      <MainArea
         ref={scrollRef}
         messages={messages}
         isLoading={isLoading}

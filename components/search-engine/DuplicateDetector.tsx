@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Copy, Trash2, Eye, AlertTriangle } from 'lucide-react';
-import { COLORS, GLASS_STYLES } from '../src/constants';
-import { FileInfo } from '../types';
-import { IconButton } from './buttonFormat';
+import { COLORS, GLASS_STYLES } from '../../src/constants';
+import { FileInfo } from '../../types';
+import { IconButton } from '../buttonFormat';
 
 interface DuplicateGroup {
   id: string;
@@ -94,14 +94,14 @@ export const DuplicateDetector: React.FC = () => {
                     onClick={() => console.log('View file:', file.name)}
                     variant="ghost"
                     size="sm"
-                    ariaLabel="View file"
+                    aria-label="View file"
                   />
                   <IconButton
                     icon={<Trash2 size={16} />}
                     onClick={() => console.log('Delete file:', file.name)}
                     variant="ghost"
                     size="sm"
-                    ariaLabel="Delete file"
+                    aria-label="Delete file"
                   />
                 </div>
               </div>

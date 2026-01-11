@@ -1,0 +1,59 @@
+import { memo } from 'react';
+import { Message } from '../../types';
+import { MarkdownRenderer } from '../ui';
+import { FileList } from './FileList';
+import { MessageList } from './MessageList';
+import { DiskUsage } from './DiskUsage';
+import { CleanupList } from './CleanupList';
+
+export const MessageBubble = memo<{ message: Message }>(({ message }) => {
+  const isUser = message.role === 'user';
+  
+  if (!isUser) {
+    // AI message - no bubble, markdown rendered with theme colors
+    return (
+      <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="max-w-[95%] py-2 px-1">
+          <MarkdownRenderer content={message.content} />
+
+          {message.type === 'file_list' && message.data && (
+            <FileList 
+              files={message.data} 
+              searchInfo={(message as any).searchInfo}
+            />
+          )}
+
+          {message.type === 'message_list' && message.data && (
+            <MessageList messages={message.data} />
+          )}
+
+          {message.type === 'disk_usage' && message.data && (
+            <DiskUsage items={message.data} />
+          )}
+
+          {message.type === 'cleanup' && message.data && (
+            <CleanupList items={message.data} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // User message - embossed bubble
+  return (
+    <div className="flex justify-end animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div 
+        className="max-w-[90%] p-4 rounded-3xl rounded-tr-none border-glass-border glass-subtle"
+        style={{
+          boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.1)',
+        }}
+      >
+        <p className="text-[13px] leading-relaxed font-semibold font-jakarta text-text-primary">
+          {message.content}
+        </p>
+      </div>
+    </div>
+  );
+});
+
+MessageBubble.displayName = 'MessageBubble';
