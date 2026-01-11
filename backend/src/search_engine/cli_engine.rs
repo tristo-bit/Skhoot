@@ -8,6 +8,15 @@ use std::process::Stdio;
 use tokio::process::Command;
 use regex::Regex;
 
+/// Convert string to title case (first letter uppercase)
+fn to_title_case(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+    }
+}
+
 /// CLI-based search engine inspired by Codex CLI
 /// Provides fast file operations using system tools
 #[derive(Debug, Clone)]
@@ -93,6 +102,214 @@ impl CliEngine {
             }
             Err(e) => Err(e),
         }
+    }
+
+    /// Search for files with specific extensions and name patterns (like Codex CLI)
+    /// Uses ripgrep with glob patterns: rg --files -g '*.pdf' -g '*deck*'
+    pub async fn search_files_with_globs(
+        &self, 
+        name_patterns: &[&str], 
+        extensions: &[&str],
+        search_path: &Path,
+        config: &CliConfig
+    ) -> Result<CliSearchResult> {
+        let start_time = std::time::Instant::now();
+
+        let result = if config.use_ripgrep && self.has_ripgrep().await {
+            self.search_with_ripgrep_globs(name_patterns, extensions, search_path, config).await
+        } else if config.use_fd && self.has_fd().await {
+            self.search_with_fd_globs(name_patterns, extensions, search_path, config).await
+        } else {
+            self.search_with_find_globs(name_patterns, extensions, search_path, config).await
+        };
+
+        let execution_time_ms = start_time.elapsed().as_millis() as u64;
+
+        match result {
+            Ok(mut cli_result) => {
+                cli_result.execution_time_ms = execution_time_ms;
+                Ok(cli_result)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Search using ripgrep with glob patterns (like Codex CLI)
+    async fn search_with_ripgrep_globs(
+        &self,
+        name_patterns: &[&str],
+        extensions: &[&str],
+        search_path: &Path,
+        config: &CliConfig
+    ) -> Result<CliSearchResult> {
+        let mut cmd = Command::new("rg");
+        cmd.arg("--files")
+           .arg("--color").arg("never");
+
+        // Add extension globs
+        for ext in extensions {
+            cmd.arg("-g").arg(format!("*.{}", ext));
+        }
+
+        // Add name pattern globs (case insensitive)
+        for pattern in name_patterns {
+            cmd.arg("-g").arg(format!("*{}*", pattern));
+            cmd.arg("-g").arg(format!("*{}*", pattern.to_uppercase()));
+            cmd.arg("-g").arg(format!("*{}*", to_title_case(pattern)));
+        }
+
+        cmd.arg(search_path)
+           .stdout(Stdio::piped())
+           .stderr(Stdio::piped());
+
+        let output = tokio::time::timeout(
+            std::time::Duration::from_secs(config.timeout_seconds),
+            cmd.output()
+        ).await
+        .context("ripgrep glob search timed out")?
+        .context("Failed to execute ripgrep glob search")?;
+
+        // ripgrep returns exit code 1 when no matches - not an error
+        let files: Vec<CliFileMatch> = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .filter(|line| !line.is_empty())
+            .take(config.max_results)
+            .map(|line| CliFileMatch {
+                path: line.trim().to_string(),
+                line_number: None,
+                content: None,
+                match_type: CliMatchType::FileName,
+            })
+            .collect();
+
+        Ok(CliSearchResult {
+            total_results: files.len(),
+            files,
+            command_used: "rg --files -g".to_string(),
+            execution_time_ms: 0,
+        })
+    }
+
+    /// Search using fd with extensions and patterns
+    async fn search_with_fd_globs(
+        &self,
+        name_patterns: &[&str],
+        extensions: &[&str],
+        search_path: &Path,
+        config: &CliConfig
+    ) -> Result<CliSearchResult> {
+        let mut cmd = Command::new("fd");
+        cmd.arg("--type").arg("f")
+           .arg("--color").arg("never")
+           .arg("--max-results").arg(config.max_results.to_string())
+           .arg("--ignore-case");
+
+        // Add extension filters
+        for ext in extensions {
+            cmd.arg("-e").arg(ext);
+        }
+
+        // Build regex pattern for name matching
+        if !name_patterns.is_empty() {
+            let pattern = name_patterns.join("|");
+            cmd.arg(&pattern);
+        }
+
+        cmd.arg(search_path)
+           .stdout(Stdio::piped())
+           .stderr(Stdio::piped());
+
+        let output = tokio::time::timeout(
+            std::time::Duration::from_secs(config.timeout_seconds),
+            cmd.output()
+        ).await
+        .context("fd glob search timed out")?
+        .context("Failed to execute fd glob search")?;
+
+        let files: Vec<CliFileMatch> = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .filter(|line| !line.is_empty())
+            .map(|line| CliFileMatch {
+                path: line.trim().to_string(),
+                line_number: None,
+                content: None,
+                match_type: CliMatchType::FileName,
+            })
+            .collect();
+
+        Ok(CliSearchResult {
+            total_results: files.len(),
+            files,
+            command_used: "fd".to_string(),
+            execution_time_ms: 0,
+        })
+    }
+
+    /// Fallback search using find with extensions and patterns
+    async fn search_with_find_globs(
+        &self,
+        name_patterns: &[&str],
+        extensions: &[&str],
+        search_path: &Path,
+        config: &CliConfig
+    ) -> Result<CliSearchResult> {
+        let mut cmd = Command::new("find");
+        cmd.arg(search_path)
+           .arg("-type").arg("f");
+
+        // Build complex find expression
+        // find path -type f \( -name "*.pdf" -o -name "*.pptx" \) \( -iname "*deck*" -o -iname "*pitch*" \)
+        
+        if !extensions.is_empty() {
+            cmd.arg("(");
+            for (i, ext) in extensions.iter().enumerate() {
+                if i > 0 {
+                    cmd.arg("-o");
+                }
+                cmd.arg("-name").arg(format!("*.{}", ext));
+            }
+            cmd.arg(")");
+        }
+
+        if !name_patterns.is_empty() {
+            cmd.arg("(");
+            for (i, pattern) in name_patterns.iter().enumerate() {
+                if i > 0 {
+                    cmd.arg("-o");
+                }
+                cmd.arg("-iname").arg(format!("*{}*", pattern));
+            }
+            cmd.arg(")");
+        }
+
+        cmd.stdout(Stdio::piped())
+           .stderr(Stdio::piped());
+
+        let output = tokio::time::timeout(
+            std::time::Duration::from_secs(config.timeout_seconds),
+            cmd.output()
+        ).await
+        .context("find glob search timed out")?
+        .context("Failed to execute find glob search")?;
+
+        let files: Vec<CliFileMatch> = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .filter(|line| !line.is_empty())
+            .take(config.max_results)
+            .map(|line| CliFileMatch {
+                path: line.trim().to_string(),
+                line_number: None,
+                content: None,
+                match_type: CliMatchType::FileName,
+            })
+            .collect();
+
+        Ok(CliSearchResult {
+            total_results: files.len(),
+            files,
+            command_used: "find".to_string(),
+            execution_time_ms: 0,
+        })
     }
 
     /// Search file contents using ripgrep or grep

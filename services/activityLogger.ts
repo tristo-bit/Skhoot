@@ -14,6 +14,23 @@ export type ActivityAction =
 
 export type ActivityStatus = 'success' | 'error' | 'pending';
 
+export interface SearchMetadata {
+  query: string;
+  fileTypes?: string;
+  searchPath?: string;
+  searchMode?: string;
+  executionTime?: number;
+  originalResults?: number;
+  filteredResults?: number;
+  filterReason?: string;
+  results?: Array<{
+    path: string;
+    name: string;
+    score: number;
+    included: boolean;
+  }>;
+}
+
 export interface ActivityLog {
   id: string;
   timestamp: Date;
@@ -22,6 +39,7 @@ export interface ActivityLog {
   result: string;
   status: ActivityStatus;
   metadata?: Record<string, unknown>;
+  searchMetadata?: SearchMetadata;
 }
 
 export type ActivityFilter = 'all' | 'search' | 'cleanup' | 'archive' | 'chat';
@@ -79,7 +97,8 @@ export const activityLogger = {
     query: string,
     result: string,
     status: ActivityStatus = 'success',
-    metadata?: Record<string, unknown>
+    metadata?: Record<string, unknown>,
+    searchMetadata?: SearchMetadata
   ): ActivityLog {
     const log: ActivityLog = {
       id: generateId(),
@@ -88,7 +107,8 @@ export const activityLogger = {
       query,
       result,
       status,
-      metadata
+      metadata,
+      searchMetadata
     };
 
     logsCache = [log, ...logsCache].slice(0, MAX_LOGS);

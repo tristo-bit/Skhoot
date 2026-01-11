@@ -86,6 +86,7 @@ impl FileSearchEngine {
     }
 
     /// Perform a fuzzy file search
+    /// Supports comma-separated queries for OR-style matching (e.g., "pitch,deck,presentation")
     pub async fn search(
         &self,
         query: &str,
@@ -140,7 +141,13 @@ impl FileSearchEngine {
         cancel_flag: Arc<AtomicBool>,
         compute_indices: bool,
     ) -> Result<InternalSearchResults> {
-        let pattern = create_pattern(pattern_text);
+        let patterns = create_patterns(pattern_text);
+        if patterns.is_empty() {
+            return Ok(InternalSearchResults {
+                matches: Vec::new(),
+                total_matches: 0,
+            });
+        }
         let limit = NonZero::new(self.config.max_results).unwrap_or(NonZero::new(100).unwrap());
         let threads = NonZero::new(self.config.threads).unwrap_or(NonZero::new(4).unwrap());
 
@@ -150,7 +157,7 @@ impl FileSearchEngine {
         
         task::spawn_blocking(move || {
             run_file_search(
-                pattern,
+                patterns,
                 limit,
                 &search_directory,
                 config,
@@ -168,8 +175,9 @@ struct InternalSearchResults {
 }
 
 /// Core search implementation (blocking)
+/// Supports multiple patterns for OR-style matching
 fn run_file_search(
-    pattern: Pattern,
+    patterns: Vec<Pattern>,
     limit: NonZero<usize>,
     search_directory: &Path,
     config: FileSearchConfig,
@@ -182,7 +190,7 @@ fn run_file_search(
         .map(|_| {
             UnsafeCell::new(BestMatchesList::new(
                 limit.get(),
-                pattern.clone(),
+                patterns.clone(),
                 Matcher::new(Config::DEFAULT),
             ))
         })
@@ -291,7 +299,10 @@ fn run_file_search(
                 let haystack: Utf32Str<'_> = Utf32Str::new(&file_info.relative_path, &mut buf);
                 let mut idx_vec: Vec<u32> = Vec::new();
                 if let Some(ref mut m) = matcher {
-                    pattern.indices(haystack, m, &mut idx_vec);
+                    // Collect indices from all matching patterns
+                    for pattern in &patterns {
+                        pattern.indices(haystack, m, &mut idx_vec);
+                    }
                 }
                 idx_vec.sort_unstable();
                 idx_vec.dedup();
@@ -368,21 +379,22 @@ fn get_file_info(
 }
 
 /// Maintains the best matches for a worker thread
+/// Supports multiple patterns for OR-style matching
 struct BestMatchesList {
     max_count: usize,
     num_matches: usize,
-    pattern: Pattern,
+    patterns: Vec<Pattern>,
     matcher: Matcher,
     binary_heap: BinaryHeap<Reverse<(u32, FileInfo)>>,
     utf32buf: Vec<char>,
 }
 
 impl BestMatchesList {
-    fn new(max_count: usize, pattern: Pattern, matcher: Matcher) -> Self {
+    fn new(max_count: usize, patterns: Vec<Pattern>, matcher: Matcher) -> Self {
         Self {
             max_count,
             num_matches: 0,
-            pattern,
+            patterns,
             matcher,
             binary_heap: BinaryHeap::new(),
             utf32buf: Vec::new(),
@@ -392,7 +404,12 @@ impl BestMatchesList {
     fn insert(&mut self, file_info: FileInfo) {
         let haystack: Utf32Str<'_> = Utf32Str::new(&file_info.relative_path, &mut self.utf32buf);
         
-        if let Some(score) = self.pattern.score(haystack, &mut self.matcher) {
+        // Try all patterns and take the best score (OR-style matching)
+        let best_score = self.patterns.iter()
+            .filter_map(|pattern| pattern.score(haystack, &mut self.matcher))
+            .max();
+        
+        if let Some(score) = best_score {
             self.num_matches += 1;
 
             if self.binary_heap.len() < self.max_count {
@@ -431,6 +448,16 @@ fn create_pattern(pattern: &str) -> Pattern {
         Normalization::Smart,
         AtomKind::Fuzzy,
     )
+}
+
+/// Create multiple patterns from a comma-separated query string
+fn create_patterns(query: &str) -> Vec<Pattern> {
+    // Split by comma and create a pattern for each term
+    query.split(',')
+        .map(|term| term.trim())
+        .filter(|term| !term.is_empty())
+        .map(|term| create_pattern(term))
+        .collect()
 }
 
 fn sort_matches(matches: &mut [(u32, FileInfo)]) {

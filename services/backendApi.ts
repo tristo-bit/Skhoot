@@ -219,6 +219,24 @@ export const backendApi = {
     return response.json();
   },
 
+  // Document search using CLI tools (like Codex CLI)
+  // Searches for documents by filename patterns and extensions
+  async searchDocuments(keywords: string, extensions: string, searchPath?: string): Promise<FileSearchResults> {
+    const params = new URLSearchParams({ 
+      keywords,
+      extensions
+    });
+    
+    if (searchPath) params.append('search_path', searchPath);
+    
+    const response = await fetch(`${BACKEND_URL}/api/v1/search/documents?${params}`);
+    if (!response.ok) {
+      throw new Error(`Document search failed: ${response.statusText}`);
+    }
+    
+    return response.json();
+  },
+
   async getSearchSuggestions(request: SearchSuggestionRequest): Promise<SearchSuggestionResponse> {
     const response = await fetch(`${BACKEND_URL}/api/v1/search/suggest`, {
       method: 'POST',

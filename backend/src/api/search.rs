@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use crate::search_engine::{
     SearchContext, SearchIntent, UnifiedSearchResults,
-    SearchMode,
+    SearchMode, MergedSearchResult,
 };
 use crate::error::AppError;
 
@@ -18,6 +18,7 @@ use crate::error::AppError;
 pub fn search_routes() -> Router<crate::AppState> {
     Router::new()
         .route("/search/files", get(search_files))
+        .route("/search/documents", get(search_documents))
         .route("/search/content", get(search_content))
         .route("/search/suggest", post(get_search_suggestions))
         .route("/search/history", get(get_search_history))
@@ -83,11 +84,13 @@ pub struct SearchConfigResponse {
     pub cli_tools_available: HashMap<String, bool>,
 }
 
-/// File search endpoint
+/// File search endpoint - now uses true hybrid search by default
 pub async fn search_files(
     Query(params): Query<FileSearchQuery>,
     State(state): State<crate::AppState>,
 ) -> Result<Json<UnifiedSearchResults>, AppError> {
+    use crate::search_engine::CliConfig;
+    
     // Use custom search path if provided, otherwise default to user's home directory
     let search_dir = if let Some(ref custom_path) = params.search_path {
         PathBuf::from(custom_path)
@@ -101,12 +104,11 @@ pub async fn search_files(
     let search_dir = search_dir.canonicalize().unwrap_or(search_dir);
 
     // Parse search mode
-    let _mode = match params.mode.as_deref() {
-        Some("rust") => Some(SearchMode::RustEngine),
-        Some("cli") => Some(SearchMode::CliOnly),
-        Some("hybrid") => Some(SearchMode::Hybrid),
-        Some("auto") => Some(SearchMode::Auto),
-        _ => None,
+    let mode = match params.mode.as_deref() {
+        Some("rust") => SearchMode::RustEngine,
+        Some("cli") => SearchMode::CliOnly,
+        Some("hybrid") => SearchMode::Hybrid,
+        Some("auto") | _ => SearchMode::Hybrid, // Default to hybrid for best results
     };
 
     // Create search context
@@ -117,15 +119,261 @@ pub async fn search_files(
         search_intent: SearchIntent::FindFile,
     };
 
-    // Note: For now we use the existing manager configuration
-    // In a production system, you'd want to create a new manager with the specified mode
+    let start_time = std::time::Instant::now();
+    
+    // For hybrid mode, run both fuzzy and CLI searches in parallel
+    if matches!(mode, SearchMode::Hybrid | SearchMode::Auto) {
+        let cli_config = CliConfig::default();
+        let cli_engine = crate::search_engine::CliEngine::new(search_dir.clone());
+        
+        // Parse query for CLI search (split by comma for multiple terms)
+        let keywords: Vec<&str> = params.q.split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .collect();
+        
+        // Parse file types if provided
+        let extensions: Vec<&str> = params.file_types
+            .as_ref()
+            .map(|ft| ft.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect())
+            .unwrap_or_default();
+        
+        // Run both searches in parallel - always use glob search for CLI (more powerful)
+        let cli_future = cli_engine.search_files_with_globs(&keywords, &extensions, &search_dir, &cli_config);
+        let fuzzy_future = state.file_search_manager.search(&params.q, &search_dir, Some(context));
+        
+        let (cli_result, fuzzy_result) = tokio::join!(cli_future, fuzzy_future);
+        
+        let total_execution_time_ms = start_time.elapsed().as_millis() as u64;
+        
+        // Merge results from both searches
+        let mut merged_results: Vec<MergedSearchResult> = Vec::new();
+        let mut seen_paths: std::collections::HashSet<String> = std::collections::HashSet::new();
+        
+        // Add CLI results first (they're exact pattern matches, higher priority for document searches)
+        if let Ok(cli_res) = &cli_result {
+            for f in &cli_res.files {
+                if seen_paths.insert(f.path.clone()) {
+                    let path = std::path::Path::new(&f.path);
+                    merged_results.push(MergedSearchResult {
+                        path: f.path.clone(),
+                        relevance_score: 1.0, // CLI glob matches are exact
+                        source_engine: format!("cli-glob ({})", cli_res.command_used),
+                        file_type: path.extension()
+                            .and_then(|e| e.to_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                        size: None,
+                        modified: None,
+                        snippet: f.content.clone(),
+                        line_number: f.line_number,
+                    });
+                }
+            }
+        }
+        
+        // Add fuzzy results (filter by extension if specified)
+        if let Ok(fuzzy_res) = &fuzzy_result {
+            for r in &fuzzy_res.merged_results {
+                // Skip if already found by CLI search
+                if seen_paths.contains(&r.path) {
+                    continue;
+                }
+                
+                // Filter by extension if specified
+                if !extensions.is_empty() {
+                    let file_ext = r.file_type.to_lowercase();
+                    if !extensions.iter().any(|e| e.to_lowercase() == file_ext) {
+                        continue;
+                    }
+                }
+                
+                if seen_paths.insert(r.path.clone()) {
+                    merged_results.push(MergedSearchResult {
+                        path: r.path.clone(),
+                        relevance_score: r.relevance_score * 0.9, // Slightly lower than CLI
+                        source_engine: format!("fuzzy ({})", r.source_engine),
+                        file_type: r.file_type.clone(),
+                        size: r.size,
+                        modified: r.modified,
+                        snippet: r.snippet.clone(),
+                        line_number: r.line_number,
+                    });
+                }
+            }
+        }
+        
+        // Sort by relevance score
+        merged_results.sort_by(|a, b| b.relevance_score.partial_cmp(&a.relevance_score).unwrap_or(std::cmp::Ordering::Equal));
+        
+        let unified = UnifiedSearchResults {
+            search_id: uuid::Uuid::new_v4().to_string(),
+            query: params.q.clone(),
+            mode: SearchMode::Hybrid,
+            file_results: fuzzy_result.ok().and_then(|r| r.file_results),
+            cli_results: cli_result.ok(),
+            merged_results,
+            total_execution_time_ms,
+            suggestions: vec![],
+        };
+        
+        return Ok(Json(unified));
+    }
 
+    // Single mode search (rust-only or cli-only)
     let results = state.file_search_manager
         .search(&params.q, &search_dir, Some(context))
         .await
         .map_err(|e| AppError::Internal(format!("Search failed: {}", e)))?;
 
     Ok(Json(results))
+}
+
+/// Query parameters for document search (like Codex CLI)
+#[derive(Debug, Deserialize)]
+pub struct DocumentSearchQuery {
+    pub keywords: String,             // Comma-separated keywords to search for in filenames
+    pub extensions: String,           // Comma-separated file extensions (pdf,pptx,doc)
+    pub search_path: Option<String>,  // Custom search path (defaults to user home)
+}
+
+/// Document search endpoint - uses CLI tools like Codex CLI
+/// Searches for documents by filename patterns and extensions
+pub async fn search_documents(
+    Query(params): Query<DocumentSearchQuery>,
+    State(state): State<crate::AppState>,
+) -> Result<Json<UnifiedSearchResults>, AppError> {
+    use crate::search_engine::CliConfig;
+    
+    // Use custom search path if provided, otherwise default to user's home directory
+    let search_dir = if let Some(ref custom_path) = params.search_path {
+        PathBuf::from(custom_path)
+    } else {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+    };
+    
+    let search_dir = search_dir.canonicalize().unwrap_or(search_dir);
+
+    // Parse keywords and extensions
+    let keywords: Vec<&str> = params.keywords.split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+    
+    let extensions: Vec<&str> = params.extensions.split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let cli_config = CliConfig::default();
+    let cli_engine = crate::search_engine::CliEngine::new(search_dir.clone());
+    
+    // Run HYBRID search: both CLI glob search AND fuzzy search in parallel
+    let start_time = std::time::Instant::now();
+    
+    // 1. CLI glob search (like Codex CLI) - finds exact extension + name pattern matches
+    let cli_future = cli_engine.search_files_with_globs(&keywords, &extensions, &search_dir, &cli_config);
+    
+    // 2. Fuzzy search - finds files with similar names
+    let fuzzy_query = keywords.join(",");
+    let context = SearchContext {
+        current_file: None,
+        recent_files: vec![],
+        project_type: detect_project_type(&search_dir).await,
+        search_intent: SearchIntent::FindFile,
+    };
+    let fuzzy_future = state.file_search_manager.search(&fuzzy_query, &search_dir, Some(context));
+    
+    // Run both searches in parallel
+    let (cli_result, fuzzy_result) = tokio::join!(cli_future, fuzzy_future);
+    
+    let total_execution_time_ms = start_time.elapsed().as_millis() as u64;
+    
+    // Merge results from both searches
+    let mut merged_results: Vec<MergedSearchResult> = Vec::new();
+    let mut seen_paths: std::collections::HashSet<String> = std::collections::HashSet::new();
+    
+    // Add CLI results first (they're exact matches, higher priority)
+    if let Ok(cli_res) = &cli_result {
+        for f in &cli_res.files {
+            if seen_paths.insert(f.path.clone()) {
+                let path = std::path::Path::new(&f.path);
+                merged_results.push(MergedSearchResult {
+                    path: f.path.clone(),
+                    relevance_score: 1.0, // CLI matches are exact
+                    source_engine: format!("cli-glob ({})", cli_res.command_used),
+                    file_type: path.extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or("unknown")
+                        .to_string(),
+                    size: None,
+                    modified: None,
+                    snippet: f.content.clone(),
+                    line_number: f.line_number,
+                });
+            }
+        }
+    }
+    
+    // Add fuzzy results (filter by extension if specified)
+    if let Ok(fuzzy_res) = &fuzzy_result {
+        for r in &fuzzy_res.merged_results {
+            // Skip if already found by CLI search
+            if seen_paths.contains(&r.path) {
+                continue;
+            }
+            
+            // Filter by extension if extensions were specified
+            if !extensions.is_empty() {
+                let file_ext = r.file_type.to_lowercase();
+                if !extensions.iter().any(|e| e.to_lowercase() == file_ext) {
+                    continue;
+                }
+            }
+            
+            if seen_paths.insert(r.path.clone()) {
+                merged_results.push(MergedSearchResult {
+                    path: r.path.clone(),
+                    relevance_score: r.relevance_score * 0.9, // Slightly lower priority than CLI
+                    source_engine: format!("fuzzy ({})", r.source_engine),
+                    file_type: r.file_type.clone(),
+                    size: r.size,
+                    modified: r.modified,
+                    snippet: r.snippet.clone(),
+                    line_number: r.line_number,
+                });
+            }
+        }
+    }
+    
+    // Sort by relevance score
+    merged_results.sort_by(|a, b| b.relevance_score.partial_cmp(&a.relevance_score).unwrap_or(std::cmp::Ordering::Equal));
+    
+    // Build suggestions
+    let mut suggestions = Vec::new();
+    if merged_results.is_empty() {
+        suggestions.push(crate::search_engine::SearchSuggestion {
+            suggestion: format!("Try searching with fewer keywords or different extensions"),
+            reason: "No files found matching the criteria".to_string(),
+            confidence: 0.8,
+        });
+    }
+    
+    let cli_results_opt = cli_result.ok();
+    
+    let unified = UnifiedSearchResults {
+        search_id: uuid::Uuid::new_v4().to_string(),
+        query: params.keywords.clone(),
+        mode: SearchMode::Hybrid,
+        file_results: fuzzy_result.ok().and_then(|r| r.file_results),
+        cli_results: cli_results_opt,
+        merged_results,
+        total_execution_time_ms,
+        suggestions,
+    };
+
+    Ok(Json(unified))
 }
 
 /// Content search endpoint

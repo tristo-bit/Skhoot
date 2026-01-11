@@ -9,9 +9,10 @@ const findFileFunction: FunctionDeclaration = {
     type: Type.OBJECT,
     description: 'Find a file on the user computer using natural language keywords. Use this when the user asks to find, locate, search for files, or asks "where is" something.',
     properties: {
-      query: { type: Type.STRING, description: 'File name, partial name, or content keywords to search for.' },
-      file_types: { type: Type.STRING, description: 'Optional comma-separated file extensions like "rs,js,py" to filter by file type.' },
-      search_mode: { type: Type.STRING, description: 'Search mode: "auto" (default), "rust" (fast fuzzy), "cli" (system tools), or "hybrid".' }
+      query: { type: Type.STRING, description: 'File name, partial name, or content keywords to search for. For conceptual searches like "pitch deck", use related terms like "pitch,deck,presentation,investor" to match various possible filenames.' },
+      file_types: { type: Type.STRING, description: 'Optional comma-separated file extensions like "rs,js,py" to filter by file type. For presentations use "pdf,pptx,ppt,key". For documents use "pdf,doc,docx,txt,md".' },
+      search_mode: { type: Type.STRING, description: 'Search mode: "auto" (default), "rust" (fast fuzzy), "cli" (system tools), or "hybrid".' },
+      search_path: { type: Type.STRING, description: 'Optional folder path to search in, e.g. "Downloads", "Documents", "Desktop". Use when user mentions a specific folder.' }
     },
     required: ['query'],
   },
@@ -21,11 +22,12 @@ const searchContentFunction: FunctionDeclaration = {
   name: 'searchContent',
   parameters: {
     type: Type.OBJECT,
-    description: 'Search inside file contents for specific text, code, or patterns. Use when user wants to find files containing specific content.',
+    description: 'Search inside file contents for specific text, code, or patterns. Use when user wants to find files containing specific content, asks what files say about something, or wants to know what is written in files about a topic.',
     properties: {
       query: { type: Type.STRING, description: 'Text or code pattern to search for inside files.' },
       file_types: { type: Type.STRING, description: 'Optional comma-separated file extensions to search within.' },
-      case_sensitive: { type: Type.BOOLEAN, description: 'Whether the search should be case sensitive.' }
+      case_sensitive: { type: Type.BOOLEAN, description: 'Whether the search should be case sensitive.' },
+      search_path: { type: Type.STRING, description: 'Optional folder path to search in, e.g. "Downloads", "Documents", "Desktop". Use when user mentions a specific folder.' }
     },
     required: ['query'],
   },
@@ -76,6 +78,23 @@ const analyzeLogsFunction: FunctionDeclaration = {
   },
 };
 
+const filterResultsFunction: FunctionDeclaration = {
+  name: 'filterResults',
+  parameters: {
+    type: Type.OBJECT,
+    description: 'After receiving search results, use this to filter and return only the relevant files to the user. Analyze each file path and decide if it matches what the user is looking for.',
+    properties: {
+      relevant_indices: { 
+        type: Type.ARRAY, 
+        description: 'Array of indices (0-based) of the results that are relevant to show to the user. If no results are relevant, pass an empty array.',
+        items: { type: Type.NUMBER }
+      },
+      reason: { type: Type.STRING, description: 'Brief explanation of why these results were selected or why none were relevant.' }
+    },
+    required: ['relevant_indices', 'reason'],
+  },
+};
+
 // Helper function to detect if a message needs file search
 async function shouldSuggestFileSearch(message: string): Promise<boolean> {
   try {
@@ -91,7 +110,11 @@ async function shouldSuggestFileSearch(message: string): Promise<boolean> {
       'find', 'locate', 'search', 'where', 'show me', 'get', 'open',
       'file', 'files', 'document', 'folder', 'directory',
       '.js', '.ts', '.py', '.rs', '.json', '.md', '.txt', '.pdf',
-      'config', 'settings', 'readme', 'package', 'cargo'
+      'config', 'settings', 'readme', 'package', 'cargo',
+      // Content search keywords
+      'what do', 'what does', 'say about', 'says about', 'mention', 'mentions',
+      'contain', 'contains', 'written', 'tell me about', 'downloads', 'documents',
+      'desktop', 'in my files', 'in the files'
     ];
     
     const lowerMessage = message.toLowerCase();
@@ -100,8 +123,15 @@ async function shouldSuggestFileSearch(message: string): Promise<boolean> {
 }
 
 // Helper function to convert backend results to frontend format
-function convertFileSearchResults(backendResults: any) {
-  const files = backendResults.merged_results?.map((result: any) => ({
+function convertFileSearchResults(backendResults: any, fileTypesFilter?: string) {
+  // Parse file types filter if provided
+  const allowedExtensions = fileTypesFilter 
+    ? fileTypesFilter.split(',').map(ext => ext.trim().toLowerCase())
+    : null;
+
+  console.log('📁 File type filter:', allowedExtensions);
+
+  let files = backendResults.merged_results?.map((result: any) => ({
     id: result.path,
     name: result.path.split('/').pop() || result.path,
     path: result.path,
@@ -111,14 +141,31 @@ function convertFileSearchResults(backendResults: any) {
     lastUsed: result.modified || 'Unknown',
     score: result.relevance_score,
     source: result.source_engine,
-    snippet: result.snippet
+    snippet: result.snippet,
+    fileType: result.file_type
   })) || [];
+
+  const beforeFilterCount = files.length;
+
+  // Filter by file types if specified
+  if (allowedExtensions && allowedExtensions.length > 0) {
+    files = files.filter((f: any) => {
+      const ext = f.name.split('.').pop()?.toLowerCase() || '';
+      const included = allowedExtensions.includes(ext);
+      if (included) {
+        console.log('✅ Including:', f.name, `(ext: ${ext})`);
+      }
+      return included;
+    });
+  }
+
+  console.log(`📊 Filtered ${beforeFilterCount} → ${files.length} files`);
 
   return {
     files,
     searchInfo: {
       query: backendResults.query,
-      totalResults: backendResults.merged_results?.length || 0,
+      totalResults: files.length,
       executionTime: backendResults.total_execution_time_ms,
       mode: backendResults.mode,
       suggestions: backendResults.suggestions || []
@@ -191,20 +238,45 @@ export const geminiService = {
         config: {
           systemInstruction: `You are Skhoot, a helpful desktop assistant with advanced file search capabilities. 
 
-IMPORTANT: When users ask to find, locate, search for files, or ask "where is" something, ALWAYS use the findFile function. When they want to search inside files for specific content, use searchContent.
+IMPORTANT FILE SEARCH RULES:
+1. When users ask to find, locate, or search for FILES by name, use the findFile function.
+2. When users ask what files SAY or CONTAIN about something, or ask about CONTENT inside files, use searchContent.
+3. When users mention specific folders like "Downloads", "Documents", "Desktop", pass that as the search_path parameter.
+4. CRITICAL: After receiving search results, you MUST analyze each result's file path and use filterResults to select ONLY the relevant files. Do NOT show irrelevant results like source code files when looking for documents.
 
-You have access to a powerful file search system that can:
-- Find files by name using fuzzy matching
-- Search file contents for specific text or code
-- Use multiple search engines (Rust-based fuzzy search, CLI tools like ripgrep/fd)
-- Provide intelligent suggestions and context-aware results
+SEMANTIC SEARCH STRATEGY:
+When users search for conceptual terms (not literal filenames), expand the search intelligently:
+- "pitch deck" → query="pitch,deck,presentation,investor,startup" with file_types="pdf,pptx,ppt,key,odp"
+- "resume" or "CV" → query="resume,cv,curriculum" with file_types="pdf,doc,docx"
+- "contract" → query="contract,agreement,nda,terms" with file_types="pdf,doc,docx"
+- "invoice" → query="invoice,receipt,bill,payment" with file_types="pdf,xlsx,xls"
+- "photo" or "picture" → query="photo,picture,image,img" with file_types="jpg,jpeg,png,heic"
+
+RESULT FILTERING RULES:
+After search results come back, analyze each file path carefully:
+- For "pitch deck": Only include actual presentation files (.pptx, .ppt, .key, .pdf) that look like presentations, NOT source code files like .tsx, .ts, .js, NOT icon files like .svg
+- For "resume": Only include document files that could be resumes, NOT code files
+- For documents: Exclude files in node_modules, .git, target, src directories unless specifically looking for code
+- If NO results are truly relevant, use filterResults with an empty array and explain that nothing was found
+
+Examples of when to use searchContent:
+- "What do my files say about X?" → searchContent with query="X"
+- "Tell me about the user's downloads, what do they say of him?" → searchContent with query="user" and search_path="Downloads"
+- "Find files that mention the project deadline" → searchContent with query="project deadline"
+
+Examples of when to use findFile:
+- "Find my pitch deck" → findFile with query="pitch,deck,presentation,investor" and file_types="pdf,pptx,ppt,key"
+- "Find my resume" → findFile with query="resume,cv" and file_types="pdf,doc,docx"
+- "Where is the config file?" → findFile with query="config"
+- "Show me PDF files in Downloads" → findFile with query="*.pdf" and search_path="Downloads"
 
 ${shouldSuggest ? '\n🔍 SUGGESTION: This message appears to be asking about files. Consider using the file search functions.' : ''}
 
-Respond naturally and use the appropriate search functions when needed.`,
+Always be helpful and explain what you found or why you couldn't find what the user was looking for.`,
           tools: [{ functionDeclarations: [
             findFileFunction,
             searchContentFunction,
+            filterResultsFunction,
             findMessageFunction, 
             analyzeDiskSpaceFunction, 
             checkFileSafetyFunction,
@@ -229,38 +301,145 @@ Respond naturally and use the appropriate search functions when needed.`,
             const args = fc.args as any;
             console.log('🔍 AI triggered file search:', args);
             
+            // Always use hybrid search - it runs both CLI glob and fuzzy in parallel
             const searchOptions: any = {
-              mode: args.search_mode || 'auto',
-              max_results: 50,
+              mode: 'hybrid',
+              max_results: 100, // Get more results for AI to score
               include_indices: true,
             };
             
             if (args.file_types) {
               searchOptions.file_types = args.file_types;
             }
+            if (args.search_path) {
+              searchOptions.search_path = args.search_path;
+            }
             
             const backendResults = await backendApi.aiFileSearch(args.query, searchOptions);
-            const convertedResults = convertFileSearchResults(backendResults);
+            const convertedResults = convertFileSearchResults(backendResults, args.file_types);
+            
+            // Always use AI to score and rank results for relevance
+            console.log('🤖 Using AI to score', convertedResults.files.length, 'results for relevance');
+            
+            const scoringResponse = await ai.models.generateContent({
+              model: 'gemini-2.0-flash',
+              contents: [
+                { role: 'user', parts: [{ text: `Score these search results for relevance to: "${message}"
+
+Results to score (index, filename, path):
+${convertedResults.files.slice(0, 50).map((f: any, i: number) => 
+  `${i}. "${f.name}" - ${f.path}`
+).join('\n')}
+
+Return a JSON object with:
+- "scores": array of {index, score, reason} where score is 0-100 (100 = perfect match)
+- "top_results": array of indices for the most relevant results (max 10)
+
+Scoring rules for "${message}":
+- 100: Perfect match (e.g., file named "pitch deck" or "investor presentation")
+- 80-99: Strong match (contains key terms like "deck", "pitch", "presentation" in filename)
+- 50-79: Possible match (right file type, might be relevant)
+- 20-49: Weak match (right extension but unlikely to be what user wants)
+- 0-19: Not relevant (Instagram posts, manuals, unrelated documents)
+
+Be strict! For "pitch deck", only files with "deck", "pitch", "presentation", "investor" in the name should score high.` }] }
+              ],
+              config: {
+                responseMimeType: 'application/json',
+              },
+            });
+
+            let filteredFiles = convertedResults.files;
+            let filterReason = 'AI relevance scoring';
+            const searchMode = 'hybrid';
+            
+            try {
+              const scoringResult = JSON.parse(scoringResponse?.text || '{}');
+              const scores = scoringResult.scores || [];
+              const topResults = scoringResult.top_results || [];
+              
+              console.log('📊 AI scoring results:', { 
+                totalScored: scores.length, 
+                topResults: topResults.length,
+                scores: scores.slice(0, 5)
+              });
+              
+              // Apply scores to files
+              const scoredFiles = convertedResults.files.map((f: any, i: number) => {
+                const scoreInfo = scores.find((s: any) => s.index === i);
+                return {
+                  ...f,
+                  relevanceScore: scoreInfo?.score || 0,
+                  scoreReason: scoreInfo?.reason || 'Not scored'
+                };
+              });
+              
+              // Filter to only show relevant results (score >= 50) or top results
+              const relevantIndices = new Set(topResults);
+              filteredFiles = scoredFiles
+                .filter((f: any, i: number) => f.relevanceScore >= 50 || relevantIndices.has(i))
+                .sort((a: any, b: any) => (b.relevanceScore || 0) - (a.relevanceScore || 0))
+                .slice(0, 15); // Max 15 results
+              
+              filterReason = `AI scored ${scores.length} files, showing ${filteredFiles.length} relevant results`;
+              
+            } catch (parseError) {
+              console.warn('Failed to parse AI scoring, using fallback filtering');
+              // Fallback: simple keyword matching
+              const keywords = args.query.toLowerCase().split(',').map((k: string) => k.trim());
+              filteredFiles = convertedResults.files
+                .filter((f: any) => {
+                  const nameLower = f.name.toLowerCase();
+                  return keywords.some((kw: string) => nameLower.includes(kw));
+                })
+                .slice(0, 15);
+              filterReason = 'Keyword filtering (AI scoring failed)';
+            }
             
             result = { 
               type: 'file_list', 
-              data: convertedResults.files,
-              searchInfo: convertedResults.searchInfo
+              data: filteredFiles,
+              searchInfo: {
+                ...convertedResults.searchInfo,
+                totalResults: filteredFiles.length,
+                originalResults: convertedResults.files.length,
+                filterReason,
+                searchMode
+              }
             };
             
             console.log('✅ File search completed:', {
               query: args.query,
-              results: convertedResults.files.length,
+              searchPath: args.search_path || 'default',
+              originalResults: convertedResults.files.length,
+              filteredResults: filteredFiles.length,
+              searchMode,
               time: convertedResults.searchInfo.executionTime + 'ms'
             });
 
-            // Log the activity
+            // Log the activity with search metadata
             activityLogger.log(
               'File Search',
-              args.query,
-              `Found ${convertedResults.files.length} files`,
+              args.query + (args.search_path ? ` in ${args.search_path}` : ''),
+              `Found ${filteredFiles.length} relevant files (${convertedResults.files.length} total)`,
               'success',
-              { executionTime: convertedResults.searchInfo.executionTime }
+              { executionTime: convertedResults.searchInfo.executionTime },
+              {
+                query: args.query,
+                fileTypes: args.file_types,
+                searchPath: args.search_path,
+                searchMode,
+                executionTime: convertedResults.searchInfo.executionTime,
+                originalResults: convertedResults.files.length,
+                filteredResults: filteredFiles.length,
+                filterReason,
+                results: convertedResults.files.slice(0, 50).map((f: any, i: number) => ({
+                  path: f.path,
+                  name: f.name,
+                  score: f.score || 0,
+                  included: filteredFiles.some((ff: any) => ff.path === f.path)
+                }))
+              }
             );
             
           } catch (error) {
@@ -300,29 +479,108 @@ Respond naturally and use the appropriate search functions when needed.`,
             const searchOptions: any = {};
             if (args.file_types) searchOptions.file_types = args.file_types;
             if (args.case_sensitive) searchOptions.case_sensitive = args.case_sensitive;
+            if (args.search_path) searchOptions.search_path = args.search_path;
             
             const backendResults = await backendApi.searchContent(args.query, searchOptions);
             const convertedResults = convertFileSearchResults(backendResults);
             
+            // Ask AI to filter the results for content search too
+            const filterResponse = await ai.models.generateContent({
+              model: 'gemini-2.0-flash',
+              contents: [
+                ...history,
+                { role: 'user', parts: [{ text: message }] },
+                { role: 'model', parts: [{ functionCall: fc }] },
+                { role: 'user', parts: [{ functionResponse: { id: fc.id, name: fc.name, response: { 
+                  results: convertedResults.files.map((f: any, i: number) => ({ 
+                    index: i, 
+                    path: f.path, 
+                    name: f.name, 
+                    snippet: f.snippet,
+                    score: f.score 
+                  })),
+                  searchInfo: convertedResults.searchInfo
+                } } }] }
+              ],
+              config: {
+                systemInstruction: `You received content search results. Analyze each file and its snippet to determine which ones are ACTUALLY relevant to what the user asked for.
+
+User asked: "${message}"
+Search query used: "${args.query}"
+
+FILTERING RULES:
+- Include files where the content snippet is relevant to the user's question
+- EXCLUDE: files where the match is incidental (e.g., variable names, imports, comments that aren't relevant)
+- EXCLUDE: files in node_modules, .git, target directories unless specifically relevant
+- If NO results are truly relevant, return an empty array
+
+Call filterResults with the indices of relevant files (or empty array if none are relevant).`,
+                tools: [{ functionDeclarations: [filterResultsFunction] }],
+              },
+            });
+
+            const filterCalls = filterResponse?.functionCalls;
+            let filteredFiles = convertedResults.files;
+            let filterReason = '';
+            
+            if (filterCalls && filterCalls.length > 0 && filterCalls[0].name === 'filterResults') {
+              const filterArgs = filterCalls[0].args as any;
+              const relevantIndices = filterArgs.relevant_indices || [];
+              filterReason = filterArgs.reason || '';
+              
+              console.log('🔍 AI filtered content results:', { relevantIndices, reason: filterReason });
+              
+              if (relevantIndices.length === 0) {
+                filteredFiles = [];
+              } else {
+                filteredFiles = relevantIndices
+                  .filter((i: number) => i >= 0 && i < convertedResults.files.length)
+                  .map((i: number) => convertedResults.files[i]);
+              }
+            }
+            
             result = { 
               type: 'file_list', 
-              data: convertedResults.files,
-              searchInfo: convertedResults.searchInfo
+              data: filteredFiles,
+              searchInfo: {
+                ...convertedResults.searchInfo,
+                totalResults: filteredFiles.length,
+                originalResults: convertedResults.files.length,
+                filterReason
+              }
             };
             
             console.log('✅ Content search completed:', {
               query: args.query,
-              results: convertedResults.files.length,
+              searchPath: args.search_path || 'default',
+              originalResults: convertedResults.files.length,
+              filteredResults: filteredFiles.length,
               time: convertedResults.searchInfo.executionTime + 'ms'
             });
 
-            // Log the activity
+            // Log the activity with search metadata
             activityLogger.log(
               'Content Search',
-              args.query,
-              `Found ${convertedResults.files.length} files`,
+              args.query + (args.search_path ? ` in ${args.search_path}` : ''),
+              `Found ${filteredFiles.length} relevant files (${convertedResults.files.length} total)`,
               'success',
-              { executionTime: convertedResults.searchInfo.executionTime }
+              { executionTime: convertedResults.searchInfo.executionTime },
+              {
+                query: args.query,
+                fileTypes: args.file_types,
+                searchPath: args.search_path,
+                searchMode: 'content',
+                executionTime: convertedResults.searchInfo.executionTime,
+                originalResults: convertedResults.files.length,
+                filteredResults: filteredFiles.length,
+                filterReason,
+                results: convertedResults.files.slice(0, 50).map((f: any, i: number) => ({
+                  path: f.path,
+                  name: f.name,
+                  score: f.score || 0,
+                  included: filteredFiles.some((ff: any) => ff.path === f.path)
+                }))
+              }
             );
             
           } catch (error) {
@@ -338,7 +596,7 @@ Respond naturally and use the appropriate search functions when needed.`,
             
             result = { 
               type: 'analysis', 
-              content: `I encountered an error while searching for "${(fc.args as any).query}" in file contents. Please try a different search term or check if the backend is running.`
+              content: `I encountered an error while searching for "${(fc.args as any).query}" in file contents. Please try a different search term.`
             };
           }
           

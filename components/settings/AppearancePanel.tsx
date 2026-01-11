@@ -11,12 +11,17 @@ interface AppearancePanelProps {
 
 export const AppearancePanel: React.FC<AppearancePanelProps> = ({ onBack }) => {
   const { theme, setTheme, showBranding, setShowBranding, resolvedTheme } = useTheme();
-  const { illumination, setIllumination, resetIllumination, uiOpacity, setUiOpacity } = useSettings();
+  const { illumination, setIllumination, resetIllumination, uiOpacity, setUiOpacity, searchDisplay, setSearchDisplay } = useSettings();
 
   const themeOptions = [
     { value: 'light', label: 'Light', description: 'Always use light theme' },
     { value: 'dark', label: 'Dark', description: 'Always use dark theme' },
     { value: 'system', label: 'System', description: 'Follow system preference' },
+  ];
+
+  const searchLayoutOptions = [
+    { value: 'list', label: 'List', description: 'Display results in a vertical list' },
+    { value: 'grid', label: 'Grid', description: 'Display results in a compact grid' },
   ];
 
   const handleResetIllumination = () => {
@@ -150,6 +155,37 @@ export const AppearancePanel: React.FC<AppearancePanelProps> = ({ onBack }) => {
           checked={showBranding}
           onChange={setShowBranding}
         />
+      </div>
+
+      {/* Search Results Display */}
+      <div className="space-y-3">
+        <SectionLabel 
+          label="Search Results Display" 
+          description="Choose how file search results are displayed" 
+        />
+        <div className="space-y-2">
+          {searchLayoutOptions.map((option) => (
+            <RadioOption
+              key={option.value}
+              value={option.value}
+              label={option.label}
+              description={option.description}
+              selected={searchDisplay.layout === option.value}
+              onSelect={() => setSearchDisplay({ layout: option.value as 'list' | 'grid' })}
+            />
+          ))}
+        </div>
+        
+        {searchDisplay.layout === 'grid' && (
+          <div className="mt-3 pl-4 border-l-2 border-glass-border">
+            <SettingRow
+              label="Grid only for expanded results"
+              description="Use list for initial results, grid when showing more"
+              checked={searchDisplay.gridOnlyForMore}
+              onChange={(checked) => setSearchDisplay({ gridOnlyForMore: checked })}
+            />
+          </div>
+        )}
       </div>
 
       {/* 3D Background - Currently disabled (feature incomplete) */}

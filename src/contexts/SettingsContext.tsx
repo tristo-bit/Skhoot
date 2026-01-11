@@ -41,6 +41,18 @@ const DEFAULT_BACKGROUND_3D: Background3DSettings = {
   asciiMode: false,
 };
 
+// Search results display settings
+export interface SearchDisplaySettings {
+  layout: 'list' | 'grid';
+  gridOnlyForMore: boolean; // Only use grid when showing "more" results
+}
+
+// Default search display settings
+const DEFAULT_SEARCH_DISPLAY: SearchDisplaySettings = {
+  layout: 'list',
+  gridOnlyForMore: false,
+};
+
 // Default opacity
 const DEFAULT_OPACITY = 0.85;
 
@@ -56,6 +68,9 @@ interface SettingsContextType {
   background3D: Background3DSettings;
   setBackground3D: (settings: Partial<Background3DSettings>) => void;
   resetBackground3D: () => void;
+  // Search Display
+  searchDisplay: SearchDisplaySettings;
+  setSearchDisplay: (settings: Partial<SearchDisplaySettings>) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -69,6 +84,7 @@ interface StoredSettings {
   };
   uiOpacity?: number;
   background3D?: Partial<Background3DSettings>;
+  searchDisplay?: Partial<SearchDisplaySettings>;
 }
 
 export function SettingsProvider({ 
@@ -127,6 +143,13 @@ export function SettingsProvider({
     return { ...DEFAULT_BACKGROUND_3D, ...stored.background3D };
   });
 
+  // Search Display state
+  const [searchDisplay, setSearchDisplayState] = useState<SearchDisplaySettings>(() => {
+    if (typeof window === 'undefined') return DEFAULT_SEARCH_DISPLAY;
+    const stored = loadSettings();
+    return { ...DEFAULT_SEARCH_DISPLAY, ...stored.searchDisplay };
+  });
+
   // Apply opacity to CSS variables
   const applyOpacity = useCallback((value: number, isDarkMode: boolean) => {
     if (typeof window === 'undefined') return;
@@ -179,6 +202,19 @@ export function SettingsProvider({
     saveSettings(stored);
   }, [loadSettings, saveSettings]);
 
+  // Search Display setter
+  const setSearchDisplay = useCallback((settings: Partial<SearchDisplaySettings>) => {
+    setSearchDisplayState(prev => {
+      const newSettings = { ...prev, ...settings };
+      
+      // Save to localStorage
+      const stored = loadSettings();
+      saveSettings({ ...stored, searchDisplay: newSettings });
+      
+      return newSettings;
+    });
+  }, [loadSettings, saveSettings]);
+
   // Update illumination when theme changes
   useEffect(() => {
     setIlluminationState(getIlluminationForTheme(resolvedTheme));
@@ -224,6 +260,8 @@ export function SettingsProvider({
       background3D,
       setBackground3D,
       resetBackground3D,
+      searchDisplay,
+      setSearchDisplay,
     }}>
       {children}
     </SettingsContext.Provider>
@@ -239,4 +277,4 @@ export function useSettings() {
 }
 
 // Export defaults for reference
-export { DEFAULT_ILLUMINATION, DEFAULT_BACKGROUND_3D };
+export { DEFAULT_ILLUMINATION, DEFAULT_BACKGROUND_3D, DEFAULT_SEARCH_DISPLAY };
