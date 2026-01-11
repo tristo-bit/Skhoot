@@ -44,6 +44,7 @@ crossbeam-channel = "0.5"
 ignore = "0.4"
 nucleo-matcher = "0.3"
 tempfile = "3.0"
+dirs = "5.0"
 
 # TUI dependencies
 crossterm = "0.27"

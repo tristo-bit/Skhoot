@@ -193,12 +193,30 @@ The frontend integrates with the backend search engine through comprehensive Typ
 // Search for files with multiple engines
 const results = await backendApi.searchFiles("config.json", 50);
 
+// AI-powered file search with custom options
+const aiResults = await backendApi.aiFileSearch("main.rs", {
+  mode: 'hybrid',
+  max_results: 50,
+  search_path: '/path/to/project',  // Custom search directory
+  file_types: 'rs,ts,js'
+});
+
+// Search inside file contents with custom options
+const contentResults = await backendApi.searchContent("TODO", {
+  case_sensitive: false,
+  search_path: '/path/to/project',  // Custom search directory
+  file_types: 'ts,js,rs'
+});
+
 // Get AI-powered search suggestions
 const suggestions = await backendApi.getSearchSuggestions({
   prompt: "find the main configuration file",
   current_file: "src/main.ts",
   project_type: "typescript"
 });
+
+// Open file location in system file explorer
+await backendApi.openFileLocation("/path/to/file.txt");
 
 // Check if file search should be suggested
 if (suggestions.should_suggest_file_search) {
@@ -226,6 +244,7 @@ Skhoot is available in two versions:
 - Better performance and system integration
 - Offline capabilities
 - Native file system access with enhanced search performance
+- **File Location Opening**: Click "Go" on search results to open file locations via backend API
 - System tray integration
 - Auto-updater support
 - Direct integration with backend search engine
@@ -300,6 +319,17 @@ skhootDemo.showMarkdown()
 
 ## 📝 Recent Updates
 
+### Custom Search Path Support
+- **Flexible Search Directories**: Both `aiFileSearch` and `searchContent` now accept a `search_path` option to search in custom directories
+- **Project-Scoped Search**: Search within specific project folders instead of defaulting to user home
+- **API Enhancement**: New `search_path` parameter in `/api/v1/search/files` and `/api/v1/search/content` endpoints
+
+### File Location Opening
+- **Multi-Platform Support**: "Go" button on file search results now opens file locations across platforms
+- **Backend API Integration**: Uses `POST /api/v1/files/open` endpoint to open file locations via the Rust backend
+- **Graceful Fallback**: Copies path to clipboard with instructions if backend is unavailable
+- **Simplified Architecture**: Unified approach using backend API for consistent cross-platform behavior
+
 ### Enhanced Gemini Error Handling
 - **Specific Error Messages**: AI chat now provides targeted error messages for different failure scenarios
 - **API Key Validation**: Clear guidance when API key is invalid or missing
@@ -317,6 +347,7 @@ skhootDemo.showMarkdown()
 
 ### Enhanced File Search Results Display
 - **Rich Search Metadata**: File search results now display comprehensive search information including query details, execution time, search mode, and total results count
+- **Collapsible Results**: Large result sets are paginated with "Show more/less" controls, initially displaying 5 results for cleaner UI
 - **AI-Powered Suggestions**: Search results include intelligent suggestions for query refinement with contextual reasoning
 - **Performance Metrics**: Real-time display of search execution time and result statistics
 - **Error Handling**: Graceful display of fallback messages when search engines encounter issues

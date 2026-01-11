@@ -6,6 +6,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::search_engine::{
     SearchContext, SearchIntent, UnifiedSearchResults,
@@ -24,6 +25,7 @@ pub fn search_routes() -> Router<crate::AppState> {
         .route("/search/:search_id/cancel", post(cancel_search))
         .route("/search/config", get(get_search_config))
         .route("/search/config", post(update_search_config))
+        .route("/files/open", post(open_file_location))
 }
 
 #[allow(dead_code)]
@@ -37,6 +39,7 @@ pub struct FileSearchQuery {
     pub include_indices: Option<bool>, // Include character indices for highlighting
     pub file_types: Option<String>,   // Comma-separated file extensions
     pub exclude_dirs: Option<String>, // Comma-separated directories to exclude
+    pub search_path: Option<String>,  // Custom search path (defaults to user home)
 }
 
 /// Query parameters for content search
@@ -48,6 +51,7 @@ pub struct ContentSearchQuery {
     pub case_sensitive: Option<bool>, // Case sensitive search
     pub regex: Option<bool>,          // Use regex pattern
     pub file_types: Option<String>,   // Comma-separated file extensions
+    pub search_path: Option<String>,  // Custom search path (defaults to user home)
 }
 
 /// Request body for search suggestions
@@ -84,8 +88,14 @@ pub async fn search_files(
     Query(params): Query<FileSearchQuery>,
     State(state): State<crate::AppState>,
 ) -> Result<Json<UnifiedSearchResults>, AppError> {
-    let search_dir = std::env::current_dir()
-        .map_err(|e| AppError::Internal(format!("Failed to get current directory: {}", e)))?;
+    // Use custom search path if provided, otherwise default to user's home directory
+    let search_dir = if let Some(ref custom_path) = params.search_path {
+        PathBuf::from(custom_path)
+    } else {
+        // Default to user's home directory for broader search
+        dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+    };
 
     // Parse search mode
     let _mode = match params.mode.as_deref() {
@@ -120,8 +130,13 @@ pub async fn search_content(
     Query(params): Query<ContentSearchQuery>,
     State(state): State<crate::AppState>,
 ) -> Result<Json<UnifiedSearchResults>, AppError> {
-    let search_dir = std::env::current_dir()
-        .map_err(|e| AppError::Internal(format!("Failed to get current directory: {}", e)))?;
+    // Use custom search path if provided, otherwise default to user's home directory
+    let search_dir = if let Some(ref custom_path) = params.search_path {
+        PathBuf::from(custom_path)
+    } else {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+    };
 
     let context = SearchContext {
         current_file: None,
@@ -349,6 +364,78 @@ async fn check_cli_tools_availability() -> HashMap<String, bool> {
     );
     
     tools
+}
+
+/// Request body for opening a file location
+#[derive(Debug, Deserialize)]
+pub struct OpenFileRequest {
+    pub path: String,
+}
+
+/// Open file location in the system file explorer
+pub async fn open_file_location(
+    Json(request): Json<OpenFileRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let path = PathBuf::from(&request.path);
+    
+    // Determine the directory to open (parent if it's a file)
+    let dir_to_open = if path.is_file() {
+        path.parent().map(|p| p.to_path_buf()).unwrap_or(path.clone())
+    } else {
+        path.clone()
+    };
+    
+    // Platform-specific file explorer command
+    #[cfg(target_os = "windows")]
+    let result = tokio::process::Command::new("explorer")
+        .arg(if path.is_file() {
+            format!("/select,{}", path.display())
+        } else {
+            dir_to_open.display().to_string()
+        })
+        .spawn();
+    
+    #[cfg(target_os = "macos")]
+    let result = tokio::process::Command::new("open")
+        .arg("-R") // Reveal in Finder
+        .arg(&path)
+        .spawn();
+    
+    #[cfg(target_os = "linux")]
+    let result = {
+        // Try xdg-open first, then fall back to common file managers
+        let xdg_result = tokio::process::Command::new("xdg-open")
+            .arg(&dir_to_open)
+            .spawn();
+        
+        if xdg_result.is_err() {
+            // Try nautilus (GNOME)
+            let nautilus_result = tokio::process::Command::new("nautilus")
+                .arg("--select")
+                .arg(&path)
+                .spawn();
+            
+            if nautilus_result.is_err() {
+                // Try dolphin (KDE)
+                tokio::process::Command::new("dolphin")
+                    .arg("--select")
+                    .arg(&path)
+                    .spawn()
+            } else {
+                nautilus_result
+            }
+        } else {
+            xdg_result
+        }
+    };
+    
+    match result {
+        Ok(_) => Ok(Json(serde_json::json!({
+            "success": true,
+            "message": format!("Opened file location: {}", path.display())
+        }))),
+        Err(e) => Err(AppError::Internal(format!("Failed to open file location: {}", e)))
+    }
 }
 
 #[cfg(test)]

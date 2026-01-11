@@ -1,9 +1,10 @@
 import React, { memo, useState } from 'react';
-import { Search, FileText, MessageSquare, ExternalLink, Copy, Check, Folder, Trash2, Archive, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Search, FileText, MessageSquare, ExternalLink, Copy, Check, Folder, Trash2, Archive, AlertTriangle, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Message, FileInfo, ConversationMessage, CleanupItem, DiskInfo } from '../types';
 import { MarkdownRenderer } from './shared';
 import { Button, IconButton } from './buttonFormat';
 import { COLORS } from '../src/constants';
+import { backendApi } from '../services/backendApi';
 
 export const MessageBubble = memo<{ message: Message }>(({ message }) => {
   const isUser = message.role === 'user';
@@ -61,14 +62,28 @@ const FileItem = memo<{ file: FileInfo; searchInfo?: any }>(({ file, searchInfo 
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(file.path + '/' + file.name);
+    await navigator.clipboard.writeText(file.path);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleGo = () => {
-    // In a real app, this would open the file location
-    console.log('Opening:', file.path);
+  const handleGo = async () => {
+    const fullPath = file.path;
+    
+    // Try to open via backend API
+    try {
+      const result = await backendApi.openFileLocation(fullPath);
+      if (result.success) {
+        console.log('✅ Opened file location:', fullPath);
+        return;
+      }
+    } catch (e) {
+      console.warn('Backend file open failed:', e);
+    }
+    
+    // Fallback: Copy path and show message
+    await navigator.clipboard.writeText(fullPath);
+    alert(`Path copied to clipboard:\n${fullPath}\n\nOpen your file explorer and paste this path.`);
   };
 
   return (
@@ -135,79 +150,127 @@ const FileItem = memo<{ file: FileInfo; searchInfo?: any }>(({ file, searchInfo 
 });
 FileItem.displayName = 'FileItem';
 
-const FileList = memo<{ files: FileInfo[]; searchInfo?: any }>(({ files, searchInfo }) => (
-  <div className="mt-4 space-y-2">
-    {/* Search info header */}
-    {searchInfo && (
-      <div className="p-3 rounded-xl glass-subtle border-glass-border mb-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Search size={14} className="text-accent" />
-            <span className="text-[11px] font-bold text-text-primary font-jakarta">
-              Search Results
+const FileList = memo<{ files: FileInfo[]; searchInfo?: any }>(({ files, searchInfo }) => {
+  const [showAll, setShowAll] = useState(false);
+  const INITIAL_DISPLAY_COUNT = 5;
+  const hasMoreFiles = files.length > INITIAL_DISPLAY_COUNT;
+  const displayedFiles = showAll ? files : files.slice(0, INITIAL_DISPLAY_COUNT);
+
+  return (
+    <div className="mt-4 space-y-2">
+      {/* Search info header */}
+      {searchInfo && (
+        <div className="p-3 rounded-xl glass-subtle border-glass-border mb-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Search size={14} className="text-accent" />
+              <span className="text-[11px] font-bold text-text-primary font-jakarta">
+                Search Results
+              </span>
+            </div>
+            <span className="text-[10px] font-medium text-text-secondary">
+              {searchInfo.executionTime}ms
             </span>
           </div>
-          <span className="text-[10px] font-medium text-text-secondary">
-            {searchInfo.executionTime}ms
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-4 text-[10px] font-medium text-text-secondary">
-          <span>Query: "{searchInfo.query}"</span>
-          <span>Mode: {searchInfo.mode}</span>
-          <span>Found: {searchInfo.totalResults}</span>
-        </div>
-        
-        {/* AI Suggestions */}
-        {searchInfo.suggestions && searchInfo.suggestions.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-glass-border">
-            <p className="text-[9px] font-bold text-text-secondary mb-1">💡 Suggestions:</p>
-            <div className="flex flex-wrap gap-1">
-              {searchInfo.suggestions.slice(0, 3).map((suggestion: any, i: number) => (
-                <span 
-                  key={i}
-                  className="text-[9px] px-2 py-1 rounded-full glass-subtle text-accent cursor-pointer hover:glass-elevated transition-all"
-                  title={suggestion.reason}
-                >
-                  {suggestion.suggestion}
-                </span>
-              ))}
+          
+          <div className="flex items-center gap-4 text-[10px] font-medium text-text-secondary">
+            <span>Query: "{searchInfo.query}"</span>
+            <span>Mode: {searchInfo.mode}</span>
+            <span>Found: {searchInfo.totalResults}</span>
+          </div>
+          
+          {/* AI Suggestions */}
+          {searchInfo.suggestions && searchInfo.suggestions.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-glass-border">
+              <p className="text-[9px] font-bold text-text-secondary mb-1">💡 Suggestions:</p>
+              <div className="flex flex-wrap gap-1">
+                {searchInfo.suggestions.slice(0, 3).map((suggestion: any, i: number) => (
+                  <span 
+                    key={i}
+                    className="text-[9px] px-2 py-1 rounded-full glass-subtle text-accent cursor-pointer hover:glass-elevated transition-all"
+                    title={suggestion.reason}
+                  >
+                    {suggestion.suggestion}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-        
-        {/* Error message if fallback */}
-        {searchInfo.error && (
-          <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <p className="text-[9px] font-medium text-amber-700">
-              ⚠️ {searchInfo.error}
-            </p>
-          </div>
-        )}
-      </div>
-    )}
-    
-    {files.length === 0 ? (
-      <div className="p-4 text-center opacity-50">
-        <p className="text-[11px] font-semibold font-jakarta">No files found</p>
-        {searchInfo && (
-          <p className="text-[10px] font-medium text-text-secondary mt-1">
-            Try a different search term or check if the backend is running
-          </p>
-        )}
-      </div>
-    ) : (
-      files.map((file, index) => (
-        <div 
-          key={file.id} 
-          style={{ animationDelay: `${index * 0.05}s` }}
-        >
-          <FileItem file={file} searchInfo={searchInfo} />
+          )}
+          
+          {/* Error message if fallback */}
+          {searchInfo.error && (
+            <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <p className="text-[9px] font-medium text-amber-700">
+                ⚠️ {searchInfo.error}
+              </p>
+            </div>
+          )}
         </div>
-      ))
-    )}
-  </div>
-));
+      )}
+      
+      {files.length === 0 ? (
+        <div className="p-4 text-center opacity-50">
+          <p className="text-[11px] font-semibold font-jakarta">No files found</p>
+          {searchInfo && (
+            <p className="text-[10px] font-medium text-text-secondary mt-1">
+              Try a different search term or check if the backend is running
+            </p>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Results count indicator */}
+          {files.length > 1 && (
+            <div className="flex items-center justify-between px-1 mb-2">
+              <span className="text-[10px] font-bold text-text-secondary font-jakarta">
+                Showing {displayedFiles.length} of {files.length} results
+              </span>
+              {hasMoreFiles && (
+                <button
+                  onClick={() => setShowAll(!showAll)}
+                  className="flex items-center gap-1 text-[10px] font-bold text-accent hover:text-accent/80 transition-colors"
+                >
+                  {showAll ? (
+                    <>
+                      <ChevronUp size={12} />
+                      Show less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={12} />
+                      Show all {files.length}
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+          
+          {/* File items */}
+          {displayedFiles.map((file, index) => (
+            <div 
+              key={file.id} 
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
+              <FileItem file={file} searchInfo={searchInfo} />
+            </div>
+          ))}
+          
+          {/* Show more button at bottom */}
+          {hasMoreFiles && !showAll && (
+            <button
+              onClick={() => setShowAll(true)}
+              className="w-full p-3 rounded-xl glass-subtle border-glass-border text-[11px] font-bold text-accent hover:glass-elevated transition-all flex items-center justify-center gap-2"
+            >
+              <ChevronDown size={14} />
+              Show {files.length - INITIAL_DISPLAY_COUNT} more results
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+});
 FileList.displayName = 'FileList';
 
 // Message item with Go/Copy buttons

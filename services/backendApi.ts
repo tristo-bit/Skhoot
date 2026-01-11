@@ -163,6 +163,7 @@ export const backendApi = {
     include_indices?: boolean;
     file_types?: string;
     exclude_dirs?: string;
+    search_path?: string;  // Custom search path (defaults to user home)
   }): Promise<FileSearchResults> {
     const params = new URLSearchParams({ q: query });
     
@@ -171,10 +172,25 @@ export const backendApi = {
     if (options?.include_indices) params.append('include_indices', 'true');
     if (options?.file_types) params.append('file_types', options.file_types);
     if (options?.exclude_dirs) params.append('exclude_dirs', options.exclude_dirs);
+    if (options?.search_path) params.append('search_path', options.search_path);
     
     const response = await fetch(`${BACKEND_URL}/api/v1/search/files?${params}`);
     if (!response.ok) {
       throw new Error(`AI file search failed: ${response.statusText}`);
+    }
+    
+    return response.json();
+  },
+
+  async openFileLocation(path: string): Promise<{ success: boolean; message: string }> {
+    const response = await fetch(`${BACKEND_URL}/api/v1/files/open`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to open file location: ${response.statusText}`);
     }
     
     return response.json();
@@ -185,6 +201,7 @@ export const backendApi = {
     case_sensitive?: boolean;
     regex?: boolean;
     file_types?: string;
+    search_path?: string;  // Custom search path (defaults to user home)
   }): Promise<FileSearchResults> {
     const params = new URLSearchParams({ q: query });
     
@@ -192,6 +209,7 @@ export const backendApi = {
     if (options?.case_sensitive) params.append('case_sensitive', 'true');
     if (options?.regex) params.append('regex', 'true');
     if (options?.file_types) params.append('file_types', options.file_types);
+    if (options?.search_path) params.append('search_path', options.search_path);
     
     const response = await fetch(`${BACKEND_URL}/api/v1/search/content?${params}`);
     if (!response.ok) {
