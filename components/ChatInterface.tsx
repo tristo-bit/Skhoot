@@ -10,9 +10,10 @@ interface ChatInterfaceProps {
   chatId: string | null;
   initialMessages: Message[];
   onMessagesChange: (messages: Message[]) => void;
+  onActiveModeChange?: (mode: string | null) => void;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessagesChange }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessagesChange, onActiveModeChange }) => {
   // State
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
@@ -48,6 +49,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
 
   const hasMessages = messages.length > 0;
   const hasVoiceContent = voiceTranscript.length > 0 || pendingVoiceText.length > 0;
+
+  // Notify parent when activeMode changes (for background illumination)
+  useEffect(() => {
+    onActiveModeChange?.(activeMode);
+  }, [activeMode, onActiveModeChange]);
 
   // Notify parent when messages change
   useEffect(() => {

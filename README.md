@@ -45,6 +45,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1yPnxkAry7gQ3SPvIsRQW4e
 ### 🎨 Modern Design System
 - **Embossed Glassmorphism**: Tactile, interactive design with depth
 - **Theme Support**: Light and dark mode with smooth transitions
+- **Illumination Settings**: Customizable ambient lighting effects with per-theme intensity and diffusion controls
 - **Branding Toggle**: Show or hide Skhoot branding elements (persisted to localStorage)
 - **Responsive Layout**: Optimized for desktop use
 - **Accessibility**: WCAG compliant with proper contrast and focus states
@@ -55,7 +56,7 @@ View your app in AI Studio: https://ai.studio/apps/drive/1yPnxkAry7gQ3SPvIsRQW4e
 - **Sensitivity Settings**: Auto or manual microphone sensitivity configuration
 - **Privacy Controls**: Manage account settings and data export
 - **Activity Logging**: Track and review your interactions
-- **Help Center**: Built-in support and documentation
+- **Help Center**: Comprehensive support hub with documentation access, support request submission, and bug reporting
 
 ## 🚀 Quick Start
 
@@ -164,7 +165,7 @@ skhoot/
 ├── services/           # API and data services
 │   └── backendApi.ts  # Backend API integration
 ├── src/
-│   ├── contexts/       # React contexts (Theme, etc.)
+│   ├── contexts/       # React contexts (Theme, Settings, etc.)
 │   └── constants.ts    # App constants and config
 ├── src-tauri/          # Tauri desktop app configuration
 │   ├── src/           # Rust desktop code
@@ -334,15 +335,76 @@ skhootDemo.showMarkdown()
 
 ## 📝 Recent Updates
 
+### Privacy & Security Panel
+- **Email Update**: Change account email with comprehensive validation (format checking, duplicate detection) and confirmation email workflow
+- **Password Change**: Secure password update with strong validation requirements:
+  - Minimum 8 characters
+  - Must contain uppercase, lowercase, and number
+  - Confirmation matching
+  - Different from current password
+- **Data Export**: One-click download of all user data (profile, conversations, settings) as JSON file with timestamped filename
+- **Privacy Notice**: Informative section about data encryption and security practices
+- **Visual Feedback**: Success/error states with clear messaging for all operations
+- **Loading States**: Proper loading indicators during async operations
+
+### Help Center Panel
+- **Comprehensive Support Hub**: New `HelpCenterPanel` component provides a centralized location for all user support needs
+- **Documentation Access**: Quick link to external documentation with clear visual guidance
+- **Support Request System**: Built-in form for submitting support requests with 24-hour response commitment
+- **Bug Reporting**: Dedicated bug report submission with detailed description fields and visual feedback
+- **Sub-Panel Navigation**: Smooth navigation between main help center and specialized forms (bug reports, support requests)
+- **Visual Feedback**: Loading states, success confirmations, and error handling for all form submissions
+- **Consistent Design**: Uses shared components (`PanelHeader`, `SectionLabel`, `InfoBox`, `SubmitButton`) for unified styling
+
+### Appearance Settings Panel
+- **Dedicated Appearance Panel**: New `AppearancePanel` component consolidates all visual customization options in one organized settings section
+- **Theme Selection**: Radio-button interface for choosing Light, Dark, or System theme with clear descriptions
+- **UI Opacity Control**: Slider to adjust the glassmorphic opacity of the interface (50-100%)
+- **Illumination Settings**: Full control over quick action illumination effects:
+  - Enable/disable toggle for the glow effect on prompt area
+  - Intensity slider (10-80%) for brightness control
+  - Diffusion slider (20-100%) for light spread adjustment
+  - Reset button to restore theme-specific defaults
+  - Live preview hint when illumination is enabled
+- **Dynamic Illumination Rendering**: Illumination values are calculated in real-time from settings:
+  - Intensity controls the hex alpha values for gradient color stops
+  - Diffusion controls the percentage positions of gradient stops for light spread
+  - Theme-aware adjustments (darker backgrounds in dark mode)
+- **Branding Toggle**: Show or hide the app logo and title in the interface
+- **Per-Theme Persistence**: Illumination settings are saved separately for light and dark themes
+
+```typescript
+// Using illumination settings in components
+import { useSettings } from './src/contexts/SettingsContext';
+
+const { illumination, setIllumination, resetIllumination } = useSettings();
+
+// Adjust intensity (affects gradient alpha values)
+setIllumination({ intensity: 50 });
+
+// Adjust diffusion (affects gradient spread)
+setIllumination({ diffusion: 70 });
+
+// Toggle illumination
+setIllumination({ enabled: !illumination.enabled });
+
+// Reset to theme defaults
+resetIllumination('dark');
+```
+
 ### Quick Action Toggle Behavior
 - **Toggle Off Support**: Clicking an already-active quick action button now toggles it off, returning to the default state
 - **Cleaner UX**: Users can now easily deactivate a mode by clicking the same button again, rather than having to clear the input
 
 ### Dynamic Quick Action Illumination
 - **Position-Aware Glow Effect**: When a quick action button is selected, a radial gradient illumination emanates from that button's position at the top of the prompt panel
+- **Settings-Driven Rendering**: Illumination appearance is controlled by user settings:
+  - Intensity setting maps to gradient alpha values (hex opacity)
+  - Diffusion setting controls gradient stop positions for light spread
 - **Background Tint**: The entire prompt panel receives a subtle color tint matching the active action's theme color for cohesive visual feedback
 - **Smooth Transitions**: Illumination and background tint smoothly animate between button positions using cubic-bezier easing
 - **Color-Matched Lighting**: The glow color and background tint match the active action's theme color for visual consistency
+- **Theme-Aware Opacity**: Dark mode uses reduced background tint opacity for better visual balance
 - **Subtle Visual Feedback**: Creates a soft, ambient lighting effect that reinforces which action mode is currently active
 
 ### Tailwind-Based Action Colors

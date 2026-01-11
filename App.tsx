@@ -8,6 +8,7 @@ import UserPanel from './components/UserPanel';
 import FilesPanel from './components/FilesPanel';
 import TraceabilityPanel from './components/TraceabilityPanel';
 import { FileSearchTest } from './components/FileSearchTest';
+import { BackgroundIllumination } from './components/BackgroundIllumination';
 import { Menu, X, Settings, User as UserIcon, FolderOpen, Search } from 'lucide-react';
 import { IconButton } from './components/buttonFormat';
 import { chatStorage } from './services/chatStorage';
@@ -16,11 +17,22 @@ import { initScaleManager, destroyScaleManager } from './services/scaleManager';
 import { initUIConfig } from './services/uiConfig';
 import { Chat, Message, User } from './types';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
+import { SettingsProvider } from './src/contexts/SettingsContext';
 
 const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
   <img src="/skhoot-purple.svg" alt="Skhoot" width={size} height={size} />
 ));
 SkhootLogo.displayName = 'SkhootLogo';
+
+// Wrapper to provide settings with resolved theme
+const SettingsWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { resolvedTheme } = useTheme();
+  return (
+    <SettingsProvider resolvedTheme={resolvedTheme}>
+      {children}
+    </SettingsProvider>
+  );
+};
 
 const AppContent: React.FC = () => {
   const { showBranding } = useTheme();
@@ -30,6 +42,7 @@ const AppContent: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [authView, setAuthView] = useState<'none' | 'login' | 'register'>('none');
+  const [activeQuickAction, setActiveQuickAction] = useState<string | null>(null);
   
   // Track pending chat creation to avoid remounting during first message
   const pendingChatIdRef = useRef<string | null>(null);
@@ -277,6 +290,9 @@ const AppContent: React.FC = () => {
 
         {/* Main container */}
         <div className="app-glass relative z-10 w-full h-full flex flex-col overflow-hidden glass-elevated rounded-[var(--app-radius)]">
+          {/* Background illumination from quick actions */}
+          <BackgroundIllumination activeMode={activeQuickAction} />
+          
           {/* Header */}
           <header
             className="header-bar relative z-30 flex items-center justify-between cursor-move select-none"
@@ -433,6 +449,7 @@ const AppContent: React.FC = () => {
                 chatId={currentChatId}
                 initialMessages={currentChat?.messages || []}
                 onMessagesChange={handleMessagesChange}
+                onActiveModeChange={setActiveQuickAction}
               />
             </div>
           </main>
@@ -473,7 +490,9 @@ BackgroundBlur.displayName = 'BackgroundBlur';
 
 const App: React.FC = () => (
   <ThemeProvider>
-    <AppContent />
+    <SettingsWrapper>
+      <AppContent />
+    </SettingsWrapper>
   </ThemeProvider>
 );
 

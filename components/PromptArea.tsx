@@ -5,6 +5,7 @@ import { SoundWave } from './shared';
 import { IconButton, Button } from './buttonFormat';
 import { audioService } from '../services/audioService';
 import { useTheme } from '../src/contexts/ThemeContext';
+import { useSettings } from '../src/contexts/SettingsContext';
 
 // Icon mapping for quick actions
 const QUICK_ACTION_ICONS: Record<string, (props: { size: number }) => React.ReactNode> = {
@@ -102,6 +103,7 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   onQuickAction,
 }, ref) => {
   const { resolvedTheme } = useTheme();
+  const { illumination } = useSettings();
   const isDarkMode = resolvedTheme === 'dark';
   
   const hasContent = input.trim().length > 0;
@@ -148,9 +150,18 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   // Smooth easing for buttery animations
   const smoothEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
 
-  // Calculate illumination based on active button
+  // Calculate illumination based on active button and settings
   const activeIndex = activeMode ? QUICK_ACTIONS.findIndex(a => a.id === activeMode) : -1;
   const activeAction = activeIndex >= 0 ? QUICK_ACTIONS[activeIndex] : null;
+  
+  // Calculate illumination values from settings
+  const showIllumination = illumination.enabled && activeAction;
+  const intensityHex = Math.round(illumination.intensity * 2.55).toString(16).padStart(2, '0');
+  const intensityMidHex = Math.round(illumination.intensity * 1.27).toString(16).padStart(2, '0');
+  const intensityLowHex = Math.round(illumination.intensity * 0.5).toString(16).padStart(2, '0');
+  const diffusionStop1 = Math.round(illumination.diffusion * 0.35);
+  const diffusionStop2 = Math.round(illumination.diffusion * 0.6);
+  const diffusionStop3 = Math.round(illumination.diffusion * 0.9);
 
   return (
     <div
@@ -166,10 +177,8 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
       <div 
         className="prompt-panel flex flex-col shadow-2xl pointer-events-auto glass-elevated relative overflow-hidden"
         style={{ 
-          background: activeAction 
-            ? isDarkMode 
-              ? `${activeAction.color}08` // Less strong in dark mode
-              : `${activeAction.color}12`
+          background: showIllumination
+            ? `${activeAction.color}${isDarkMode ? '08' : '12'}`
             : undefined,
           transition: `background 0.5s ${smoothEasing}, border-color 0.5s ${smoothEasing}, box-shadow 0.5s ${smoothEasing}`,
           padding: 'var(--prompt-panel-padding)',
@@ -180,14 +189,10 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: activeAction
-              ? isDarkMode
-                // Dark mode: less strong, more diffuse
-                ? `radial-gradient(circle at 12.5% 25%, ${activeAction.color}20 0%, ${activeAction.color}10 35%, ${activeAction.color}05 60%, transparent 85%)`
-                // Light mode: original intensity
-                : `radial-gradient(circle at 12.5% 25%, ${activeAction.color}40 0%, ${activeAction.color}20 25%, ${activeAction.color}08 50%, transparent 75%)`
+            background: showIllumination
+              ? `radial-gradient(circle at 12.5% 25%, ${activeAction.color}${intensityHex} 0%, ${activeAction.color}${intensityMidHex} ${diffusionStop1}%, ${activeAction.color}${intensityLowHex} ${diffusionStop2}%, transparent ${diffusionStop3}%)`
               : 'none',
-            opacity: activeMode ? 1 : 0,
+            opacity: showIllumination ? 1 : 0,
             transition: `opacity 0.4s ${smoothEasing}, background 0.4s ${smoothEasing}`,
             borderRadius: 'inherit',
           }}
