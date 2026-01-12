@@ -39,6 +39,7 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 
 - **Voice Input**: Speak your queries naturally (Chrome, Edge, Safari)
 - **Real-time Transcription**: See your speech converted to text in real-time
+- **Transcript Editing**: Edit voice transcriptions before sending - click the edit button on pending voice messages to modify text
 - **Audio Visualization**: Visual feedback with waveform display
 - **Browser Compatibility**: Fallback text input for Opera and Firefox
 - **Advanced Audio Service**: Full-featured audio management with device selection, volume control, and sensitivity settings
@@ -485,14 +486,20 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 <details>
 <summary><strong>Button System Enhancement</strong></summary>
 
-- **New ToggleSwitch Component**: Reusable toggle switch with smooth animations and glassmorphic design
+- **New EditButton Component**: Specialized edit button with pencil icon for transcription and message editing
+  - Built on IconButton primitive with glass variant styling
+  - Responsive icon sizing based on button size (sm: 14px, md: 18px, lg: 22px)
+  - Hover brightness effect for visual feedback
+  - Full accessibility with aria-label and title attributes
+  - Consistent with embossed glassmorphic design system
+- **ToggleSwitch Component**: Reusable toggle switch with smooth animations and glassmorphic design
   - Smooth 300ms transitions for knob movement and color changes
   - Accent color when toggled, glass border when off
   - Full accessibility with `role="switch"` and `aria-checked` attributes
   - Disabled state with proper visual feedback and cursor handling
   - Customizable via className prop for flexible integration
   - Follows embossed glassmorphic design system with border and shadow effects
-- **Enhanced Button System**: Comprehensive collection of specialized buttons (close, back, tab, save, upload, connection, premium, toggle, icon)
+- **Enhanced Button System**: Comprehensive collection of specialized buttons (close, back, tab, save, upload, connection, premium, toggle, edit, icon)
 - **Consistent Design Language**: All buttons follow the same design principles with 300ms transitions and theme-aware styling
 
 </details>
@@ -610,6 +617,10 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 <details>
 <summary><strong>Audio & Voice Improvements</strong></summary>
 
+- **Voice Transcript Editing**: Users can now edit voice transcriptions before sending via the edit button on pending voice messages
+  - `editVoiceTranscript` method in `useVoiceRecording` hook enables transcript modification
+  - `onEditVoice` prop passed to `RecordButton` component for UI integration
+  - Seamless editing workflow with visual feedback
 - Unified voice recording architecture with centralized audio service
 - Enhanced audio service API with input stream management
 - Tauri microphone permission handling with platform-specific guidance

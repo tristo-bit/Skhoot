@@ -18,6 +18,7 @@ Ce dossier contient un système de boutons réutilisables basé sur une primitiv
 - **`premium-button.tsx`** - Bouton pour actions premium
 - **`toggle-button.tsx`** - Bouton toggle on/off
 - **`toggle-switch.tsx`** - Toggle switch avec knob animé et design glassmorphique
+- **`edit-button.tsx`** - Bouton d'édition avec icône crayon
 - **`icon-button.tsx`** - Bouton avec icône uniquement
 
 ## Usage
@@ -59,6 +60,13 @@ import { Button, SaveButton, TabButton } from './buttonFormat';
   onToggle={setIsEnabled}
   disabled={false}
   className="w-12 h-6"
+/>
+
+// Bouton d'édition
+<EditButton
+  onClick={handleEdit}
+  size="md"
+  disabled={false}
 />
 ```
 

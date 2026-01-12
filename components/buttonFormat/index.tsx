@@ -15,3 +15,4 @@ export { ToggleSwitch } from './toggle-switch';
 export { IconButton } from './icon-button';
 export { SubmitButton } from './submit-button';
 export { PlanButton } from './plan-button';
+export { EditButton } from './edit-button';

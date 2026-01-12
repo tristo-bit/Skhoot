@@ -618,3 +618,68 @@
 - **Reason**: Simplified UI, removed unnecessary option
 
 **Result**: Cleaner Display Settings section without icon toggle option.
+
+
+### Voice Message Edit Feature - Edit Button Added ✅
+
+**User Request**: Add edit button to pending voice messages to correct transcription errors
+
+**Problem**: Voice transcription can sometimes misinterpret spoken words, but users had no way to correct the text before sending
+
+**Solution Implemented**:
+
+**1. Created EditButton Component ✅**
+- **File**: `components/buttonFormat/edit-button.tsx`
+- **Design**: Uses Pencil icon from Lucide React
+- **Style**: Matches existing Send/Delete buttons (glass variant, IconButton base)
+- **Sizes**: Supports sm, md, lg sizes for responsive design
+- **Accessibility**: Includes aria-label and title attributes
+
+**2. Enhanced VoiceMessage Component ✅**
+- **File**: `components/conversations/VoiceMessage.tsx`
+- **Features Added**:
+  - Edit mode with textarea for text modification
+  - Three-button layout: Send, Edit, Delete (when not editing)
+  - Two-button layout: Save, Cancel (when editing)
+  - Auto-focus and select text when entering edit mode
+  - Maintains compact/normal size variants
+  
+**3. Extended Voice Recording Hook ✅**
+- **File**: `components/chat/hooks/useVoiceRecording.ts`
+- **Added**: `editVoiceTranscript(newText: string)` function
+- **Functionality**: Updates voice transcript with edited text
+
+**4. Updated Data Flow ✅**
+- **Files**: `ChatInterface.tsx`, `MainArea.tsx`
+- **Changes**: Added `onEditVoice` prop throughout component chain
+- **Flow**: VoiceMessage → MainArea → ChatInterface → useVoiceRecording hook
+
+**User Experience**:
+1. User records voice message → transcription appears
+2. User clicks Edit button → textarea appears with current text
+3. User modifies text → clicks Save (Send icon)
+4. Modified text replaces original transcription
+5. User can then send the corrected message
+
+**Button Layout**:
+- **Normal state**: [Send] [Edit] [Delete]
+- **Edit state**: [Save] [Cancel]
+
+**Status**: Voice message editing fully functional, allowing users to correct transcription errors before sending.
+
+
+### Voice Message Edit - Improved Textarea Size ✅
+
+**User Feedback**: Edit textarea was too compact and cramped
+
+**Changes Applied**:
+- **File**: `components/conversations/VoiceMessage.tsx`
+- **Improvements**:
+  - Increased max-width from 90% to 85% for better horizontal space
+  - Added `min-w-[400px]` when in edit mode for consistent width
+  - Increased textarea min-height from 60px to 100px
+  - Increased padding from p-2 to p-3 for better spacing
+  - Fixed font size to 14px (was responsive 12-13px)
+  - Added line-height: 1.5 for better readability
+
+**Result**: Edit textarea now has more horizontal space and is more comfortable to use for text correction.

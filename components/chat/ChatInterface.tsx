@@ -44,6 +44,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
     handleMicClick,
     stopRecording,
     discardVoice,
+    editVoiceTranscript,
   } = useVoiceRecording(inputRef);
 
   // Computed values
@@ -449,6 +450,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         promptKey={promptKey}
         onSendVoice={handleSend}
         onDiscardVoice={discardVoice}
+        onEditVoice={editVoiceTranscript}
       />
       
       <PromptArea

@@ -22,6 +22,7 @@ interface MainAreaProps {
   promptKey?: number;
   onSendVoice: () => void;
   onDiscardVoice: () => void;
+  onEditVoice?: (newText: string) => void;
 }
 
 /**
@@ -44,6 +45,7 @@ export const MainArea = forwardRef<HTMLDivElement, MainAreaProps>(({
   promptKey = 0,
   onSendVoice,
   onDiscardVoice,
+  onEditVoice,
 }, ref) => {
   const hasMessages = messages.length > 0;
   const showEmptyState = isEmptyStateVisible && !hasMessages && !isLoading && !hasPendingVoiceMessage && !isRecording;
@@ -150,6 +152,7 @@ export const MainArea = forwardRef<HTMLDivElement, MainAreaProps>(({
               pendingText={pendingVoiceText}
               onSend={onSendVoice}
               onDiscard={onDiscardVoice}
+              onEdit={onEditVoice}
               isRecording={isRecording}
               isPending={hasPendingVoiceMessage}
             />

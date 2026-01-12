@@ -16,6 +16,7 @@ interface UseVoiceRecordingReturn {
   stopRecording: () => void;
   handleMicClick: () => Promise<void>;
   discardVoice: () => void;
+  editVoiceTranscript: (newText: string) => void;
   setInput: (input: string) => void;
 }
 
@@ -259,6 +260,11 @@ export function useVoiceRecording(
     setHasPendingVoiceMessage(false);
   }, []);
 
+  const editVoiceTranscript = useCallback((newText: string) => {
+    setVoiceTranscript(newText);
+    setPendingVoiceText('');
+  }, []);
+
   const clearPendingMessage = useCallback(() => {
     setHasPendingVoiceMessage(false);
   }, []);
@@ -273,6 +279,7 @@ export function useVoiceRecording(
     stopRecording,
     handleMicClick,
     discardVoice,
+    editVoiceTranscript,
     setInput: setInputValue,
   };
 }
