@@ -2,6 +2,20 @@
 
 ## January 12, 2026
 
+### Build System Fix - Windows Toolchain Issue (Installation in Progress)
+- **Problem**: Rust compilation failing with missing Windows build tools
+- **Phase 1 Complete**: Fixed `dlltool.exe` error by switching to MSVC toolchain (`rustup default stable-x86_64-pc-windows-msvc`)
+- **Phase 2 Diagnosis**: Visual Studio Build Tools 2022 installed but missing C++ components
+- **Phase 3 Current**: Installing "Développement Desktop en C++" workload via Visual Studio Installer
+- **Solution Identified**: C++ Desktop Development workload contains all required tools (MSVC compiler, link.exe, Windows SDK)
+- **Installation Status**: User modifying VS Build Tools 2022 to add C++ Desktop Development components
+- **Post-Installation Steps**:
+  1. Restart system for PATH updates
+  2. Verify with `where link.exe` 
+  3. Test Rust compilation with `cargo check`
+- **Expected Outcome**: Complete Windows development environment for Rust/Tauri projects
+- **Documentation**: Created `TUTORIEL_FIX_RUST_WINDOWS.md` - comprehensive step-by-step guide for resolving Windows Rust toolchain issues
+
 ### Demo Mode for Web Deployment
 - Created `services/demoMode.ts` - auto-playing showcase that requires no backend
 - Demo sequence:
