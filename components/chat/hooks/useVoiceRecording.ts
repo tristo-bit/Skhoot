@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { audioService } from '../../../services/audioService';
+import { sttService, SttSession } from '../../../services/sttService';
+import { sttConfigStore } from '../../../services/sttConfig';
 import { activityLogger } from '../../../services/activityLogger';
 
 interface UseVoiceRecordingOptions {
@@ -14,7 +16,7 @@ interface UseVoiceRecordingReturn {
   audioLevels: number[];
   audioStream: MediaStream | null;
   startRecording: () => Promise<void>;
-  stopRecording: () => void;
+  stopRecording: (abortStt?: boolean) => void;
   handleMicClick: () => Promise<void>;
   discardVoice: () => void;
   editVoiceTranscript: (newText: string) => void;
@@ -39,6 +41,7 @@ export function useVoiceRecording(
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isRecordingRef = useRef(false);
+  const sttSessionRef = useRef<SttSession | null>(null);
 
   // Audio visualization effect
   useEffect(() => {
@@ -78,11 +81,15 @@ export function useVoiceRecording(
     };
   }, [isRecording]);
 
-  const stopRecording = useCallback(() => {
+  const stopRecording = useCallback((abortStt: boolean = true) => {
     isRecordingRef.current = false;
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       recognitionRef.current = null;
+    }
+    if (abortStt && sttSessionRef.current) {
+      sttSessionRef.current.abort();
+      sttSessionRef.current = null;
     }
     if (audioContextRef.current) {
       audioContextRef.current.close();
@@ -122,6 +129,23 @@ export function useVoiceRecording(
       }
     } catch (audioError) {
       console.warn('[Voice] Audio visualization setup failed:', audioError);
+    }
+
+    const providerDecision = sttService.getProviderDecision();
+    const useFallback = providerDecision && providerDecision !== 'web-speech';
+
+    if (useFallback) {
+      try {
+        if (!streamRef.current) {
+          throw new Error('Microphone not available.');
+        }
+        sttSessionRef.current = await sttService.startRecording(streamRef.current, providerDecision);
+      } catch (error) {
+        stopRecording();
+        const message = error instanceof Error ? error.message : 'Failed to start voice transcription.';
+        alert(message);
+      }
+      return;
     }
 
     // Setup speech recognition
@@ -190,26 +214,58 @@ export function useVoiceRecording(
   const handleMicClick = useCallback(async () => {
     try {
       if (isRecording) {
-        stopRecording();
+        stopRecording(false);
         const fullTranscript = (voiceTranscript + ' ' + pendingVoiceText).trim();
-        
-        if (fullTranscript) {
-          setVoiceTranscript(fullTranscript);
-          setPendingVoiceText('');
-          setHasPendingVoiceMessage(true);
-          
-          // Log voice input activity
-          activityLogger.log(
-            'Voice Input',
-            fullTranscript.slice(0, 50) + (fullTranscript.length > 50 ? '...' : ''),
-            'Transcription complete',
-            'success'
-          );
+
+        if (sttSessionRef.current) {
+          const session = sttSessionRef.current;
+          sttSessionRef.current = null;
+          try {
+            const transcript = await session.stop();
+            if (transcript) {
+              setVoiceTranscript(transcript);
+              setPendingVoiceText('');
+              setHasPendingVoiceMessage(true);
+              activityLogger.log(
+                'Voice Input',
+                transcript.slice(0, 50) + (transcript.length > 50 ? '...' : ''),
+                'Transcription complete',
+                'success'
+              );
+            } else {
+              setVoiceTranscript('');
+              setPendingVoiceText('');
+              setHasPendingVoiceMessage(false);
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Transcription failed.';
+            alert(message);
+          }
         } else {
-          setVoiceTranscript('');
-          setPendingVoiceText('');
-          setHasPendingVoiceMessage(false);
+          if (fullTranscript) {
+            setVoiceTranscript(fullTranscript);
+            setPendingVoiceText('');
+            setHasPendingVoiceMessage(true);
+            
+            // Log voice input activity
+            activityLogger.log(
+              'Voice Input',
+              fullTranscript.slice(0, 50) + (fullTranscript.length > 50 ? '...' : ''),
+              'Transcription complete',
+              'success'
+            );
+          } else {
+            setVoiceTranscript('');
+            setPendingVoiceText('');
+            setHasPendingVoiceMessage(false);
+          }
         }
+        return;
+      }
+
+      const preference = sttConfigStore.getProviderPreference();
+      if (preference === 'web-speech' && !audioService.isSpeechRecognitionSupported()) {
+        alert('Web Speech API is not supported on this platform. Choose a different STT provider in Sound Settings.');
         return;
       }
 
@@ -227,8 +283,10 @@ export function useVoiceRecording(
             inputRef.current?.focus();
           }
           return;
-        } else {
-          alert('Speech recognition not supported in this browser. Please try Chrome, Edge, or Safari.');
+        }
+
+        if (!sttService.isAvailable()) {
+          alert('Speech recognition is unavailable. Configure a provider in Sound Settings or add an API key.');
           return;
         }
       }

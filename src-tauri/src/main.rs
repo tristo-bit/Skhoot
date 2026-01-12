@@ -2,6 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(dead_code)]
 
+mod terminal;
+
 use tauri::Manager;
 use std::process::{Command, Stdio};
 
@@ -98,6 +100,40 @@ async fn check_audio_server() -> Result<String, String> {
     }
 }
 
+/// Start PipeWire/PulseAudio user services
+#[tauri::command]
+async fn start_audio_services() -> Result<String, String> {
+    #[cfg(target_os = "linux")]
+    {
+        let output = Command::new("systemctl")
+            .args(&["--user", "start", "pipewire", "pipewire-pulse", "wireplumber"])
+            .output();
+
+        if let Ok(output) = output {
+            if output.status.success() {
+                return Ok("Started PipeWire user services.".to_string());
+            }
+        }
+
+        let pulseaudio = Command::new("pulseaudio")
+            .args(&["--start"])
+            .output()
+            .map_err(|e| format!("Failed to start audio services: {}", e))?;
+
+        if pulseaudio.status.success() {
+            return Ok("Started PulseAudio.".to_string());
+        }
+
+        let stderr = String::from_utf8_lossy(&pulseaudio.stderr);
+        Err(format!("Failed to start audio services: {}", stderr))
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        Err("This command is only available on Linux.".to_string())
+    }
+}
+
 fn main() {
   tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
@@ -106,7 +142,16 @@ fn main() {
     .invoke_handler(tauri::generate_handler![
         add_user_to_audio_group,
         check_audio_group_membership,
-        check_audio_server
+        check_audio_server,
+        start_audio_services,
+        terminal::create_terminal_session,
+        terminal::write_to_terminal,
+        terminal::read_from_terminal,
+        terminal::resize_terminal,
+        terminal::close_terminal_session,
+        terminal::list_terminal_sessions,
+        terminal::get_session_history,
+        terminal::get_session_state,
     ])
     .setup(|app| {
       #[cfg(desktop)]
@@ -115,6 +160,9 @@ fn main() {
         let menu = tauri::menu::Menu::new(app.handle())?;
         app.set_menu(menu)?;
       }
+
+      // Start local whisper.cpp server if bundled
+      start_local_whisper_server(app.handle());
 
       // Log platform-specific audio permission info
       log_audio_permission_info();
@@ -128,6 +176,53 @@ fn main() {
     })
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
+}
+
+fn start_local_whisper_server(app_handle: &tauri::AppHandle) {
+  #[cfg(target_os = "linux")]
+  {
+    if std::env::var("SKHOOT_DISABLE_LOCAL_STT").is_ok() {
+      println!("[Skhoot] Local STT disabled via SKHOOT_DISABLE_LOCAL_STT");
+      return;
+    }
+
+    let resource_dir = match app_handle.path().resource_dir() {
+      Ok(dir) => dir,
+      Err(err) => {
+        eprintln!("[Skhoot] Failed to resolve resource dir: {}", err);
+        return;
+      }
+    };
+
+    let server_path = resource_dir.join("whisper/whisper-server");
+    let model_path = resource_dir.join("whisper/models/ggml-base.en.bin");
+
+    if !server_path.exists() || !model_path.exists() {
+      println!("[Skhoot] Whisper server or model not found in resources.");
+      return;
+    }
+
+    let _ = Command::new(&server_path)
+      .args(&[
+        "--model",
+        model_path.to_str().unwrap_or(""),
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000",
+        "--inference-path",
+        "/v1/audio/transcriptions",
+        "--threads",
+        "4",
+        "--convert"
+      ])
+      .stdin(Stdio::null())
+      .stdout(Stdio::null())
+      .stderr(Stdio::null())
+      .spawn();
+
+    println!("[Skhoot] Started local whisper.cpp server on 127.0.0.1:8000");
+  }
 }
 
 /// Log platform-specific information about audio permissions

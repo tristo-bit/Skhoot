@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, VolumeX, Volume2, AlertCircle, Terminal, CheckCircle } from 'lucide-react';
 import { audioService, AudioDevice } from '../../services/audioService';
 import { linuxAudioSetup, LinuxAudioStatus } from '../../services/linuxAudioSetup';
+import { sttConfigStore, SttProvider } from '../../services/sttConfig';
+import { sttService } from '../../services/sttService';
 import { PanelHeader, SectionLabel } from './shared';
 import { Button, ToggleButton } from '../buttonFormat';
 
@@ -27,6 +29,10 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
   const [linuxAudioStatus, setLinuxAudioStatus] = useState<LinuxAudioStatus | null>(null);
   const [isFixingLinuxAudio, setIsFixingLinuxAudio] = useState(false);
   const [linuxFixResult, setLinuxFixResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [sttProvider, setSttProvider] = useState<SttProvider>('auto');
+  const [localSttUrl, setLocalSttUrl] = useState('');
+  const [sttTestStatus, setSttTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [sttTestMessage, setSttTestMessage] = useState('');
 
   // Refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -105,6 +111,10 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
     };
 
     loadAudioSettings();
+
+    const sttConfig = sttConfigStore.get();
+    setSttProvider(sttConfig.provider);
+    setLocalSttUrl(sttConfig.localUrl);
     
     // Check Linux audio status
     if (linuxAudioSetup.isLinuxTauri()) {
@@ -294,21 +304,75 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
   const handleFixLinuxAudio = async () => {
     setIsFixingLinuxAudio(true);
     setLinuxFixResult(null);
-    
-    const result = await linuxAudioSetup.addUserToAudioGroup();
-    setLinuxFixResult(result);
-    
-    if (result.success) {
-      const status = await linuxAudioSetup.checkStatus();
-      setLinuxAudioStatus(status);
+
+    const status = await linuxAudioSetup.checkStatus();
+    let result: { success: boolean; message: string };
+
+    if (status.audioServer === 'none' || status.audioServer === 'unknown') {
+      result = await linuxAudioSetup.startAudioServices();
+    } else if (status.audioServer === 'pulseaudio' && !status.inAudioGroup) {
+      result = await linuxAudioSetup.addUserToAudioGroup();
+    } else {
+      result = { success: true, message: 'Audio setup looks good.' };
     }
-    
+
+    setLinuxFixResult(result);
+    const updated = await linuxAudioSetup.checkStatus();
+    setLinuxAudioStatus(updated);
     setIsFixingLinuxAudio(false);
   };
 
   const hasPermission = audioService.getPermissionStatus().granted;
   const showEnableButton = !hasPermission && !micPermissionError && !isRequestingPermission && inputDevices.length === 0;
   const showLinuxFix = linuxAudioStatus?.isLinux && linuxAudioStatus?.needsSetup;
+  const sttProviderDecision = sttService.getProviderDecision();
+  const isWebSpeechOnly = sttProviderDecision === 'web-speech';
+
+  const handleTestStt = async () => {
+    setSttTestStatus('testing');
+    setSttTestMessage('');
+
+    if (!sttProviderDecision) {
+      setSttTestStatus('error');
+      setSttTestMessage('No STT provider is available. Configure one above.');
+      return;
+    }
+
+    if (isWebSpeechOnly) {
+      setSttTestStatus('error');
+      setSttTestMessage('Web Speech API should be tested via the mic button in chat.');
+      return;
+    }
+
+    let stream: MediaStream | null = null;
+    try {
+      stream = await audioService.getInputStream();
+      if (!stream) {
+        throw new Error('Microphone not available.');
+      }
+
+      const session = await sttService.startRecording(stream, sttProviderDecision || undefined);
+
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      const transcript = await session.stop();
+      stream.getTracks().forEach(track => track.stop());
+
+      if (transcript) {
+        setSttTestStatus('success');
+        setSttTestMessage(`Heard: "${transcript}"`);
+      } else {
+        setSttTestStatus('error');
+        setSttTestMessage('No speech detected. Try again closer to the mic.');
+      }
+    } catch (error) {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      const message = error instanceof Error ? error.message : 'Failed to test STT provider.';
+      setSttTestStatus('error');
+      setSttTestMessage(message);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -324,8 +388,10 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
                 Linux Audio Setup Required
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-400 font-jakarta mb-3">
-                {!linuxAudioStatus?.inAudioGroup && 'Your user is not in the audio group. '}
-                {linuxAudioStatus?.audioServer === 'none' && 'No audio server detected. '}
+                {(linuxAudioStatus?.audioServer === 'none' || linuxAudioStatus?.audioServer === 'unknown') &&
+                  'Audio services are not running. '}
+                {linuxAudioStatus?.audioServer === 'pulseaudio' && !linuxAudioStatus?.inAudioGroup &&
+                  'Your user is not in the audio group. '}
                 Click below to fix this automatically.
               </p>
               
@@ -350,7 +416,7 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
                   ) : (
                     <>
                       <Terminal size={14} className="mr-2" />
-                      Fix Audio Permissions
+                      Fix Audio Setup
                     </>
                   )}
                 </Button>
@@ -454,6 +520,72 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
               Requesting microphone access...
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Speech-to-Text Provider */}
+      <div className="space-y-3">
+        <SectionLabel label="Speech-to-Text Provider" />
+        <select
+          value={sttProvider}
+          onChange={(e) => {
+            const next = e.target.value as SttProvider;
+            setSttProvider(next);
+            sttConfigStore.set({ provider: next });
+            setSttTestStatus('idle');
+            setSttTestMessage('');
+          }}
+          className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="auto">Auto (preferred)</option>
+          <option value="web-speech">Web Speech API</option>
+          <option value="openai">OpenAI Whisper (cloud)</option>
+          <option value="local">Local STT Server</option>
+        </select>
+        <p className="text-xs text-text-secondary font-jakarta">
+          Choose how speech is transcribed. Auto uses Web Speech when available, otherwise local first, then cloud.
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleTestStt}
+            variant="secondary"
+            size="sm"
+            disabled={sttTestStatus === 'testing'}
+          >
+            {sttTestStatus === 'testing' ? 'Testing…' : 'Test STT'}
+          </Button>
+          {sttTestMessage && (
+            <span
+              className={`text-xs font-jakarta ${
+                sttTestStatus === 'success' ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {sttTestMessage}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Local STT Server URL */}
+      {sttProvider === 'local' && (
+        <div className="space-y-3">
+          <SectionLabel label="Local STT Server URL" />
+          <input
+            type="text"
+            value={localSttUrl}
+            onChange={(e) => {
+              const value = e.target.value;
+              setLocalSttUrl(value);
+              sttConfigStore.set({ localUrl: value });
+              setSttTestStatus('idle');
+              setSttTestMessage('');
+            }}
+            className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
+            placeholder="http://127.0.0.1:8000/v1/audio/transcriptions"
+          />
+          <p className="text-xs text-text-secondary font-jakarta">
+            {'Skhoot bundles whisper.cpp on Linux and starts it automatically at /v1/audio/transcriptions.'}
+          </p>
         </div>
       )}
 

@@ -141,3 +141,45 @@ impl ProcessHandle {
         self
     }
 }
+
+/// PTY-specific process handle for managing pseudo-terminal sessions
+#[derive(Debug)]
+pub struct PtyProcessHandle {
+    pub pty_session: Arc<Mutex<crate::cli_bridge::pty::PtySession>>,
+    pub output_buffer: Arc<Mutex<Vec<TerminalOutput>>>,
+    pub reader_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
+}
+
+impl PtyProcessHandle {
+    pub fn new(pty_session: crate::cli_bridge::pty::PtySession) -> Self {
+        let output_buffer = Arc::new(Mutex::new(Vec::new()));
+        
+        Self {
+            pty_session: Arc::new(Mutex::new(pty_session)),
+            output_buffer,
+            reader_task: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    pub fn with_reader_task(mut self, task: tokio::task::JoinHandle<()>) -> Self {
+        self.reader_task = Arc::new(Mutex::new(Some(task)));
+        self
+    }
+}
+
+/// Enum to handle both regular processes and PTY sessions
+#[derive(Debug)]
+pub enum ProcessType {
+    Regular(ProcessHandle),
+    Pty(PtyProcessHandle),
+}
+
+impl ProcessType {
+    pub fn is_pty(&self) -> bool {
+        matches!(self, ProcessType::Pty(_))
+    }
+
+    pub fn is_regular(&self) -> bool {
+        matches!(self, ProcessType::Regular(_))
+    }
+}

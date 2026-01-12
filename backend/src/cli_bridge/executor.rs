@@ -1,7 +1,8 @@
 //! Command execution with security sandboxing
 
 use super::error::CliError;
-use super::types::{CommandHandle, ProcessHandle, TerminalOutput, SecurityConfig};
+use super::types::{CommandHandle, ProcessHandle, TerminalOutput, SecurityConfig, ProcessType, PtyProcessHandle};
+use super::pty::PtySession;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -33,7 +34,7 @@ const BLOCKED_COMMANDS: &[&str] = &[
 
 /// Executes commands with security sandboxing and monitoring
 pub struct CommandExecutor {
-    processes: Arc<RwLock<HashMap<String, ProcessHandle>>>,
+    processes: Arc<RwLock<HashMap<String, ProcessType>>>,
     security_config: Arc<RwLock<SecurityConfig>>,
 }
 
@@ -232,7 +233,7 @@ impl CommandExecutor {
         // Store process handle
         {
             let mut processes = self.processes.write().await;
-            processes.insert(session_id.clone(), process_handle);
+            processes.insert(session_id.clone(), ProcessType::Regular(process_handle));
         }
 
         // Create command handle with optional PID
@@ -244,39 +245,120 @@ impl CommandExecutor {
         Ok(handle)
     }
 
-    /// Write to stdin of a command
+    /// Spawn a command with PTY (pseudo-terminal) support for full terminal emulation
+    pub async fn spawn_command_pty(
+        &self,
+        session_id: String,
+        cmd: String,
+        args: Vec<String>,
+        cols: Option<u16>,
+        rows: Option<u16>,
+    ) -> Result<CommandHandle, CliError> {
+        let config = self.security_config.read().await;
+        
+        debug!(
+            "Spawning PTY command: {} {:?} (sandbox_enabled={}, size={}x{})",
+            cmd, args, config.sandbox_enabled,
+            cols.unwrap_or(80), rows.unwrap_or(24)
+        );
+
+        // Create PTY session
+        let pty_session = PtySession::new(
+            session_id.clone(),
+            &cmd,
+            &args,
+            cols,
+            rows,
+        )?;
+
+        // Start background output reader
+        let reader_task = pty_session.start_output_reader();
+
+        // Create PTY process handle
+        let pty_handle = PtyProcessHandle::new(pty_session).with_reader_task(reader_task);
+
+        // Store PTY process handle
+        {
+            let mut processes = self.processes.write().await;
+            processes.insert(session_id.clone(), ProcessType::Pty(pty_handle));
+        }
+
+        // Create command handle (PTY doesn't expose PID directly)
+        let handle = CommandHandle::new(session_id, cmd, args);
+
+        debug!("PTY command spawned successfully");
+        Ok(handle)
+    }
+
+    /// Resize a PTY terminal
+    pub async fn resize_pty(
+        &self,
+        session_id: &str,
+        cols: u16,
+        rows: u16,
+    ) -> Result<(), CliError> {
+        let processes = self.processes.read().await;
+        let process = processes
+            .get(session_id)
+            .ok_or_else(|| CliError::SessionNotFound(session_id.to_string()))?;
+
+        match process {
+            ProcessType::Pty(pty_handle) => {
+                let mut pty = pty_handle.pty_session.lock().await;
+                pty.resize(cols, rows)?;
+                debug!("Resized PTY session {} to {}x{}", session_id, cols, rows);
+                Ok(())
+            }
+            ProcessType::Regular(_) => {
+                Err(CliError::InvalidState(
+                    "Cannot resize non-PTY session".to_string()
+                ))
+            }
+        }
+    }
+
+    /// Write to stdin of a command (supports both regular and PTY processes)
     pub async fn write_stdin(
         &self,
         handle: &CommandHandle,
         input: String,
     ) -> Result<(), CliError> {
-        use tokio::io::AsyncWriteExt;
-        
         let processes = self.processes.read().await;
         let process = processes
             .get(&handle.session_id)
             .ok_or_else(|| CliError::SessionNotFound(handle.session_id.clone()))?;
 
-        // Get stdin handle
-        let mut stdin_guard = process.stdin.lock().await;
-        let stdin = stdin_guard.as_mut()
-            .ok_or_else(|| CliError::StdinNotAvailable)?;
+        match process {
+            ProcessType::Regular(proc_handle) => {
+                use tokio::io::AsyncWriteExt;
+                
+                // Get stdin handle
+                let mut stdin_guard = proc_handle.stdin.lock().await;
+                let stdin = stdin_guard.as_mut()
+                    .ok_or_else(|| CliError::StdinNotAvailable)?;
 
-        // Write input with newline
-        let input_with_newline = format!("{}\n", input);
-        stdin.write_all(input_with_newline.as_bytes()).await
-            .map_err(|e| CliError::Io(e.to_string()))?;
-        
-        // Flush to ensure input is sent immediately
-        stdin.flush().await
-            .map_err(|e| CliError::Io(e.to_string()))?;
+                // Write input with newline
+                let input_with_newline = format!("{}\n", input);
+                stdin.write_all(input_with_newline.as_bytes()).await
+                    .map_err(|e| CliError::Io(e.to_string()))?;
+                
+                // Flush to ensure input is sent immediately
+                stdin.flush().await
+                    .map_err(|e| CliError::Io(e.to_string()))?;
 
-        debug!("Wrote to stdin: {}", input);
+                debug!("Wrote to regular process stdin: {}", input);
+            }
+            ProcessType::Pty(pty_handle) => {
+                let mut pty = pty_handle.pty_session.lock().await;
+                pty.write_input(&input)?;
+                debug!("Wrote to PTY session: {}", input);
+            }
+        }
         
         Ok(())
     }
 
-    /// Read output from a command
+    /// Read output from a command (supports both regular and PTY processes)
     pub async fn read_output(
         &self,
         handle: &CommandHandle,
@@ -286,49 +368,78 @@ impl CommandExecutor {
             .get(&handle.session_id)
             .ok_or_else(|| CliError::SessionNotFound(handle.session_id.clone()))?;
 
-        // Collect output from buffers
-        let mut output = Vec::new();
-        
-        {
-            let stdout_buffer = process.stdout_buffer.lock().await;
-            output.extend(stdout_buffer.clone());
-        }
-        
-        {
-            let stderr_buffer = process.stderr_buffer.lock().await;
-            output.extend(stderr_buffer.clone());
-        }
+        match process {
+            ProcessType::Regular(proc_handle) => {
+                // Collect output from buffers
+                let mut output = Vec::new();
+                
+                {
+                    let stdout_buffer = proc_handle.stdout_buffer.lock().await;
+                    output.extend(stdout_buffer.clone());
+                }
+                
+                {
+                    let stderr_buffer = proc_handle.stderr_buffer.lock().await;
+                    output.extend(stderr_buffer.clone());
+                }
 
-        Ok(output)
+                Ok(output)
+            }
+            ProcessType::Pty(pty_handle) => {
+                // Get buffered output from PTY
+                let pty = pty_handle.pty_session.lock().await;
+                let output = pty.get_buffered_output().await;
+                Ok(output)
+            }
+        }
     }
 
-    /// Terminate a command
+    /// Terminate a command (supports both regular and PTY processes)
     pub async fn terminate(&self, handle: &CommandHandle) -> Result<(), CliError> {
         let mut processes = self.processes.write().await;
         
         if let Some(process) = processes.remove(&handle.session_id) {
-            let mut child = process.child.lock().await;
-            
-            // Try graceful termination first on Unix systems
-            #[cfg(unix)]
-            {
-                if let Some(pid) = child.id() {
-                    // Send SIGTERM for graceful shutdown
-                    let _ = nix::sys::signal::kill(
-                        nix::unistd::Pid::from_raw(pid as i32),
-                        nix::sys::signal::Signal::SIGTERM,
-                    );
+            match process {
+                ProcessType::Regular(proc_handle) => {
+                    let mut child = proc_handle.child.lock().await;
+                    
+                    // Try graceful termination first on Unix systems
+                    #[cfg(unix)]
+                    {
+                        if let Some(pid) = child.id() {
+                            // Send SIGTERM for graceful shutdown
+                            let _ = nix::sys::signal::kill(
+                                nix::unistd::Pid::from_raw(pid as i32),
+                                nix::sys::signal::Signal::SIGTERM,
+                            );
+                        }
+                    }
+
+                    // Wait a bit for graceful shutdown
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+                    // Force kill if still running
+                    let _ = child.kill().await;
+                    let _ = child.wait().await;
+                    
+                    debug!("Regular process terminated: {:?}", handle.pid);
+                }
+                ProcessType::Pty(pty_handle) => {
+                    // Cancel the reader task
+                    {
+                        let mut task_guard = pty_handle.reader_task.lock().await;
+                        if let Some(task) = task_guard.take() {
+                            task.abort();
+                        }
+                    }
+
+                    // Kill the PTY process
+                    let mut pty = pty_handle.pty_session.lock().await;
+                    let _ = pty.kill();
+                    
+                    debug!("PTY process terminated: {}", handle.session_id);
                 }
             }
-
-            // Wait a bit for graceful shutdown
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-            // Force kill if still running
-            let _ = child.kill().await;
-            let _ = child.wait().await;
-            
-            debug!("Process terminated: {:?}", handle.pid);
         }
 
         Ok(())

@@ -63,11 +63,15 @@ class LinuxAudioSetupService {
         this.checkAudioServer()
       ]);
 
+      const needsSetup = audioServer === 'none' ||
+        audioServer === 'unknown' ||
+        (audioServer === 'pulseaudio' && !inAudioGroup);
+
       return {
         isLinux: true,
         inAudioGroup,
         audioServer,
-        needsSetup: !inAudioGroup || audioServer === 'none'
+        needsSetup
       };
     } catch (error) {
       console.error('[LinuxAudioSetup] Error checking status:', error);
@@ -143,24 +147,89 @@ class LinuxAudioSetupService {
   }
 
   /**
+   * Try to start PipeWire/PulseAudio user services
+   */
+  async startAudioServices(): Promise<{ success: boolean; message: string }> {
+    if (!this.isTauri) {
+      return {
+        success: false,
+        message: 'This feature is only available in the desktop app.'
+      };
+    }
+
+    if (!this.isLinux) {
+      return {
+        success: false,
+        message: 'This feature is only available on Linux.'
+      };
+    }
+
+    try {
+      const message = await invoke<string>('start_audio_services');
+      return { success: true, message };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.toString() || 'Failed to start audio services'
+      };
+    }
+  }
+
+  /**
+   * Attempt automatic recovery for common Linux audio issues
+   */
+  async tryAutoFix(): Promise<{ success: boolean; message: string }> {
+    if (!this.isLinuxTauri()) {
+      return {
+        success: false,
+        message: 'Automatic fixes are only available on Linux desktop.'
+      };
+    }
+
+    const messages: string[] = [];
+    let changed = false;
+
+    const initial = await this.checkStatus();
+
+    if (initial.audioServer === 'none' || initial.audioServer === 'unknown') {
+      const startResult = await this.startAudioServices();
+      messages.push(startResult.message);
+      changed = changed || startResult.success;
+    }
+
+    const afterStart = await this.checkStatus();
+    if (afterStart.audioServer === 'pulseaudio' && !afterStart.inAudioGroup) {
+      const groupResult = await this.addUserToAudioGroup();
+      messages.push(groupResult.message);
+      changed = changed || groupResult.success;
+    }
+
+    if (messages.length === 0) {
+      messages.push('No fixes needed.');
+    }
+
+    return {
+      success: changed,
+      message: messages.join(' ')
+    };
+  }
+
+  /**
    * Get instructions for manual setup
    */
   getManualInstructions(): string {
     return `To manually fix audio permissions on Linux:
 
-1. Add yourself to the audio group:
+1. Ensure PipeWire or PulseAudio is running:
+   • For PipeWire: systemctl --user start pipewire pipewire-pulse wireplumber
+   • For PulseAudio: pulseaudio --start
+
+2. If you are using PulseAudio and still get denied, add yourself to the audio group:
    sudo usermod -aG audio $USER
 
-2. Log out and log back in (or reboot)
+3. Log out and log back in (or reboot) after changing groups
 
-3. Verify you're in the audio group:
-   groups | grep audio
-
-4. Ensure PulseAudio or PipeWire is running:
-   • For PulseAudio: pulseaudio --start
-   • For PipeWire: systemctl --user start pipewire
-
-5. Test your microphone:
+4. Verify audio is available:
    pactl list sources short`;
   }
 }

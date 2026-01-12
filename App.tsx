@@ -47,6 +47,7 @@ const AppContent: React.FC = () => {
   const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [isFileSearchTestOpen, setIsFileSearchTestOpen] = useState(false);
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   
   // Track pending chat creation to avoid remounting during first message
   const pendingChatIdRef = useRef<string | null>(null);
@@ -100,11 +101,17 @@ const AppContent: React.FC = () => {
       setUser(authState.user);
     }
 
-    // Keyboard shortcut for file search test
+    // Keyboard shortcuts
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Shift+F for file search test
       if (e.ctrlKey && e.shiftKey && e.key === 'F') {
         e.preventDefault();
         setIsFileSearchTestOpen(true);
+      }
+      // Ctrl+` for terminal
+      if (e.ctrlKey && e.key === '`') {
+        e.preventDefault();
+        setIsTerminalOpen(open => !open);
       }
     };
 
@@ -187,6 +194,8 @@ const AppContent: React.FC = () => {
   const openActivity = useCallback(() => setIsActivityOpen(true), []);
   const closeActivity = useCallback(() => setIsActivityOpen(false), []);
   const closeFileSearchTest = useCallback(() => setIsFileSearchTestOpen(false), []);
+  const toggleTerminal = useCallback(() => setIsTerminalOpen(open => !open), []);
+  const closeTerminal = useCallback(() => setIsTerminalOpen(false), []);
 
   // Auth handlers
   const handleSignIn = useCallback(() => setAuthView('login'), []);
@@ -277,6 +286,8 @@ const AppContent: React.FC = () => {
                 initialMessages={currentChat?.messages || []}
                 onMessagesChange={isDemoMode ? () => {} : handleMessagesChange}
                 onActiveModeChange={setActiveQuickAction}
+                isTerminalOpen={isTerminalOpen}
+                onToggleTerminal={toggleTerminal}
               />
             </div>
           </main>

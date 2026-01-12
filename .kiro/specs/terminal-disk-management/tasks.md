@@ -101,15 +101,15 @@ This implementation plan converts the terminal integration and disk management d
     - Create apparent size calculation
     - _Requirements: 2.1, 2.2, 2.3_
 
-  - [ ] 5.2 Write property test for directory scanning
+  - [x] 5.2 Write property test for directory scanning
     - **Property 9: Directory scanning and space calculation**
     - **Validates: Requirements 2.1**
 
-  - [ ] 5.3 Write property test for depth limiting
+  - [x] 5.3 Write property test for depth limiting
     - **Property 10: Directory traversal depth limiting**
     - **Validates: Requirements 2.2**
 
-  - [ ] 5.4 Write property test for apparent size calculation
+  - [x] 5.4 Write property test for apparent size calculation
     - **Property 11: Apparent size calculation**
     - **Validates: Requirements 2.3**
 

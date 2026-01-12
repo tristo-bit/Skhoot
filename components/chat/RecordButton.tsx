@@ -2,6 +2,8 @@ import React, { memo } from 'react';
 import { Mic } from 'lucide-react';
 import { IconButton } from '../buttonFormat';
 import { audioService } from '../../services/audioService';
+import { sttService } from '../../services/sttService';
+import { sttConfigStore } from '../../services/sttConfig';
 
 interface RecordButtonProps {
   isRecording: boolean;
@@ -10,7 +12,8 @@ interface RecordButtonProps {
 
 export const RecordButton = memo<RecordButtonProps>(({ isRecording, onClick }) => {
   const isOpera = navigator.userAgent.indexOf('OPR') !== -1 || navigator.userAgent.indexOf('Opera') !== -1;
-  const isSpeechSupported = audioService.isSpeechRecognitionSupported();
+  const preferredProvider = sttConfigStore.getProviderPreference();
+  const isSpeechSupported = audioService.isSpeechRecognitionSupported() || sttService.isAvailable();
 
   const getAriaLabel = () => {
     if (isRecording) return 'Stop recording';
@@ -21,7 +24,8 @@ export const RecordButton = memo<RecordButtonProps>(({ isRecording, onClick }) =
   const getTitle = () => {
     if (isOpera) return 'Voice input not supported in Opera - click for text input fallback';
     if (isSpeechSupported) return 'Click to start voice recording';
-    return 'Voice input not supported in this browser';
+    if (preferredProvider === 'web-speech') return 'Web Speech API is not available on this platform';
+    return 'Voice input requires an API key or a local STT server';
   };
 
   const getBackgroundColor = () => {

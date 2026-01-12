@@ -51,6 +51,9 @@ crossterm = "0.27"
 ratatui = "0.24"
 clap = { version = "4.0", features = ["derive"] }
 
+# PTY (Pseudo-Terminal) support for terminal emulation
+portable-pty = "0.8"
+
 # Unix signal handling
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.27", features = ["signal"] }

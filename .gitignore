@@ -47,6 +47,8 @@ Thumbs.db
 target/
 debug/
 release/
+third_party/whisper.cpp/
+src-tauri/resources/whisper/
 
 # Temporary files
 *.tmp

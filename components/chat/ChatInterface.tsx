@@ -6,6 +6,7 @@ import { activityLogger } from '../../services/activityLogger';
 import { nativeNotifications } from '../../services/nativeNotifications';
 import { MainArea } from '../main-area';
 import { PromptArea } from './PromptArea';
+import { TerminalView } from '../terminal';
 import { useVoiceRecording } from './hooks';
 
 interface ChatInterfaceProps {
@@ -13,9 +14,17 @@ interface ChatInterfaceProps {
   initialMessages: Message[];
   onMessagesChange: (messages: Message[]) => void;
   onActiveModeChange?: (mode: string | null) => void;
+  isTerminalOpen?: boolean;
+  onToggleTerminal?: () => void;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessagesChange, onActiveModeChange }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
+  initialMessages, 
+  onMessagesChange, 
+  onActiveModeChange,
+  isTerminalOpen = false,
+  onToggleTerminal,
+}) => {
   // State
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
@@ -454,6 +463,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         onEditVoice={editVoiceTranscript}
       />
       
+      {/* Terminal View - floats above PromptArea */}
+      <TerminalView 
+        isOpen={isTerminalOpen}
+        onClose={onToggleTerminal || (() => {})}
+        onSendCommand={(sendFn) => {
+          // Store the send function to be called from PromptArea
+          (window as any).__terminalSendCommand = sendFn;
+        }}
+      />
+      
       <PromptArea
         ref={inputRef}
         input={input}
@@ -469,6 +488,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         onSend={handleSend}
         onMicClick={handleMicClick}
         onQuickAction={handleQuickAction}
+        isTerminalOpen={isTerminalOpen}
+        onToggleTerminal={onToggleTerminal}
       />
     </div>
   );

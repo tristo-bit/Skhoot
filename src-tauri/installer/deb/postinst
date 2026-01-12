@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e
+
+log() {
+  echo "[skhoot-postinst] $1"
+}
+
+if command -v systemctl >/dev/null 2>&1; then
+  log "Enabling PipeWire user services globally"
+  systemctl --global enable pipewire pipewire-pulse wireplumber >/dev/null 2>&1 || true
+
+  if [ -n "$SUDO_USER" ]; then
+    log "Starting PipeWire user services for $SUDO_USER"
+    su - "$SUDO_USER" -c "systemctl --user enable --now pipewire pipewire-pulse wireplumber" >/dev/null 2>&1 || true
+    su - "$SUDO_USER" -c "systemctl --user restart xdg-desktop-portal" >/dev/null 2>&1 || true
+  else
+    log "No SUDO_USER detected; user services will start on next login"
+  fi
+else
+  log "systemctl not found; skipping user service setup"
+fi
+
+exit 0

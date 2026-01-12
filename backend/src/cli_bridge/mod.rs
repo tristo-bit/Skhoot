@@ -8,6 +8,7 @@ pub mod session;
 pub mod executor;
 pub mod error;
 pub mod types;
+pub mod pty;
 
 #[cfg(test)]
 mod tests;
@@ -15,7 +16,8 @@ mod tests;
 pub use session::{SessionManager, SessionInfo, SessionState, CommandHistoryEntry};
 pub use executor::CommandExecutor;
 pub use error::{CliError, ErrorReport, ErrorSeverity};
-pub use types::{CommandHandle, CommandStatus, TerminalOutput, OutputType, SecurityConfig};
+pub use types::{CommandHandle, CommandStatus, TerminalOutput, OutputType, SecurityConfig, ProcessType};
+pub use pty::PtySession;
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -61,6 +63,51 @@ impl CliBridge {
         }
 
         Ok(handle)
+    }
+
+    /// Execute a command with PTY (pseudo-terminal) support for full terminal emulation
+    pub async fn execute_command_pty(
+        &self,
+        cmd: String,
+        args: Vec<String>,
+        cols: Option<u16>,
+        rows: Option<u16>,
+    ) -> Result<CommandHandle, CliError> {
+        // Validate command
+        self.executor.validate_command(&cmd, &args).await?;
+
+        // Create session
+        let session_id = {
+            let mut manager = self.session_manager.write().await;
+            manager.create_session()
+        };
+
+        // Execute command with PTY
+        let handle = self.executor.spawn_command_pty(
+            session_id.clone(),
+            cmd,
+            args,
+            cols,
+            rows,
+        ).await?;
+
+        // Register session
+        {
+            let mut manager = self.session_manager.write().await;
+            manager.register_command(&session_id, handle.clone())?;
+        }
+
+        Ok(handle)
+    }
+
+    /// Resize a PTY terminal
+    pub async fn resize_pty(
+        &self,
+        session_id: &str,
+        cols: u16,
+        rows: u16,
+    ) -> Result<(), CliError> {
+        self.executor.resize_pty(session_id, cols, rows).await
     }
 
     /// Write input to an interactive command

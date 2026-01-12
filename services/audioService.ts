@@ -4,6 +4,8 @@
  * Compatible with Windows 11, macOS, and Linux (Ubuntu)
  */
 
+import { linuxAudioSetup } from './linuxAudioSetup';
+
 export interface AudioDevice {
   deviceId: string;
   label: string;
@@ -136,7 +138,7 @@ class AudioService {
   /**
    * Request microphone permission - simplified and more direct
    */
-  async requestPermission(): Promise<AudioPermissionStatus> {
+  async requestPermission(allowAutoFix: boolean = true): Promise<AudioPermissionStatus> {
     // Prevent multiple simultaneous requests
     if (this.permissionRequestInProgress) {
       console.log('[AudioService] Permission request already in progress');
@@ -229,8 +231,16 @@ class AudioService {
         error: errorMessage,
         platform: this.platform
       };
-      
+
       this.permissionRequestInProgress = false;
+
+      if (allowAutoFix && this.platform === 'linux' && linuxAudioSetup.isLinuxTauri()) {
+        const autoFix = await linuxAudioSetup.tryAutoFix();
+        if (autoFix.success) {
+          return await this.requestPermission(false);
+        }
+      }
+
       return this.permissionStatus;
     }
   }
@@ -242,8 +252,8 @@ class AudioService {
     switch (this.platform) {
       case 'linux':
         return 'Microphone access was denied.\n\n' +
-          'This is usually caused by missing audio group membership.\n' +
-          'Use the "Fix Audio Permissions" button above to fix this automatically.';
+          'On Linux this can be caused by missing PipeWire/PulseAudio services or permissions.\n' +
+          'Use the "Fix Audio Setup" button above to fix this automatically.';
       
       case 'macos':
         return 'Microphone access was denied.\n\n' +

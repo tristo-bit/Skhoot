@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Camera, Key, Crown, User as UserIcon } from 'lucide-react';
 import { Modal } from '../ui';
 import { SaveButton, UploadButton, ConnectionButton, PremiumButton, Button, IconButton, PlanButton, BackButton } from '../buttonFormat';
+import { apiKeyStore } from '../../services/apiKeyStore';
 
 interface UserPanelProps {
   onClose: () => void;
@@ -30,6 +31,14 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
   const [isApiKeySaved, setIsApiKeySaved] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const storedKey = apiKeyStore.get();
+    if (storedKey) {
+      setApiKey(storedKey);
+      setIsApiKeySaved(true);
+    }
+  }, []);
 
   // Check if there are unsaved changes
   React.useEffect(() => {
@@ -141,6 +150,9 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
     console.log('Saving API key:', apiKey);
     // Here you would save the API key to your backend/storage
     // For example: localStorage.setItem('apiKey', apiKey) or API call
+    if (apiKey.trim()) {
+      apiKeyStore.set(apiKey.trim());
+    }
     
     // Simulate saving process
     setIsApiKeySaved(true);

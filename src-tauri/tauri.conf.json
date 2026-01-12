@@ -5,6 +5,7 @@
   "identifier": "com.skhoot.desktop-seeker",
   "build": {
     "beforeBuildCommand": "npm run build && cd backend && cargo build --release",
+    "beforeBundleCommand": "node ../scripts/prepare-whispercpp.js",
     "beforeDevCommand": "npm run dev",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173"
@@ -24,7 +25,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src http://localhost:5173 http://localhost:3001 tauri://localhost https://hub.docker.com https://cdn.jsdelivr.net https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com; img-src 'self' data: https://cdn.jsdelivr.net https://*.docker.com https://*.githubusercontent.com; style-src 'self' 'unsafe-inline'; media-src 'self' blob: mediastream:"
+      "csp": "default-src 'self'; connect-src http://localhost:5173 http://localhost:3001 http://127.0.0.1:* http://localhost:* tauri://localhost https://hub.docker.com https://cdn.jsdelivr.net https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com; img-src 'self' data: https://cdn.jsdelivr.net https://*.docker.com https://*.githubusercontent.com; style-src 'self' 'unsafe-inline'; media-src 'self' blob: mediastream:"
     }
   },
   "plugins": {
@@ -49,6 +50,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": [],
     "macOS": {
       "entitlements": "entitlements.plist",
       "exceptionDomain": null,
@@ -59,6 +61,20 @@
     "linux": {
       "appimage": {
         "bundleMediaFramework": true
+      },
+      "deb": {
+        "depends": [
+          "pipewire",
+          "pipewire-pulse",
+          "wireplumber",
+          "xdg-desktop-portal",
+          "xdg-desktop-portal-gtk",
+          "ffmpeg"
+        ],
+        "recommends": [
+          "pulseaudio"
+        ],
+        "postInstallScript": "installer/deb/postinst"
       }
     },
     "windows": {

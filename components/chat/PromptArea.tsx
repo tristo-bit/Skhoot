@@ -1,5 +1,5 @@
 import React, { forwardRef, useRef, useEffect, useState } from 'react';
-import { Search, Bot, HardDrive, Trash2 } from 'lucide-react';
+import { Search, Bot, HardDrive, Trash2, Terminal } from 'lucide-react';
 import { QUICK_ACTIONS } from '../../src/constants';
 import SynthesisVisualizer from '../ui/SynthesisVisualizer';
 import { useTheme } from '../../src/contexts/ThemeContext';
@@ -31,6 +31,8 @@ interface PromptAreaProps {
   onMicClick: () => void;
   onQuickAction: (mode: string, placeholder: string) => void;
   disabled?: boolean;
+  isTerminalOpen?: boolean;
+  onToggleTerminal?: () => void;
 }
 
 export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
@@ -47,16 +49,37 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   onMicClick,
   onQuickAction,
   disabled = false,
+  isTerminalOpen = false,
+  onToggleTerminal,
 }, ref) => {
   const { resolvedTheme } = useTheme();
   const { illumination } = useSettings();
   const isDarkMode = resolvedTheme === 'dark';
   
   const hasContent = input.trim().length > 0;
-  const showQuickActions = !isRecording && !hasPendingVoiceMessage;
-  const placeholder = hasPendingVoiceMessage 
-    ? "Send your message?" 
-    : "Skhoot is listening...";
+  const showQuickActions = !isRecording && !hasPendingVoiceMessage && !isTerminalOpen;
+  const placeholder = isTerminalOpen
+    ? "Type command and press Enter..."
+    : hasPendingVoiceMessage 
+      ? "Send your message?" 
+      : "Skhoot is listening...";
+  
+  // Handle terminal command sending
+  const handleTerminalKeyDown = (e: React.KeyboardEvent) => {
+    if (isTerminalOpen && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const command = (e.target as HTMLTextAreaElement).value;
+      if (command.trim() && (window as any).__terminalSendCommand) {
+        (window as any).__terminalSendCommand(command);
+        (e.target as HTMLTextAreaElement).value = '';
+        // Trigger onChange to clear the input state
+        const event = new Event('input', { bubbles: true });
+        (e.target as HTMLTextAreaElement).dispatchEvent(event);
+      }
+    } else if (!isTerminalOpen) {
+      onKeyDown(e);
+    }
+  };
   
   // Detect Opera browser for notification (disabled in demo mode)
   const isOpera = navigator.userAgent.indexOf('OPR') !== -1 || navigator.userAgent.indexOf('Opera') !== -1;
@@ -190,11 +213,36 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
         
         {/* Input Row */}
         <div className="flex items-center gap-2">
+          {/* Terminal Button */}
+          {onToggleTerminal && (
+            <button
+              onClick={onToggleTerminal}
+              className="flex-shrink-0 transition-all duration-300 ease-out hover:scale-105 active:scale-95"
+              style={{
+                padding: 'calc(10px * var(--component-scale) * var(--scale))',
+                borderRadius: 'calc(12px * var(--component-scale) * var(--scale))',
+                marginLeft: 'calc(var(--scale-space-1) * var(--spacing-scale))',
+                background: isTerminalOpen 
+                  ? 'rgba(139, 92, 246, 0.15)'
+                  : 'rgba(255, 255, 255, 0.05)',
+                border: isTerminalOpen
+                  ? '1px solid rgba(139, 92, 246, 0.3)'
+                  : '1px solid rgba(255, 255, 255, 0.1)',
+                color: isTerminalOpen ? '#8b5cf6' : 'var(--text-secondary)',
+              }}
+              title="Toggle Terminal (Ctrl+`)"
+              aria-label="Toggle Terminal"
+            >
+              <Terminal size={16} />
+            </button>
+          )}
+          
           <div
             className="flex-1 relative"
             style={{
               paddingLeft: 'calc(var(--scale-space-2) * var(--spacing-scale))',
               minHeight: 'calc(40px * var(--component-scale) * var(--scale))',
+              transform: 'translateY(5px)',
             }}
           >
             {/* SoundWave when recording */}
@@ -235,7 +283,7 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
                 rows={1}
                 value={input}
                 onChange={onInputChange}
-                onKeyDown={onKeyDown}
+                onKeyDown={handleTerminalKeyDown}
                 placeholder={placeholder}
                 disabled={disabled}
                 className="w-full bg-transparent border-none outline-none font-semibold placeholder:text-text-secondary placeholder:font-medium font-jakarta text-text-primary resize-none disabled:cursor-default"
