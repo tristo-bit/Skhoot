@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Volume2, VolumeX, Clock, Settings as SettingsIcon, TestTube } from 'lucide-react';
-import { Button, SwitchToggle } from '../buttonFormat';
+import { Button, ToggleSwitch } from '../buttonFormat';
 import { nativeNotifications, NotificationSettings, NotificationType } from '../../services/nativeNotifications';
+import { PanelHeader } from './shared';
 
 interface NotificationsPanelProps {
   onBack: () => void;
@@ -37,11 +38,10 @@ const SettingRow: React.FC<SettingRowProps> = ({ label, description, checked, on
       <div className="text-sm font-medium text-text-primary">{label}</div>
       {description && <div className="text-xs text-text-secondary mt-0.5">{description}</div>}
     </div>
-    <SwitchToggle
+    <ToggleSwitch
       isToggled={checked}
       onToggle={onChange}
       disabled={disabled}
-      size="sm"
     />
   </div>
 );
@@ -219,6 +219,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
 
   return (
     <div className="space-y-8">
+      <PanelHeader title="Notifications" onBack={onBack} />
       {/* General Settings */}
       <div className="space-y-4">
         <SectionLabel 
@@ -244,7 +245,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
         
         <div className="space-y-1">
           <SettingRow
-            label="✅ Success Notifications"
+            label="Success Notifications"
             description="File saved, search completed, operations successful"
             checked={settings.types.success}
             onChange={(checked) => updateSettings({ 
@@ -254,7 +255,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
           />
           
           <SettingRow
-            label="❌ Error Notifications"
+            label="Error Notifications"
             description="API failures, file not found, connection errors"
             checked={settings.types.error}
             onChange={(checked) => updateSettings({ 
@@ -264,7 +265,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
           />
           
           <SettingRow
-            label="⚠️ Warning Notifications"
+            label="Warning Notifications"
             description="Low disk space, cleanup recommended, potential issues"
             checked={settings.types.warning}
             onChange={(checked) => updateSettings({ 
@@ -274,7 +275,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
           />
           
           <SettingRow
-            label="ℹ️ Info Notifications"
+            label="Info Notifications"
             description="New conversation, analysis complete, general updates"
             checked={settings.types.info}
             onChange={(checked) => updateSettings({ 
@@ -349,16 +350,6 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
           ]}
           onChange={(position: any) => updateSettings({ 
             display: { ...settings.display, position }
-          })}
-          disabled={!settings.enabled}
-        />
-        
-        <SettingRow
-          label="Show Icons"
-          description="Display type icons in notifications (✅❌⚠️ℹ️)"
-          checked={settings.display.showIcon}
-          onChange={(showIcon) => updateSettings({ 
-            display: { ...settings.display, showIcon }
           })}
           disabled={!settings.enabled}
         />

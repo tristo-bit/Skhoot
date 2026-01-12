@@ -3,7 +3,7 @@ import { Mic, VolumeX, Volume2, AlertCircle, Terminal, CheckCircle } from 'lucid
 import { audioService, AudioDevice } from '../../services/audioService';
 import { linuxAudioSetup, LinuxAudioStatus } from '../../services/linuxAudioSetup';
 import { PanelHeader, SectionLabel } from './shared';
-import { Button, SwitchToggle } from '../buttonFormat';
+import { Button, ToggleButton } from '../buttonFormat';
 
 interface SoundPanelProps {
   onBack: () => void;
@@ -599,12 +599,14 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
             <SectionLabel label="Voice Sensitivity" />
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-text-secondary">Auto Detection</span>
-              <SwitchToggle
+              <ToggleButton
                 isToggled={autoSensitivity}
                 onToggle={(toggled) => {
                   setAutoSensitivity(toggled);
                   console.log(`🎛️ Sensitivity mode changed to: ${toggled ? 'AUTO (3x)' : 'MANUAL'}`);
                 }}
+                toggledText="Auto"
+                untoggledText="Manual"
               />
             </div>
             

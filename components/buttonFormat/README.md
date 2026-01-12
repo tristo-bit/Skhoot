@@ -17,7 +17,7 @@ Ce dossier contient un système de boutons réutilisables basé sur une primitiv
 - **`connection-button.tsx`** - Bouton de test de connexion
 - **`premium-button.tsx`** - Bouton pour actions premium
 - **`toggle-button.tsx`** - Bouton toggle on/off
-- **`switch-toggle.tsx`** - Switch toggle avec animation fluide
+- **`toggle-switch.tsx`** - Toggle switch avec knob animé et design glassmorphique
 - **`icon-button.tsx`** - Bouton avec icône uniquement
 
 ## Usage
@@ -51,6 +51,14 @@ import { Button, SaveButton, TabButton } from './buttonFormat';
   onToggle={setIsEnabled}
   size="md"
   disabled={false}
+/>
+
+// Toggle switch avec design glassmorphique
+<ToggleSwitch
+  isToggled={isEnabled}
+  onToggle={setIsEnabled}
+  disabled={false}
+  className="w-12 h-6"
 />
 ```
 
@@ -86,4 +94,6 @@ The `SwitchToggle` component uses specific dimensions:
 - Styles adaptatifs light/dark mode
 - Accessibilité (aria-label, title, role="switch" for toggles)
 - TypeScript avec types stricts
-- Switch toggles avec animation fluide du knob et changement de couleur
+- Toggle switches avec animation fluide du knob et changement de couleur
+- Design glassmorphique avec bordures et effets de profondeur
+- Customisation flexible via className prop

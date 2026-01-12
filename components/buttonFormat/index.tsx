@@ -11,7 +11,7 @@ export { UploadButton } from './upload-button';
 export { ConnectionButton } from './connection-button';
 export { PremiumButton } from './premium-button';
 export { ToggleButton } from './toggle-button';
+export { ToggleSwitch } from './toggle-switch';
 export { IconButton } from './icon-button';
 export { SubmitButton } from './submit-button';
 export { PlanButton } from './plan-button';
-export { SwitchToggle } from './switch-toggle';

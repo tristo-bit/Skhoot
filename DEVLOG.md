@@ -494,3 +494,127 @@
 5. Verify if `Tauri available: true` or `false` in logs
 
 **Status**: Enhanced logging deployed, awaiting user feedback with console logs to diagnose notification issue.
+
+
+### Notifications Panel - Final UI Fixes ✅
+
+**User Feedback**: Notifications working perfectly! Now fixing remaining UI issues.
+
+**Issues Fixed**:
+1. ✅ Toggle buttons not using existing component system
+2. ✅ Missing back button (chevron) in Notifications panel
+3. ✅ Emoji clutter in notification type labels
+
+**Changes Applied**:
+
+**1. Toggle Component Migration ✅**
+- **Removed**: `components/buttonFormat/switch-toggle.tsx` (custom implementation)
+- **Replaced with**: Existing `ToggleButton` component from button system
+- **Files Updated**:
+  - `components/settings/NotificationsPanel.tsx` - All SettingRow components now use ToggleButton
+  - `components/settings/SoundPanel.tsx` - Voice sensitivity toggle updated
+  - `components/buttonFormat/index.tsx` - Removed SwitchToggle export
+- **Benefits**: 
+  - Consistent with existing button system
+  - Better visual design with "On/Off" text labels
+  - Proper glassmorphic styling matching app theme
+
+**2. Back Button Navigation ✅**
+- **Added**: `PanelHeader` component with back button
+- **File**: `components/settings/NotificationsPanel.tsx`
+- **Implementation**: Now uses shared `PanelHeader` component like all other settings panels
+- **Result**: Consistent navigation with chevron back button across all settings sections
+
+**3. Clean Notification Labels ✅**
+- **Removed emojis** from notification type labels:
+  - ~~"✅ Success Notifications"~~ → "Success Notifications"
+  - ~~"❌ Error Notifications"~~ → "Error Notifications"
+  - ~~"⚠️ Warning Notifications"~~ → "Warning Notifications"
+  - ~~"ℹ️ Info Notifications"~~ → "Info Notifications"
+- **Reason**: Cleaner, more professional UI without emoji clutter
+- **Descriptions preserved**: Detailed descriptions remain for each notification type
+
+**Component Cleanup**:
+- Deleted unused `switch-toggle.tsx` component
+- Updated all imports to use `ToggleButton`
+- Maintained all debug functionality (test buttons, debug info, reset)
+
+**UI Consistency Achieved**:
+- ✅ All settings panels now use same navigation pattern (PanelHeader with BackButton)
+- ✅ All toggles use consistent ToggleButton component
+- ✅ Clean, professional labels without emoji clutter
+- ✅ Proper glassmorphic styling throughout
+
+**Status**: Notifications panel now fully consistent with rest of settings UI. All requested fixes complete.
+
+
+### Toggle Switch Component - Visual Switch Implementation ✅
+
+**User Clarification**: User wanted visual toggle switches (knob that slides) not text buttons "On/Off"
+
+**Issue**: Previous implementation used `ToggleButton` which displays text labels instead of visual switch
+
+**Solution Implemented**:
+
+**Created New ToggleSwitch Component ✅**
+- **File**: `components/buttonFormat/toggle-switch.tsx`
+- **Design**: Visual switch with sliding knob (like iOS/Android toggles)
+- **Features**:
+  - Uses existing CSS classes: `settings-toggle` and `settings-toggle-knob`
+  - Smooth animation with `transition-all duration-300`
+  - White border for visibility: `border-2 border-white/40` (inactive) → `border-white/60` (hover)
+  - Accent color when active: `bg-accent border-accent`
+  - Glass border when inactive: `bg-glass-border`
+  - Knob slides from left to right: `translate-x-1` → `translate-x-5`
+  - Disabled state with opacity: `opacity-50 cursor-not-allowed`
+
+**Updated NotificationsPanel ✅**
+- **File**: `components/settings/NotificationsPanel.tsx`
+- **Changes**:
+  - Replaced `ToggleButton` import with `ToggleSwitch`
+  - Updated `SettingRow` component to use `ToggleSwitch`
+  - Removed text labels ("On/Off") - now pure visual switch
+  - Maintained all functionality (checked state, onChange, disabled)
+
+**Updated Exports ✅**
+- **File**: `components/buttonFormat/index.tsx`
+- **Added**: `export { ToggleSwitch } from './toggle-switch'`
+
+**Visual Design**:
+- Matches the reference image provided by user
+- Circular knob that slides horizontally
+- Clear visual feedback for on/off states
+- Consistent with modern UI patterns (iOS, Android, web apps)
+
+**Component Distinction**:
+- `ToggleButton` - Text-based button that says "On/Off" (kept for other uses)
+- `ToggleSwitch` - Visual switch with sliding knob (used in settings)
+
+**Status**: Visual toggle switches now implemented in Notifications panel, matching user's expected design.
+
+
+### ToggleSwitch - Glass Effect Added ✅
+
+**User Feedback**: Toggle switches should have glass effect like other buttons
+
+**Fix Applied**:
+- **File**: `components/buttonFormat/toggle-switch.tsx`
+- **Changes**:
+  - Replaced `bg-glass-border` with `glass-subtle` for inactive state
+  - Added `hover:glass-elevated` for hover state
+  - Maintained `bg-accent` for active state
+  - Consistent glassmorphic design with rest of UI
+
+**Result**: Toggle switches now have beautiful glass effect matching the app's design system.
+
+
+### NotificationsPanel - Removed "Show Icons" Setting ✅
+
+**User Request**: Remove "Show Icons" setting with emoji description
+
+**Change Applied**:
+- **File**: `components/settings/NotificationsPanel.tsx`
+- **Removed**: "Show Icons" toggle setting
+- **Reason**: Simplified UI, removed unnecessary option
+
+**Result**: Cleaner Display Settings section without icon toggle option.

@@ -94,7 +94,7 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
   - **General Controls**: Master enable/disable toggle for all notifications
   - **Notification Types**: Individual controls for success (✅), error (❌), warning (⚠️), and info (ℹ️) notifications
   - **Sound Management**: Enable/disable notification sounds with volume control slider (0-100%) and custom sound support
-  - **Display Customization**: Duration control (0-30s, 0=persistent), position selection (4 corners), icon display, action buttons, and notification grouping
+  - **Display Customization**: Duration control (0-30s, 0=persistent), position selection (4 corners), action buttons, and notification grouping
   - **Frequency Control**: Rate limiting with max notifications per minute (1-20) and quiet hours scheduling with overnight support
   - **Priority Settings**: Individual priority levels (low/normal/high) for each notification type affecting display behavior
   - **Test Interface**: Built-in test buttons for all notification types with real-time preview and debug logging (bypasses all filters for reliable testing)
@@ -485,12 +485,15 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 <details>
 <summary><strong>Button System Enhancement</strong></summary>
 
-- **New SwitchToggle Component**: Reusable switch toggle with smooth animations and multiple size options (sm, md, lg)
-- **Accessibility**: Full ARIA support with `role="switch"` and `aria-checked` attributes
-- **Flexible Sizing**: Three size variants with responsive knob animations and positioning
-- **Theme Integration**: Seamless light/dark mode support with accent color transitions
-- **Disabled State**: Proper visual feedback and cursor handling for disabled toggles
-- **Consistent Design**: Follows embossed glassmorphic design system with 300ms transitions
+- **New ToggleSwitch Component**: Reusable toggle switch with smooth animations and glassmorphic design
+  - Smooth 300ms transitions for knob movement and color changes
+  - Accent color when toggled, glass border when off
+  - Full accessibility with `role="switch"` and `aria-checked` attributes
+  - Disabled state with proper visual feedback and cursor handling
+  - Customizable via className prop for flexible integration
+  - Follows embossed glassmorphic design system with border and shadow effects
+- **Enhanced Button System**: Comprehensive collection of specialized buttons (close, back, tab, save, upload, connection, premium, toggle, icon)
+- **Consistent Design Language**: All buttons follow the same design principles with 300ms transitions and theme-aware styling
 
 </details>
 
@@ -591,7 +594,6 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 - **Display Customization**: 
   - Duration control (0-30 seconds, 0 for persistent notifications)
   - Position selection (top-right, top-left, bottom-right, bottom-left)
-  - Icon display toggle for notification type indicators
   - Action buttons and notification grouping options
 - **Frequency Management**: 
   - Rate limiting with configurable max notifications per minute (1-20)
