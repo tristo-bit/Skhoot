@@ -1,272 +1,393 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skhoot - Your Desktop AI Assistant</title>
-  <meta name="description" content="Skhoot is an intelligent desktop assistant that helps you find files, search conversations, analyze disk usage, and manage your digital workspace.">
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <style>
-    :root {
-      --glass-bg: rgba(255, 255, 255, 0.85);
-      --glass-border: rgba(0, 0, 0, 0.08);
-      --text-primary: #2D3436;
-      --text-secondary: #636E72;
-      --bg-gradient-start: #D6E4F0;
-      --bg-gradient-end: #EAD8DE;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --glass-bg: rgba(30, 30, 30, 0.95);
-        --glass-border: rgba(255, 255, 255, 0.08);
-        --text-primary: #e5e5e5;
-        --text-secondary: #a0a0a0;
-        --bg-gradient-start: #1a1a2e;
-        --bg-gradient-end: #16213e;
-      }
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-      min-height: 100vh;
-      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
-      color: var(--text-primary);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 2rem;
-    }
-
-    .container {
-      max-width: 800px;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2rem;
-    }
-
-    .hero {
-      text-align: center;
-      padding: 3rem 2rem;
-    }
-
-    .logo {
-      width: 120px;
-      height: 120px;
-      margin-bottom: 1.5rem;
-    }
-
-    h1 {
-      font-size: 3rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-      letter-spacing: -0.02em;
-    }
-
-    .tagline {
-      font-size: 1.25rem;
-      color: var(--text-secondary);
-      margin-bottom: 2rem;
-    }
-
-    .glass-card {
-      background: var(--glass-bg);
-      backdrop-filter: blur(12px) saturate(1.2);
-      -webkit-backdrop-filter: blur(12px) saturate(1.2);
-      border: 1px solid var(--glass-border);
-      border-radius: 16px;
-      padding: 2rem;
-      width: 100%;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 2px rgba(255, 255, 255, 0.3);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .glass-card {
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.1);
-      }
-    }
-
-    .downloads-section h2 {
-      font-size: 1.5rem;
-      margin-bottom: 1.5rem;
-      text-align: center;
-    }
-
-    .download-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-    }
-
-    .download-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.75rem;
-      padding: 1rem 1.5rem;
-      background: var(--glass-bg);
-      border: 1px solid var(--glass-border);
-      border-radius: 12px;
-      color: var(--text-primary);
-      text-decoration: none;
-      font-weight: 500;
-      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-    }
-
-    .download-btn:hover {
-      transform: scale(1.02);
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.3);
-    }
-
-    .download-btn:active {
-      transform: scale(0.98);
-      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.1);
-    }
-
-    .download-btn svg {
-      width: 24px;
-      height: 24px;
-    }
-
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1rem;
-      margin-top: 1rem;
-    }
-
-    .feature {
-      padding: 1.25rem;
-      background: rgba(255, 255, 255, 0.3);
-      border-radius: 12px;
-      text-align: center;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .feature {
-        background: rgba(255, 255, 255, 0.05);
-      }
-    }
-
-    .feature-icon {
-      font-size: 2rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .feature h3 {
-      font-size: 1rem;
-      margin-bottom: 0.25rem;
-    }
-
-    .feature p {
-      font-size: 0.875rem;
-      color: var(--text-secondary);
-    }
-
-    footer {
-      margin-top: 2rem;
-      text-align: center;
-      color: var(--text-secondary);
-      font-size: 0.875rem;
-    }
-
-    footer a {
-      color: var(--text-primary);
-      text-decoration: none;
-    }
-
-    footer a:hover {
-      text-decoration: underline;
-    }
-
-    @media (max-width: 600px) {
-      h1 { font-size: 2rem; }
-      .tagline { font-size: 1rem; }
-      .hero { padding: 2rem 1rem; }
-      .glass-card { padding: 1.5rem; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skhoot — Your Intelligent Desktop AI Assistant</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Skhoot is an intelligent desktop assistant that helps you find files, search conversations, analyze disk usage, and manage your digital workspace with AI-powered features.">
+    <meta name="keywords" content="AI assistant, desktop app, file search, voice interface, Gemini AI, productivity, Tauri">
+    <meta name="author" content="Skhoot">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Skhoot — Your Intelligent Desktop AI Assistant">
+    <meta property="og:description" content="Find files, search conversations, analyze disk usage, and manage your digital workspace with AI-powered features.">
+    <meta property="og:url" content="https://skhoot.app">
+    <meta property="og:image" content="og-image.png">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Skhoot — Your Intelligent Desktop AI Assistant">
+    <meta name="twitter:description" content="Find files, search conversations, analyze disk usage, and manage your digital workspace with AI-powered features.">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="container">
-    <section class="hero">
-      <svg class="logo" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="60" cy="60" r="56" fill="url(#grad)" stroke="var(--glass-border)" stroke-width="2"/>
-        <path d="M40 50C40 44.477 44.477 40 50 40H70C75.523 40 80 44.477 80 50V70C80 75.523 75.523 80 70 80H50C44.477 80 40 75.523 40 70V50Z" fill="var(--text-primary)" fill-opacity="0.1"/>
-        <circle cx="60" cy="55" r="12" fill="var(--text-primary)" fill-opacity="0.8"/>
-        <path d="M48 72C48 66.477 53.373 62 60 62C66.627 62 72 66.477 72 72V76H48V72Z" fill="var(--text-primary)" fill-opacity="0.8"/>
-        <defs>
-          <linearGradient id="grad" x1="0" y1="0" x2="120" y2="120">
-            <stop offset="0%" stop-color="var(--bg-gradient-start)"/>
-            <stop offset="100%" stop-color="var(--bg-gradient-end)"/>
-          </linearGradient>
-        </defs>
-      </svg>
-      <h1>Skhoot</h1>
-      <p class="tagline">Your Desktop AI Assistant</p>
-    </section>
+    <!-- Header -->
+    <header class="header" id="header">
+        <div class="header-container">
+            <a href="#" class="logo" aria-label="Skhoot Home">
+                <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="16" cy="16" r="14" fill="currentColor" fill-opacity="0.1"/>
+                    <circle cx="16" cy="13" r="5" fill="currentColor"/>
+                    <path d="M8 24c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span class="logo-text">Skhoot</span>
+            </a>
+            <nav class="nav">
+                <ul class="nav-menu">
+                    <li><a href="#features" class="nav-link">Features</a></li>
+                    <li><a href="#download" class="nav-link">Download</a></li>
+                    <li><a href="https://github.com/USER/skhoot" class="nav-link" target="_blank">GitHub</a></li>
+                </ul>
+                <a href="#download" class="btn btn-primary nav-cta">Get Started</a>
+                <button class="menu-toggle" aria-label="Toggle Menu" aria-expanded="false">
+                    <span class="menu-bar"></span>
+                    <span class="menu-bar"></span>
+                </button>
+            </nav>
+        </div>
+    </header>
 
-    <section class="glass-card downloads-section">
-      <h2>Download</h2>
-      <div class="download-grid">
-        <a href="https://github.com/USER/skhoot/releases/latest/download/Skhoot_x64.msi" class="download-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-          Windows
-        </a>
-        <a href="https://github.com/USER/skhoot/releases/latest/download/Skhoot_x64.dmg" class="download-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-          macOS
-        </a>
-        <a href="https://github.com/USER/skhoot/releases/latest/download/skhoot_amd64.deb" class="download-btn">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.4v.019c.002.089.008.179.02.267-.193-.067-.438-.135-.607-.202a1.635 1.635 0 01-.018-.2v-.02a1.772 1.772 0 01.15-.768c.082-.22.232-.406.43-.533a.985.985 0 01.594-.2zm-2.962.059h.036c.142 0 .27.048.399.135.146.129.264.288.344.465.09.199.14.4.153.667v.004c.007.134.006.2-.002.266v.08c-.03.007-.056.018-.083.024-.152.055-.274.135-.393.2.012-.09.013-.18.003-.267v-.015c-.012-.133-.04-.2-.082-.333a.613.613 0 00-.166-.267.248.248 0 00-.183-.064h-.021c-.071.006-.13.04-.186.132a.552.552 0 00-.12.27.944.944 0 00-.023.33v.015c.012.135.037.2.08.334.046.134.098.2.166.268.01.009.02.018.034.024-.07.057-.117.07-.176.136a.304.304 0 01-.131.068 2.62 2.62 0 01-.275-.402 1.772 1.772 0 01-.155-.667 1.759 1.759 0 01.08-.668 1.43 1.43 0 01.283-.535c.128-.133.26-.2.418-.2zm1.37 1.706c.332 0 .733.065 1.216.399.293.2.523.269 1.052.468h.003c.255.136.405.266.478.399v-.131a.571.571 0 01.016.47c-.123.31-.516.643-1.063.842v.002c-.268.135-.501.333-.775.465-.276.135-.588.292-1.012.267a1.139 1.139 0 01-.448-.067 3.566 3.566 0 01-.322-.198c-.195-.135-.363-.332-.612-.465v-.005h-.005c-.4-.246-.616-.512-.686-.71-.07-.268-.005-.47.193-.6.224-.135.38-.271.483-.336.104-.074.143-.102.176-.131h.002v-.003c.169-.202.436-.47.839-.601.139-.036.294-.065.466-.065zm2.8 2.142c.358 1.417 1.196 3.475 1.735 4.473.286.534.855 1.659 1.102 3.024.156-.005.33.018.513.064.646-1.671-.546-3.467-1.089-3.966-.22-.2-.232-.335-.123-.335.59.534 1.365 1.572 1.646 2.757.13.535.16 1.104.021 1.67.067.028.135.06.205.067 1.032.534 1.413.938 1.23 1.537v-.002c-.06-.135-.12-.2-.18-.264-.14-.135-.276-.135-.415-.2.045-.4.058-.667-.03-.932-.043-.133-.155-.333-.258-.465-.21-.135-.42-.2-.633-.2-.33.066-.468.2-.468.467.152.399.333.733.585.999.254.268.404.601.404.601.043.067.088.131.135.2.075.135.146.267.221.398.09.135.168.2.289.332.106.135.18.267.315.465v.003c.012.135.003.2-.043.267-.06.065-.135.065-.21.065-.087-.002-.135-.048-.167-.067-.032-.066-.06-.135-.116-.2-.067-.067-.167-.135-.267-.135-.1.003-.197.066-.265.2-.067.067-.134.133-.2.465-.066.332-.133.797-.2 1.331-.066.535-.063.932.004 1.2.073.135.122.2.31.333.19.135.533.4.838.4.167 0 .271-.065.338-.133.066-.066.135-.2.135-.265 0-.135-.068-.2-.135-.265-.066-.066-.2-.135-.265-.135-.066 0-.135.066-.2.066-.066 0-.135-.066-.135-.2 0-.066.066-.135.135-.2.066-.066.2-.066.265-.066.2 0 .4.066.535.2.135.135.2.333.2.535 0 .2-.065.4-.2.535-.135.135-.333.2-.535.2-.4 0-.8-.2-1.135-.465-.333-.267-.6-.6-.733-.867-.135-.265-.2-.465-.2-.665 0-.2.065-.4.2-.535.135-.135.333-.2.535-.2.2 0 .4.065.535.2.135.135.2.333.2.535 0 .2-.065.4-.2.535-.135.135-.333.2-.535.2-.2 0-.4-.065-.535-.2-.135-.135-.2-.333-.2-.535 0-.2.065-.4.2-.535.135-.135.333-.2.535-.2.2 0 .4.065.535.2.135.135.2.333.2.535 0 .2-.065.4-.2.535-.135.135-.333.2-.535.2-.2 0-.4-.065-.535-.2-.135-.135-.2-.333-.2-.535 0-.2.065-.4.2-.535.135-.135.333-.2.535-.2z"/></svg>
-          Linux
-        </a>
-      </div>
-      <p style="text-align: center; margin-top: 1.5rem; color: var(--text-secondary); font-size: 0.875rem;">
-        <a href="https://github.com/USER/skhoot/releases" style="color: var(--text-primary);">View all releases</a>
-      </p>
-    </section>
+    <!-- Mobile Menu -->
+    <div class="mobile-menu" id="mobile-menu">
+        <nav class="mobile-nav">
+            <a href="#features" class="mobile-link">Features</a>
+            <a href="#download" class="mobile-link">Download</a>
+            <a href="https://github.com/USER/skhoot" class="mobile-link" target="_blank">GitHub</a>
+            <a href="#download" class="btn btn-primary mobile-cta">Get Started</a>
+        </nav>
+    </div>
 
-    <section class="glass-card">
-      <div class="features">
-        <div class="feature">
-          <div class="feature-icon">🔍</div>
-          <h3>Smart File Search</h3>
-          <p>AI-powered fuzzy search across your files</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">🎤</div>
-          <h3>Voice Interface</h3>
-          <p>Speak naturally to find what you need</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">💬</div>
-          <h3>AI Chat</h3>
-          <p>Powered by Google Gemini</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">🧹</div>
-          <h3>Smart Cleanup</h3>
-          <p>Analyze disk usage and free up space</p>
-        </div>
-      </div>
-    </section>
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-background">
+                <div class="hero-gradient"></div>
+                <div class="hero-pattern"></div>
+            </div>
+            <div class="hero-content container">
+                <div class="hero-text">
+                    <h1 class="hero-title">
+                        <span class="title-line">Your intelligent</span>
+                        <span class="title-line">desktop assistant.</span>
+                    </h1>
+                    <p class="hero-subtitle">
+                        Find files instantly, speak naturally, and let AI help you manage your digital workspace. Built with React, TypeScript, and Tauri.
+                    </p>
+                    <div class="hero-actions">
+                        <a href="#download" class="btn btn-primary btn-lg">
+                            <span>Download Now</span>
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12l7 7 7-7"/>
+                            </svg>
+                        </a>
+                        <a href="https://github.com/USER/skhoot" class="btn btn-secondary btn-lg" target="_blank">
+                            <svg class="btn-icon-left" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                            </svg>
+                            <span>View on GitHub</span>
+                        </a>
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <div class="app-preview">
+                        <div class="preview-window">
+                            <div class="window-header">
+                                <div class="window-dots">
+                                    <span></span><span></span><span></span>
+                                </div>
+                                <span class="window-title">Skhoot</span>
+                            </div>
+                            <div class="window-content">
+                                <div class="chat-demo">
+                                    <div class="chat-message user">
+                                        <span>Find my project files from last week</span>
+                                    </div>
+                                    <div class="chat-message assistant">
+                                        <span>Found 12 files modified in the last 7 days. Here are the most relevant...</span>
+                                    </div>
+                                    <div class="chat-input">
+                                        <div class="input-placeholder">Ask Skhoot anything...</div>
+                                        <div class="input-mic">🎤</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="scroll-indicator">
+                <span>Scroll to explore</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12l7 7 7-7"/>
+                </svg>
+            </div>
+        </section>
 
-    <footer>
-      <p>
-        <a href="https://github.com/USER/skhoot">GitHub</a> · 
-        Open Source · MIT License
-      </p>
+        <!-- Features Section -->
+        <section class="features" id="features">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-label">Features</span>
+                    <h2 class="section-title">Everything you need to stay organized</h2>
+                    <p class="section-subtitle">Powerful AI-driven tools designed to help you find, manage, and organize your digital life.</p>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-card feature-large">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 48 48" fill="none">
+                                <circle cx="24" cy="24" r="20" fill="currentColor" fill-opacity="0.1"/>
+                                <circle cx="22" cy="22" r="8" stroke="currentColor" stroke-width="2.5"/>
+                                <path d="M28 28l8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="feature-content">
+                            <h3 class="feature-title">Intelligent File Search</h3>
+                            <p class="feature-description">Multi-engine search with fuzzy matching, CLI integration, and AI-powered suggestions. Find any file in milliseconds with our Rust-based search engine.</p>
+                            <ul class="feature-list">
+                                <li>Hybrid search combining multiple engines</li>
+                                <li>Content search with snippet extraction</li>
+                                <li>Real-time performance metrics</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 48 48" fill="none">
+                                <circle cx="24" cy="24" r="20" fill="currentColor" fill-opacity="0.1"/>
+                                <path d="M24 14v10l6 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                                <circle cx="24" cy="24" r="10" stroke="currentColor" stroke-width="2.5"/>
+                            </svg>
+                        </div>
+                        <div class="feature-content">
+                            <h3 class="feature-title">Voice Interface</h3>
+                            <p class="feature-description">Speak naturally to search, command, and interact. Real-time transcription with audio visualization.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 48 48" fill="none">
+                                <circle cx="24" cy="24" r="20" fill="currentColor" fill-opacity="0.1"/>
+                                <rect x="14" y="18" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2.5"/>
+                                <path d="M18 24h12M18 28h8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="feature-content">
+                            <h3 class="feature-title">AI Chat</h3>
+                            <p class="feature-description">Powered by Google Gemini for natural conversations. Get help with files, tasks, and more.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 48 48" fill="none">
+                                <circle cx="24" cy="24" r="20" fill="currentColor" fill-opacity="0.1"/>
+                                <path d="M16 32V20l8-6 8 6v12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M20 32v-8h8v8" stroke="currentColor" stroke-width="2.5"/>
+                            </svg>
+                        </div>
+                        <div class="feature-content">
+                            <h3 class="feature-title">Disk Analysis</h3>
+                            <p class="feature-description">Visualize disk usage, identify large files, and get smart cleanup recommendations.</p>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg viewBox="0 0 48 48" fill="none">
+                                <circle cx="24" cy="24" r="20" fill="currentColor" fill-opacity="0.1"/>
+                                <circle cx="24" cy="24" r="8" stroke="currentColor" stroke-width="2.5"/>
+                                <path d="M24 16v-4M24 36v-4M32 24h4M12 24h4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="feature-content">
+                            <h3 class="feature-title">Modern Design</h3>
+                            <p class="feature-description">Embossed glassmorphic UI with light and dark themes. Smooth animations and accessibility built-in.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tech Stack Section -->
+        <section class="tech-stack">
+            <div class="container">
+                <div class="tech-content">
+                    <span class="section-label">Built With</span>
+                    <h2 class="section-title">Modern technology stack</h2>
+                    <p class="section-subtitle">Combining the best tools for performance, reliability, and developer experience.</p>
+                </div>
+                <div class="tech-grid">
+                    <div class="tech-item">
+                        <div class="tech-logo">⚛️</div>
+                        <span class="tech-name">React</span>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-logo">📘</div>
+                        <span class="tech-name">TypeScript</span>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-logo">🦀</div>
+                        <span class="tech-name">Rust</span>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-logo">🖥️</div>
+                        <span class="tech-name">Tauri</span>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-logo">🎨</div>
+                        <span class="tech-name">Tailwind</span>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-logo">🤖</div>
+                        <span class="tech-name">Gemini AI</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Download Section -->
+        <section class="download" id="download">
+            <div class="container">
+                <div class="download-content">
+                    <span class="section-label">Download</span>
+                    <h2 class="section-title">Get Skhoot for your platform</h2>
+                    <p class="section-subtitle">Available as a native desktop app or run it in your browser.</p>
+                </div>
+                <div class="download-grid">
+                    <a href="https://github.com/USER/skhoot/releases/latest/download/Skhoot_x64.msi" class="download-card">
+                        <div class="download-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
+                            </svg>
+                        </div>
+                        <div class="download-info">
+                            <span class="download-platform">Windows</span>
+                            <span class="download-format">.msi installer</span>
+                        </div>
+                        <div class="download-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12l7 7 7-7"/>
+                            </svg>
+                        </div>
+                    </a>
+                    <a href="https://github.com/USER/skhoot/releases/latest/download/Skhoot_x64.dmg" class="download-card">
+                        <div class="download-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                            </svg>
+                        </div>
+                        <div class="download-info">
+                            <span class="download-platform">macOS</span>
+                            <span class="download-format">.dmg installer</span>
+                        </div>
+                        <div class="download-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12l7 7 7-7"/>
+                            </svg>
+                        </div>
+                    </a>
+                    <a href="https://github.com/USER/skhoot/releases/latest/download/skhoot_amd64.deb" class="download-card">
+                        <div class="download-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                            </svg>
+                        </div>
+                        <div class="download-info">
+                            <span class="download-platform">Linux</span>
+                            <span class="download-format">.deb package</span>
+                        </div>
+                        <div class="download-arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12l7 7 7-7"/>
+                            </svg>
+                        </div>
+                    </a>
+                </div>
+                <div class="download-footer">
+                    <a href="https://github.com/USER/skhoot/releases" class="link-arrow" target="_blank">
+                        View all releases
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="cta">
+            <div class="container">
+                <div class="cta-content">
+                    <h2 class="cta-title">Ready to get started?</h2>
+                    <p class="cta-subtitle">Download Skhoot and experience the future of desktop productivity.</p>
+                    <div class="cta-actions">
+                        <a href="#download" class="btn btn-primary btn-lg">Download Now</a>
+                        <a href="https://github.com/USER/skhoot" class="btn btn-ghost btn-lg" target="_blank">Star on GitHub</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <a href="#" class="logo">
+                        <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="16" cy="16" r="14" fill="currentColor" fill-opacity="0.1"/>
+                            <circle cx="16" cy="13" r="5" fill="currentColor"/>
+                            <path d="M8 24c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span class="logo-text">Skhoot</span>
+                    </a>
+                    <p class="footer-tagline">Your intelligent desktop AI assistant</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Product</h4>
+                        <a href="#features">Features</a>
+                        <a href="#download">Download</a>
+                        <a href="https://github.com/USER/skhoot/releases">Releases</a>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Resources</h4>
+                        <a href="https://github.com/USER/skhoot">GitHub</a>
+                        <a href="https://github.com/USER/skhoot/issues">Issues</a>
+                        <a href="https://github.com/USER/skhoot/blob/main/README.md">Documentation</a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p class="copyright">© 2026 Skhoot. Open Source · MIT License</p>
+                <div class="footer-social">
+                    <a href="https://github.com/USER/skhoot" aria-label="GitHub" target="_blank">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
     </footer>
-  </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
