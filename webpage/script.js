@@ -124,23 +124,54 @@ if (chatDemo) {
 // ===== Detect OS for Download Highlight =====
 function detectOS() {
     const userAgent = navigator.userAgent.toLowerCase();
+    const platform = navigator.platform?.toLowerCase() || '';
     
-    if (userAgent.includes('win')) return 'windows';
-    if (userAgent.includes('mac')) return 'macos';
-    if (userAgent.includes('linux')) return 'linux';
+    if (userAgent.includes('win') || platform.includes('win')) return 'windows';
+    if (userAgent.includes('mac') || platform.includes('mac')) return 'macos';
+    if (userAgent.includes('linux') || platform.includes('linux')) return 'linux';
     
     return null;
 }
 
-// Highlight the appropriate download card
+// Highlight the appropriate download card and set as recommended
 const os = detectOS();
 if (os) {
     const downloadCards = document.querySelectorAll('.download-card');
     downloadCards.forEach(card => {
         const platform = card.querySelector('.download-platform').textContent.toLowerCase();
-        if (platform === os || (platform === 'macos' && os === 'macos')) {
-            card.style.borderColor = 'var(--color-primary)';
-            card.style.boxShadow = '0 10px 40px rgba(192, 183, 201, 0.2)';
+        const isMatch = platform === os || (platform === 'macos' && os === 'macos');
+        
+        // Remove featured class and badge from all cards first
+        card.classList.remove('featured');
+        const existingBadge = card.querySelector('.download-badge');
+        if (existingBadge) existingBadge.remove();
+        
+        if (isMatch) {
+            // Add featured styling to the matching OS
+            card.classList.add('featured');
+            
+            // Add recommended badge
+            const badge = document.createElement('div');
+            badge.className = 'download-badge';
+            badge.textContent = 'Recommended';
+            card.insertBefore(badge, card.firstChild);
+        }
+    });
+}
+
+// ===== Set dark mode on app preview iframe =====
+const appPreview = document.getElementById('app-preview');
+if (appPreview) {
+    appPreview.addEventListener('load', () => {
+        try {
+            // Force dark mode in the iframe
+            const iframeDoc = appPreview.contentDocument || appPreview.contentWindow.document;
+            if (iframeDoc) {
+                iframeDoc.documentElement.classList.add('dark');
+            }
+        } catch (e) {
+            // Cross-origin restrictions may prevent this
+            console.log('Could not set dark mode on iframe:', e);
         }
     });
 }

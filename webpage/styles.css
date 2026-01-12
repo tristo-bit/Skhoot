@@ -188,6 +188,12 @@ ul, ol { list-style: none; }
     border-radius: var(--radius-lg);
 }
 
+.btn-hero {
+    padding: 0.875rem 1.5rem;
+    font-size: 0.875rem;
+    border-radius: var(--radius-md);
+}
+
 .btn-primary {
     background: var(--color-text);
     color: var(--color-bg);
@@ -303,9 +309,9 @@ ul, ol { list-style: none; }
     background: var(--color-border);
 }
 
-.nav-github, .nav-cta { display: none; }
+.nav-btn { display: none; }
 @media (min-width: 768px) {
-    .nav-github, .nav-cta { display: inline-flex; }
+    .nav-btn { display: inline-flex; }
 }
 
 .menu-toggle {
@@ -534,12 +540,24 @@ ul, ol { list-style: none; }
     min-height: 300px;
 }
 
+.window-body-iframe {
+    padding: 0;
+    overflow: hidden;
+}
+
+.app-iframe {
+    width: 100%;
+    height: 450px;
+    border: none;
+    background: #1e1e1e;
+}
+
 .demo-sidebar {
     width: 60px;
     background: var(--color-bg-alt);
     border-right: 1px solid var(--color-border);
     padding: var(--space-md);
-    display: flex;
+    display: none; /* Hidden when using iframe */
     flex-direction: column;
     gap: var(--space-sm);
 }
@@ -567,6 +585,7 @@ ul, ol { list-style: none; }
 .demo-main {
     flex: 1;
     padding: var(--space-lg);
+    display: none; /* Hidden when using iframe */
 }
 
 .demo-chat {

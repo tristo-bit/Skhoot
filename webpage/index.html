@@ -58,13 +58,13 @@
                     <li><a href="#tech" class="nav-link">Tech</a></li>
                     <li><a href="#download" class="nav-link">Download</a></li>
                 </ul>
-                <a href="https://github.com/USER/skhoot" class="btn btn-ghost nav-github" target="_blank">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                <a href="https://github.com/USER/skhoot" class="btn btn-ghost nav-btn" target="_blank">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
                         <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
                     </svg>
                     <span>GitHub</span>
                 </a>
-                <a href="#download" class="btn btn-primary nav-cta">Download</a>
+                <a href="#download" class="btn btn-primary nav-btn">Download</a>
                 <button class="menu-toggle" aria-label="Toggle Menu" aria-expanded="false">
                     <span class="menu-bar"></span>
                     <span class="menu-bar"></span>
@@ -100,15 +100,15 @@
                     analyze disk usage, and manage your digital workspace — all with the power of AI.
                 </p>
                 <div class="hero-actions">
-                    <a href="#download" class="btn btn-primary btn-xl">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <a href="#download" class="btn btn-primary btn-hero">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
                             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
                         </svg>
                         <span>Download for Free</span>
                     </a>
-                    <a href="https://github.com/USER/skhoot" class="btn btn-secondary btn-xl" target="_blank">
+                    <a href="https://github.com/USER/skhoot" class="btn btn-secondary btn-hero" target="_blank">
                         <span>View Source</span>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                             <path d="M7 17L17 7M17 7H7M17 7v10"/>
                         </svg>
                     </a>
@@ -143,34 +143,8 @@
                         </div>
                         <span class="window-title">Skhoot</span>
                     </div>
-                    <div class="window-body">
-                        <div class="demo-sidebar">
-                            <div class="sidebar-item active">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                                    <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-                                </svg>
-                            </div>
-                            <div class="sidebar-item">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                                </svg>
-                            </div>
-                            <div class="sidebar-item">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                                    <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="demo-main">
-                            <div class="demo-chat">
-                                <div class="chat-bubble user">Find my project files from last week</div>
-                                <div class="chat-bubble assistant">
-                                    <div class="typing-indicator">
-                                        <span></span><span></span><span></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="window-body window-body-iframe">
+                        <iframe id="app-preview" src="../index.html" title="Skhoot App Preview" class="app-iframe"></iframe>
                     </div>
                 </div>
             </div>
@@ -266,6 +240,16 @@
                         <h3>Modern Design</h3>
                         <p>Embossed glassmorphic UI with light and dark themes. Smooth animations and accessibility built-in.</p>
                     </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background: var(--color-files);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                            </svg>
+                        </div>
+                        <h3>Use Any AI</h3>
+                        <p>Connect to OpenAI, Anthropic, Google, or local models. Your choice, your data, your control.</p>
+                    </div>
                 </div>
             </div>
         </section>
@@ -275,7 +259,7 @@
             <div class="container">
                 <div class="section-header">
                     <span class="section-eyebrow">Technology</span>
-                    <h2 class="section-title">Built with the<br><span class="gradient-text">best tools.</span></h2>
+                    <h2 class="section-title">The <span class="gradient-text">3T2R</span> Stack</h2>
                     <p class="section-subtitle">Modern technology stack for performance, reliability, and developer experience.</p>
                 </div>
                 
@@ -360,8 +344,7 @@
                         </div>
                     </a>
                     
-                    <a href="https://github.com/USER/skhoot/releases/latest/download/Skhoot_x64.dmg" class="download-card featured">
-                        <div class="download-badge">Recommended</div>
+                    <a href="https://github.com/USER/skhoot/releases/latest/download/Skhoot_x64.dmg" class="download-card">
                         <div class="download-icon">
                             <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
                                 <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
@@ -415,9 +398,9 @@
                         <h2>Ready to find anything?</h2>
                         <p>Download Skhoot and experience the future of desktop productivity.</p>
                         <div class="cta-actions">
-                            <a href="#download" class="btn btn-primary btn-xl">Get Started Free</a>
-                            <a href="https://github.com/USER/skhoot" class="btn btn-ghost btn-xl" target="_blank">
-                                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                            <a href="#download" class="btn btn-primary btn-hero">Get Started Free</a>
+                            <a href="https://github.com/USER/skhoot" class="btn btn-ghost btn-hero" target="_blank">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
                                     <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
                                 </svg>
                                 Star on GitHub
