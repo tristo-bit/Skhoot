@@ -16,15 +16,10 @@ export const useTauriWindow = () => {
 
   // Handle window minimize
   const handleMinimize = useCallback(async () => {
-    console.log('Minimize button clicked');
     try {
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const window = getCurrentWindow();
-      console.log('Got window instance:', window);
-      await window.minimize();
-      console.log('Minimize called successfully');
-    } catch (error) {
-      console.error('Error minimizing window:', error);
+      await getCurrentWindow().minimize();
+    } catch {
       // noop - not in Tauri environment (web version)
     }
   }, []);

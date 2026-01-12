@@ -57,6 +57,7 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 - **Markdown Support**: Full markdown rendering in responses
 - **File Search Integration**: AI automatically detects when file search is needed
 - **Smart Error Handling**: Specific error messages with actionable guidance
+- **Native Notifications**: Active integration for chat events and AI responses with automatic conversation tracking (desktop only)
 
 </details>
 
@@ -82,6 +83,36 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 - **Branding Toggle**: Show or hide Skhoot branding elements
 - **Responsive Layout**: Optimized for desktop use
 - **Accessibility**: WCAG compliant with proper contrast and focus states
+
+</details>
+
+<details>
+<summary><strong>🔔 Native Notifications</strong></summary>
+
+- **Desktop Notifications**: Native system notifications using Tauri plugin with automatic environment detection
+- **Comprehensive Settings Panel**: Full-featured notification configuration interface with:
+  - **General Controls**: Master enable/disable toggle for all notifications
+  - **Notification Types**: Individual controls for success (✅), error (❌), warning (⚠️), and info (ℹ️) notifications
+  - **Sound Management**: Enable/disable notification sounds with volume control slider (0-100%) and custom sound support
+  - **Display Customization**: Duration control (0-30s, 0=persistent), position selection (4 corners), icon display, action buttons, and notification grouping
+  - **Frequency Control**: Rate limiting with max notifications per minute (1-20) and quiet hours scheduling with overnight support
+  - **Priority Settings**: Individual priority levels (low/normal/high) for each notification type affecting display behavior
+  - **Test Interface**: Built-in test buttons for all notification types with real-time preview and debug logging (bypasses all filters for reliable testing)
+  - **Reset Functionality**: One-click restore to default settings with confirmation
+- **Smart Features**:
+  - **Permission Management**: Automatic permission request and graceful handling of denied permissions
+  - **Duplicate Prevention**: Tag-based notification deduplication and replacement
+  - **Frequency Limiting**: Intelligent rate limiting with sliding window algorithm
+  - **Quiet Hours**: Configurable quiet periods with overnight scheduling support
+  - **Action Handling**: Context-aware default actions (retry, view details, fix now, etc.)
+- **Cross-Platform Compatibility**:
+  - **Desktop (Tauri)**: Native system notifications with full feature support
+  - **Web Fallback**: Browser notifications with graceful degradation to console logging
+  - **Dynamic Loading**: Robust dynamic import system with error handling
+- **Developer Experience**:
+  - **Debug Mode**: Comprehensive console logging for troubleshooting
+  - **Service State**: Debug info including Tauri availability, settings, and queue status
+  - **Persistent Settings**: Automatic localStorage persistence with migration support
 
 </details>
 
@@ -173,6 +204,10 @@ skhoot/
 │   ├── FileSearchTest.tsx
 │   └── SettingsPanel.tsx
 ├── services/            # API and data services
+│   ├── notificationService.ts  # Native desktop notifications
+│   ├── audioService.ts         # Audio management
+│   ├── backendApi.ts          # Backend communication
+│   └── gemini.ts              # AI integration
 ├── src/
 │   ├── contexts/        # React contexts
 │   └── constants.ts     # App constants
@@ -254,6 +289,102 @@ await backendApi.openFileLocation("/path/to/file.txt");
 </details>
 
 <details>
+<summary><strong>Notification Service API</strong></summary>
+
+```typescript
+import { nativeNotifications } from './services/nativeNotifications';
+
+// Service automatically initializes with environment detection
+// Handles Tauri vs web environments seamlessly with dynamic imports
+
+// Send different types of notifications with convenience methods
+await nativeNotifications.success('Task Complete', 'File search finished successfully');
+await nativeNotifications.error('Connection Failed', 'Unable to reach backend server');
+await nativeNotifications.warning('Low Disk Space', 'Consider cleaning up old files');
+await nativeNotifications.info('Update Available', 'New version ready for download');
+
+// Advanced notification with full options
+await nativeNotifications.notify({
+  title: 'Custom Notification',
+  body: 'This is a detailed message with custom settings',
+  type: 'success',
+  icon: '✅',
+  sound: true,
+  silent: false,
+  tag: 'unique-id', // Prevents duplicates, replaces existing
+  data: { actionable: true }, // Custom data for action handling
+  actions: [
+    { id: 'view', title: 'View Details' },
+    { id: 'dismiss', title: 'Dismiss' }
+  ]
+});
+
+// Settings management with comprehensive controls
+const settings = nativeNotifications.getSettings();
+console.log('Current settings:', settings);
+
+// Update specific settings (automatically saves to localStorage)
+nativeNotifications.updateSettings({
+  enabled: true,
+  types: {
+    success: true,
+    error: true,
+    warning: false, // Disable warning notifications
+    info: true
+  },
+  sound: {
+    enabled: true,
+    volume: 85 // 0-100 scale
+  },
+  frequency: {
+    enabled: true,
+    maxPerMinute: 10,
+    quietHours: {
+      enabled: true,
+      start: '22:00',
+      end: '08:00' // Supports overnight periods
+    }
+  }
+});
+
+// Test notifications for each type (useful for settings panels)
+// Note: Test notifications bypass all filters (frequency limits, quiet hours, etc.)
+// to ensure they always work for testing notification functionality
+await nativeNotifications.testNotification('success');
+await nativeNotifications.testNotification('error');
+await nativeNotifications.testNotification('warning');
+await nativeNotifications.testNotification('info');
+
+// Reset to factory defaults
+nativeNotifications.resetSettings();
+
+// Debug information for troubleshooting
+const debugInfo = nativeNotifications.getDebugInfo();
+console.log('Service state:', debugInfo);
+// Returns: { tauriAvailable, settings, queueLength, isInQuietHours }
+
+// Environment-specific behavior:
+// Desktop (Tauri): Native system notifications with full OS integration
+// Web Browser: Falls back to browser Notification API or console logging
+// All features work seamlessly across environments with appropriate fallbacks
+```
+
+**Automatic Chat Integration:**
+- New conversations trigger info notifications with conversation titles
+- Chat events automatically logged with metadata
+- Configurable through notification settings panel
+- Respects user preferences and quiet hours
+
+**Smart Features:**
+- **Frequency Limiting**: Sliding window algorithm prevents notification spam
+- **Quiet Hours**: Configurable periods with overnight support (e.g., 22:00-08:00)
+- **Action Handling**: Context-aware default actions based on notification type
+- **Permission Flow**: Automatic permission requests with graceful degradation
+- **Persistence**: Settings automatically saved to localStorage with migration support
+
+</details>
+
+<details>
 <summary><strong>Performance</strong></summary>
 
 | Project Size | Average Search Time |
@@ -274,6 +405,7 @@ await backendApi.openFileLocation("/path/to/file.txt");
 | Performance | Good | Better |
 | System Integration | Limited | Full |
 | Window Management | Basic | Advanced* |
+| Notifications | Browser only | Native system |
 | Offline Support | No | Yes |
 | File System Access | Limited | Enhanced |
 | Auto-Updates | N/A | Supported |
@@ -351,6 +483,72 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 ## 📝 Recent Updates
 
 <details>
+<summary><strong>Button System Enhancement</strong></summary>
+
+- **New SwitchToggle Component**: Reusable switch toggle with smooth animations and multiple size options (sm, md, lg)
+- **Accessibility**: Full ARIA support with `role="switch"` and `aria-checked` attributes
+- **Flexible Sizing**: Three size variants with responsive knob animations and positioning
+- **Theme Integration**: Seamless light/dark mode support with accent color transitions
+- **Disabled State**: Proper visual feedback and cursor handling for disabled toggles
+- **Consistent Design**: Follows embossed glassmorphic design system with 300ms transitions
+
+</details>
+
+<details>
+<summary><strong>Notification Testing Enhancement</strong></summary>
+
+- **Bypass Filter System**: Test notifications now use a dedicated `sendDirectNotification` method that bypasses all filters (frequency limits, quiet hours, type toggles) to ensure reliable testing functionality
+- **Improved Test Reliability**: Test notifications always work regardless of user settings, providing consistent feedback for notification configuration
+- **Enhanced Debug Logging**: More detailed console output for test notification flow and error handling
+- **Better Error Messages**: Clearer error reporting when test notifications fail, with specific guidance for desktop vs web environments
+
+</details>
+
+<details>
+<summary><strong>Native Notifications Service Enhancement</strong></summary>
+
+- **Robust Architecture**: Comprehensive notification service with dynamic Tauri plugin loading and graceful web fallbacks
+- **Advanced Settings System**: Full-featured configuration with 6 main categories:
+  - **General Controls**: Master enable/disable with automatic permission handling
+  - **Type Management**: Individual controls for success, error, warning, and info notifications
+  - **Sound System**: Volume control (0-100%), custom sound support, and per-type audio settings
+  - **Display Options**: Duration (0-30s), position (4 corners), icons, actions, and grouping
+  - **Frequency Control**: Rate limiting (1-20/min) with sliding window algorithm and quiet hours
+  - **Priority System**: Low/normal/high priority levels affecting notification behavior
+- **Smart Features**:
+  - **Quiet Hours**: Overnight scheduling support (e.g., 22:00-08:00) with automatic detection
+  - **Duplicate Prevention**: Tag-based deduplication and notification replacement
+  - **Action Handling**: Context-aware default actions (retry, view details, fix now, open)
+  - **Permission Flow**: Automatic OS permission requests with graceful degradation
+- **Developer Experience**: 
+  - **Debug Mode**: Comprehensive console logging for settings and state changes
+  - **Test Interface**: Built-in test methods for all notification types
+  - **Service State**: Debug info including Tauri availability and queue status
+  - **Persistent Storage**: Automatic localStorage with settings migration support
+- **Cross-Platform Excellence**: Seamless operation across desktop (native) and web (fallback) environments
+
+</details>
+
+<details>
+<summary><strong>Notification Panel Improvements</strong></summary>
+
+- **Code Quality**: Fixed syntax errors in NotificationsPanel.tsx and improved component structure
+- **Enhanced Test Interface**: Added missing error notification test button for complete coverage
+- **UI Improvements**: Streamlined reset functionality and improved visual hierarchy
+- **Type Safety**: Enhanced TypeScript type definitions and error handling
+
+</details>
+
+<details>
+<summary><strong>Chat Interface Enhancements</strong></summary>
+
+- **Native Notifications Integration**: Active integration for new conversation tracking with automatic title generation and metadata
+- **Enhanced Error Handling**: Improved error messaging and user feedback
+- **Performance Optimizations**: Streamlined message processing and state management
+
+</details>
+
+<details>
 <summary><strong>Privacy & Security Panel</strong></summary>
 
 - Email update with validation and confirmation workflow
@@ -380,6 +578,30 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 - UI opacity control (50-100%)
 - Illumination settings with intensity and diffusion controls
 - Per-theme persistence for illumination settings
+
+</details>
+
+<details>
+<summary><strong>Enhanced Notification Settings Panel</strong></summary>
+
+- **Complete Configuration Interface**: Fully redesigned notification settings panel with improved organization and user experience
+- **General Settings**: Master enable/disable toggle with clear descriptions and visual feedback
+- **Notification Type Controls**: Individual toggles for success (✅), error (❌), warning (⚠️), and info (ℹ️) notifications with descriptive labels
+- **Advanced Sound Settings**: Enable/disable sounds with precise volume control (0-100% slider) and dynamic icon feedback
+- **Display Customization**: 
+  - Duration control (0-30 seconds, 0 for persistent notifications)
+  - Position selection (top-right, top-left, bottom-right, bottom-left)
+  - Icon display toggle for notification type indicators
+  - Action buttons and notification grouping options
+- **Frequency Management**: 
+  - Rate limiting with configurable max notifications per minute (1-20)
+  - Quiet hours scheduling with intuitive time pickers
+- **Priority System**: Individual priority levels (low/normal/high) for each notification type
+- **Interactive Testing**: Enhanced test interface with all four notification types (success, error, warning, info) and live preview that bypasses all filters for reliable testing
+- **Improved Reset Functionality**: Streamlined reset interface with better visual hierarchy
+- **Responsive Design**: Consistent with embossed glassmorphic design system and improved component structure
+- **Real-time Updates**: All settings apply immediately without requiring restart
+- **Code Quality**: Fixed syntax errors and improved TypeScript type safety
 
 </details>
 

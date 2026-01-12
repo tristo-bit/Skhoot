@@ -1,8 +1,8 @@
 import React, { useState, memo } from 'react';
-import { ChevronRight, Volume2, Shield, Palette, HelpCircle } from 'lucide-react';
+import { ChevronRight, Volume2, Shield, Palette, HelpCircle, Bell } from 'lucide-react';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { Modal } from '../ui';
-import { AppearancePanel, HelpCenterPanel, PrivacyPanel, SoundPanel } from '../settings';
+import { AppearancePanel, HelpCenterPanel, PrivacyPanel, SoundPanel, NotificationsPanel } from '../settings';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -10,6 +10,7 @@ interface SettingsPanelProps {
 
 const SETTINGS_ITEMS = [
   { icon: Volume2, label: 'Sound', color: 'almost-aqua' },
+  { icon: Bell, label: 'Notifications', color: 'orchid-tint' },
   { icon: Palette, label: 'Appearance', color: 'lemon-icing' },
   { icon: Shield, label: 'Privacy', color: 'ice-melt' },
   { icon: HelpCircle, label: 'Help Center', color: 'peach-dust' },
@@ -45,6 +46,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
     >
       {activePanel === 'Sound' ? (
         <SoundPanel onBack={handleBack} />
+      ) : activePanel === 'Notifications' ? (
+        <NotificationsPanel onBack={handleBack} />
       ) : activePanel === 'Privacy' ? (
         <PrivacyPanel onBack={handleBack} />
       ) : activePanel === 'Appearance' ? (

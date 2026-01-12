@@ -3,6 +3,7 @@ import { COLORS, WELCOME_MESSAGES, QUICK_ACTIONS } from '../../src/constants';
 import { Message } from '../../types';
 import { geminiService } from '../../services/gemini';
 import { activityLogger } from '../../services/activityLogger';
+import { nativeNotifications } from '../../services/nativeNotifications';
 import { MainArea } from '../main-area';
 import { PromptArea } from './PromptArea';
 import { useVoiceRecording } from './hooks';
@@ -353,6 +354,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       
       setMessages(prev => [...prev, assistantMsg]);
       
+      // Send success notification
+      await nativeNotifications.success(
+        'Response Received',
+        'AI assistant has responded to your message',
+        {
+          tag: 'chat-response',
+          data: { messageId: assistantMsg.id, type: result.type }
+        }
+      );
+      
       // Log AI chat activity (only for non-search responses, searches are logged in gemini service)
       if (result.type === 'text') {
         activityLogger.log(
@@ -366,6 +377,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       setSearchType(null);
       setSearchStatus('');
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      // Send error notification
+      await nativeNotifications.error(
+        'Connection Failed',
+        `Unable to reach AI service: ${errorMessage}`,
+        {
+          tag: 'chat-error',
+          data: { error: errorMessage, retry: true }
+        }
+      );
       
       // Log failed chat
       activityLogger.log(

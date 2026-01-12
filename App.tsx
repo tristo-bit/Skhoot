@@ -16,6 +16,7 @@ import { authService } from './services/auth';
 import { initScaleManager, destroyScaleManager } from './services/scaleManager';
 import { initUIConfig } from './services/uiConfig';
 import { demoModeService } from './services/demoMode';
+import { nativeNotifications } from './services/nativeNotifications';
 import { Chat, Message, User } from './types';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { SettingsProvider } from './src/contexts/SettingsContext';
@@ -57,6 +58,26 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     initUIConfig();
     initScaleManager();
+    
+    // Initialize notification service
+    console.log('[App] Initializing notification service...');
+    try {
+      const debugInfo = nativeNotifications.getDebugInfo();
+      console.log('[App] Notification service debug info:', debugInfo);
+      
+      // Send a test notification after a short delay to ensure everything is loaded
+      setTimeout(async () => {
+        try {
+          console.log('[App] Sending startup test notification...');
+          await nativeNotifications.info('Skhoot Started', 'Application loaded successfully!');
+          console.log('[App] Startup notification sent successfully');
+        } catch (error) {
+          console.error('[App] Startup notification failed:', error);
+        }
+      }, 2000);
+    } catch (error) {
+      console.error('[App] Failed to get notification debug info:', error);
+    }
     
     // Start demo mode if enabled
     if (demoModeService.isDemoMode()) {
@@ -112,7 +133,7 @@ const AppContent: React.FC = () => {
     }
   }, [currentChatId]);
 
-  const handleMessagesChange = useCallback((messages: Message[]) => {
+  const handleMessagesChange = useCallback(async (messages: Message[]) => {
     if (messages.length === 0) return;
     
     if (!currentChatId && !pendingChatIdRef.current) {
@@ -123,6 +144,16 @@ const AppContent: React.FC = () => {
       newChat.updatedAt = new Date();
       chatStorage.saveChat(newChat);
       setChats(chatStorage.getChats());
+      
+      // Send notification for new conversation
+      await nativeNotifications.info(
+        'New Conversation Started',
+        `Created: "${newChat.title}"`,
+        {
+          tag: 'new-conversation',
+          data: { chatId: newChat.id, title: newChat.title }
+        }
+      );
     } else {
       const chatId = currentChatId || pendingChatIdRef.current;
       if (chatId) {

@@ -102,6 +102,7 @@ fn main() {
   tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_notification::init())
     .invoke_handler(tauri::generate_handler![
         add_user_to_audio_group,
         check_audio_group_membership,

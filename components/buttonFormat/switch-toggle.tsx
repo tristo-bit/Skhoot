@@ -17,19 +17,19 @@ export const SwitchToggle: React.FC<SwitchToggleProps> = ({
 }) => {
   const sizeClasses = {
     sm: 'w-8 h-4',
-    md: 'w-12 h-6',
+    md: 'settings-toggle',
     lg: 'w-16 h-8'
   };
 
   const knobSizes = {
     sm: 'w-3 h-3',
-    md: 'w-5 h-5',
+    md: 'settings-toggle-knob',
     lg: 'w-7 h-7'
   };
 
   const translateClasses = {
     sm: isToggled ? 'translate-x-4' : 'translate-x-0.5',
-    md: isToggled ? 'translate-x-6' : 'translate-x-0.5',
+    md: isToggled ? 'translate-x-5' : 'translate-x-1',
     lg: isToggled ? 'translate-x-8' : 'translate-x-0.5'
   };
 
@@ -40,8 +40,9 @@ export const SwitchToggle: React.FC<SwitchToggleProps> = ({
       className={`
         ${sizeClasses[size]}
         rounded-full transition-all duration-300 relative
-        ${isToggled ? 'bg-accent' : 'bg-glass-border'}
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        border-2
+        ${isToggled ? 'bg-accent border-accent' : 'bg-glass-border border-white/40'}
+        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-white/60'}
         ${className}
       `.trim()}
       role="switch"
@@ -50,8 +51,9 @@ export const SwitchToggle: React.FC<SwitchToggleProps> = ({
       <div 
         className={`
           ${knobSizes[size]}
-          absolute top-0.5 rounded-full glass-subtle shadow-md 
-          transition-all duration-300
+          absolute top-0.5 rounded-full shadow-md 
+          transition-all duration-300 border-2 border-white/50
+          ${isToggled ? 'bg-white' : 'bg-white/90'}
           ${translateClasses[size]}
         `.trim()}
       />
