@@ -140,12 +140,12 @@ if (os) {
         const platform = card.querySelector('.download-platform').textContent.toLowerCase();
         if (platform === os || (platform === 'macos' && os === 'macos')) {
             card.style.borderColor = 'var(--color-primary)';
-            card.style.boxShadow = '0 10px 40px rgba(99, 102, 241, 0.15)';
+            card.style.boxShadow = '0 10px 40px rgba(192, 183, 201, 0.2)';
         }
     });
 }
 
 // ===== Console Easter Egg =====
-console.log('%c🚀 Skhoot', 'font-size: 24px; font-weight: bold; color: #6366f1;');
-console.log('%cYour intelligent desktop AI assistant', 'font-size: 14px; color: #52525b;');
-console.log('%cCheck out the source: https://github.com/USER/skhoot', 'font-size: 12px; color: #a1a1aa;');
+console.log('%c🚀 Skhoot', 'font-size: 24px; font-weight: bold; color: #c0b7c9;');
+console.log('%cYour intelligent desktop AI assistant', 'font-size: 14px; color: #636E72;');
+console.log('%cCheck out the source: https://github.com/USER/skhoot', 'font-size: 12px; color: #a0a0a0;');

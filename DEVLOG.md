@@ -1,5 +1,14 @@
 # Development Log
 
+## January 12, 2026
+
+### Webpage Assets
+- Added `webpage/skhoot-purple.svg` - Skhoot brand logo for the marketing/landing page
+- This complements the existing `public/skhoot-purple.svg` used in the main app
+- Webpage directory now contains complete branding assets for the public-facing site
+
+---
+
 ## January 11, 2026
 
 ### Project Structure Update
