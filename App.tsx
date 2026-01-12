@@ -181,52 +181,50 @@ const AppContent: React.FC = () => {
           
           <Header
             isSidebarOpen={isSidebarOpen}
-            onToggleSidebar={isDemoMode ? () => {} : toggleSidebar}
-            onOpenHistory={isDemoMode ? () => {} : openActivity}
-            onOpenFiles={isDemoMode ? () => {} : openFilesPanel}
-            onOpenUser={isDemoMode ? () => {} : openUserPanel}
-            onOpenSettings={isDemoMode ? () => {} : openSettings}
-            onClose={isDemoMode ? () => {} : handleClose}
+            onToggleSidebar={toggleSidebar}
+            onOpenHistory={openActivity}
+            onOpenFiles={openFilesPanel}
+            onOpenUser={openUserPanel}
+            onOpenSettings={openSettings}
+            onClose={handleClose}
             onDragMouseDown={handleDragMouseDown}
           />
 
-          {/* Sidebar - hidden in demo mode */}
-          {!isDemoMode && (
-            <div 
-              className={`absolute top-0 left-0 bottom-0 z-40 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
-                isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-              }`}
-            >
-              <Sidebar 
-                onNewChat={handleNewChat} 
-                onClose={toggleSidebar}
-                onSelectChat={handleSelectChat}
-                onDeleteChat={handleDeleteChat}
-                chats={chats}
-                currentChatId={currentChatId}
-                user={user}
-                onSignIn={handleSignIn}
-                onSignOut={handleSignOut}
-              />
-            </div>
-          )}
+          {/* Sidebar */}
+          <div 
+            className={`absolute top-0 left-0 bottom-0 z-40 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+              isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+          >
+            <Sidebar 
+              onNewChat={handleNewChat} 
+              onClose={toggleSidebar}
+              onSelectChat={handleSelectChat}
+              onDeleteChat={handleDeleteChat}
+              chats={chats}
+              currentChatId={currentChatId}
+              user={user}
+              onSignIn={handleSignIn}
+              onSignOut={handleSignOut}
+            />
+          </div>
 
-          {/* Panels - hidden in demo mode */}
-          {!isDemoMode && isSettingsOpen && <SettingsPanel onClose={closeSettings} />}
-          {!isDemoMode && isActivityOpen && <ActivityPanel onClose={closeActivity} />}
-          {!isDemoMode && isFilesPanelOpen && <FilesPanel onClose={closeFilesPanel} />}
-          {!isDemoMode && isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
-          {!isDemoMode && isFileSearchTestOpen && <FileSearchTest onClose={closeFileSearchTest} />}
+          {/* Panels */}
+          {isSettingsOpen && <SettingsPanel onClose={closeSettings} />}
+          {isActivityOpen && <ActivityPanel onClose={closeActivity} />}
+          {isFilesPanelOpen && <FilesPanel onClose={closeFilesPanel} />}
+          {isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
+          {isFileSearchTestOpen && <FileSearchTest onClose={closeFileSearchTest} />}
 
-          {/* Auth Views - hidden in demo mode */}
-          {!isDemoMode && authView === 'login' && (
+          {/* Auth Views */}
+          {authView === 'login' && (
             <Login 
               onLogin={handleLogin} 
               onSwitchToRegister={() => setAuthView('register')} 
               onClose={handleCloseAuth} 
             />
           )}
-          {!isDemoMode && authView === 'register' && (
+          {authView === 'register' && (
             <Register 
               onRegister={handleLogin} 
               onSwitchToLogin={() => setAuthView('login')} 
@@ -237,7 +235,7 @@ const AppContent: React.FC = () => {
           {/* Main content */}
           <main
             className="flex-1 relative overflow-hidden flex flex-col p-2"
-            onMouseDown={isDemoMode ? undefined : handleBackgroundDrag}
+            onMouseDown={handleBackgroundDrag}
           >
             <div className="flex-1 relative overflow-hidden" data-tauri-drag-region="false">
               <ChatInterface 
@@ -246,7 +244,6 @@ const AppContent: React.FC = () => {
                 initialMessages={currentChat?.messages || []}
                 onMessagesChange={isDemoMode ? () => {} : handleMessagesChange}
                 onActiveModeChange={setActiveQuickAction}
-                isDemo={isDemoMode}
               />
             </div>
           </main>

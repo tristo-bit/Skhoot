@@ -10,11 +10,10 @@
   - Hardcoded responses for all demo steps
   - Loops continuously after completion
   - "Demo Mode" badge in bottom-left corner
+  - Full UI interaction enabled (sidebar, settings, panels accessible)
 - Activation: Add `?demo=true` to URL or set `VITE_DEMO_MODE=true`
-- UI interactions disabled in demo mode (sidebar, settings, panels hidden)
-- ChatInterface updated with demo event handlers for typing animation and reset
-- PromptArea accepts `disabled` prop to prevent user input during demo
-- Build output: `dist/` folder ready for static hosting (Vercel, Netlify, etc.)
+- Fixed: Input cleared after each demo message to prevent "undefined" display
+- Updated `webpage/index.html` iframe to use `https://skhoot.vercel.app/?demo=true`
 
 ### Vercel Deployment Configuration
 - Added `vercel.json` - configures Vite framework, build command, and output directory

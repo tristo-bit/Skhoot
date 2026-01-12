@@ -12,10 +12,9 @@ interface ChatInterfaceProps {
   initialMessages: Message[];
   onMessagesChange: (messages: Message[]) => void;
   onActiveModeChange?: (mode: string | null) => void;
-  isDemo?: boolean;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessagesChange, onActiveModeChange, isDemo = false }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessagesChange, onActiveModeChange }) => {
   // State
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
@@ -99,6 +98,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
 
       switch (type) {
         case 'search-files': {
+          setInput(''); // Clear input after demo message
           setMessages(prev => [...prev, createUserMessage(`Find my ${data.query} files`)]);
           setIsLoading(true);
           setSearchType('files');
@@ -116,6 +116,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         }
         
         case 'search-messages': {
+          setInput(''); // Clear input after demo message
           setMessages(prev => [...prev, createUserMessage(`Find messages about ${data.query}`)]);
           setIsLoading(true);
           setSearchType('messages');
@@ -133,6 +134,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         }
         
         case 'analyze-disk': {
+          setInput(''); // Clear input after demo message
           setMessages(prev => [...prev, createUserMessage('Analyze my disk space')]);
           setIsLoading(true);
           setSearchType('disk');
@@ -150,6 +152,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         }
         
         case 'show-markdown': {
+          setInput(''); // Clear input after demo message
           setMessages(prev => [...prev, createUserMessage('What can you help me with?')]);
           setIsLoading(true);
           
@@ -161,6 +164,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         }
 
         case 'cleanup': {
+          setInput(''); // Clear input after demo message
           setMessages(prev => [...prev, createUserMessage('Help me free up some space')]);
           setIsLoading(true);
           setSearchType('cleanup');
@@ -405,12 +409,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         activeMode={activeMode}
         activeColor={activeColor}
         audioLevels={audioLevels}
-        onInputChange={isDemo ? () => {} : handleInputChange}
-        onKeyDown={isDemo ? () => {} : handleKeyDown}
-        onSend={isDemo ? () => {} : handleSend}
-        onMicClick={isDemo ? () => {} : handleMicClick}
-        onQuickAction={isDemo ? () => {} : handleQuickAction}
-        disabled={isDemo}
+        onInputChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        onSend={handleSend}
+        onMicClick={handleMicClick}
+        onQuickAction={handleQuickAction}
       />
     </div>
   );

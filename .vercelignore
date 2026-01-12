@@ -13,7 +13,6 @@ documentation/
 !README.md
 
 # Test files
-browser-test/
 test-*.html
 test-*.sh
 
