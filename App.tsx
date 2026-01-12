@@ -32,7 +32,7 @@ const SettingsWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
 const AppContent: React.FC = () => {
   // Tauri window management
-  const { handleClose, handleDragMouseDown, handleBackgroundDrag, handleResizeStart } = useTauriWindow();
+  const { handleClose, handleMinimize, handleDragMouseDown, handleBackgroundDrag, handleResizeStart } = useTauriWindow();
 
   // State
   const [chats, setChats] = useState<Chat[]>([]);
@@ -187,6 +187,7 @@ const AppContent: React.FC = () => {
             onOpenUser={openUserPanel}
             onOpenSettings={openSettings}
             onClose={handleClose}
+            onMinimize={handleMinimize}
             onDragMouseDown={handleDragMouseDown}
           />
 

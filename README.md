@@ -61,6 +61,19 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 </details>
 
 <details>
+<summary><strong>🖥️ Desktop Window Management</strong></summary>
+
+- **Custom Window Controls**: Native close, minimize, and resize functionality with dedicated header buttons
+- **Minimize to Taskbar**: One-click minimize button in header for quick window management
+- **Drag & Drop**: Click and drag window from any non-interactive area
+- **Adaptive Corner Radius**: Automatically adjusts window corners based on fullscreen state
+- **Resize Handles**: Eight-directional window resizing (North, South, East, West, and corners)
+- **Cross-Platform**: Consistent behavior across Windows, macOS, and Linux
+- **Graceful Fallback**: Seamless operation in web environments without Tauri APIs
+
+</details>
+
+<details>
 <summary><strong>🎨 Modern Design System</strong></summary>
 
 - **Embossed Glassmorphism**: Tactile, interactive design with depth
@@ -260,9 +273,12 @@ await backendApi.openFileLocation("/path/to/file.txt");
 | Installation | None required | Native app |
 | Performance | Good | Better |
 | System Integration | Limited | Full |
+| Window Management | Basic | Advanced* |
 | Offline Support | No | Yes |
 | File System Access | Limited | Enhanced |
 | Auto-Updates | N/A | Supported |
+
+*Desktop includes custom window controls with minimize/close buttons, dragging, resizing, and adaptive corner radius
 
 ---
 
@@ -399,6 +415,29 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 - Tailwind-based action colors with dark mode support
 - 50 unique prompts per action type
 - Branding toggle with localStorage persistence
+
+</details>
+
+<details>
+<summary><strong>Desktop Window Management</strong></summary>
+
+- **Custom Window Controls**: The `useTauriWindow` hook provides comprehensive window management
+- **Window Operations**: Close, minimize, drag, and eight-directional resizing with dedicated header buttons
+- **Minimize Button**: Convenient minimize-to-taskbar functionality accessible from the header
+- **Adaptive UI**: Dynamic corner radius based on window state (fullscreen, maximized, etc.)
+- **Event Handling**: Proper cleanup of window event listeners and Tauri subscriptions
+- **Cross-Platform**: Consistent behavior with graceful web fallbacks
+
+```typescript
+import { useTauriWindow } from './hooks/useTauriWindow';
+
+const { handleClose, handleMinimize, handleDragMouseDown, handleResizeStart } = useTauriWindow();
+
+// Use in your components
+<button onClick={handleClose}>Close</button>
+<button onClick={handleMinimize}>Minimize</button>
+<div onMouseDown={handleDragMouseDown}>Draggable Area</div>
+```
 
 </details>
 

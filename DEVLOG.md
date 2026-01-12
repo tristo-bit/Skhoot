@@ -2,6 +2,64 @@
 
 ## January 12, 2026
 
+### UI Improvement Analysis & Planning
+- **Comprehensive UI Audit Complete**: Analyzed entire codebase to identify UI/UX improvement opportunities
+- **Component Analysis**: Reviewed 50+ React components across layout, chat, settings, buttons, and UI primitives
+- **Design System Assessment**: Evaluated embossed glassmorphic design consistency, found mix of CSS variables and inline styles
+- **Feature Gap Analysis**: Identified incomplete features (3D background, duplicate detector, insights dashboard)
+- **UX Pain Points**: Missing confirmations, limited error handling, no batch operations, basic empty states
+
+**10 Priority UI Todos Defined**:
+1. **Toast Notification System** - User feedback for actions (save, error, success)
+2. **Confirmation Dialogs** - Safety for destructive actions (delete chat, cleanup files)
+3. **Contextual Empty States** - Helpful suggestions when no content (sidebar, search, files)
+4. **Advanced Search Filters** - File type, size, date filtering with visual tags
+5. **Keyboard Shortcuts Help** - Modal with all available shortcuts (`Ctrl+/`)
+6. **File Preview System** - Quick preview without opening (images, text, metadata)
+7. **Multi-Select & Batch Actions** - Checkbox selection with bulk operations
+8. **Enhanced Chat Messages** - Edit, delete, copy, pin functionality with hover actions
+9. **Design System Cleanup** - Standardize button styles, icon sizes, spacing consistency
+10. **Visual Feedback Improvements** - Skeleton screens, progress bars, connection status
+
+**Implementation Timeline**:
+- Week 1: Notifications + Confirmations + Help Dialog (critical UX)
+- Week 2: Empty States + Design System standardization
+- Week 3: Search Filters + Visual Feedback improvements
+- Week 4: File Preview + Multi-Select + Message enhancements
+
+**Technical Findings**:
+- 12 specialized button components with good variant system
+- Well-organized component structure by feature area
+- Consistent glassmorphic design with embossed shadows
+- Missing reusable components: Card, FormField, ListItem, EmptyState
+- Accessibility gaps: missing ARIA labels, keyboard navigation incomplete
+
+### Window Controls Enhancement - Minimize Button Added
+- **Feature**: Added minimize button to window title bar alongside existing close button
+- **Implementation**: 
+  - Extended `useTauriWindow` hook with `handleMinimize()` function using Tauri's `getCurrentWindow().minimize()`
+  - Added Minus icon from Lucide React to Header component
+  - Positioned minimize button between settings and close button for standard Windows UX
+  - Blue hover state (`hover:bg-blue-500/10 hover:text-blue-500`) to distinguish from red close button
+  - Graceful fallback for web version (noop when not in Tauri environment)
+- **UX Improvement**: Users can now minimize to taskbar instead of closing the application entirely
+- **Accessibility**: Added proper ARIA label "Minimize" and tooltip "Minimize to taskbar"
+- **Files Modified**: `hooks/useTauriWindow.ts`, `components/layout/Header.tsx`, `App.tsx`
+
+### Tauri Permissions Fix - Window Controls
+- **Issue**: Minimize button appeared in UI but didn't function due to missing Tauri permissions
+- **Root Cause**: `src-tauri/capabilities/default.json` was missing `core:window:allow-minimize` permission
+- **Solution**: Added comprehensive window management permissions:
+  - `core:window:allow-minimize` - Enable window minimization
+  - `core:window:allow-close` - Enable window closing
+  - `core:window:allow-outer-size` - Get window dimensions
+  - `core:window:allow-is-maximized` - Check maximized state
+  - `core:window:allow-is-fullscreen` - Check fullscreen state
+  - `core:window:allow-scale-factor` - Get display scaling
+  - `core:window:allow-on-*` - Window event listeners for radius management
+- **Debug**: Added temporary console logging to verify function execution
+- **Next Step**: Requires Tauri recompilation (`npm run tauri dev`) for permissions to take effect
+
 ### Build System Fix - Windows Toolchain Issue (Installation in Progress)
 - **Problem**: Rust compilation failing with missing Windows build tools
 - **Phase 1 Complete**: Fixed `dlltool.exe` error by switching to MSVC toolchain (`rustup default stable-x86_64-pc-windows-msvc`)

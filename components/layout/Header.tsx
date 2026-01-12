@@ -1,6 +1,6 @@
 // Header component - extracted from App.tsx for better separation of concerns
 import React, { memo } from 'react';
-import { Menu, X, Settings, User as UserIcon, FolderOpen, History } from 'lucide-react';
+import { Menu, X, Settings, User as UserIcon, FolderOpen, History, Minus } from 'lucide-react';
 import { IconButton } from '../buttonFormat';
 import { useTheme } from '../../src/contexts/ThemeContext';
 
@@ -17,6 +17,7 @@ export interface HeaderProps {
   onOpenUser: () => void;
   onOpenSettings: () => void;
   onClose: () => void;
+  onMinimize: () => void;
   onDragMouseDown: (e: React.MouseEvent) => void;
 }
 
@@ -28,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenUser,
   onOpenSettings,
   onClose,
+  onMinimize,
   onDragMouseDown,
 }) => {
   const { showBranding } = useTheme();
@@ -91,6 +93,7 @@ export const Header: React.FC<HeaderProps> = ({
         onOpenFiles={onOpenFiles}
         onOpenUser={onOpenUser}
         onOpenSettings={onOpenSettings}
+        onMinimize={onMinimize}
         onClose={onClose}
       />
     </header>
@@ -102,6 +105,7 @@ interface HeaderActionsProps {
   onOpenFiles: () => void;
   onOpenUser: () => void;
   onOpenSettings: () => void;
+  onMinimize: () => void;
   onClose: () => void;
 }
 
@@ -110,6 +114,7 @@ const HeaderActions: React.FC<HeaderActionsProps> = ({
   onOpenFiles,
   onOpenUser,
   onOpenSettings,
+  onMinimize,
   onClose,
 }) => (
   <div className="header-actions flex items-center gap-2 relative z-10" data-no-drag>
@@ -148,6 +153,15 @@ const HeaderActions: React.FC<HeaderActionsProps> = ({
       size="md"
       className="hover:bg-emerald-500/10 hover:text-emerald-500"
       title="Settings"
+    />
+    <IconButton 
+      icon={<Minus size={18} />}
+      onClick={onMinimize} 
+      aria-label="Minimize"
+      variant="glass"
+      size="md"
+      className="hover:bg-blue-500/10 hover:text-blue-500"
+      title="Minimize to taskbar"
     />
     <IconButton 
       icon={<X size={18} />}
