@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 7e0ba00b1f5b16ef29559ba081dfcd5a0db998cfc1a88141cfb26e611e6dceeb # shrinks to dangerous_cmd = "reboot"

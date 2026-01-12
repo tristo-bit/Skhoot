@@ -51,6 +51,13 @@ crossterm = "0.27"
 ratatui = "0.24"
 clap = { version = "4.0", features = ["derive"] }
 
+# Unix signal handling
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.27", features = ["signal"] }
+
+[dev-dependencies]
+proptest = "1.4"
+
 # Performance: Release profile optimizations
 [profile.release]
 opt-level = 3
