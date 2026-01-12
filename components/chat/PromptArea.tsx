@@ -29,6 +29,7 @@ interface PromptAreaProps {
   onSend: () => void;
   onMicClick: () => void;
   onQuickAction: (mode: string, placeholder: string) => void;
+  disabled?: boolean;
 }
 
 export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
@@ -43,6 +44,7 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   onSend,
   onMicClick,
   onQuickAction,
+  disabled = false,
 }, ref) => {
   const { resolvedTheme } = useTheme();
   const { illumination } = useSettings();
@@ -228,7 +230,8 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
                 onChange={onInputChange}
                 onKeyDown={onKeyDown}
                 placeholder={placeholder}
-                className="w-full bg-transparent border-none outline-none font-semibold placeholder:text-text-secondary placeholder:font-medium font-jakarta text-text-primary resize-none"
+                disabled={disabled}
+                className="w-full bg-transparent border-none outline-none font-semibold placeholder:text-text-secondary placeholder:font-medium font-jakarta text-text-primary resize-none disabled:cursor-default"
                 style={{
                   fontSize: 'var(--prompt-input-font)',
                   paddingTop: 'calc(var(--scale-space-1) * var(--spacing-scale))',

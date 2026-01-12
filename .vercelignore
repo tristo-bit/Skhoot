@@ -1,0 +1,23 @@
+# Backend (Rust)
+backend/
+src-tauri/
+
+# Build artifacts
+*.exe
+rustup-init.exe
+vs_buildtools.exe
+
+# Documentation
+documentation/
+*.md
+!README.md
+
+# Test files
+browser-test/
+test-*.html
+test-*.sh
+
+# Other
+.kiro/
+.github/
+webpage/

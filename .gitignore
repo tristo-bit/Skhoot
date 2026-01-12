@@ -63,3 +63,4 @@ release/
 # Documentation Projects
 documentation/codex-main
 documentation/website-example
+.vercel

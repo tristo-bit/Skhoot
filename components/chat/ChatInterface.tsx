@@ -12,9 +12,10 @@ interface ChatInterfaceProps {
   initialMessages: Message[];
   onMessagesChange: (messages: Message[]) => void;
   onActiveModeChange?: (mode: string | null) => void;
+  isDemo?: boolean;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessagesChange, onActiveModeChange }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessagesChange, onActiveModeChange, isDemo = false }) => {
   // State
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
@@ -149,7 +150,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         }
         
         case 'show-markdown': {
-          setMessages(prev => [...prev, createUserMessage('Show me markdown formatting')]);
+          setMessages(prev => [...prev, createUserMessage('What can you help me with?')]);
           setIsLoading(true);
           
           setTimeout(() => {
@@ -160,7 +161,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         }
 
         case 'cleanup': {
-          setMessages(prev => [...prev, createUserMessage('Help me clean up and free some space')]);
+          setMessages(prev => [...prev, createUserMessage('Help me free up some space')]);
           setIsLoading(true);
           setSearchType('cleanup');
           
@@ -168,7 +169,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
             setSearchType(null);
             setIsLoading(false);
             setMessages(prev => [...prev, createAssistantMessage(
-              'I\'ve scanned your system and found some items that could be cleaned up. Here\'s what I found:',
+              'I\'ve scanned your system and found some items that could be cleaned up:',
               'cleanup',
               data.results
             )]);
@@ -178,8 +179,38 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       }
     };
 
+    // Demo typing animation handler
+    const handleDemoTyping = (event: CustomEvent) => {
+      const { text } = event.detail;
+      setInput('');
+      let i = 0;
+      const typeChar = () => {
+        if (i < text.length) {
+          setInput(prev => prev + text[i]);
+          i++;
+          setTimeout(typeChar, 50 + Math.random() * 30);
+        }
+      };
+      typeChar();
+    };
+
+    // Demo reset handler (for looping)
+    const handleDemoReset = () => {
+      setMessages([]);
+      setInput('');
+      setIsEmptyStateVisible(true);
+      setIsEmptyStateExiting(false);
+    };
+
     window.addEventListener('skhoot-demo', handleDemoEvent as EventListener);
-    return () => window.removeEventListener('skhoot-demo', handleDemoEvent as EventListener);
+    window.addEventListener('skhoot-demo-typing', handleDemoTyping as EventListener);
+    window.addEventListener('skhoot-demo-reset', handleDemoReset as EventListener);
+    
+    return () => {
+      window.removeEventListener('skhoot-demo', handleDemoEvent as EventListener);
+      window.removeEventListener('skhoot-demo-typing', handleDemoTyping as EventListener);
+      window.removeEventListener('skhoot-demo-reset', handleDemoReset as EventListener);
+    };
   }, [isEmptyStateVisible]);
 
   // Empty state visibility
@@ -374,11 +405,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         activeMode={activeMode}
         activeColor={activeColor}
         audioLevels={audioLevels}
-        onInputChange={handleInputChange}
-        onKeyDown={handleKeyDown}
-        onSend={handleSend}
-        onMicClick={handleMicClick}
-        onQuickAction={handleQuickAction}
+        onInputChange={isDemo ? () => {} : handleInputChange}
+        onKeyDown={isDemo ? () => {} : handleKeyDown}
+        onSend={isDemo ? () => {} : handleSend}
+        onMicClick={isDemo ? () => {} : handleMicClick}
+        onQuickAction={isDemo ? () => {} : handleQuickAction}
+        disabled={isDemo}
       />
     </div>
   );

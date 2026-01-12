@@ -2,6 +2,25 @@
 
 ## January 12, 2026
 
+### Demo Mode for Web Deployment
+- Created `services/demoMode.ts` - auto-playing showcase that requires no backend
+- Demo sequence displays: file search → disk analysis → cleanup suggestions → AI capabilities
+- Features:
+  - Typing animation simulates user input
+  - Hardcoded responses for all demo steps
+  - Loops continuously after completion
+  - "Demo Mode" badge in bottom-left corner
+- Activation: Add `?demo=true` to URL or set `VITE_DEMO_MODE=true`
+- UI interactions disabled in demo mode (sidebar, settings, panels hidden)
+- ChatInterface updated with demo event handlers for typing animation and reset
+- PromptArea accepts `disabled` prop to prevent user input during demo
+- Build output: `dist/` folder ready for static hosting (Vercel, Netlify, etc.)
+
+### Vercel Deployment Configuration
+- Added `vercel.json` - configures Vite framework, build command, and output directory
+- Added `.vercelignore` - excludes backend/, src-tauri/, documentation, test files, and build artifacts
+- Deployment now only includes the frontend Vite app, not the Rust backend or Tauri desktop code
+
 ### README.md Overhaul
 - Restructured entire README with collapsible `<details>` sections for better navigation
 - Added GitHub-style social badges under banner (Star, Fork, Watch buttons)

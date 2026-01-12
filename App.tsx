@@ -15,6 +15,7 @@ import { chatStorage } from './services/chatStorage';
 import { authService } from './services/auth';
 import { initScaleManager, destroyScaleManager } from './services/scaleManager';
 import { initUIConfig } from './services/uiConfig';
+import { demoModeService } from './services/demoMode';
 import { Chat, Message, User } from './types';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { SettingsProvider } from './src/contexts/SettingsContext';
@@ -48,12 +49,25 @@ const AppContent: React.FC = () => {
   
   // Track pending chat creation to avoid remounting during first message
   const pendingChatIdRef = useRef<string | null>(null);
+  
+  // Demo mode state
+  const [isDemoMode] = useState(() => demoModeService.isDemoMode());
 
   // Initialize services
   useEffect(() => {
     initUIConfig();
     initScaleManager();
-    return () => destroyScaleManager();
+    
+    // Start demo mode if enabled
+    if (demoModeService.isDemoMode()) {
+      // Small delay to let the app render first
+      setTimeout(() => demoModeService.start(), 1500);
+    }
+    
+    return () => {
+      destroyScaleManager();
+      demoModeService.stop();
+    };
   }, []);
 
   // Load chats and auth state
@@ -167,50 +181,52 @@ const AppContent: React.FC = () => {
           
           <Header
             isSidebarOpen={isSidebarOpen}
-            onToggleSidebar={toggleSidebar}
-            onOpenHistory={openActivity}
-            onOpenFiles={openFilesPanel}
-            onOpenUser={openUserPanel}
-            onOpenSettings={openSettings}
-            onClose={handleClose}
+            onToggleSidebar={isDemoMode ? () => {} : toggleSidebar}
+            onOpenHistory={isDemoMode ? () => {} : openActivity}
+            onOpenFiles={isDemoMode ? () => {} : openFilesPanel}
+            onOpenUser={isDemoMode ? () => {} : openUserPanel}
+            onOpenSettings={isDemoMode ? () => {} : openSettings}
+            onClose={isDemoMode ? () => {} : handleClose}
             onDragMouseDown={handleDragMouseDown}
           />
 
-          {/* Sidebar */}
-          <div 
-            className={`absolute top-0 left-0 bottom-0 z-40 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
-              isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}
-          >
-            <Sidebar 
-              onNewChat={handleNewChat} 
-              onClose={toggleSidebar}
-              onSelectChat={handleSelectChat}
-              onDeleteChat={handleDeleteChat}
-              chats={chats}
-              currentChatId={currentChatId}
-              user={user}
-              onSignIn={handleSignIn}
-              onSignOut={handleSignOut}
-            />
-          </div>
+          {/* Sidebar - hidden in demo mode */}
+          {!isDemoMode && (
+            <div 
+              className={`absolute top-0 left-0 bottom-0 z-40 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+                isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+              }`}
+            >
+              <Sidebar 
+                onNewChat={handleNewChat} 
+                onClose={toggleSidebar}
+                onSelectChat={handleSelectChat}
+                onDeleteChat={handleDeleteChat}
+                chats={chats}
+                currentChatId={currentChatId}
+                user={user}
+                onSignIn={handleSignIn}
+                onSignOut={handleSignOut}
+              />
+            </div>
+          )}
 
-          {/* Panels */}
-          {isSettingsOpen && <SettingsPanel onClose={closeSettings} />}
-          {isActivityOpen && <ActivityPanel onClose={closeActivity} />}
-          {isFilesPanelOpen && <FilesPanel onClose={closeFilesPanel} />}
-          {isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
-          {isFileSearchTestOpen && <FileSearchTest onClose={closeFileSearchTest} />}
+          {/* Panels - hidden in demo mode */}
+          {!isDemoMode && isSettingsOpen && <SettingsPanel onClose={closeSettings} />}
+          {!isDemoMode && isActivityOpen && <ActivityPanel onClose={closeActivity} />}
+          {!isDemoMode && isFilesPanelOpen && <FilesPanel onClose={closeFilesPanel} />}
+          {!isDemoMode && isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
+          {!isDemoMode && isFileSearchTestOpen && <FileSearchTest onClose={closeFileSearchTest} />}
 
-          {/* Auth Views */}
-          {authView === 'login' && (
+          {/* Auth Views - hidden in demo mode */}
+          {!isDemoMode && authView === 'login' && (
             <Login 
               onLogin={handleLogin} 
               onSwitchToRegister={() => setAuthView('register')} 
               onClose={handleCloseAuth} 
             />
           )}
-          {authView === 'register' && (
+          {!isDemoMode && authView === 'register' && (
             <Register 
               onRegister={handleLogin} 
               onSwitchToLogin={() => setAuthView('login')} 
@@ -221,18 +237,26 @@ const AppContent: React.FC = () => {
           {/* Main content */}
           <main
             className="flex-1 relative overflow-hidden flex flex-col p-2"
-            onMouseDown={handleBackgroundDrag}
+            onMouseDown={isDemoMode ? undefined : handleBackgroundDrag}
           >
             <div className="flex-1 relative overflow-hidden" data-tauri-drag-region="false">
               <ChatInterface 
                 key={currentChatId ?? 'new-chat'} 
                 chatId={currentChatId}
                 initialMessages={currentChat?.messages || []}
-                onMessagesChange={handleMessagesChange}
+                onMessagesChange={isDemoMode ? () => {} : handleMessagesChange}
                 onActiveModeChange={setActiveQuickAction}
+                isDemo={isDemoMode}
               />
             </div>
           </main>
+          
+          {/* Demo mode badge */}
+          {isDemoMode && (
+            <div className="absolute bottom-4 left-4 z-50 px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/30 backdrop-blur-sm">
+              <span className="text-xs font-medium text-purple-300">Demo Mode</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
