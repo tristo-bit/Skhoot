@@ -1,7 +1,7 @@
 import React, { forwardRef, useRef, useEffect, useState } from 'react';
 import { Search, Bot, HardDrive, Trash2 } from 'lucide-react';
 import { QUICK_ACTIONS } from '../../src/constants';
-import { SoundWave } from '../ui';
+import SynthesisVisualizer from '../ui/SynthesisVisualizer';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { useSettings } from '../../src/contexts/SettingsContext';
 import { QuickActionButton } from './QuickActionButton';
@@ -24,6 +24,7 @@ interface PromptAreaProps {
   activeMode: string | null;
   activeColor: string;
   audioLevels: number[];
+  audioStream: MediaStream | null;
   onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
   onSend: () => void;
@@ -39,6 +40,7 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   hasPendingVoiceMessage,
   activeMode,
   audioLevels,
+  audioStream,
   onInputChange,
   onKeyDown,
   onSend,
@@ -208,7 +210,11 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
                 transition: `opacity 0.4s ${smoothEasing}, transform 0.5s ${smoothEasing}`,
               }}
             >
-              <SoundWave levels={audioLevels} barCount={32} />
+              <SynthesisVisualizer 
+                audioStream={audioStream}
+                lineColor={activeAction?.color || '#6366f1'}
+                isDarkMode={isDarkMode}
+              />
             </div>
             
             {/* Text input */}

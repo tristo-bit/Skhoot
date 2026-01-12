@@ -41,6 +41,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
     pendingVoiceText,
     hasPendingVoiceMessage,
     audioLevels,
+    audioStream,
     handleMicClick,
     stopRecording,
     discardVoice,
@@ -462,6 +463,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
         activeMode={activeMode}
         activeColor={activeColor}
         audioLevels={audioLevels}
+        audioStream={audioStream}
         onInputChange={handleInputChange}
         onKeyDown={handleKeyDown}
         onSend={handleSend}

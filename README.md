@@ -40,10 +40,11 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 - **Voice Input**: Speak your queries naturally (Chrome, Edge, Safari)
 - **Real-time Transcription**: See your speech converted to text in real-time
 - **Transcript Editing**: Edit voice transcriptions before sending - click the edit button on pending voice messages to modify text
-- **Audio Visualization**: Visual feedback with waveform display
+- **Advanced Audio Visualization**: Sophisticated synthesis visualizer with voice-optimized multi-line wave rendering, dynamic amplitude response, and real-time frequency harmonics
 - **Browser Compatibility**: Fallback text input for Opera and Firefox
 - **Advanced Audio Service**: Full-featured audio management with device selection, volume control, and sensitivity settings
-- **Microphone Testing**: Real-time audio level monitoring with waveform visualization
+- **Audio Analysis Hook**: Real-time audio stream analysis with RMS volume calculation and frequency domain processing
+- **Microphone Testing**: Real-time audio level monitoring with synthesis visualization
 - **Device Hot-Swapping**: Automatic detection and handling of audio device changes
 - **Linux Audio Setup**: Automatic detection and guided setup for Linux audio permissions
 
@@ -201,6 +202,8 @@ skhoot/
 │   └── Cargo.toml
 ├── components/          # React components
 │   ├── shared/          # Reusable UI components
+│   ├── library/         # Reusable hooks and utilities
+│   │   └── useAudioAnalyzer.ts  # Audio stream analysis
 │   ├── ChatInterface.tsx
 │   ├── FileSearchTest.tsx
 │   └── SettingsPanel.tsx
@@ -617,6 +620,42 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 <details>
 <summary><strong>Audio & Voice Improvements</strong></summary>
 
+- **Synthesis Visualizer**: Advanced voice-optimized audio visualization component (`components/ui/SynthesisVisualizer.tsx`)
+  - **Multi-line Wave Rendering**: 9 layered frequencies create rich visual depth with dynamic spacing
+  - **Voice-Optimized Response**: Enhanced amplitude range (0-48% of height) with power-based scaling for natural voice dynamics
+  - **Real-time Frequency Harmonics**: Combines carrier waves, modulation, voice ripples, and harmonics for sophisticated audio representation
+  - **Dynamic Visual Effects**: 
+    - Glow intensity responds to voice peaks and volume changes (up to 40px blur)
+    - Smooth breathing animation during idle states (0.8-1.0 scale)
+    - Foreground highlight layer with screen blend mode for peak emphasis
+  - **Performance Optimized**:
+    - Canvas-based rendering with device pixel ratio support for crisp visuals
+    - Adaptive frame rate with requestAnimationFrame
+    - Efficient smoothing algorithm (0.25 listening, 0.12 idle) for responsive yet stable animation
+    - ResizeObserver for automatic canvas scaling
+  - **Customization**:
+    - Theme-aware styling (white in dark mode, customizable in light mode)
+    - Configurable line color via props
+    - Sharp envelope windowing (power 3.0) for crisp edge definition
+  - **Audio Integration**: Seamlessly integrates with `useAudioAnalyzer` hook for real-time volume data
+  - **Usage**:
+    ```tsx
+    import SynthesisVisualizer from './components/ui/SynthesisVisualizer';
+    
+    <SynthesisVisualizer 
+      audioStream={mediaStream} 
+      lineColor="rgba(99, 102, 241, 0.85)"
+      isDarkMode={isDarkMode}
+    />
+    ```
+- **Audio Analysis Hook**: New `useAudioAnalyzer` custom hook for real-time audio stream analysis (`components/library/useAudioAnalyzer.ts`)
+  - Web Audio API integration with automatic context management
+  - Real-time volume calculation using RMS (Root Mean Square) algorithm
+  - Frequency domain analysis with configurable FFT size (2048) and smoothing (0.8)
+  - Automatic cleanup and resource management on stream changes
+  - Returns normalized volume values (0-1 range) with amplification
+  - Error handling with graceful fallbacks
+  - Usage: `const { getVolume } = useAudioAnalyzer(audioStream)`
 - **Voice Transcript Editing**: Users can now edit voice transcriptions before sending via the edit button on pending voice messages
   - `editVoiceTranscript` method in `useVoiceRecording` hook enables transcript modification
   - `onEditVoice` prop passed to `RecordButton` component for UI integration

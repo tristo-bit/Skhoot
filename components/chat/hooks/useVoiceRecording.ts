@@ -12,6 +12,7 @@ interface UseVoiceRecordingReturn {
   pendingVoiceText: string;
   hasPendingVoiceMessage: boolean;
   audioLevels: number[];
+  audioStream: MediaStream | null;
   startRecording: () => Promise<void>;
   stopRecording: () => void;
   handleMicClick: () => Promise<void>;
@@ -30,6 +31,7 @@ export function useVoiceRecording(
   const [hasPendingVoiceMessage, setHasPendingVoiceMessage] = useState(false);
   const [audioLevels, setAudioLevels] = useState<number[]>([0.2, 0.4, 0.6, 0.3, 0.5, 0.7, 0.4, 0.8]);
   const [inputValue, setInputValue] = useState('');
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
 
   // Refs
   const recognitionRef = useRef<any>(null);
@@ -92,6 +94,7 @@ export function useVoiceRecording(
     }
     analyserRef.current = null;
     setIsRecording(false);
+    setAudioStream(null);
   }, []);
 
   const startRecording = useCallback(async () => {
@@ -105,6 +108,7 @@ export function useVoiceRecording(
       const stream = await audioService.getInputStream();
       if (stream) {
         streamRef.current = stream;
+        setAudioStream(stream);
         
         const context = await audioService.createAudioContext();
         if (context) {
@@ -275,6 +279,7 @@ export function useVoiceRecording(
     pendingVoiceText,
     hasPendingVoiceMessage,
     audioLevels,
+    audioStream,
     startRecording,
     stopRecording,
     handleMicClick,

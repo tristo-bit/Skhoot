@@ -683,3 +683,124 @@
   - Added line-height: 1.5 for better readability
 
 **Result**: Edit textarea now has more horizontal space and is more comfortable to use for text correction.
+
+
+### Voice Recording Visualizer - SynthesisVisualizer Integration ✅
+
+**User Request**: Replace SoundWave with SynthesisVisualizer for voice recording visualization
+
+**Implementation**:
+
+**1. Created useAudioAnalyzer Hook ✅**
+- **File**: `components/library/useAudioAnalyzer.ts`
+- **Purpose**: Analyzes audio stream and provides volume data
+- **Features**:
+  - Creates AudioContext and AnalyserNode from MediaStream
+  - Real-time volume calculation using RMS (Root Mean Square)
+  - Automatic cleanup on stream change
+  - Returns `getVolume()` function for real-time audio level
+
+**2. Enhanced useVoiceRecording Hook ✅**
+- **File**: `components/chat/hooks/useVoiceRecording.ts`
+- **Changes**:
+  - Added `audioStream` state to expose MediaStream
+  - Updated return type to include `audioStream: MediaStream | null`
+  - Sets audioStream when recording starts
+  - Clears audioStream when recording stops
+
+**3. Updated Data Flow ✅**
+- **Files**: `ChatInterface.tsx`, `PromptArea.tsx`
+- **Changes**:
+  - ChatInterface extracts `audioStream` from useVoiceRecording
+  - Passes `audioStream` to PromptArea
+  - PromptArea interface updated to accept `audioStream`
+
+**4. Replaced Visualizer Component ✅**
+- **File**: `components/chat/PromptArea.tsx`
+- **Before**: `<SoundWave levels={audioLevels} barCount={32} />`
+- **After**: `<SynthesisVisualizer audioStream={audioStream} lineColor={activeAction?.color || '#6366f1'} />`
+- **Benefits**:
+  - More sophisticated voice-optimized waveform
+  - Dynamic color based on active quick action
+  - Better voice frequency representation
+  - Smoother animations with canvas rendering
+
+**SynthesisVisualizer Features**:
+- Voice-optimized multi-frequency wave synthesis
+- Real-time audio analysis with RMS volume detection
+- Dynamic amplitude and frequency modulation
+- Harmonics and voice ripples for richer visualization
+- Smooth breathing animation on idle
+- Enhanced glow effects for voice peaks
+- Responsive canvas with device pixel ratio support
+
+**Result**: Voice recording now displays a beautiful, voice-optimized synthesis waveform that reacts dynamically to speech patterns and matches the active quick action color.
+
+
+### SynthesisVisualizer - Dark Mode & Voice Reactivity Enhancement ✅
+
+**User Request**: Make visualizer white in dark mode and more reactive to voice
+
+**Changes Applied**:
+
+**1. Dark Mode Support ✅**
+- **File**: `components/ui/SynthesisVisualizer.tsx`
+- **Added**: `isDarkMode` prop to interface
+- **Logic**: Uses white color (`rgba(255, 255, 255, 0.9)`) in dark mode, otherwise uses provided `lineColor`
+- **Implementation**: `const effectiveLineColor = isDarkMode ? 'rgba(255, 255, 255, 0.9)' : lineColor`
+
+**2. Enhanced Voice Reactivity ✅**
+- **Line Width**: Increased from `vol * 0.6` to `vol * 1.2` (2x more reactive)
+- **Alpha/Opacity**: Increased from `vol * 0.25` to `vol * 0.35` (40% more visible)
+- **Shadow Blur**: Increased from `vol * 15` to `vol * 25` (67% more glow)
+- **Foreground Highlight**: 
+  - Alpha: `0.3 + vol * 0.5` (was `0.22 + vol * 0.32`)
+  - Line Width: `1.2 + vol * 1.2` (was `1.0 + vol * 0.8`)
+  - Shadow Blur: `15 + vol * 15` (was `12 + vol * 8`)
+
+**3. Integration ✅**
+- **File**: `components/chat/PromptArea.tsx`
+- **Change**: Passes `isDarkMode` prop to SynthesisVisualizer
+- **Source**: Uses existing `isDarkMode` from `useTheme()` hook
+
+**Result**: 
+- Visualizer now displays in white when in dark mode
+- Much more reactive to voice input with enhanced amplitude, opacity, and glow effects
+- Better visual feedback when speaking
+
+
+### SynthesisVisualizer - Enhanced Voice-Reactive Undulations ✅
+
+**User Request**: Make wave undulate and move dynamically based on voice volume and intensity
+
+**Improvements Applied**:
+
+**1. Dynamic Frequency Modulation ✅**
+- **Line Spread**: Now `4.2 + vol * 1.5` (was static `3.8`) - spreads more when speaking
+- **Base Frequency**: `0.016 + vol * 0.008` (was static `0.014`) - faster oscillations with voice
+- **Secondary Frequency**: `0.028 + vol * 0.012` (was static `0.025`) - more complex patterns
+- **Voice Modulation**: `0.042 + vol * 0.018` (was static `0.038`) - enhanced ripple effect
+
+**2. Enhanced Wave Movement ✅**
+- **Carrier Wave**: Frequency multiplied by `(1 + vol * 0.3)`, amplitude `(0.75 + vol * 0.5)`
+- **Modulation**: Frequency `(1.0 + vol * 0.7)`, amplitude `(0.85 + vol * 0.3)`
+- **Voice Ripples**: Frequency `(1 + vol * 0.5)`, phase speed `(2.8 + vol * 1.2)`, amplitude `(0.15 + vol * 0.35)`
+- **Harmonics**: Frequency `(1 + vol * 0.4)`, phase speed `(1.5 + vol * 0.6)`, amplitude `(0.1 + vol * 0.25)`
+
+**3. Increased Responsiveness ✅**
+- **Smoothing**: Increased from `0.18` to `0.25` for faster response
+- **Base Speed**: Increased from `0.042` to `0.055` for more movement
+- **Speed Boost**: Increased from `vol * 0.25` to `vol * 0.4` for dramatic voice reaction
+- **Max Amplitude**: Increased from `42%` to `48%` of height
+- **Dynamic Amplitude**: Power reduced from `0.85` to `0.75` for more sensitivity
+
+**4. Enhanced Vertical Movement ✅**
+- **Local Amplitude**: Multiplied by `(1 + vol * 0.5)` for more vertical motion
+- **Vertical Spread**: Increased from `(1 + vol * 0.5)` to `(1 + vol * 0.8)` for wider undulations
+- **Foreground Highlight**: Y-offset multiplied by `(1 + vol * 0.3)` for synchronized movement
+
+**Result**: 
+- Wave now undulates dramatically when speaking
+- Frequency, amplitude, and spread all react to voice intensity
+- Faster, more fluid movement synchronized with voice volume
+- Creates a living, breathing visualization that dances with your voice
