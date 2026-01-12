@@ -212,7 +212,7 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
             >
               <SynthesisVisualizer 
                 audioStream={audioStream}
-                lineColor={activeAction?.color || '#6366f1'}
+                lineColor={isDarkMode ? '#ffffff' : '#fbd0d0'}
                 isDarkMode={isDarkMode}
               />
             </div>

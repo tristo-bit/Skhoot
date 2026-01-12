@@ -9,7 +9,7 @@ interface SynthesisVisualizerProps {
 
 const SynthesisVisualizer: React.FC<SynthesisVisualizerProps> = ({
   audioStream,
-  lineColor = 'rgba(99, 102, 241, 0.85)',
+  lineColor = '#fbd0d0',
   isDarkMode = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
