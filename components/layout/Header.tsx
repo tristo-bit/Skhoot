@@ -51,6 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button 
           onClick={onToggleSidebar}
           data-no-drag
+          data-sidebar-toggle
           className="header-sidebar-btn relative z-10 p-1.5 hover:bg-black/5 rounded-lg transition-all text-text-secondary active:scale-95"
           aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
           title={isSidebarOpen ? 'Close menu' : 'Open menu'}

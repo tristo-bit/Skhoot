@@ -192,6 +192,7 @@ const AppContent: React.FC = () => {
 
           {/* Sidebar */}
           <div 
+            data-sidebar
             className={`absolute top-0 left-0 bottom-0 z-40 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
               isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
@@ -247,13 +248,6 @@ const AppContent: React.FC = () => {
               />
             </div>
           </main>
-          
-          {/* Demo mode badge */}
-          {isDemoMode && (
-            <div className="absolute bottom-4 left-4 z-50 px-3 py-1.5 rounded-full bg-purple-500/20 border border-purple-500/30 backdrop-blur-sm">
-              <span className="text-xs font-medium text-purple-300">Demo Mode</span>
-            </div>
-          )}
         </div>
       </div>
     </div>

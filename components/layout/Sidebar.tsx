@@ -232,6 +232,7 @@ const NewSearchButton = memo<{ onClick: () => void }>(({ onClick }) => {
       onMouseLeave={() => setIsHovering(false)}
       variant="glass"
       size="lg"
+      data-new-chat
       icon={
         <Plus 
           size={18} 

@@ -4,16 +4,28 @@
 
 ### Demo Mode for Web Deployment
 - Created `services/demoMode.ts` - auto-playing showcase that requires no backend
-- Demo sequence displays: file search → disk analysis → cleanup suggestions → AI capabilities
+- Demo sequence:
+  1. AI welcome messages introducing the app
+  2. File search demo with typing animation
+  3. Disk analysis demo
+  4. Cleanup suggestions demo
+  5. Opens sidebar and creates new conversation at the end
 - Features:
-  - Typing animation simulates user input
+  - Typing animation simulates user input in the text field
+  - Click animations on buttons (send, sidebar toggle, new chat) with purple pulse effect
   - Hardcoded responses for all demo steps
   - Loops continuously after completion
-  - "Demo Mode" badge in bottom-left corner
-  - Full UI interaction enabled (sidebar, settings, panels accessible)
+  - Full UI interaction enabled - users can explore while demo plays
+  - Opera voice warning disabled in demo mode
+- Data attributes added for demo targeting: `data-sidebar-toggle`, `data-new-chat`, `data-send-button`, `data-sidebar`
 - Activation: Add `?demo=true` to URL or set `VITE_DEMO_MODE=true`
-- Fixed: Input cleared after each demo message to prevent "undefined" display
+
+### Landing Page Updates
 - Updated `webpage/index.html` iframe to use `https://skhoot.vercel.app/?demo=true`
+- Removed fake window chrome (close/minimize/maximize buttons) from demo preview
+- Enlarged demo preview: max-width 1200px, height 600-650px
+- Enhanced glow effect and shadows on preview window
+- Responsive sizing for mobile (500px height on small screens)
 
 ### Vercel Deployment Configuration
 - Added `vercel.json` - configures Vite framework, build command, and output directory

@@ -3,18 +3,37 @@
 
 interface DemoStep {
   type: string;
-  data: any;
+  data?: any;
   delay: number; // ms before this step
-  typingText?: string; // Text to "type" in input
 }
 
 const DEMO_SEQUENCE: DemoStep[] = [
-  // Step 1: File search
+  // Welcome messages from AI
   {
-    type: 'typing',
+    type: 'ai-message',
+    data: { content: "Hey there! 👋 Thanks for checking out Skhoot." },
+    delay: 1500
+  },
+  {
+    type: 'ai-message',
+    data: { content: "I'm your intelligent desktop assistant. Let me show you what I can do!" },
+    delay: 2500
+  },
+  {
+    type: 'ai-message',
+    data: { content: "Try typing in the input below, or watch this quick demo..." },
+    delay: 2500
+  },
+  
+  // Demo: File search
+  {
+    type: 'demo-typing',
     data: { text: 'Find my invoice files' },
-    delay: 2000,
-    typingText: 'Find my invoice files'
+    delay: 2000
+  },
+  {
+    type: 'click-send',
+    delay: 800
   },
   {
     type: 'search-files',
@@ -26,15 +45,18 @@ const DEMO_SEQUENCE: DemoStep[] = [
         { id: '3', name: 'invoice_template.docx', path: '/Documents/Templates', size: '45 KB', category: 'Work' },
       ]
     },
-    delay: 1500
+    delay: 2000
   },
   
-  // Step 2: Disk analysis
+  // Demo: Disk analysis
   {
-    type: 'typing',
+    type: 'demo-typing',
     data: { text: 'Analyze my disk space' },
-    delay: 4000,
-    typingText: 'Analyze my disk space'
+    delay: 3500
+  },
+  {
+    type: 'click-send',
+    delay: 800
   },
   {
     type: 'analyze-disk',
@@ -44,15 +66,18 @@ const DEMO_SEQUENCE: DemoStep[] = [
         { id: 'd2', name: 'External SSD', totalSpace: 1000, usedSpace: 450, availableSpace: 550, usagePercentage: 45, type: 'external' },
       ]
     },
-    delay: 1500
+    delay: 2000
   },
   
-  // Step 3: Cleanup suggestions
+  // Demo: Cleanup
   {
-    type: 'typing',
+    type: 'demo-typing',
     data: { text: 'Help me free up some space' },
-    delay: 4500,
-    typingText: 'Help me free up some space'
+    delay: 4000
+  },
+  {
+    type: 'click-send',
+    delay: 800
   },
   {
     type: 'cleanup',
@@ -63,37 +88,22 @@ const DEMO_SEQUENCE: DemoStep[] = [
         { id: 'c3', name: '.Trash', path: '~/.Trash', size: '2.1 GB', type: 'folder', canRemove: true, description: 'Files in your trash bin.', consequence: 'Permanent deletion.', lastAccessed: '3 days ago' },
       ]
     },
-    delay: 1500
+    delay: 3500
   },
   
-  // Step 4: Markdown/AI response
+  // Final message and open sidebar
   {
-    type: 'typing',
-    data: { text: 'What can you help me with?' },
-    delay: 5000,
-    typingText: 'What can you help me with?'
+    type: 'ai-message',
+    data: { content: "That's just a taste! Download Skhoot to explore voice commands, AI chat, and more. Let me show you the conversation history..." },
+    delay: 3000
   },
   {
-    type: 'show-markdown',
-    data: {
-      content: `## I can help you with:
-
-### 🔍 **File Search**
-Find any file on your system instantly with AI-powered search.
-
-### 💾 **Disk Analysis**  
-Visualize storage usage and identify space hogs.
-
-### 🧹 **Smart Cleanup**
-Get safe recommendations for freeing up disk space.
-
-### 🎤 **Voice Commands**
-Just speak naturally - I understand context!
-
-### 💬 **Conversational AI**
-Ask me anything and I'll help you navigate your digital workspace.`
-    },
-    delay: 1500
+    type: 'open-sidebar',
+    delay: 2000
+  },
+  {
+    type: 'click-new-chat',
+    delay: 2500
   },
 ];
 
@@ -104,7 +114,7 @@ class DemoModeService {
   private loopEnabled = true;
 
   isDemoMode(): boolean {
-    // Check URL params or environment
+    if (typeof window === 'undefined') return false;
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('demo') === 'true' || 
            urlParams.get('mode') === 'demo' ||
@@ -133,13 +143,11 @@ class DemoModeService {
 
     if (this.currentStep >= DEMO_SEQUENCE.length) {
       if (this.loopEnabled) {
-        // Reset and loop after a pause
         this.timeoutId = window.setTimeout(() => {
           this.currentStep = 0;
-          // Clear messages before restarting
           window.dispatchEvent(new CustomEvent('skhoot-demo-reset'));
           this.timeoutId = window.setTimeout(() => this.runNextStep(), 2000);
-        }, 5000);
+        }, 6000);
       }
       return;
     }
@@ -147,17 +155,9 @@ class DemoModeService {
     const step = DEMO_SEQUENCE[this.currentStep];
     
     this.timeoutId = window.setTimeout(() => {
-      if (step.type === 'typing' && step.typingText) {
-        // Dispatch typing animation event
-        window.dispatchEvent(new CustomEvent('skhoot-demo-typing', {
-          detail: { text: step.typingText }
-        }));
-      } else {
-        // Dispatch the actual demo event
-        window.dispatchEvent(new CustomEvent('skhoot-demo', {
-          detail: { type: step.type, data: step.data }
-        }));
-      }
+      window.dispatchEvent(new CustomEvent('skhoot-demo', {
+        detail: { type: step.type, data: step.data }
+      }));
       
       this.currentStep++;
       this.runNextStep();

@@ -786,3 +786,24 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.4);
   }
 }
+
+
+/* Demo mode click animation */
+@keyframes demo-click-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(147, 51, 234, 0);
+    transform: scale(0.95);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(147, 51, 234, 0);
+    transform: scale(1);
+  }
+}
+
+.demo-click {
+  animation: demo-click-pulse 0.3s ease-out;
+}

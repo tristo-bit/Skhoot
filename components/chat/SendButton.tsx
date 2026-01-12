@@ -55,6 +55,7 @@ export const SendButton = memo<SendButtonProps>(({
           variant={isActive ? "glass" : "ghost"}
           size="lg"
           aria-label="Send message"
+          data-send-button
           style={{ 
             backgroundColor: isActive ? '#3b82f640' : '#3b82f620',
             opacity: isRecording ? 0 : 1,

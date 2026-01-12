@@ -56,21 +56,22 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
     ? "Send your message?" 
     : "Skhoot is listening...";
   
-  // Detect Opera browser for notification
+  // Detect Opera browser for notification (disabled in demo mode)
   const isOpera = navigator.userAgent.indexOf('OPR') !== -1 || navigator.userAgent.indexOf('Opera') !== -1;
+  const isDemoMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === 'true';
   
   const quickActionsRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const [showOperaNotification, setShowOperaNotification] = useState(false);
   
-  // Show Opera notification briefly when component mounts
+  // Show Opera notification briefly when component mounts (skip in demo mode)
   useEffect(() => {
-    if (isOpera && !localStorage.getItem('opera-voice-notification-shown')) {
+    if (isOpera && !isDemoMode && !localStorage.getItem('opera-voice-notification-shown')) {
       setShowOperaNotification(true);
       localStorage.setItem('opera-voice-notification-shown', 'true');
       setTimeout(() => setShowOperaNotification(false), 4000);
     }
-  }, [isOpera]);
+  }, [isOpera, isDemoMode]);
 
   // Auto-resize textarea
   useEffect(() => {

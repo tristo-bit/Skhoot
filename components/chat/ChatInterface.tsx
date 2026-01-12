@@ -68,9 +68,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
 
   // Demo event listener
   useEffect(() => {
-    const handleDemoEvent = (event: CustomEvent) => {
-      const { type, data } = event.detail;
-      
+    const createUserMessage = (content: string): Message => ({
+      id: Date.now().toString(),
+      role: 'user',
+      content,
+      type: 'text',
+      timestamp: new Date()
+    });
+
+    const createAssistantMessage = (content: string, msgType: Message['type'], msgData?: any): Message => ({
+      id: (Date.now() + Math.random()).toString(),
+      role: 'assistant',
+      content,
+      type: msgType,
+      data: msgData,
+      timestamp: new Date()
+    });
+
+    const hideEmptyState = () => {
       if (isEmptyStateVisible) {
         setIsEmptyStateExiting(true);
         setTimeout(() => {
@@ -78,28 +93,52 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
           setIsEmptyStateExiting(false);
         }, 100);
       }
+    };
 
-      const createUserMessage = (content: string): Message => ({
-        id: Date.now().toString(),
-        role: 'user',
-        content,
-        type: 'text',
-        timestamp: new Date()
-      });
-
-      const createAssistantMessage = (content: string, msgType: Message['type'], msgData?: any): Message => ({
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content,
-        type: msgType,
-        data: msgData,
-        timestamp: new Date()
-      });
+    const handleDemoEvent = (event: CustomEvent) => {
+      const { type, data } = event.detail;
 
       switch (type) {
+        // AI sends a message (no user input)
+        case 'ai-message': {
+          hideEmptyState();
+          setMessages(prev => [...prev, createAssistantMessage(data.content, 'text')]);
+          break;
+        }
+
+        // Typing animation in input field
+        case 'demo-typing': {
+          const text = data?.text || '';
+          setInput('');
+          let i = 0;
+          const typeChar = () => {
+            if (i < text.length) {
+              const char = text[i];
+              setInput(prev => prev + char);
+              i++;
+              setTimeout(typeChar, 50 + Math.random() * 30);
+            }
+          };
+          setTimeout(typeChar, 100);
+          break;
+        }
+
+        // Visual click on send button
+        case 'click-send': {
+          const sendBtn = document.querySelector('[data-send-button]');
+          if (sendBtn) {
+            sendBtn.classList.add('demo-click');
+            setTimeout(() => sendBtn.classList.remove('demo-click'), 300);
+          }
+          break;
+        }
+
+        // File search demo
         case 'search-files': {
-          setInput(''); // Clear input after demo message
-          setMessages(prev => [...prev, createUserMessage(`Find my ${data.query} files`)]);
+          hideEmptyState();
+          const currentInput = document.querySelector('textarea')?.value || 'Find my files';
+          setMessages(prev => [...prev, createUserMessage(currentInput)]);
+          setInput('');
           setIsLoading(true);
           setSearchType('files');
           
@@ -107,35 +146,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
             setSearchType(null);
             setIsLoading(false);
             setMessages(prev => [...prev, createAssistantMessage(
-              `I found ${data.results.length} files matching "${data.query}":`,
+              `I found ${data.results.length} files matching your search:`,
               'file_list',
               data.results
             )]);
           }, 2000);
           break;
         }
-        
-        case 'search-messages': {
-          setInput(''); // Clear input after demo message
-          setMessages(prev => [...prev, createUserMessage(`Find messages about ${data.query}`)]);
-          setIsLoading(true);
-          setSearchType('messages');
-          
-          setTimeout(() => {
-            setSearchType(null);
-            setIsLoading(false);
-            setMessages(prev => [...prev, createAssistantMessage(
-              `Found ${data.results.length} messages:`,
-              'message_list',
-              data.results
-            )]);
-          }, 2000);
-          break;
-        }
-        
+
+        // Disk analysis demo
         case 'analyze-disk': {
-          setInput(''); // Clear input after demo message
-          setMessages(prev => [...prev, createUserMessage('Analyze my disk space')]);
+          hideEmptyState();
+          const currentInput = document.querySelector('textarea')?.value || 'Analyze disk';
+          setMessages(prev => [...prev, createUserMessage(currentInput)]);
+          setInput('');
           setIsLoading(true);
           setSearchType('disk');
           
@@ -150,22 +174,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
           }, 2500);
           break;
         }
-        
-        case 'show-markdown': {
-          setInput(''); // Clear input after demo message
-          setMessages(prev => [...prev, createUserMessage('What can you help me with?')]);
-          setIsLoading(true);
-          
-          setTimeout(() => {
-            setIsLoading(false);
-            setMessages(prev => [...prev, createAssistantMessage(data.content, 'text')]);
-          }, 1000);
-          break;
-        }
 
+        // Cleanup demo
         case 'cleanup': {
-          setInput(''); // Clear input after demo message
-          setMessages(prev => [...prev, createUserMessage('Help me free up some space')]);
+          hideEmptyState();
+          const currentInput = document.querySelector('textarea')?.value || 'Help me clean up';
+          setMessages(prev => [...prev, createUserMessage(currentInput)]);
+          setInput('');
           setIsLoading(true);
           setSearchType('cleanup');
           
@@ -180,22 +195,33 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
           }, 3000);
           break;
         }
-      }
-    };
 
-    // Demo typing animation handler
-    const handleDemoTyping = (event: CustomEvent) => {
-      const { text } = event.detail;
-      setInput('');
-      let i = 0;
-      const typeChar = () => {
-        if (i < text.length) {
-          setInput(prev => prev + text[i]);
-          i++;
-          setTimeout(typeChar, 50 + Math.random() * 30);
+        // Open sidebar
+        case 'open-sidebar': {
+          const menuBtn = document.querySelector('[data-sidebar-toggle]');
+          if (menuBtn) {
+            menuBtn.classList.add('demo-click');
+            setTimeout(() => {
+              menuBtn.classList.remove('demo-click');
+              (menuBtn as HTMLElement).click();
+            }, 300);
+          }
+          break;
         }
-      };
-      typeChar();
+
+        // Click new chat in sidebar
+        case 'click-new-chat': {
+          const newChatBtn = document.querySelector('[data-new-chat]');
+          if (newChatBtn) {
+            newChatBtn.classList.add('demo-click');
+            setTimeout(() => {
+              newChatBtn.classList.remove('demo-click');
+              (newChatBtn as HTMLElement).click();
+            }, 300);
+          }
+          break;
+        }
+      }
     };
 
     // Demo reset handler (for looping)
@@ -204,15 +230,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialMessages, onMessag
       setInput('');
       setIsEmptyStateVisible(true);
       setIsEmptyStateExiting(false);
+      // Close sidebar if open
+      const sidebar = document.querySelector('[data-sidebar]');
+      if (sidebar?.classList.contains('translate-x-0')) {
+        const menuBtn = document.querySelector('[data-sidebar-toggle]');
+        (menuBtn as HTMLElement)?.click();
+      }
     };
 
     window.addEventListener('skhoot-demo', handleDemoEvent as EventListener);
-    window.addEventListener('skhoot-demo-typing', handleDemoTyping as EventListener);
     window.addEventListener('skhoot-demo-reset', handleDemoReset as EventListener);
     
     return () => {
       window.removeEventListener('skhoot-demo', handleDemoEvent as EventListener);
-      window.removeEventListener('skhoot-demo-typing', handleDemoTyping as EventListener);
       window.removeEventListener('skhoot-demo-reset', handleDemoReset as EventListener);
     };
   }, [isEmptyStateVisible]);
