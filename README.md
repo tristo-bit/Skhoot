@@ -4,9 +4,9 @@
 <br />
 <br />
 
-[![Star on GitHub](https://img.shields.io/github/stars/your-username/skhoot?style=social)](https://github.com/tristo-bit/skhoot/stargazers)
-[![Fork on GitHub](https://img.shields.io/github/forks/your-username/skhoot?style=social)](https://github.com/tristo-bit/skhoot/network/members)
-[![Watch on GitHub](https://img.shields.io/github/watchers/your-username/skhoot?style=social)](https://github.com/tristo-bit/skhoot/watchers)
+[![Star on GitHub](https://img.shields.io/github/stars/tristo-bit/skhoot?style=social)](https://github.com/tristo-bit/skhoot/stargazers)
+[![Fork on GitHub](https://img.shields.io/github/forks/tristo-bit/skhoot?style=social)](https://github.com/tristo-bit/skhoot/network/members)
+[![Watch on GitHub](https://img.shields.io/github/watchers/tristo-bit/skhoot?style=social)](https://github.com/tristo-bit/skhoot/watchers)
 
 <br />
 
