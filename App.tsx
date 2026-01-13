@@ -115,8 +115,21 @@ const AppContent: React.FC = () => {
       }
     };
 
+    // Listen for open-api-config event to open UserPanel and scroll to API Configuration
+    const handleOpenApiConfig = () => {
+      setIsUserPanelOpen(true);
+      // Dispatch event to scroll to API section after panel opens
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('scroll-to-api-config'));
+      }, 100);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('open-api-config', handleOpenApiConfig);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('open-api-config', handleOpenApiConfig);
+    };
   }, []);
 
   // Chat handlers

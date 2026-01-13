@@ -2326,3 +2326,84 @@ Three-layer architecture following separation of concerns:
 
 **Build Status**: ✅ No diagnostics
 
+
+
+---
+
+### API Configuration Navigation Button ✅
+- **Feature**: Added "Go to API Configuration" button when no AI provider is configured
+- **User Request**: When the warning "⚠️ No AI provider configured. Please add an API key in User Profile → API Configuration." appears, display a button that navigates users directly to the API settings
+
+**Implementation**:
+
+1. **MessageBubble.tsx** - Added detection and button rendering
+   - Detects messages containing "No AI provider configured" warning
+   - Renders a "Go to API Configuration" button with arrow icon
+   - Button dispatches `open-api-config` custom event
+   - Styled with glass-elevated class for consistency
+
+2. **App.tsx** - Added event listener for navigation
+   - Listens for `open-api-config` event
+   - Opens UserPanel when triggered
+   - Dispatches `scroll-to-api-config` event after panel opens
+
+3. **UserPanel.tsx** - Added scroll-to-section functionality
+   - Added `apiConfigRef` to the API Configuration section
+   - Listens for `scroll-to-api-config` event
+   - Smoothly scrolls to API Configuration section when triggered
+
+**User Flow**:
+1. User sends message without API key configured
+2. Warning message appears with "Go to API Configuration" button
+3. User clicks button
+4. User Profile panel opens
+5. Panel automatically scrolls to API Configuration section
+6. User can immediately enter their API key
+
+**Technical Details**:
+- Uses custom events for cross-component communication
+- Smooth scroll behavior with `scrollIntoView({ behavior: 'smooth', block: 'start' })`
+- 100ms delay between panel open and scroll for proper rendering
+- Button styled consistently with app's glassmorphic design system
+
+**Build Status**: ✅ No diagnostics
+
+
+
+---
+
+### API Configuration Button - Embossed Style Refinement ✅
+- **Refinement**: Updated "Go to API Configuration" button to use proper button primitives and embossed styling
+- **Style Guide**: Following `documentation/EMBOSSED_STYLE_GUIDE.md`
+
+**Changes**:
+- Replaced raw `<button>` with `Button` component from `components/buttonFormat`
+- Applied embossed floating state shadow per style guide
+- Added outline using `border border-glass-border`
+
+**Button Configuration**:
+```tsx
+<Button
+  onClick={handleGoToApiConfig}
+  variant="secondary"        // glass-subtle + hover:glass-elevated
+  size="sm"                  // Appropriate inline sizing
+  icon={<ArrowRight size={16} />}
+  iconPosition="right"
+  className="mt-3 border border-glass-border"
+  style={{
+    // Embossed floating state - appears above surface
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.2)'
+  }}
+>
+  Go to API Configuration
+</Button>
+```
+
+**Embossed Style Applied**:
+- Floating effect with drop shadow + subtle inner highlight
+- Theme-aware border using CSS variable
+- Inherits `active:scale-95` for pressed feedback
+- `hover:glass-elevated` transition on hover
+
+**Build Status**: ✅ No diagnostics
+

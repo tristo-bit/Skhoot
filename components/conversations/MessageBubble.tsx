@@ -5,9 +5,22 @@ import { FileList } from './FileList';
 import { MessageList } from './MessageList';
 import { DiskUsage } from './DiskUsage';
 import { CleanupList } from './CleanupList';
+import { Button } from '../buttonFormat';
+import { ArrowRight } from 'lucide-react';
+
+// Check if message is the "No AI provider configured" warning
+const isApiConfigWarning = (content: string): boolean => {
+  return content.includes('No AI provider configured') && content.includes('API Configuration');
+};
+
+// Handle navigation to API Configuration
+const handleGoToApiConfig = () => {
+  window.dispatchEvent(new CustomEvent('open-api-config'));
+};
 
 export const MessageBubble = memo<{ message: Message }>(({ message }) => {
   const isUser = message.role === 'user';
+  const showApiConfigButton = !isUser && isApiConfigWarning(message.content);
   
   if (!isUser) {
     // AI message - no bubble, markdown rendered with theme colors
@@ -18,6 +31,23 @@ export const MessageBubble = memo<{ message: Message }>(({ message }) => {
       >
         <div className="max-w-[95%] py-2 px-1">
           <MarkdownRenderer content={message.content} />
+          
+          {/* Go to API Configuration button - Embossed style */}
+          {showApiConfigButton && (
+            <Button
+              onClick={handleGoToApiConfig}
+              variant="secondary"
+              size="sm"
+              icon={<ArrowRight size={16} />}
+              iconPosition="right"
+              className="mt-3 border border-glass-border"
+              style={{
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.2)'
+              }}
+            >
+              Go to API Configuration
+            </Button>
+          )}
 
           {message.type === 'file_list' && message.data && (
             <FileList 

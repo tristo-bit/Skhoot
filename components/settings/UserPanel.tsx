@@ -36,6 +36,19 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
   const [isApiKeySaved, setIsApiKeySaved] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const apiConfigRef = useRef<HTMLDivElement>(null);
+
+  // Listen for scroll-to-api-config event
+  useEffect(() => {
+    const handleScrollToApiConfig = () => {
+      if (apiConfigRef.current) {
+        apiConfigRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+
+    window.addEventListener('scroll-to-api-config', handleScrollToApiConfig);
+    return () => window.removeEventListener('scroll-to-api-config', handleScrollToApiConfig);
+  }, []);
 
   // Load API key and saved model for selected provider on mount and provider change
   useEffect(() => {
@@ -395,7 +408,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
           </div>
 
           {/* API Key Section */}
-          <div className="space-y-3">
+          <div ref={apiConfigRef} className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-sm font-bold font-jakarta text-text-primary">API Configuration</label>
               {connectionStatus === 'success' && (
