@@ -24,6 +24,11 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 <summary><strong>🔍 Advanced Search & Discovery</strong></summary>
 
 - **Intelligent File Search**: Multi-engine file search with fuzzy matching, CLI integration, and AI-powered suggestions
+- **Multilingual Search Detection**: Automatic search type detection with comprehensive English and French keyword support
+  - File search: "find", "search", "locate", "where is", "show me", "document" / "fichier", "chercher", "trouver", "rechercher", "localiser", "où est", "dossier"
+  - Disk analysis: "disk", "storage", "space", "memory", "drive", "capacity" / "disque", "stockage", "espace", "mémoire", "capacité", "taille"
+  - Cleanup: "cleanup", "clean", "delete", "remove", "clear", "free up" / "nettoyer", "nettoyage", "supprimer", "effacer", "libérer", "vider"
+  - Messages: "message", "conversation", "chat", "history" / "message", "conversation", "historique"
 - **Built-in Test Interface**: Interactive file search testing panel accessible via header search icon
 - **Rich Search Results**: Comprehensive metadata including execution time, search mode, and result count
 - **Hybrid Search Modes**: Combines Rust-based fuzzy search with CLI tools (ripgrep, fd)
@@ -58,6 +63,7 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 - **Rich Responses**: Support for file lists, disk usage charts, and cleanup suggestions
 - **Markdown Support**: Full markdown rendering in responses
 - **File Search Integration**: AI automatically detects when file search is needed
+- **Multilingual Intent Detection**: Understands search commands in English and French
 - **Smart Error Handling**: Specific error messages with actionable guidance
 - **Native Notifications**: Active integration for chat events and AI responses with automatic conversation tracking (desktop only)
 
