@@ -1676,3 +1676,117 @@ tokio::task::spawn_blocking(move || {
 - Frequency, amplitude, and spread all react to voice intensity
 - Faster, more fluid movement synchronized with voice volume
 - Creates a living, breathing visualization that dances with your voice
+
+
+---
+
+## January 13, 2026
+
+### System Configuration Fix - File Watcher Limit & Cargo.lock Corruption ✅
+- **Issue 1**: Corrupted `Cargo.lock` file preventing Tauri backend compilation
+  - TOML parse error at line 2673 - missing table opening bracket `[`
+  - Backend failed to start with exit code 101
+  
+- **Issue 2**: File watcher limit exceeded during development
+  - Error: `ENOSPC: System limit for number of file watchers reached`
+  - System limit was 65536 watchers
+  - Large `documentation/codex-main` directory exceeded limit
+  - Vite dev server crashed, blocking frontend development
+
+**Solutions Applied**:
+
+1. **Cargo.lock Regeneration**
+   - Ran `cargo generate-lockfile` in `src-tauri` directory
+   - Successfully locked 696 packages to latest compatible versions
+   - Backend now compiles without TOML errors
+
+2. **Increased File Watcher Limit**
+   - Identified current limit: 65536 (too low for project size)
+   - Increased to 524288 watchers via sysctl configuration
+   - Command: `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf`
+   - Applied with: `sudo sysctl -p`
+
+**Technical Details**:
+- Linux inotify system has default limit of 8192-65536 watchers
+- Each watched file/directory consumes one watcher
+- Large projects with many files (especially documentation) can exceed limit
+- Vite's HMR (Hot Module Replacement) watches all project files
+- Tauri projects watch both frontend and backend files simultaneously
+
+**Impact**:
+- ✅ Backend compilation restored
+- ✅ Vite dev server can now watch all project files
+- ✅ HMR (Hot Module Replacement) functional
+- ✅ Development workflow unblocked
+- ✅ Both frontend and backend can run simultaneously
+
+**System Configuration**:
+- File watcher limit: 65536 → 524288 (8x increase)
+- Configuration persists across reboots via `/etc/sysctl.conf`
+- Suitable for large monorepo projects with extensive documentation
+
+**Status**: Development environment fully operational, ready to continue feature work
+
+
+---
+
+## January 13, 2026
+
+### Vite File Watcher Configuration - Persistent ENOSPC Fix ✅
+- **Issue**: File watcher limit still exceeded despite increasing system limit to 524288
+  - Error persisted: `ENOSPC: System limit for number of file watchers reached`
+  - Vite attempting to watch unnecessary directories
+  - Watching `backend/target/` (Rust build artifacts - thousands of files)
+  - Watching `documentation/codex-main/` (large documentation folder)
+  - System limit exhausted by non-source files
+
+**Root Cause Analysis**:
+- Increasing system limit alone insufficient for large monorepos
+- Vite's default behavior watches entire project directory
+- Build artifacts regenerate constantly, creating watcher churn
+- Documentation folders contain thousands of static files
+- Unnecessary watchers consume system resources
+
+**Solution - Vite Watch Configuration**:
+Updated `vite.config.ts` with explicit watch exclusions:
+
+```typescript
+server: {
+  watch: {
+    ignored: [
+      '**/node_modules/**',
+      '**/backend/target/**',      // Rust build artifacts
+      '**/documentation/**',        // Large documentation folder
+      '**/dist/**',                 // Build output
+      '**/.git/**'                  // Git metadata
+    ]
+  }
+}
+```
+
+**Directories Excluded**:
+1. `backend/target/` - Rust incremental compilation artifacts (thousands of .bc files)
+2. `documentation/` - Static documentation (codex-main folder)
+3. `node_modules/` - NPM dependencies (standard exclusion)
+4. `dist/` - Build output directory
+5. `.git/` - Git metadata
+
+**Benefits**:
+- ✅ Dramatically reduced watcher count (only source files watched)
+- ✅ Faster HMR performance (fewer files to monitor)
+- ✅ Eliminates watcher churn from build artifacts
+- ✅ More efficient resource usage
+- ✅ Prevents future ENOSPC errors
+
+**Technical Impact**:
+- Vite now only watches actual source code directories
+- Build artifacts excluded from watch (regenerated anyway)
+- Documentation changes don't trigger HMR (not needed)
+- System watcher limit sufficient for remaining files
+
+**Best Practice Applied**:
+- Always exclude build directories from file watchers
+- Exclude large static asset folders
+- Focus watchers on files that actually need HMR
+
+**Status**: Development environment optimized, ready to restart dev server

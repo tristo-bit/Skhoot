@@ -9,6 +9,16 @@ export default defineConfig(({ mode }) => {
         port: 5173,
         host: '0.0.0.0',
         strictPort: true,
+        watch: {
+          // Exclude directories that cause file watcher issues
+          ignored: [
+            '**/node_modules/**',
+            '**/backend/target/**',
+            '**/documentation/**',
+            '**/dist/**',
+            '**/.git/**'
+          ]
+        }
       },
       plugins: [react()],
       define: {
