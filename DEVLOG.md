@@ -2,6 +2,23 @@
 
 ## January 13, 2026
 
+### AI Message Text Opacity Fix ✅
+- **Issue**: AI messages were using muted/secondary text color, appearing faded compared to user messages
+- **Root Cause**: `MarkdownRenderer` component was using `var(--text-secondary)` for all AI message text content
+- **Solution**: Updated text colors to use `var(--text-primary)` for better readability
+
+**Changes in `components/ui/MarkdownRenderer.tsx`**:
+- Base text style: `text-secondary` → `text-primary`
+- Italic text: `text-secondary` → `text-primary`
+- Code block content: `text-secondary` → `text-primary`
+- Blockquotes: `text-secondary` → `text-primary`
+
+**Intentionally kept secondary/muted**:
+- Code block language labels (metadata)
+- Strikethrough text (with `opacity-60`)
+
+---
+
 ### Terminal Architecture Refactor - HTTP Backend Service ✅
 - **Issue**: Terminal was crashing frontend due to complex Tauri IPC + nested runtime issues
 - **Root Cause**: 

@@ -5,9 +5,9 @@ interface MarkdownRendererProps {
   style?: React.CSSProperties;
 }
 
-// Base text style for AI messages
+// Base text style for AI messages - using primary color for better readability
 const baseTextStyle: React.CSSProperties = {
-  color: 'var(--text-secondary)',
+  color: 'var(--text-primary)',
 };
 
 // Parse inline markdown (bold, italic, code, links)
@@ -33,7 +33,7 @@ const parseInline = (text: string): React.ReactNode[] => {
     match = remaining.match(/^(\*|_)(.+?)\1/);
     if (match) {
       elements.push(
-        <em key={key++} className="italic text-text-secondary">
+        <em key={key++} className="italic text-text-primary">
           {parseInline(match[2])}
         </em>
       );
@@ -128,7 +128,7 @@ const parseMarkdown = (content: string): React.ReactNode[] => {
               {lang}
             </div>
           )}
-          <pre className="p-3 overflow-x-auto text-[11px] font-mono leading-relaxed glass-subtle text-text-secondary">
+          <pre className="p-3 overflow-x-auto text-[11px] font-mono leading-relaxed glass-subtle text-text-primary">
             <code>{codeLines.join('\n')}</code>
           </pre>
         </div>
@@ -230,7 +230,7 @@ const parseMarkdown = (content: string): React.ReactNode[] => {
       elements.push(
         <blockquote
           key={key++}
-          className="my-2 pl-3 py-1 text-[12px] font-medium font-jakarta italic border-l-2 border-accent text-text-secondary"
+          className="my-2 pl-3 py-1 text-[12px] font-medium font-jakarta italic border-l-2 border-accent text-text-primary"
         >
           {quoteLines.map((l, idx) => (
             <p key={idx}>{parseInline(l)}</p>
