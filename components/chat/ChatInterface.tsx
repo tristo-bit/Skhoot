@@ -302,13 +302,58 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [messages, voiceTranscript, pendingVoiceText, hasPendingVoiceMessage]);
 
-  // Determine search type from message
+  // Determine search type from message - supports English and French keywords
   const getSearchType = (text: string): typeof searchType => {
     const lower = text.toLowerCase();
-    if (lower.includes('file') || lower.includes('find') || lower.includes('search')) return 'files';
-    if (lower.includes('message') || lower.includes('conversation')) return 'messages';
-    if (lower.includes('disk') || lower.includes('space') || lower.includes('storage')) return 'disk';
-    if (lower.includes('cleanup') || lower.includes('clean up')) return 'cleanup';
+    
+    // File search keywords (EN + FR)
+    const fileKeywords = [
+      // English
+      'file', 'files', 'find', 'search', 'locate', 'look for', 'looking for',
+      'where is', 'where are', 'show me', 'open', 'document', 'documents',
+      // French
+      'fichier', 'fichiers', 'trouve', 'trouver', 'cherche', 'chercher', 
+      'recherche', 'rechercher', 'localise', 'localiser', 'où est', 'où sont',
+      'montre', 'montrer', 'ouvre', 'ouvrir', 'document', 'documents',
+      'dossier', 'dossiers'
+    ];
+    
+    // Disk/storage keywords (EN + FR)
+    const diskKeywords = [
+      // English
+      'disk', 'storage', 'space', 'memory', 'drive', 'capacity', 'size',
+      // French
+      'disque', 'stockage', 'espace', 'mémoire', 'capacité', 'taille'
+    ];
+    
+    // Cleanup keywords (EN + FR)
+    const cleanupKeywords = [
+      // English
+      'cleanup', 'clean up', 'clean', 'delete', 'remove', 'clear', 'free up',
+      // French
+      'nettoyer', 'nettoyage', 'supprimer', 'effacer', 'libérer', 'vider'
+    ];
+    
+    // Message/conversation keywords (EN + FR)
+    const messageKeywords = [
+      // English
+      'message', 'messages', 'conversation', 'conversations', 'chat', 'history',
+      // French
+      'message', 'messages', 'conversation', 'conversations', 'historique'
+    ];
+    
+    // Check for cleanup first (more specific)
+    if (cleanupKeywords.some(kw => lower.includes(kw))) return 'cleanup';
+    
+    // Check for disk/storage
+    if (diskKeywords.some(kw => lower.includes(kw))) return 'disk';
+    
+    // Check for messages
+    if (messageKeywords.some(kw => lower.includes(kw))) return 'messages';
+    
+    // Check for file search
+    if (fileKeywords.some(kw => lower.includes(kw))) return 'files';
+    
     return null;
   };
 
@@ -318,6 +363,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!messageText || isLoading) return;
 
     stopRecording();
+    
+    // Clear pending voice message after capturing the text
+    if (voiceTranscript.trim()) {
+      discardVoice();
+    }
 
     if (isEmptyStateVisible) {
       setIsEmptyStateExiting(true);
@@ -350,6 +400,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     try {
       const result = await aiService.chat(messageText, history, (status) => {
         setSearchStatus(status);
+        // Detect if AI is doing a file search and update searchType accordingly
+        if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
+          setSearchType(prev => prev || 'files');
+        }
       });
       setSearchType(null);
       setSearchStatus('');
@@ -418,7 +472,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [input, voiceTranscript, isLoading, messages, stopRecording, isEmptyStateVisible]);
+  }, [input, voiceTranscript, isLoading, messages, stopRecording, discardVoice, isEmptyStateVisible]);
 
   const handleQuickAction = useCallback((mode: string, _placeholder: string) => {
     if (activeMode === mode) {
