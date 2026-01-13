@@ -19,6 +19,7 @@ mod search;
 mod search_engine;
 mod config;
 mod error;
+mod terminal;
 
 use config::AppConfig;
 use error::AppError;
@@ -27,6 +28,7 @@ use ai::AIManager;
 use indexer::FileIndexer;
 use search::SearchEngine;
 use search_engine::{SearchManager, SearchManagerFactory};
+use terminal::TerminalManager;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -108,6 +110,9 @@ async fn main() -> anyhow::Result<()> {
     // Initialize the new file search manager
     let working_dir = std::env::current_dir()?;
     let file_search_manager = SearchManagerFactory::create_ai_optimized(working_dir);
+    
+    // Initialize terminal manager
+    let terminal_manager = TerminalManager::default();
 
     let state = AppState {
         config,
@@ -125,6 +130,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/search", get(search_files))
         .route("/api/v1/index/start", post(start_indexing))
         .nest("/api/v1", api::search::search_routes())
+        .nest("/api/v1/terminal", terminal::terminal_routes().with_state(terminal_manager))
         .with_state(state)
         .layer(
             CorsLayer::new()

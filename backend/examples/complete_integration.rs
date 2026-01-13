@@ -177,7 +177,7 @@ async fn main() -> Result<()> {
 
 /// Helper function to demonstrate CLI integration
 async fn demonstrate_cli_integration() -> Result<()> {
-    use skhoot_backend::cli_engine::{CliEngine, CliConfig};
+    use skhoot_backend::search_engine::{CliEngine, CliConfig};
 
     println!("\n🖥️  CLI Integration Demo");
     println!("----------------------");

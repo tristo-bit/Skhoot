@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { isTauriApp, requireTauri } from './tauriDetection';
+import { terminalHttpService } from './terminalHttpService';
 
 /**
  * Terminal session information
@@ -84,6 +85,19 @@ class TerminalService {
   private reconnectAttempts: Map<string, number> = new Map();
   private readonly MAX_RECONNECT_ATTEMPTS = 3;
   private readonly POLLING_INTERVAL_MS = 100;
+  private useHttpBackend: boolean | null = null;
+
+  /**
+   * Check if HTTP backend is available
+   */
+  private async checkHttpBackend(): Promise<boolean> {
+    if (this.useHttpBackend !== null) {
+      return this.useHttpBackend;
+    }
+    this.useHttpBackend = await terminalHttpService.isAvailable();
+    console.log('[TerminalService] HTTP backend available:', this.useHttpBackend);
+    return this.useHttpBackend;
+  }
 
   /**
    * Create a new terminal session
@@ -101,19 +115,65 @@ class TerminalService {
   ): Promise<string> {
     console.log('[TerminalService] createSession called with:', { type, cols, rows });
     
+    // Try HTTP backend first
+    if (await this.checkHttpBackend()) {
+      return this.createSessionHttp(type, cols, rows);
+    }
+    
+    // Fall back to Tauri IPC
+    return this.createSessionTauri(type, cols, rows);
+  }
+
+  /**
+   * Create session via HTTP backend
+   */
+  private async createSessionHttp(
+    type: 'shell' | 'codex' | 'skhoot-log',
+    cols: number,
+    rows: number
+  ): Promise<string> {
+    console.log('[TerminalService] Using HTTP backend');
+    
     try {
-      // Determine shell based on type
       const shell = type === 'codex' ? 'codex' : undefined;
-      console.log('[TerminalService] Shell command:', shell || 'default system shell');
+      const sessionId = await terminalHttpService.createSession({ shell, cols, rows });
       
-      // Create terminal session via Tauri
-      console.log('[TerminalService] Invoking create_terminal_session with params:', { shell, cols, rows });
+      this.sessions.set(sessionId, {
+        id: sessionId,
+        type,
+        isActive: true,
+      });
+      
+      // Start polling via HTTP service
+      terminalHttpService.startPolling(sessionId, this.POLLING_INTERVAL_MS);
+      
+      console.log('[TerminalService] HTTP session created:', sessionId);
+      return sessionId;
+    } catch (error) {
+      console.error('[TerminalService] HTTP session creation failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create session via Tauri IPC (fallback)
+   */
+  private async createSessionTauri(
+    type: 'shell' | 'codex' | 'skhoot-log',
+    cols: number,
+    rows: number
+  ): Promise<string> {
+    console.log('[TerminalService] Using Tauri IPC');
+    
+    try {
+      const shell = type === 'codex' ? 'codex' : undefined;
+      
       const sessionId = await invoke<string>('create_terminal_session', {
         shell,
         cols,
         rows,
       });
-      console.log('[TerminalService] Session created with ID:', sessionId);
+      console.log('[TerminalService] Tauri session created with ID:', sessionId);
 
       // Store session info
       this.sessions.set(sessionId, {
@@ -157,10 +217,14 @@ class TerminalService {
     }
 
     try {
-      await invoke('write_to_terminal', {
-        sessionId,
-        data,
-      });
+      if (await this.checkHttpBackend()) {
+        await terminalHttpService.write(sessionId, data);
+      } else {
+        await invoke('write_to_terminal', {
+          sessionId,
+          data,
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('Failed to write to terminal:', errorMessage);
@@ -236,6 +300,7 @@ class TerminalService {
     try {
       // Stop polling
       this.stopOutputPolling(sessionId);
+      terminalHttpService.stopPolling(sessionId);
 
       // Remove listener
       const unlisten = this.listeners.get(sessionId);
@@ -244,10 +309,14 @@ class TerminalService {
         this.listeners.delete(sessionId);
       }
 
-      // Close session via Tauri
-      await invoke('close_terminal_session', {
-        sessionId,
-      });
+      // Close session via HTTP or Tauri
+      if (await this.checkHttpBackend()) {
+        await terminalHttpService.closeSession(sessionId);
+      } else {
+        await invoke('close_terminal_session', {
+          sessionId,
+        });
+      }
 
       // Remove from local storage
       this.sessions.delete(sessionId);

@@ -13,6 +13,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["time", "sync"] }
 skhoot-backend = { path = "../backend" }
+portable-pty = "0.8"
+uuid = { version = "1", features = ["v4"] }
+chrono = "0.4"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

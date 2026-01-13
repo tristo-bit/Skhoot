@@ -2,6 +2,58 @@
 
 ## January 13, 2026
 
+### Terminal Architecture Refactor - HTTP Backend Service ✅
+- **Issue**: Terminal was crashing frontend due to complex Tauri IPC + nested runtime issues
+- **Root Cause**: 
+  - `spawn_blocking` with `thread_local!` and nested tokio runtimes caused deadlocks
+  - Response from backend never reached frontend (timeout after 10s)
+  - Creating new `Runtime::new()` on every call was inefficient
+
+- **Solution**: Complete architecture refactor to use HTTP backend instead of Tauri IPC
+
+**New Architecture**:
+1. **Backend HTTP Service** (`/backend/src/terminal/`)
+   - `mod.rs` - Module exports
+   - `session.rs` - PTY session management with proper async
+   - `manager.rs` - Multi-session management with cleanup
+   - `routes.rs` - Axum HTTP routes for terminal API
+
+2. **API Endpoints** (on port 3001):
+   - `POST /api/v1/terminal/sessions` - Create new session
+   - `GET /api/v1/terminal/sessions` - List all sessions
+   - `DELETE /api/v1/terminal/sessions/:id` - Close session
+   - `POST /api/v1/terminal/sessions/:id/write` - Write to terminal
+   - `GET /api/v1/terminal/sessions/:id/read` - Read output (non-blocking)
+
+3. **Frontend Service** (`services/terminalHttpService.ts`)
+   - HTTP client for terminal API
+   - Polling mechanism for output
+   - Event emission for UI updates
+
+4. **Hybrid Approach** (`services/terminalService.ts`)
+   - Checks if HTTP backend is available
+   - Falls back to Tauri IPC if not
+   - Seamless transition between modes
+
+**Technical Improvements**:
+- Proper async/await with tokio (no nested runtimes)
+- Background thread for PTY reading with mpsc channels
+- Non-blocking output reads via buffered channel
+- Session timeout and cleanup (60 min default)
+- Max 10 concurrent sessions
+
+**Benefits**:
+- ✅ Clean separation of concerns (backend vs frontend)
+- ✅ No more Tauri IPC deadlocks
+- ✅ Proper async throughout
+- ✅ Scalable architecture
+- ✅ Backend can be used independently
+- ✅ Better error handling and recovery
+
+**Build Status**: ✅ Backend compiles with minor warnings
+
+---
+
 ### Terminal + Button Investigation - Tauri v2 API Detection Fixed 🔍
 - **Issue**: + button in terminal not working - throws "Terminal functionality requires Tauri desktop app" error
 - **User Confirmation**: Running in Tauri v2 desktop window via `npm run tauri:dev`, NOT browser

@@ -21,6 +21,7 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ isOpen, onClose })
   const [showSearch, setShowSearch] = useState(false);
   const terminalRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [terminalOutputs, setTerminalOutputs] = useState<Map<string, string[]>>(new Map());
+  const isCreatingInitialTab = useRef(false);
 
   const handleCreateTab = useCallback(async (type: 'shell' | 'codex' | 'skhoot-log') => {
     try {
@@ -40,8 +41,13 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ isOpen, onClose })
 
   // Create initial shell tab when panel opens
   useEffect(() => {
-    if (isOpen && tabs.length === 0) {
-      handleCreateTab('shell');
+    if (isOpen && tabs.length === 0 && !isCreatingInitialTab.current) {
+      isCreatingInitialTab.current = true;
+      handleCreateTab('shell').finally(() => {
+        setTimeout(() => {
+          isCreatingInitialTab.current = false;
+        }, 1000);
+      });
     }
   }, [isOpen, tabs.length, handleCreateTab]);
 
