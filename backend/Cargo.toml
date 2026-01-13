@@ -54,6 +54,12 @@ clap = { version = "4.0", features = ["derive"] }
 # PTY (Pseudo-Terminal) support for terminal emulation
 portable-pty = "0.8"
 
+# Encryption and secure storage
+aes-gcm = "0.10"
+keyring = "2.3"
+rand = "0.8"
+hex = "0.4"
+
 # Unix signal handling
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.27", features = ["signal"] }

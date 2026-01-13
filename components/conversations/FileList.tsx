@@ -29,8 +29,49 @@ const openFile = async (filePath: string): Promise<boolean> => {
   return false;
 };
 
-// Helper to open parent folder
+// Helper to open parent folder and select the file
 const openFolder = async (filePath: string): Promise<boolean> => {
+  // Normalize path for Windows (use backslashes)
+  const normalizedPath = filePath.replace(/\//g, '\\');
+  
+  // Try backend API first - it can select the file in the folder
+  try {
+    const response = await fetch('http://localhost:3001/api/v1/files/reveal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: normalizedPath }),
+    });
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) return true;
+    }
+  } catch {}
+  
+  // Try Tauri shell plugin with reveal command
+  try {
+    const { Command } = await import('@tauri-apps/plugin-shell');
+    // On Windows: explorer /select,path (no quotes, backslashes)
+    // On macOS: open -R "path"
+    // On Linux: xdg-open "parent" (can't select file)
+    const platform = navigator.platform.toLowerCase();
+    
+    if (platform.includes('win')) {
+      // Windows: explorer /select,C:\path\to\file.txt
+      await Command.create('explorer', [`/select,${normalizedPath}`]).execute();
+      return true;
+    } else if (platform.includes('mac')) {
+      await Command.create('open', ['-R', filePath]).execute();
+      return true;
+    } else {
+      // Linux - just open parent folder
+      const lastSlash = filePath.lastIndexOf('/');
+      const parentDir = lastSlash > 0 ? filePath.substring(0, lastSlash) : filePath;
+      await Command.create('xdg-open', [parentDir]).execute();
+      return true;
+    }
+  } catch {}
+  
+  // Fallback: just open parent directory
   const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
   const parentDir = lastSlash > 0 ? filePath.substring(0, lastSlash) : filePath;
   return openFile(parentDir);
@@ -181,14 +222,12 @@ export const FileItemGrid = memo<{ file: FileInfo }>(({ file }) => {
           </span>
         )}
         
-        <div className="flex gap-1.5 mt-2 w-full">
-          <button onClick={handleOpen} className="flex-1 p-1.5 rounded-lg bg-accent/20 hover:bg-accent/30 transition-colors flex items-center justify-center gap-1" title="Open file">
+        {/* Action buttons - Open, Folder, Copy */}
+        <div className="flex gap-1 mt-2 w-full">
+          <button onClick={handleOpen} className="flex-1 p-1.5 rounded-lg bg-accent/20 hover:bg-accent/30 transition-colors flex items-center justify-center" title="Open file">
             <ExternalLink size={12} className="text-accent" />
-            <span className="text-[9px] font-bold text-accent">Open</span>
           </button>
-        </div>
-        <div className="flex gap-1.5 w-full">
-          <button onClick={handleGo} className="flex-1 p-1.5 rounded-lg glass-subtle hover:glass-elevated transition-colors flex items-center justify-center" title="Open folder">
+          <button onClick={handleGo} className="flex-1 p-1.5 rounded-lg glass-subtle hover:glass-elevated transition-colors flex items-center justify-center" title="Open folder & select file">
             <Folder size={12} className="text-text-secondary" />
           </button>
           <button onClick={handleCopy} className={`flex-1 p-1.5 rounded-lg transition-colors flex items-center justify-center ${copied ? 'bg-accent/20' : 'glass-subtle hover:glass-elevated'}`} title="Copy path">
@@ -205,8 +244,17 @@ export const FileList = memo<{ files: FileInfo[]; searchInfo?: any }>(({ files, 
   const [showAll, setShowAll] = useState(false);
   const { searchDisplay } = useSettings();
   const INITIAL_DISPLAY_COUNT = 5;
-  const hasMoreFiles = files.length > INITIAL_DISPLAY_COUNT;
-  const displayedFiles = showAll ? files : files.slice(0, INITIAL_DISPLAY_COUNT);
+  
+  // Sort files by relevanceScore (highest first), then by name
+  const sortedFiles = [...files].sort((a, b) => {
+    const scoreA = (a as any).relevanceScore ?? (a as any).score ?? 0;
+    const scoreB = (b as any).relevanceScore ?? (b as any).score ?? 0;
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    return a.name.localeCompare(b.name);
+  });
+  
+  const hasMoreFiles = sortedFiles.length > INITIAL_DISPLAY_COUNT;
+  const displayedFiles = showAll ? sortedFiles : sortedFiles.slice(0, INITIAL_DISPLAY_COUNT);
   
   // Determine if we should use grid layout
   // If gridOnlyForMore is true, use list for initial results and grid for expanded
@@ -258,7 +306,7 @@ export const FileList = memo<{ files: FileInfo[]; searchInfo?: any }>(({ files, 
         </div>
       )}
       
-      {files.length === 0 ? (
+      {sortedFiles.length === 0 ? (
         <div className="p-4 text-center opacity-50">
           <p className="text-[11px] font-semibold font-jakarta">No files found</p>
           {searchInfo && (
@@ -269,10 +317,10 @@ export const FileList = memo<{ files: FileInfo[]; searchInfo?: any }>(({ files, 
         </div>
       ) : (
         <>
-          {files.length > 1 && (
+          {sortedFiles.length > 1 && (
             <div className="flex items-center justify-between px-1 mb-2">
               <span className="text-[10px] font-bold text-text-secondary font-jakarta">
-                Showing {displayedFiles.length} of {files.length} results
+                Showing {displayedFiles.length} of {sortedFiles.length} results
               </span>
               <div className="flex items-center gap-2">
                 {searchDisplay.layout === 'grid' && (
@@ -282,7 +330,7 @@ export const FileList = memo<{ files: FileInfo[]; searchInfo?: any }>(({ files, 
                 )}
                 {hasMoreFiles && (
                   <button onClick={() => setShowAll(!showAll)} className="flex items-center gap-1 text-[10px] font-bold text-accent hover:text-accent/80 transition-colors">
-                    {showAll ? <><ChevronUp size={12} />Show less</> : <><ChevronDown size={12} />Show all {files.length}</>}
+                    {showAll ? <><ChevronUp size={12} />Show less</> : <><ChevronDown size={12} />Show all {sortedFiles.length}</>}
                   </button>
                 )}
               </div>
@@ -308,7 +356,7 @@ export const FileList = memo<{ files: FileInfo[]; searchInfo?: any }>(({ files, 
           {hasMoreFiles && !showAll && (
             <button onClick={() => setShowAll(true)} className="w-full p-3 rounded-xl glass-subtle border-glass-border text-[11px] font-bold text-accent hover:glass-elevated transition-all flex items-center justify-center gap-2">
               <ChevronDown size={14} />
-              Show {files.length - INITIAL_DISPLAY_COUNT} more results
+              Show {sortedFiles.length - INITIAL_DISPLAY_COUNT} more results
             </button>
           )}
         </>

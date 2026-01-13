@@ -3,9 +3,11 @@
 #![allow(dead_code)]
 
 mod terminal;
+mod api_keys;
 
 use tauri::Manager;
 use std::process::{Command, Stdio};
+use skhoot_backend::KeyStorage;
 
 /// Add current user to the audio group on Linux using pkexec (PolicyKit)
 /// This shows the native authentication dialog
@@ -139,22 +141,20 @@ fn main() {
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_notification::init())
-    .manage(terminal::TerminalState::default())
-    .invoke_handler(tauri::generate_handler![
-        add_user_to_audio_group,
-        check_audio_group_membership,
-        check_audio_server,
-        start_audio_services,
-        terminal::create_terminal_session,
-        terminal::write_to_terminal,
-        terminal::read_from_terminal,
-        terminal::resize_terminal,
-        terminal::close_terminal_session,
-        terminal::list_terminal_sessions,
-        terminal::get_session_history,
-        terminal::get_session_state,
-    ])
     .setup(|app| {
+      // Initialize API key storage
+      let app_data_dir = app.path().app_data_dir()
+        .expect("Failed to get app data directory");
+      
+      let key_storage = KeyStorage::new(app_data_dir)
+        .expect("Failed to initialize key storage");
+      
+      let api_key_state = api_keys::ApiKeyState::new(key_storage);
+      app.manage(api_key_state);
+      
+      // Initialize terminal state
+      app.manage(terminal::TerminalState::default());
+      
       #[cfg(desktop)]
       {
         // Use an empty app-wide menu to avoid showing a menubar.
@@ -192,6 +192,28 @@ fn main() {
 
       Ok(())
     })
+    .invoke_handler(tauri::generate_handler![
+        add_user_to_audio_group,
+        check_audio_group_membership,
+        check_audio_server,
+        start_audio_services,
+        terminal::create_terminal_session,
+        terminal::write_to_terminal,
+        terminal::read_from_terminal,
+        terminal::resize_terminal,
+        terminal::close_terminal_session,
+        terminal::list_terminal_sessions,
+        terminal::get_session_history,
+        terminal::get_session_state,
+        api_keys::save_api_key,
+        api_keys::load_api_key,
+        api_keys::delete_api_key,
+        api_keys::list_providers,
+        api_keys::get_active_provider,
+        api_keys::set_active_provider,
+        api_keys::test_api_key,
+        api_keys::fetch_provider_models,
+    ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

@@ -2,6 +2,7 @@ import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { MOCK_FILES, MOCK_MESSAGES } from "../src/constants";
 import { backendApi } from "./backendApi";
 import { activityLogger } from "./activityLogger";
+import { apiKeyService } from "./apiKeyService";
 
 const findFileFunction: FunctionDeclaration = {
   name: 'findFile',
@@ -217,12 +218,18 @@ function detectCategory(fileType: string, path: string): string {
 
 export const geminiService = {
   async chat(message: string, history: any[] = [], onStatusUpdate?: (status: string) => void) {
-    // Creating a new GoogleGenAI instance inside the function to ensure up-to-date API key access
-    const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-    
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY not found in environment variables');
+    // Load API key from secure storage (apiKeyService) instead of .env
+    let apiKey: string;
+    try {
+      apiKey = await apiKeyService.loadKey('google');
+    } catch (error) {
+      throw new Error('Google API key not configured. Please add your API key in User Profile → API Configuration.');
     }
+    
+    // Load saved model or use default
+    const savedModel = await apiKeyService.loadModel('google');
+    const modelName = savedModel || 'gemini-2.0-flash';
+    
     const ai = new GoogleGenAI({ apiKey });
     
     // Check if this message should trigger file search suggestions
@@ -230,7 +237,7 @@ export const geminiService = {
     
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: modelName,
         contents: [
           ...history,
           { role: 'user', parts: [{ text: message }] }
@@ -378,7 +385,7 @@ Always be helpful and explain what you found or why you couldn't find what the u
             console.log('🤖 Using AI to score', convertedResults.files.length, 'results for relevance');
             
             const scoringResponse = await ai.models.generateContent({
-              model: 'gemini-2.0-flash',
+              model: modelName,
               contents: [
                 { role: 'user', parts: [{ text: `Score these search results for relevance to: "${message}"
 

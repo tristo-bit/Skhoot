@@ -1,6 +1,112 @@
 import React, { useState } from 'react';
-import { Search, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Loader2, CheckCircle, XCircle, ExternalLink, Folder, Copy, Check } from 'lucide-react';
 import { backendApi } from '../../services/backendApi';
+
+// Helper to open a file directly
+const openFile = async (filePath: string): Promise<boolean> => {
+  try {
+    const response = await fetch('http://localhost:3001/api/v1/files/open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: filePath }),
+    });
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) return true;
+    }
+  } catch {}
+  return false;
+};
+
+// Helper to open parent folder and select the file
+const openFolder = async (filePath: string): Promise<boolean> => {
+  const normalizedPath = filePath.replace(/\//g, '\\');
+  try {
+    const response = await fetch('http://localhost:3001/api/v1/files/reveal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: normalizedPath }),
+    });
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) return true;
+    }
+  } catch {}
+  return false;
+};
+
+// File result item with action buttons
+const FileResultItem: React.FC<{ file: any }> = ({ file }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleOpen = async () => {
+    const success = await openFile(file.path);
+    if (!success) {
+      await navigator.clipboard.writeText(file.path);
+      alert(`📋 Path copied!\n\n${file.path}\n\nBackend may not be running.`);
+    }
+  };
+
+  const handleFolder = async () => {
+    const success = await openFolder(file.path);
+    if (!success) {
+      await navigator.clipboard.writeText(file.path);
+      alert(`📋 Path copied!\n\n${file.path}\n\nBackend may not be running.`);
+    }
+  };
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(file.path);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="p-3 border rounded-lg">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <div className="font-medium">{file.path}</div>
+          <div className="text-sm text-gray-600">
+            Score: {file.relevance_score?.toFixed(2) || 'N/A'} | 
+            Engine: {file.source_engine} | 
+            Type: {file.file_type}
+          </div>
+          {file.snippet && (
+            <div className="text-xs text-gray-500 mt-1 italic">
+              "{file.snippet}"
+            </div>
+          )}
+        </div>
+      </div>
+      {/* Action buttons */}
+      <div className="flex gap-2 mt-3 pt-2 border-t">
+        <button
+          onClick={handleOpen}
+          className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-1.5 text-sm"
+        >
+          <ExternalLink size={14} />
+          Open
+        </button>
+        <button
+          onClick={handleFolder}
+          className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center justify-center gap-1.5 text-sm"
+        >
+          <Folder size={14} />
+          Folder
+        </button>
+        <button
+          onClick={handleCopy}
+          className={`flex-1 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1.5 text-sm ${
+            copied ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 interface FileSearchTestProps {
   onClose: () => void;
@@ -182,23 +288,7 @@ export const FileSearchTest: React.FC<FileSearchTestProps> = ({ onClose }) => {
             {results.merged_results && results.merged_results.length > 0 ? (
               <div className="space-y-2">
                 {results.merged_results.slice(0, 10).map((file: any, i: number) => (
-                  <div key={i} className="p-3 border rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="font-medium">{file.path}</div>
-                        <div className="text-sm text-gray-600">
-                          Score: {file.relevance_score.toFixed(2)} | 
-                          Engine: {file.source_engine} | 
-                          Type: {file.file_type}
-                        </div>
-                        {file.snippet && (
-                          <div className="text-xs text-gray-500 mt-1 italic">
-                            "{file.snippet}"
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  <FileResultItem key={i} file={file} />
                 ))}
               </div>
             ) : (

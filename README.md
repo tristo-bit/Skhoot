@@ -130,6 +130,23 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 
 </details>
 
+<details>
+<summary><strong>🔐 Secure API Key Management</strong></summary>
+
+- **Multi-Provider Support**: Manage API keys for OpenAI, Anthropic, Google AI, and custom endpoints
+- **Encrypted Storage**: AES-256-GCM encryption with platform keychain integration
+  - **Linux**: libsecret integration
+  - **macOS**: Keychain Services
+  - **Windows**: Credential Manager
+- **Key Testing**: Validate API keys and fetch available models before saving
+- **Model Persistence**: Selected model per provider is saved and automatically restored
+- **Active Provider Management**: Switch between configured providers seamlessly
+- **Smart Caching**: 5-minute cache TTL for improved performance
+- **Secure Service Layer**: Frontend service communicates with Tauri backend for all key operations
+- **No Key Exposure**: API keys never appear in logs or error messages
+
+</details>
+
 ---
 
 ## 🚀 Quick Start
@@ -208,6 +225,7 @@ skhoot/
 │   ├── FileSearchTest.tsx
 │   └── SettingsPanel.tsx
 ├── services/            # API and data services
+│   ├── apiKeyService.ts        # Secure API key management
 │   ├── notificationService.ts  # Native desktop notifications
 │   ├── audioService.ts         # Audio management
 │   ├── backendApi.ts          # Backend communication
@@ -216,6 +234,10 @@ skhoot/
 │   ├── contexts/        # React contexts
 │   └── constants.ts     # App constants
 ├── src-tauri/           # Tauri desktop configuration
+│   └── src/
+│       ├── api_keys.rs  # API key Tauri commands
+│       ├── terminal.rs  # Terminal management
+│       └── main.rs      # Tauri app entry point
 ├── browser-test/        # Demo and testing utilities
 └── public/              # Static assets
 ```
@@ -289,6 +311,77 @@ const suggestions = await backendApi.getSearchSuggestions({
 // Open file location in system explorer
 await backendApi.openFileLocation("/path/to/file.txt");
 ```
+
+</details>
+
+<details>
+<summary><strong>API Key Service API</strong></summary>
+
+```typescript
+import { apiKeyService, PROVIDERS } from './services/apiKeyService';
+
+// Available providers
+console.log(PROVIDERS); // [{ id: 'openai', name: 'OpenAI', icon: '...' }, ...]
+
+// Save an API key (encrypted at rest)
+await apiKeyService.saveKey('openai', 'sk-...', true);
+
+// Load an API key (with 5-minute cache)
+const apiKey = await apiKeyService.loadKey('openai');
+
+// Delete an API key
+await apiKeyService.deleteKey('openai');
+
+// List all configured providers
+const providers = await apiKeyService.listProviders();
+// Returns: ['openai', 'anthropic', 'google']
+
+// Get the active provider
+const activeProvider = await apiKeyService.getActiveProvider();
+// Returns: 'openai' or null
+
+// Set a provider as active
+await apiKeyService.setActiveProvider('anthropic');
+
+// Test an API key and fetch available models
+const providerInfo = await apiKeyService.testKey('openai', 'sk-...');
+// Returns: { provider: 'openai', models: ['gpt-4', 'gpt-3.5-turbo', ...] }
+
+// Fetch models for a stored provider
+const models = await apiKeyService.fetchProviderModels('openai');
+// Returns: ['gpt-4', 'gpt-3.5-turbo', ...]
+
+// Save selected model for a provider (persisted to localStorage)
+await apiKeyService.saveModel('openai', 'gpt-4');
+
+// Load saved model for a provider
+const savedModel = await apiKeyService.loadModel('openai');
+// Returns: 'gpt-4' or null if not set
+
+// Check if a provider has a configured key
+const hasKey = await apiKeyService.hasKey('openai');
+// Returns: true or false
+
+// Clear the cache (useful after key updates)
+apiKeyService.clearCache();
+
+// Get provider information
+const providerInfo = apiKeyService.getProviderInfo('openai');
+// Returns: { id: 'openai', name: 'OpenAI', icon: '/providers/openai.svg' }
+```
+
+**Security Features:**
+- All keys encrypted with AES-256-GCM before storage
+- Encryption keys stored in platform-specific secure keychains
+- Keys never logged or exposed in error messages
+- Automatic cache invalidation on key updates
+- Secure communication via Tauri IPC layer
+
+**Supported Providers:**
+- **OpenAI**: GPT-4, GPT-3.5-turbo, and other OpenAI models
+- **Anthropic**: Claude models with API key validation
+- **Google AI**: Gemini and other Google AI models
+- **Custom**: Support for custom API endpoints
 
 </details>
 
@@ -487,6 +580,49 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 ## 📝 Recent Updates
 
 <details>
+<summary><strong>Secure API Key Management Service</strong></summary>
+
+- **New API Key Service**: Comprehensive secure API key management system (`services/apiKeyService.ts`)
+  - **Multi-Provider Support**: Manage keys for OpenAI, Anthropic, Google AI, and custom endpoints
+  - **Encrypted Storage**: All keys encrypted with AES-256-GCM before storage via Tauri backend
+  - **Platform Keychain Integration**: Encryption keys stored in OS-specific secure storage
+    - Linux: libsecret
+    - macOS: Keychain Services  
+    - Windows: Credential Manager
+  - **Smart Caching**: 5-minute TTL cache for improved performance with automatic invalidation
+  - **Key Operations**: Complete CRUD operations (save, load, delete, list)
+  - **Provider Management**: Active provider tracking and switching
+  - **Key Validation**: Test API keys and fetch available models before saving
+  - **Security First**: Keys never exposed in logs or error messages
+  - **TypeScript Interfaces**: Full type safety with `APIProvider` and `ProviderInfo` types
+  - **Singleton Pattern**: Single service instance for consistent state management
+- **UserPanel Integration**: Settings panel now uses `apiKeyService` for secure key management
+  - Provider selection UI with support for OpenAI, Anthropic, Google AI, and custom endpoints
+  - Real-time API key validation with model fetching
+  - Automatic key loading when switching providers
+  - Model persistence: selected model is saved alongside API key and restored on provider switch
+  - Visual feedback for connection status and save operations
+  - Seamless integration with existing settings workflow
+  - Replaces deprecated `apiKeyStore` with improved architecture
+- **Backend Integration**: Tauri commands bridge frontend service to Rust backend
+  - `save_api_key`: Securely store encrypted API keys
+  - `load_api_key`: Retrieve and decrypt stored keys
+  - `delete_api_key`: Remove keys from secure storage
+  - `list_providers`: Get all configured providers
+  - `get_active_provider`: Retrieve currently active provider
+  - `set_active_provider`: Switch between providers
+  - `test_api_key`: Validate keys and fetch model lists
+  - `fetch_provider_models`: Get available models for stored keys
+- **Developer Experience**:
+  - Clean API with async/await pattern
+  - Comprehensive error handling with descriptive messages
+  - Console logging for debugging and monitoring
+  - Cache management utilities
+  - Provider info lookup helpers
+
+</details>
+
+<details>
 <summary><strong>Button System Enhancement</strong></summary>
 
 - **New EditButton Component**: Specialized edit button with pencil icon for transcription and message editing
@@ -677,7 +813,18 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 - AI-powered suggestions with contextual reasoning
 - Performance metrics and error handling
 - Custom search path support
-- File location opening across platforms
+- **Enhanced File Reveal**: "Open Folder" button reveals and selects files in the system file explorer with comprehensive error handling
+  - **Cross-Platform Support**:
+    - Windows: Uses `explorer /select,"path"` to open folder with file selected
+    - macOS: Uses `open -R` to reveal file in Finder
+    - Linux: Tries `nautilus --select` first, falls back to `xdg-open` for parent folder
+  - **Detailed Result Types**: Returns structured `RevealResult` with success status, error codes, messages, and method used
+  - **Error Handling**: Specific error messages for common issues:
+    - `file_not_found`: File may have been moved or deleted
+    - `permission_denied`: Access denied to file location
+    - `no_method_available`: Backend not running, path copied to clipboard as fallback
+  - **Graceful Fallback Chain**: Backend API → Tauri shell plugin → Clipboard copy with user guidance
+  - **Backend API**: `/api/v1/files/reveal` endpoint provides best cross-platform support
 
 </details>
 

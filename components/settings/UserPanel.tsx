@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Camera, Key, Crown, User as UserIcon } from 'lucide-react';
 import { Modal } from '../ui';
 import { SaveButton, UploadButton, ConnectionButton, PremiumButton, Button, IconButton, PlanButton, BackButton } from '../buttonFormat';
-import { apiKeyStore } from '../../services/apiKeyStore';
+import { apiKeyService, PROVIDERS, type ProviderInfo } from '../../services/apiKeyService';
 
 interface UserPanelProps {
   onClose: () => void;
@@ -13,8 +13,13 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
   const [lastName, setLastName] = useState('Doe');
   const [plan, setPlan] = useState<'guest' | 'subscribed'>('guest');
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  
+  // API Key state
+  const [selectedProvider, setSelectedProvider] = useState<string>('openai');
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('');
   
   // Track changes for save button
   const [originalFirstName] = useState('John');
@@ -24,7 +29,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
   const [hasNameChanges, setHasNameChanges] = useState(false);
   const [showUpgradePanel, setShowUpgradePanel] = useState(false);
   const [showBillingPanel, setShowBillingPanel] = useState(false);
-  const [userEmail] = useState('john.doe@example.com'); // Email du compte
+  const [userEmail] = useState('john.doe@example.com');
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [connectionMessage, setConnectionMessage] = useState('');
@@ -32,13 +37,41 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Load API key and saved model for selected provider on mount and provider change
   useEffect(() => {
-    const storedKey = apiKeyStore.get();
-    if (storedKey) {
-      setApiKey(storedKey);
-      setIsApiKeySaved(true);
-    }
-  }, []);
+    const loadProviderData = async () => {
+      try {
+        const key = await apiKeyService.loadKey(selectedProvider);
+        setApiKey(key);
+        setIsApiKeySaved(true);
+        
+        // Try to fetch models
+        try {
+          const models = await apiKeyService.fetchProviderModels(selectedProvider);
+          setAvailableModels(models);
+          
+          // Load saved model for this provider
+          const savedModel = await apiKeyService.loadModel(selectedProvider);
+          if (savedModel && models.includes(savedModel)) {
+            setSelectedModel(savedModel);
+          } else if (models.length > 0) {
+            setSelectedModel(models[0]);
+          }
+        } catch {
+          // Models fetch failed, that's ok
+          setAvailableModels([]);
+        }
+      } catch {
+        // No key stored for this provider
+        setApiKey('');
+        setIsApiKeySaved(false);
+        setAvailableModels([]);
+        setSelectedModel('');
+      }
+    };
+
+    loadProviderData();
+  }, [selectedProvider]);
 
   // Check if there are unsaved changes
   React.useEffect(() => {
@@ -111,32 +144,24 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
       return;
     }
 
-    // Basic format validation - API key should be at least 20 characters and contain alphanumeric
-    if (apiKey.length < 20 || !/^[a-zA-Z0-9\-_]+$/.test(apiKey)) {
-      setConnectionStatus('error');
-      setConnectionMessage('Invalid API key format. Must be at least 20 characters with letters, numbers, hyphens, or underscores only.');
-      return;
-    }
-
     setIsTestingConnection(true);
     setConnectionStatus('idle');
     setConnectionMessage('');
 
     try {
-      // Simulate API call - replace with your actual API endpoint
-      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+      // Test the API key using the backend
+      const providerInfo: ProviderInfo = await apiKeyService.testKey(selectedProvider, apiKey);
       
-      // Mock validation - in real app, this would call your API
-      // For demo: keys starting with 'sk-' are valid, others fail
-      const isValid = apiKey.startsWith('sk-') || apiKey.startsWith('API-') || apiKey.length >= 32;
+      setConnectionStatus('success');
+      setConnectionMessage(`✅ API key validated successfully! Provider: ${providerInfo.provider}`);
       
-      if (isValid) {
-        setConnectionStatus('success');
-        setConnectionMessage('✅ API key validated successfully! Connection established.');
-        console.log('✅ API Key validated:', apiKey);
-      } else {
-        throw new Error('Invalid API key or insufficient permissions. Please check your key and try again.');
+      // Update available models
+      setAvailableModels(providerInfo.models);
+      if (providerInfo.models.length > 0 && !selectedModel) {
+        setSelectedModel(providerInfo.models[0]);
       }
+      
+      console.log('✅ API Key validated:', providerInfo);
     } catch (error) {
       setConnectionStatus('error');
       setConnectionMessage(error instanceof Error ? error.message : 'Connection failed. Please check your API key.');
@@ -144,26 +169,39 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
     } finally {
       setIsTestingConnection(false);
     }
-  }, [apiKey]);
+  }, [apiKey, selectedProvider, selectedModel]);
 
-  const handleSaveApiKey = useCallback(() => {
-    console.log('Saving API key:', apiKey);
-    // Here you would save the API key to your backend/storage
-    // For example: localStorage.setItem('apiKey', apiKey) or API call
-    if (apiKey.trim()) {
-      apiKeyStore.set(apiKey.trim());
+  const handleSaveApiKey = useCallback(async () => {
+    if (!apiKey.trim()) {
+      setConnectionMessage('Please enter an API key');
+      setConnectionStatus('error');
+      return;
     }
-    
-    // Simulate saving process
-    setIsApiKeySaved(true);
-    
-    // Show success message temporarily
-    setTimeout(() => {
-      setIsApiKeySaved(false);
-    }, 2000);
-    
-    // You could also show a toast notification here
-  }, [apiKey]);
+
+    try {
+      // Save the API key using the secure backend
+      await apiKeyService.saveKey(selectedProvider, apiKey.trim(), true);
+      
+      // Also save the selected model
+      if (selectedModel) {
+        await apiKeyService.saveModel(selectedProvider, selectedModel);
+        console.log(`✅ Model saved: ${selectedModel} for ${selectedProvider}`);
+      }
+      
+      setIsApiKeySaved(true);
+      
+      // Show success message temporarily
+      setTimeout(() => {
+        setIsApiKeySaved(false);
+      }, 2000);
+      
+      console.log(`✅ API key saved for ${selectedProvider}`);
+    } catch (error) {
+      setConnectionMessage(error instanceof Error ? error.message : 'Failed to save API key');
+      setConnectionStatus('error');
+      console.error('❌ Failed to save API key:', error);
+    }
+  }, [apiKey, selectedProvider, selectedModel]);
 
   return (
     <Modal
@@ -367,7 +405,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                   isSaved={isApiKeySaved}
                   saveText="Save API Key"
                   savedText="Saved!"
-                  variant="blue"
+                  variant="violet"
                   size="sm"
                 />
               )}
@@ -375,6 +413,26 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
             <p className="text-xs text-text-secondary font-jakarta">
               Connect your API key to unlock advanced features and personalized responses.
             </p>
+            
+            {/* Provider Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-text-secondary font-jakarta">AI Provider</label>
+              <div className="grid grid-cols-2 gap-2">
+                {PROVIDERS.map((provider) => (
+                  <button
+                    key={provider.id}
+                    onClick={() => setSelectedProvider(provider.id)}
+                    className={`p-3 rounded-xl text-sm font-medium font-jakarta transition-all ${
+                      selectedProvider === provider.id
+                        ? 'glass text-text-primary ring-2 ring-accent'
+                        : 'glass-subtle text-text-secondary hover:glass'
+                    }`}
+                  >
+                    {provider.name}
+                  </button>
+                ))}
+              </div>
+            </div>
             
             <div className="space-y-3">
               <div className="relative">
@@ -400,7 +458,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                       ? 'glass-subtle focus:ring-red-500'
                       : 'glass-subtle focus:ring-accent'
                   }`}
-                  placeholder="Enter your API key"
+                  placeholder={`Enter your ${PROVIDERS.find(p => p.id === selectedProvider)?.name} API key`}
                 />
                 <IconButton
                   onClick={() => setShowApiKey(!showApiKey)}
@@ -410,6 +468,36 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
                 />
               </div>
+              
+              {/* Available Models */}
+              {availableModels.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-text-secondary font-jakarta">
+                    Available Models ({availableModels.length})
+                  </label>
+                  <select
+                    value={selectedModel}
+                    onChange={async (e) => {
+                      const newModel = e.target.value;
+                      setSelectedModel(newModel);
+                      // Auto-save model when changed
+                      try {
+                        await apiKeyService.saveModel(selectedProvider, newModel);
+                        console.log(`✅ Model auto-saved: ${newModel} for ${selectedProvider}`);
+                      } catch (error) {
+                        console.error('❌ Failed to auto-save model:', error);
+                      }
+                    }}
+                    className="w-full p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                  >
+                    {availableModels.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               
               {/* Connection Status Message */}
               {connectionMessage && (
@@ -429,6 +517,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
                 isTesting={isTestingConnection}
                 testText="Test Connection"
                 connectedText="Connected Successfully"
+                variant="violet"
               />
             </div>
           </div>

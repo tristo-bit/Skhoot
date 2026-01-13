@@ -5,9 +5,15 @@ pub mod cli_bridge;
 pub mod search_engine;
 pub mod disk_analyzer;
 pub mod terminal;
+pub mod api_key_storage;
+pub mod ai;
+pub mod error;
 
 // Re-export commonly used types
 pub use search_engine::{FileSearchEngine, FileSearchConfig, FileMatch};
 pub use cli_bridge::{CliBridge, SessionManager, CommandExecutor, CliError};
 pub use disk_analyzer::{DiskAnalyzer, DiskAnalysisConfig, DiskAnalysisReport};
 pub use terminal::{TerminalManager, TerminalSession, SessionConfig};
+pub use api_key_storage::KeyStorage;
+pub use ai::AIManager;
+pub use error::AppError;

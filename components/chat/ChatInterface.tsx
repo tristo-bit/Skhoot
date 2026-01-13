@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { COLORS, WELCOME_MESSAGES, QUICK_ACTIONS } from '../../src/constants';
 import { Message } from '../../types';
-import { geminiService } from '../../services/gemini';
+import { aiService, type AIMessage } from '../../services/aiService';
 import { activityLogger } from '../../services/activityLogger';
 import { nativeNotifications } from '../../services/nativeNotifications';
 import { MainArea } from '../main-area';
@@ -335,9 +335,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       timestamp: new Date()
     };
 
-    const history = messages.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }]
+    // Convert history to AIMessage format
+    const history: AIMessage[] = messages.map(m => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content
     }));
 
     setMessages(prev => [...prev, userMsg]);
@@ -347,7 +348,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setSearchType(getSearchType(messageText));
 
     try {
-      const result = await geminiService.chat(messageText, history, (status) => {
+      const result = await aiService.chat(messageText, history, (status) => {
         setSearchStatus(status);
       });
       setSearchType(null);

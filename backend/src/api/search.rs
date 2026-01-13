@@ -27,6 +27,7 @@ pub fn search_routes() -> Router<crate::AppState> {
         .route("/search/config", get(get_search_config))
         .route("/search/config", post(update_search_config))
         .route("/files/open", post(open_file_location))
+        .route("/files/reveal", post(reveal_file_in_explorer))
 }
 
 #[allow(dead_code)]
@@ -687,6 +688,84 @@ pub async fn open_file_location(
             "message": format!("Opened file location: {}", absolute_path.display())
         }))),
         Err(e) => Err(AppError::Internal(format!("Failed to open file location: {}", e)))
+    }
+}
+
+/// Reveal and select a file in the system file explorer
+pub async fn reveal_file_in_explorer(
+    Json(request): Json<OpenFileRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let path = PathBuf::from(&request.path);
+    
+    // Ensure we have an absolute path and normalize it
+    let absolute_path = if path.is_absolute() {
+        path
+    } else {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+            .join(&path)
+    };
+    
+    // Canonicalize to get the real path (resolves symlinks, normalizes separators)
+    let absolute_path = absolute_path.canonicalize().unwrap_or(absolute_path);
+    
+    tracing::info!("Revealing file in explorer: {:?}", absolute_path);
+    
+    // Platform-specific command to reveal and select file
+    #[cfg(target_os = "windows")]
+    let result = {
+        // On Windows, use explorer.exe /select,<path>
+        // The path must use backslashes and be passed as a single argument with /select,
+        let path_str = absolute_path.display().to_string().replace("/", "\\");
+        tracing::info!("Windows explorer command: explorer /select,{}", path_str);
+        tokio::process::Command::new("explorer")
+            .arg(format!("/select,{}", path_str))
+            .spawn()
+    };
+    
+    #[cfg(target_os = "macos")]
+    let result = tokio::process::Command::new("open")
+        .arg("-R")  // Reveal in Finder
+        .arg(&absolute_path)
+        .spawn();
+    
+    #[cfg(target_os = "linux")]
+    let result = {
+        // On Linux, most file managers don't support selecting a file
+        // We'll open the parent directory instead
+        let parent = absolute_path.parent()
+            .unwrap_or(&absolute_path)
+            .to_path_buf();
+        
+        // Try dbus method first (works with Nautilus, Dolphin, etc.)
+        let dbus_result = tokio::process::Command::new("dbus-send")
+            .args([
+                "--session",
+                "--dest=org.freedesktop.FileManager1",
+                "--type=method_call",
+                "/org/freedesktop/FileManager1",
+                "org.freedesktop.FileManager1.ShowItems",
+                &format!("array:string:file://{}", absolute_path.display()),
+                "string:",
+            ])
+            .spawn();
+        
+        if dbus_result.is_err() {
+            // Fallback: just open parent directory
+            tokio::process::Command::new("xdg-open")
+                .arg(&parent)
+                .spawn()
+        } else {
+            dbus_result
+        }
+    };
+    
+    match result {
+        Ok(_) => Ok(Json(serde_json::json!({
+            "success": true,
+            "message": format!("Revealed file: {}", absolute_path.display())
+        }))),
+        Err(e) => Err(AppError::Internal(format!("Failed to reveal file: {}", e)))
     }
 }
 
