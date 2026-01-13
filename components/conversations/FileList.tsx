@@ -156,13 +156,13 @@ export const FileItem = memo<{ file: FileInfo; searchInfo?: any }>(({ file }) =>
       </div>
       
       <div className="flex gap-2 mt-3 pt-2 border-t border-glass-border">
-        <Button onClick={handleOpen} variant="primary" size="xs" icon={<ExternalLink size={12} />} iconPosition="left" className="flex-1">
+        <Button onClick={handleOpen} variant="glass" size="xs" icon={<ExternalLink size={12} />} iconPosition="left" className="flex-1 text-text-primary">
           Open
         </Button>
         <Button onClick={handleGo} variant="glass" size="xs" icon={<Folder size={12} />} iconPosition="left" className="flex-1 text-text-primary">
           Folder
         </Button>
-        <Button onClick={handleCopy} variant={copied ? 'primary' : 'glass'} size="xs" icon={copied ? <Check size={12} /> : <Copy size={12} />} iconPosition="left" className="flex-1">
+        <Button onClick={handleCopy} variant={copied ? 'primary' : 'glass'} size="xs" icon={copied ? <Check size={12} /> : <Copy size={12} />} iconPosition="left" className="flex-1 text-text-primary">
           {copied ? 'Copied!' : 'Copy'}
         </Button>
       </div>
