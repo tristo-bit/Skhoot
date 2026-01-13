@@ -2253,3 +2253,59 @@ Three-layer architecture following separation of concerns:
 
 **Build Status**: ✅ No diagnostics
 
+
+---
+
+### Task 8: Sign-In/Sign-Up Dark Mode Alignment ✅
+- **Issue**: Login and Register panels had inconsistent dark mode styling compared to other panels
+- **Root Cause**: Hardcoded gray colors and custom div structures instead of using app's theme-aware classes and Modal component
+
+**Fixes Applied**:
+
+1. **SSOButton.tsx** (Previously fixed):
+   - Removed hardcoded `style={{ backgroundColor }}` and `text-gray-700`
+   - Applied `glass-subtle`, `border-glass-border`, `text-text-primary` classes
+
+2. **Login.tsx** (Previously fixed):
+   - Converted from custom div structure to `Modal` component
+   - Replaced `CloseButton` with `BackButton` (chevron)
+   - All hardcoded grays replaced with theme-aware classes
+
+3. **Register.tsx** (Fixed now):
+   - Converted from custom div structure to `Modal` component
+   - Replaced `CloseButton` with `BackButton` (chevron) in header
+   - Replaced all hardcoded gray colors:
+     - `text-gray-500` → `text-text-secondary`
+     - `text-gray-600` → `text-text-secondary`
+     - `text-gray-400` → `text-text-secondary`
+     - `text-gray-700` → `text-text-primary`
+     - `hover:text-gray-600` → `hover:text-text-primary`
+     - `border border-black/5` → `border-glass-border`
+     - `bg-black/10` → `border-glass-border bg-current opacity-20`
+     - `focus:ring-purple-300/50` → `focus:ring-accent/50`
+   - Added `text-text-primary` to all inputs
+   - Added `dark:text-red-400` to error message
+   - Removed unused imports (`CloseButton`, `Button`)
+
+**Theme-Aware Classes Used**:
+- `text-text-primary` - Main text (adapts to light/dark)
+- `text-text-secondary` - Secondary/muted text
+- `border-glass-border` - Theme-aware borders
+- `glass-subtle` - Glass background for inputs
+- `focus:ring-accent/50` - Focus ring color
+
+**Result**:
+- ✅ Both Login and Register use Modal component pattern
+- ✅ Both have BackButton (chevron) for navigation
+- ✅ All text readable in light mode
+- ✅ All text readable in dark mode
+- ✅ Consistent with other panels in the app
+- ✅ No hardcoded colors remaining
+
+**Files Modified**:
+- `components/auth/SSOButton.tsx`
+- `components/auth/Login.tsx`
+- `components/auth/Register.tsx`
+
+**Build Status**: ✅ No diagnostics
+
