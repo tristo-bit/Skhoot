@@ -1842,3 +1842,39 @@ server: {
 - Focus watchers on files that actually need HMR
 
 **Status**: Development environment optimized, ready to restart dev server
+
+
+---
+
+### Tauri Dev Mode Icon Fix ✅
+- **Issue**: Dev mode (`npm run tauri:dev`) wasn't showing the app icon in taskbar/dock
+- **Root Cause**: Tauri 2 only uses bundle icons for release builds; dev mode windows need explicit icon configuration
+- **Attempts**:
+  1. ❌ Added `"icon"` to window config in `tauri.conf.json` - not supported in Tauri 2 schema
+  2. ❌ Used `Image::from_bytes()` - requires feature flag
+  3. ✅ Used `Image::from_path()` with `image-png` feature enabled
+
+**Changes Made**:
+1. Added `image-png` feature to `src-tauri/Cargo.toml`:
+```toml
+tauri = { version = "2", features = ["image-png"] }
+```
+
+2. Set icon programmatically in `src-tauri/src/main.rs` setup hook (dev builds only):
+```rust
+#[cfg(debug_assertions)]
+{
+  let icon_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("icons/icon.png");
+  if icon_path.exists() {
+    match tauri::image::Image::from_path(&icon_path) {
+      Ok(icon) => {
+        let _ = window.set_icon(icon);
+      }
+      Err(e) => eprintln!("[Skhoot] Failed to load icon: {}", e),
+    }
+  }
+}
+```
+
+**Result**: Dev mode now displays the same icon as release builds. Release builds unaffected (use bundle icons).
+

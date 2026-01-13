@@ -169,8 +169,25 @@ fn main() {
       log_audio_permission_info();
 
       // Get the main window for any platform-specific setup
-      if let Some(_window) = app.get_webview_window("main") {
+      if let Some(window) = app.get_webview_window("main") {
         println!("[Skhoot] Main window initialized");
+        
+        // Set window icon for dev mode (release uses bundle icons)
+        #[cfg(debug_assertions)]
+        {
+          let icon_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("icons/icon.png");
+          if icon_path.exists() {
+            match tauri::image::Image::from_path(&icon_path) {
+              Ok(icon) => {
+                let _ = window.set_icon(icon);
+                println!("[Skhoot] Window icon set from {:?}", icon_path);
+              }
+              Err(e) => {
+                eprintln!("[Skhoot] Failed to load icon: {}", e);
+              }
+            }
+          }
+        }
       }
 
       Ok(())
