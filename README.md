@@ -813,6 +813,15 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 - AI-powered suggestions with contextual reasoning
 - Performance metrics and error handling
 - Custom search path support
+- **Improved Relevance Scoring Fallback**: Enhanced fallback scoring when AI scoring is unavailable
+  - Utilizes backend scores when available (converted from 0-1 to 0-100 scale)
+  - Tiered keyword matching with intelligent score assignment:
+    - Exact name match: 95 points (filename equals or starts with keyword)
+    - Name contains keyword: 85 points
+    - Path contains keyword: 70 points
+    - General keyword match: 50 points
+  - Results filtered to show only relevant files (score ≥ 50)
+  - Sorted by relevance score for better result ordering
 - **Enhanced File Reveal**: "Open Folder" button reveals and selects files in the system file explorer with comprehensive error handling
   - **Cross-Platform Support**:
     - Windows: Uses `explorer /select,"path"` to open folder with file selected

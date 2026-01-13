@@ -256,10 +256,9 @@ export const FileList = memo<{ files: FileInfo[]; searchInfo?: any }>(({ files, 
   const hasMoreFiles = sortedFiles.length > INITIAL_DISPLAY_COUNT;
   const displayedFiles = showAll ? sortedFiles : sortedFiles.slice(0, INITIAL_DISPLAY_COUNT);
   
-  // Determine if we should use grid layout
-  // If gridOnlyForMore is true, use list for initial results and grid for expanded
-  const useGridLayout = searchDisplay.layout === 'grid' && 
-    (!searchDisplay.gridOnlyForMore || showAll);
+  // Always use compact grid layout when showing more results to keep UI clean
+  // Use list layout only for initial results (more readable)
+  const useGridLayout = showAll || (searchDisplay.layout === 'grid' && !searchDisplay.gridOnlyForMore);
 
   return (
     <div className="mt-4 space-y-2">

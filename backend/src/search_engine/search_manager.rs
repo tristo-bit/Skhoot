@@ -376,10 +376,38 @@ impl SearchManager {
 
         // Add file search results
         if let Some(file_res) = file_results {
+            // Find max score for normalization
+            let max_score = file_res.matches.iter()
+                .map(|m| m.score)
+                .max()
+                .unwrap_or(1) as f64;
+            
             for file_match in &file_res.matches {
+                // Normalize score relative to best match (0.0 to 1.0)
+                // Use a combination of:
+                // 1. Relative score (compared to best match)
+                // 2. Absolute score bonus for high scores
+                let relative_score = if max_score > 0.0 {
+                    (file_match.score as f64) / max_score
+                } else {
+                    0.5
+                };
+                
+                // Boost score based on match quality
+                // nucleo scores: 0-100 = poor, 100-300 = ok, 300-500 = good, 500+ = excellent
+                let absolute_bonus = match file_match.score {
+                    s if s >= 500 => 0.15,  // Excellent match
+                    s if s >= 300 => 0.10,  // Good match
+                    s if s >= 100 => 0.05,  // OK match
+                    _ => 0.0,               // Poor match
+                };
+                
+                // Final score: weighted combination, capped at 1.0
+                let relevance_score = (relative_score * 0.85 + absolute_bonus).min(1.0);
+                
                 merged.push(MergedSearchResult {
-                    path: file_match.path.clone(), // Use full path, not relative
-                    relevance_score: (file_match.score as f64) / 1000.0, // Normalize score
+                    path: file_match.path.clone(),
+                    relevance_score,
                     source_engine: "rust-fuzzy".to_string(),
                     file_type: file_match.file_type.clone(),
                     size: file_match.file_size,

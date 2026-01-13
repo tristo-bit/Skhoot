@@ -132,19 +132,25 @@ function convertFileSearchResults(backendResults: any, fileTypesFilter?: string)
 
   console.log('📁 File type filter:', allowedExtensions);
 
-  let files = backendResults.merged_results?.map((result: any) => ({
-    id: result.path,
-    name: result.path.split('/').pop() || result.path,
-    path: result.path,
-    size: result.size ? formatFileSize(result.size) : 'Unknown',
-    category: detectCategory(result.file_type, result.path),
-    safeToRemove: false, // Would need additional logic
-    lastUsed: result.modified || 'Unknown',
-    score: result.relevance_score,
-    source: result.source_engine,
-    snippet: result.snippet,
-    fileType: result.file_type
-  })) || [];
+  let files = backendResults.merged_results?.map((result: any) => {
+    // Extract filename from path (handle both / and \ separators)
+    const pathParts = result.path.split(/[/\\]/);
+    const fileName = pathParts[pathParts.length - 1] || result.path;
+    
+    return {
+      id: result.path,
+      name: fileName,
+      path: result.path,
+      size: result.size ? formatFileSize(result.size) : 'Unknown',
+      category: detectCategory(result.file_type, result.path),
+      safeToRemove: false,
+      lastUsed: result.modified || 'Unknown',
+      score: result.relevance_score,
+      source: result.source_engine,
+      snippet: result.snippet,
+      fileType: result.file_type
+    };
+  }) || [];
 
   const beforeFilterCount = files.length;
 

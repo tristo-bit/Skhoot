@@ -177,19 +177,25 @@ function convertFileSearchResults(backendResults: any, fileTypesFilter?: string)
     ? fileTypesFilter.split(',').map(ext => ext.trim().toLowerCase())
     : null;
 
-  let files = backendResults.merged_results?.map((result: any) => ({
-    id: result.path,
-    name: result.path.split('/').pop() || result.path,
-    path: result.path,
-    size: result.size ? formatFileSize(result.size) : 'Unknown',
-    category: detectCategory(result.file_type, result.path),
-    safeToRemove: false,
-    lastUsed: result.modified || 'Unknown',
-    score: result.relevance_score,
-    source: result.source_engine,
-    snippet: result.snippet,
-    fileType: result.file_type
-  })) || [];
+  let files = backendResults.merged_results?.map((result: any) => {
+    // Extract filename from path (handle both / and \ separators)
+    const pathParts = result.path.split(/[/\\]/);
+    const fileName = pathParts[pathParts.length - 1] || result.path;
+    
+    return {
+      id: result.path,
+      name: fileName,
+      path: result.path,
+      size: result.size ? formatFileSize(result.size) : 'Unknown',
+      category: detectCategory(result.file_type, result.path),
+      safeToRemove: false,
+      lastUsed: result.modified || 'Unknown',
+      score: result.relevance_score,
+      source: result.source_engine,
+      snippet: result.snippet,
+      fileType: result.file_type
+    };
+  }) || [];
 
   if (allowedExtensions && allowedExtensions.length > 0) {
     files = files.filter((f: any) => {
@@ -340,14 +346,39 @@ Be strict! Only files that truly match what the user is looking for should score
     console.warn('Failed to score files with AI, using fallback:', error);
   }
   
-  // Fallback: simple keyword matching
+  // Fallback: use backend score if available, otherwise simple keyword matching
   const keywords = searchQuery.toLowerCase().split(',').map((k: string) => k.trim());
   return files
     .map((f: any) => {
+      // If backend already provided a score, use it (convert from 0-1 to 0-100)
+      if (f.score !== undefined && f.score > 0) {
+        const backendScore = Math.round(f.score * 100);
+        return { ...f, relevanceScore: backendScore, scoreReason: f.source ? `via ${f.source}` : 'Backend score' };
+      }
+      
+      // Otherwise, calculate based on keyword matching
       const nameLower = f.name.toLowerCase();
-      const matchCount = keywords.filter((kw: string) => nameLower.includes(kw)).length;
-      const score = Math.min(100, matchCount * 30 + 20);
-      return { ...f, relevanceScore: score, scoreReason: 'Keyword match' };
+      const pathLower = f.path.toLowerCase();
+      
+      // Check for exact name match (highest score)
+      const exactNameMatch = keywords.some((kw: string) => nameLower === kw || nameLower.startsWith(kw + '.'));
+      if (exactNameMatch) {
+        return { ...f, relevanceScore: 95, scoreReason: 'Exact match' };
+      }
+      
+      // Check for name contains keyword
+      const nameContains = keywords.some((kw: string) => nameLower.includes(kw));
+      if (nameContains) {
+        return { ...f, relevanceScore: 85, scoreReason: 'Name match' };
+      }
+      
+      // Check for path contains keyword
+      const pathContains = keywords.some((kw: string) => pathLower.includes(kw));
+      if (pathContains) {
+        return { ...f, relevanceScore: 70, scoreReason: 'Path match' };
+      }
+      
+      return { ...f, relevanceScore: 50, scoreReason: 'Keyword match' };
     })
     .filter((f: any) => f.relevanceScore >= 50)
     .sort((a: any, b: any) => b.relevanceScore - a.relevanceScore)
