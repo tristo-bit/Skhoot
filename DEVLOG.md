@@ -4701,3 +4701,208 @@ export function helper() { ... }
 4. Or dispatch `agent-navigate-directory` event for agent handling
 
 **Build Status**: ✅ No TypeScript diagnostics
+
+
+---
+
+### Frontend Performance Optimization Plan 📋
+
+**Analysis Completed**: Comprehensive review of frontend codebase to identify performance bottlenecks and optimization opportunities.
+
+**Tech Stack Analyzed**:
+- React 19 + Vite 6 + TypeScript
+- Tailwind CSS 4 + PostCSS
+- Three.js (react-three-fiber) for 3D backgrounds
+- Tauri for desktop app
+- Lucide React for icons
+
+**Key Performance Issues Identified**:
+
+1. **Three.js Background (High Impact)**
+   - `Background3D` component runs continuous `requestAnimationFrame` loop
+   - No visibility detection - animates even when app minimized
+   - ASCII renderer particularly expensive (re-renders entire scene every frame)
+
+2. **No Message List Virtualization (Medium-High Impact)**
+   - `MainArea.tsx` renders ALL messages with `.map()`
+   - Long conversations cause significant lag
+   - Every message re-renders on state changes
+
+3. **Excessive Re-renders in ChatInterface (High Impact)**
+   - Many inline functions created on every render
+   - Large component with 20+ state variables
+   - No memoization on expensive computations
+   - `useEffect` dependencies trigger cascading updates
+
+4. **CSS Performance (Medium Impact)**
+   - Heavy use of `calc()` with CSS variables
+   - Backdrop filters (`blur`, `saturate`) are GPU-intensive
+   - Many CSS transitions running simultaneously
+
+5. **Bundle Size Concerns (Medium Impact)**
+   - Three.js ~600KB+ (even tree-shaken)
+   - No code splitting visible
+   - All components loaded upfront
+
+6. **Component Memoization Gaps**
+   - `MessageBubble` not memoized
+   - `QuickActionButton` recreates icon functions each render
+   - Frequent parent re-renders cascade to children
+
+**Optimization Plan (5 Phases)**:
+
+| Phase | Focus | Effort | Impact |
+|-------|-------|--------|--------|
+| 1 | Quick Wins - Memoization & 3D pause | Low | High |
+| 2 | Message Virtualization | Medium | Very High |
+| 3 | Code Splitting & Lazy Loading | Medium | High |
+| 4 | Render Optimization | Medium | Medium |
+| 5 | CSS Optimization | Low | Medium |
+
+**Phase 1 - Quick Wins**:
+- Add `React.memo()` to MessageBubble, LoadingIndicator, SearchingIndicator
+- Memoize callbacks in ChatInterface with `useCallback`
+- Add visibility detection to pause 3D background when minimized
+- Reduce CSS backdrop-filter usage
+
+**Phase 2 - Virtualization**:
+- Implement virtual scrolling with `react-window` or `@tanstack/virtual`
+- Only render visible messages + small buffer
+
+**Phase 3 - Code Splitting**:
+- Lazy load Three.js/Background3D (only when enabled)
+- Lazy load panels (Settings, Files, Activity) on first open
+- Dynamic imports for heavy components
+
+**Phase 4 - Render Optimization**:
+- Split ChatInterface into smaller components
+- Use `useDeferredValue` for search/filter inputs
+- Implement Suspense boundaries
+
+**Phase 5 - CSS Optimization**:
+- Reduce dynamic `calc()` usage
+- Use CSS containment (`contain: content`) on message bubbles
+- Optimize backdrop-filter usage
+
+**Status**: 📋 Plan Created - Ready for Implementation
+
+---
+
+### Frontend Performance Optimization - Phase 1 Complete ✅
+
+**Implemented Quick Wins for immediate performance improvements:**
+
+**1. Three.js Background Visibility Detection** (`components/customization/Background3D.tsx`):
+- Added `isPaused` state to skip rendering when app is hidden
+- Added `visibilitychange` listener to pause when tab is switched/minimized
+- Added `blur`/`focus` listeners to pause when window loses focus
+- Added `powerPreference: 'low-power'` to WebGL renderer for battery savings
+- Reset `lastTime` on resume to prevent large delta jumps
+- Added `pause()` and `resume()` public methods for manual control
+- Properly cleanup all event listeners on dispose
+
+**2. Component Memoization**:
+- `MainArea` - Wrapped with `memo(forwardRef(...))` to prevent unnecessary re-renders
+- `MessageMarkers` - Added `memo` wrapper with displayName
+- `PromptArea` - Wrapped with `memo(forwardRef(...))` 
+- `MessageBubble` - Already memoized ✓
+- `LoadingIndicator` - Already memoized ✓
+- `SearchingIndicator` - Already memoized ✓
+- `WelcomeMessage` - Already memoized ✓
+
+**3. Callback Memoization** (`components/chat/ChatInterface.tsx`):
+- Memoized `onSendCommand` callback with `useCallback`
+- Memoized `onAgentLogCreated` callback with `useCallback`
+- Memoized `onAgentLogClosed` callback with `useCallback`
+- Other callbacks were already properly memoized ✓
+
+**4. CSS Performance Utilities** (`src/index.css`):
+Added new utility classes for performance optimization:
+- `.contain-content` - CSS containment for layout isolation
+- `.contain-layout` - Layout containment only
+- `.contain-paint` - Paint containment only
+- `.contain-strict` - Strict containment (all)
+- `.will-change-transform` - Hint for transform animations
+- `.will-change-opacity` - Hint for opacity animations
+- `.will-change-scroll` - Hint for scroll position
+- `.gpu-accelerated` - Force GPU layer with translateZ(0)
+
+**5. Applied CSS Containment** (`components/conversations/MessageBubble.tsx`):
+- Added `contain-content` class to both user and AI message containers
+- Isolates layout/paint calculations per message bubble
+
+**Performance Impact**:
+- 🔋 3D background no longer wastes CPU/GPU when app is minimized or unfocused
+- ⚡ Reduced re-renders through strategic memoization
+- 🎯 CSS containment isolates message bubble repaints
+- 📦 Callbacks no longer recreated on every render
+
+**Build Status**: ✅ No TypeScript diagnostics
+
+---
+
+
+---
+
+### Panel Performance Optimization - Phase 3 Complete ✅
+- **Task**: Optimize Files, Agents, Workflows, Terminal panels for better performance
+- **Solution**: Implemented comprehensive performance optimizations including memoization and a preload system
+
+**Completed Optimizations**:
+
+1. **WorkflowsPanel.tsx** - Full optimization:
+   - Added `memo()` wrapper with `displayName`
+   - Memoized tabs array with `useMemo`
+   - Memoized all handlers with `useCallback`: `handleRunWorkflow`, `handleDeleteWorkflow`, `handleCreateWorkflow`, `handleTabChange`, `handleEdit`, `handleSave`, `handleUpdateWorkflow`
+   - Memoized filtered workflows: `runningWorkflows`, `historyWorkflows`, `selected`
+   - Memoized `headerActions` component
+   - Updated return statement to use memoized handlers instead of inline functions
+   - **Sub-components memoized**: `WorkflowList`, `RunningList`, `HistoryList`, `StatusBadge`, `WorkflowDetail` all wrapped with `memo()` and `displayName`
+
+2. **TerminalView.tsx** - Full optimization:
+   - Added `memo()` wrapper with `displayName`
+   - Already had `useCallback` for handlers from previous work
+   - Added `useMemo` for computed values: `activeTab`, `activeOutput`, `visibleTabs`
+
+3. **FileExplorerPanel.tsx** - Already optimized (verified):
+   - Has `memo()` wrapper with `displayName`
+   - Memoized tabs, handlers, and header actions
+   - Sub-components (`RecentTab`, `DiskTab`, `AnalysisTab`, `CleanupTab`) all have `memo()` and `displayName`
+
+4. **Preload System** - New `components/performance/` directory:
+   - **`preload.tsx`**: Complete preload system with:
+     - `usePreloadOnHover` hook - debounced preloading on hover
+     - `PreloadableButton` component - button wrapper with auto-preload
+     - `preloadPanel()` - core preload function
+     - `preloadPanels()` - batch preload multiple panels
+     - `preloadCommonPanelsOnIdle()` - preload common panels after app idle
+     - Safeguards: debounced (150ms), idle callback scheduling, network-aware (skips on 2G), battery-aware (skips below 15%)
+     - Panel registry for lazy imports: file-explorer, workflows, terminal, settings, activity, user-panel, files-panel, ai-settings
+   - **`index.ts`**: Clean exports for the performance module
+
+5. **QuickActionButton.tsx** - Preload integration:
+   - Added `usePreloadOnHover` hook import
+   - Created `PANEL_KEY_MAP` mapping button IDs to panel keys
+   - Integrated preload handlers (`onMouseEnter`, `onMouseLeave`)
+   - Only preloads when panel is closed (`enabled: !isActive`)
+
+6. **Header.tsx** - Preload integration:
+   - Added `usePreloadOnHover` hook import
+   - Created preload hooks for each header button: history, files, user, settings
+   - Integrated `onMouseEnter`/`onMouseLeave` on all panel-opening buttons
+
+7. **buttonFormat/buttons.tsx** - Extended props:
+   - Added `onMouseEnter` and `onMouseLeave` to `BaseButtonProps`
+   - Updated `BaseButton` to pass through mouse event handlers
+   - Enables preload integration on all button components
+
+**How Preload Works**:
+1. User hovers over a panel button (e.g., "Files" quick action)
+2. After 150ms debounce, if still hovering:
+3. System checks network speed (skips on slow 2G)
+4. System checks battery level (skips if < 15% and not charging)
+5. Schedules preload during browser idle time (`requestIdleCallback`)
+6. Dynamically imports the panel component
+7. When user clicks, panel opens instantly (already loaded)
+
+**Build Status**: ✅ All files compile without diagnostics

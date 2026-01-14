@@ -1,4 +1,4 @@
-import React, { forwardRef, useRef, useEffect, useState, useCallback } from 'react';
+import React, { forwardRef, useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Search, Bot, Workflow, Terminal, X, FileText } from 'lucide-react';
 import { QUICK_ACTIONS } from '../../src/constants';
 import SynthesisVisualizer from '../ui/SynthesisVisualizer';
@@ -11,7 +11,7 @@ import { AddFileButton } from './AddFileButton';
 import { FileChip, MultiFileChip } from './FileChip';
 import { FileAttachmentModal, AttachedFile } from './FileAttachmentModal';
 
-// Icon mapping for quick actions
+// Icon mapping for quick actions - memoized outside component to prevent recreation
 const QUICK_ACTION_ICONS: Record<string, (props: { size: number }) => React.ReactNode> = {
   Files: ({ size }) => <Search size={size} />,
   Agents: ({ size }) => <Bot size={size} />,
@@ -39,7 +39,7 @@ interface PromptAreaProps {
   onToggleTerminal?: () => void;
 }
 
-export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
+export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   input,
   isLoading,
   isRecording,
@@ -432,6 +432,6 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
       />
     </div>
   );
-});
+}));
 
 PromptArea.displayName = 'PromptArea';

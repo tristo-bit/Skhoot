@@ -1,8 +1,9 @@
 /**
  * WorkflowsPanel - Workflow management with editable prompt chains
  * Uses terminal-style floating panel layout
+ * Performance optimized with memo and useCallback
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, memo, useMemo } from 'react';
 import { 
   Workflow, Play, Plus, Trash2, Edit3,
   Clock, CheckCircle, XCircle,
@@ -73,17 +74,18 @@ const MOCK_WORKFLOWS: WorkflowItem[] = [
   },
 ];
 
-export const WorkflowsPanel: React.FC<WorkflowsPanelProps> = ({ isOpen, onClose }) => {
+export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<TabId>('workflows');
   const [workflows, setWorkflows] = useState<WorkflowItem[]>(MOCK_WORKFLOWS);
   const [selectedWorkflow, setSelectedWorkflow] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
-  const tabs: SecondaryPanelTab[] = [
+  // Memoize tabs to prevent recreation
+  const tabs: SecondaryPanelTab[] = useMemo(() => [
     { id: 'workflows', title: 'Workflows', icon: <Workflow size={14} /> },
     { id: 'running', title: 'Running', icon: <Zap size={14} /> },
     { id: 'history', title: 'History', icon: <Clock size={14} /> },
-  ];
+  ], []);
 
   const handleRunWorkflow = useCallback((workflowId: string) => {
     setWorkflows(prev => prev.map(wf => 
@@ -122,7 +124,13 @@ export const WorkflowsPanel: React.FC<WorkflowsPanelProps> = ({ isOpen, onClose 
     setIsEditing(true);
   }, []);
 
-  const headerActions = (
+  // Memoize tab change handler
+  const handleTabChange = useCallback((id: string) => {
+    setActiveTab(id as TabId);
+  }, []);
+
+  // Memoize header actions
+  const headerActions = useMemo(() => (
     <button
       onClick={handleCreateWorkflow}
       className="p-1.5 rounded-xl transition-all hover:bg-emerald-500/10 hover:text-emerald-500"
@@ -131,9 +139,26 @@ export const WorkflowsPanel: React.FC<WorkflowsPanelProps> = ({ isOpen, onClose 
     >
       <Plus size={14} />
     </button>
-  );
+  ), [handleCreateWorkflow]);
 
-  const selected = workflows.find(wf => wf.id === selectedWorkflow);
+  // Memoize filtered workflows
+  const runningWorkflows = useMemo(() => 
+    workflows.filter(wf => wf.status === 'running'), [workflows]);
+  
+  const historyWorkflows = useMemo(() => 
+    workflows.filter(wf => wf.lastRun), [workflows]);
+
+  const selected = useMemo(() => 
+    workflows.find(wf => wf.id === selectedWorkflow), [workflows, selectedWorkflow]);
+
+  // Memoize workflow update handler
+  const handleUpdateWorkflow = useCallback((updated: WorkflowItem) => {
+    setWorkflows(prev => prev.map(wf => wf.id === updated.id ? updated : wf));
+  }, []);
+
+  // Memoize edit handlers
+  const handleEdit = useCallback(() => setIsEditing(true), []);
+  const handleSave = useCallback(() => setIsEditing(false), []);
 
   return (
     <SecondaryPanel
@@ -141,7 +166,7 @@ export const WorkflowsPanel: React.FC<WorkflowsPanelProps> = ({ isOpen, onClose 
       onClose={onClose}
       tabs={tabs}
       activeTabId={activeTab}
-      onTabChange={(id) => setActiveTab(id as TabId)}
+      onTabChange={handleTabChange}
       headerActions={headerActions}
       storageKey="skhoot-workflows-height"
       defaultHeight={450}
@@ -161,10 +186,10 @@ export const WorkflowsPanel: React.FC<WorkflowsPanelProps> = ({ isOpen, onClose 
             />
           )}
           {activeTab === 'running' && (
-            <RunningList workflows={workflows.filter(wf => wf.status === 'running')} />
+            <RunningList workflows={runningWorkflows} />
           )}
           {activeTab === 'history' && (
-            <HistoryList workflows={workflows.filter(wf => wf.lastRun)} />
+            <HistoryList workflows={historyWorkflows} />
           )}
         </div>
 
@@ -174,11 +199,9 @@ export const WorkflowsPanel: React.FC<WorkflowsPanelProps> = ({ isOpen, onClose 
             <WorkflowDetail
               workflow={selected}
               isEditing={isEditing}
-              onEdit={() => setIsEditing(true)}
-              onSave={() => setIsEditing(false)}
-              onUpdateWorkflow={(updated) => {
-                setWorkflows(prev => prev.map(wf => wf.id === updated.id ? updated : wf));
-              }}
+              onEdit={handleEdit}
+              onSave={handleSave}
+              onUpdateWorkflow={handleUpdateWorkflow}
             />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center">
@@ -198,15 +221,17 @@ export const WorkflowsPanel: React.FC<WorkflowsPanelProps> = ({ isOpen, onClose 
       </div>
     </SecondaryPanel>
   );
-};
+});
 
-const WorkflowList: React.FC<{
+WorkflowsPanel.displayName = 'WorkflowsPanel';
+
+const WorkflowList = memo<{
   workflows: WorkflowItem[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onRun: (id: string) => void;
   onDelete: (id: string) => void;
-}> = ({ workflows, selectedId, onSelect, onRun, onDelete }) => (
+}>(({ workflows, selectedId, onSelect, onRun, onDelete }) => (
   <div className="p-2 space-y-1">
     {workflows.map(wf => (
       <div
@@ -243,9 +268,10 @@ const WorkflowList: React.FC<{
       </div>
     ))}
   </div>
-);
+));
+WorkflowList.displayName = 'WorkflowList';
 
-const RunningList: React.FC<{ workflows: WorkflowItem[] }> = ({ workflows }) => (
+const RunningList = memo<{ workflows: WorkflowItem[] }>(({ workflows }) => (
   <div className="p-2">
     {workflows.length === 0 ? (
       <div className="text-center py-8">
@@ -263,9 +289,10 @@ const RunningList: React.FC<{ workflows: WorkflowItem[] }> = ({ workflows }) => 
       ))
     )}
   </div>
-);
+));
+RunningList.displayName = 'RunningList';
 
-const HistoryList: React.FC<{ workflows: WorkflowItem[] }> = ({ workflows }) => (
+const HistoryList = memo<{ workflows: WorkflowItem[] }>(({ workflows }) => (
   <div className="p-2 space-y-1">
     {workflows.map(wf => (
       <div key={wf.id} className="p-3 rounded-xl hover:bg-white/5 transition-all">
@@ -277,9 +304,10 @@ const HistoryList: React.FC<{ workflows: WorkflowItem[] }> = ({ workflows }) => 
       </div>
     ))}
   </div>
-);
+));
+HistoryList.displayName = 'HistoryList';
 
-const StatusBadge: React.FC<{ status: WorkflowItem['status'] }> = ({ status }) => {
+const StatusBadge = memo<{ status: WorkflowItem['status'] }>(({ status }) => {
   const config = {
     idle: { color: 'text-gray-400', bg: 'bg-gray-500/20', icon: null },
     running: { color: 'text-amber-400', bg: 'bg-amber-500/20', icon: <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" /> },
@@ -293,15 +321,16 @@ const StatusBadge: React.FC<{ status: WorkflowItem['status'] }> = ({ status }) =
       {status}
     </span>
   );
-};
+});
+StatusBadge.displayName = 'StatusBadge';
 
-const WorkflowDetail: React.FC<{
+const WorkflowDetail = memo<{
   workflow: WorkflowItem;
   isEditing: boolean;
   onEdit: () => void;
   onSave: () => void;
   onUpdateWorkflow: (workflow: WorkflowItem) => void;
-}> = ({ workflow, isEditing, onEdit, onSave, onUpdateWorkflow }) => {
+}>(({ workflow, isEditing, onEdit, onSave, onUpdateWorkflow }) => {
   const [editedName, setEditedName] = useState(workflow.name);
   const [editedDesc, setEditedDesc] = useState(workflow.description);
   const [editedSteps, setEditedSteps] = useState(workflow.steps);
@@ -405,6 +434,7 @@ const WorkflowDetail: React.FC<{
       </div>
     </div>
   );
-};
+});
+WorkflowDetail.displayName = 'WorkflowDetail';
 
 export default WorkflowsPanel;

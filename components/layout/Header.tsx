@@ -3,6 +3,7 @@ import React, { memo } from 'react';
 import { Menu, X, Settings, User as UserIcon, FolderOpen, History, Minus } from 'lucide-react';
 import { IconButton } from '../buttonFormat';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import { usePreloadOnHover } from '../performance';
 
 const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
   <img src="/skhoot-purple.svg" alt="Skhoot" width={size} height={size} />
@@ -116,63 +117,79 @@ const HeaderActions: React.FC<HeaderActionsProps> = ({
   onOpenSettings,
   onMinimize,
   onClose,
-}) => (
-  <div className="header-actions flex items-center gap-2 relative z-10" data-no-drag>
-    <IconButton 
-      icon={<History size={18} />}
-      onClick={onOpenHistory} 
-      aria-label="Activity History"
-      variant="glass"
-      size="md"
-      className="hover:bg-purple-500/10 hover:text-purple-500"
-      title="Activity History"
-    />
-    <IconButton 
-      icon={<FolderOpen size={18} />}
-      onClick={onOpenFiles} 
-      aria-label="Utility"
-      variant="glass"
-      size="md"
-      className="hover:bg-amber-500/10 hover:text-amber-500"
-      title="Files & Utilities"
-    />
-    <IconButton 
-      icon={<UserIcon size={18} />}
-      onClick={onOpenUser} 
-      aria-label="User profile"
-      variant="glass"
-      size="md"
-      className="hover:bg-cyan-500/10 hover:text-cyan-500"
-      title="User Profile"
-    />
-    <IconButton 
-      icon={<Settings size={18} />}
-      onClick={onOpenSettings} 
-      aria-label="Settings"
-      variant="glass"
-      size="md"
-      className="hover:bg-emerald-500/10 hover:text-emerald-500"
-      title="Settings"
-    />
-    <IconButton 
-      icon={<Minus size={18} />}
-      onClick={onMinimize} 
-      aria-label="Minimize"
-      variant="glass"
-      size="md"
-      className="hover:bg-blue-500/10 hover:text-blue-500"
-      title="Minimize to taskbar"
-    />
-    <IconButton 
-      icon={<X size={18} />}
-      onClick={onClose} 
-      aria-label="Close"
-      variant="glass"
-      size="md"
-      className="hover:bg-red-500/10 hover:text-red-500"
-      title="Close"
-    />
-  </div>
-);
+}) => {
+  // Preload hooks for header buttons
+  const historyPreload = usePreloadOnHover({ panelKey: 'activity' });
+  const filesPreload = usePreloadOnHover({ panelKey: 'file-explorer' });
+  const userPreload = usePreloadOnHover({ panelKey: 'user-panel' });
+  const settingsPreload = usePreloadOnHover({ panelKey: 'settings' });
+
+  return (
+    <div className="header-actions flex items-center gap-2 relative z-10" data-no-drag>
+      <IconButton 
+        icon={<History size={18} />}
+        onClick={onOpenHistory} 
+        onMouseEnter={historyPreload.onMouseEnter}
+        onMouseLeave={historyPreload.onMouseLeave}
+        aria-label="Activity History"
+        variant="glass"
+        size="md"
+        className="hover:bg-purple-500/10 hover:text-purple-500"
+        title="Activity History"
+      />
+      <IconButton 
+        icon={<FolderOpen size={18} />}
+        onClick={onOpenFiles} 
+        onMouseEnter={filesPreload.onMouseEnter}
+        onMouseLeave={filesPreload.onMouseLeave}
+        aria-label="Utility"
+        variant="glass"
+        size="md"
+        className="hover:bg-amber-500/10 hover:text-amber-500"
+        title="Files & Utilities"
+      />
+      <IconButton 
+        icon={<UserIcon size={18} />}
+        onClick={onOpenUser} 
+        onMouseEnter={userPreload.onMouseEnter}
+        onMouseLeave={userPreload.onMouseLeave}
+        aria-label="User profile"
+        variant="glass"
+        size="md"
+        className="hover:bg-cyan-500/10 hover:text-cyan-500"
+        title="User Profile"
+      />
+      <IconButton 
+        icon={<Settings size={18} />}
+        onClick={onOpenSettings} 
+        onMouseEnter={settingsPreload.onMouseEnter}
+        onMouseLeave={settingsPreload.onMouseLeave}
+        aria-label="Settings"
+        variant="glass"
+        size="md"
+        className="hover:bg-emerald-500/10 hover:text-emerald-500"
+        title="Settings"
+      />
+      <IconButton 
+        icon={<Minus size={18} />}
+        onClick={onMinimize} 
+        aria-label="Minimize"
+        variant="glass"
+        size="md"
+        className="hover:bg-blue-500/10 hover:text-blue-500"
+        title="Minimize to taskbar"
+      />
+      <IconButton 
+        icon={<X size={18} />}
+        onClick={onClose} 
+        aria-label="Close"
+        variant="glass"
+        size="md"
+        className="hover:bg-red-500/10 hover:text-red-500"
+        title="Close"
+      />
+    </div>
+  );
+};
 
 export default Header;

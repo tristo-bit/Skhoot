@@ -1,8 +1,9 @@
 /**
  * FileExplorerPanel - File explorer with tabs for Recent, Disk, Analysis, Cleanup
  * Uses terminal-style floating panel layout
+ * Performance optimized with memo and useCallback
  */
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, memo, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Search, HardDrive, BarChart3, Trash2, 
@@ -228,19 +229,20 @@ const formatSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
 
-export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = ({ isOpen, onClose }) => {
+export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<TabId>('recent');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [recentFiles, setRecentFiles] = useState<FileItem[]>([]);
 
-  const tabs: SecondaryPanelTab[] = [
+  // Memoize tabs to prevent recreation on every render
+  const tabs: SecondaryPanelTab[] = useMemo(() => [
     { id: 'recent', title: 'Recent', icon: <Clock size={14} /> },
     { id: 'disk', title: 'Disk', icon: <HardDrive size={14} /> },
     { id: 'analysis', title: 'Analysis', icon: <BarChart3 size={14} /> },
     { id: 'cleanup', title: 'Cleanup', icon: <Trash2 size={14} /> },
-  ];
+  ], []);
 
   useEffect(() => {
     if (isOpen && activeTab === 'recent') {
@@ -289,10 +291,30 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = ({ isOpen, on
     }
   }, [searchQuery]);
 
-  const headerActions = (
+  // Memoize toggle view mode callback
+  const toggleViewMode = useCallback(() => {
+    setViewMode(prev => prev === 'list' ? 'grid' : 'list');
+  }, []);
+
+  // Memoize tab change callback
+  const handleTabChange = useCallback((id: string) => {
+    setActiveTab(id as TabId);
+  }, []);
+
+  // Memoize search input change
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
+  // Memoize search key handler
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleSearch();
+  }, [handleSearch]);
+
+  const headerActions = useMemo(() => (
     <>
       {activeTab === 'recent' && (
-        <button onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
+        <button onClick={toggleViewMode}
           className="p-1.5 rounded-xl transition-all hover:bg-white/10"
           style={{ color: 'var(--text-secondary)' }} title={viewMode === 'list' ? 'Grid View' : 'List View'}>
           {viewMode === 'list' ? <Grid size={14} /> : <List size={14} />}
@@ -304,7 +326,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = ({ isOpen, on
         <RefreshCw size={14} />
       </button>
     </>
-  );
+  ), [activeTab, viewMode, isLoading, toggleViewMode, loadRecentFiles]);
 
   return (
     <SecondaryPanel 
@@ -312,7 +334,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = ({ isOpen, on
       onClose={onClose} 
       tabs={tabs} 
       activeTabId={activeTab}
-      onTabChange={(id) => setActiveTab(id as TabId)} 
+      onTabChange={handleTabChange} 
       headerActions={headerActions}
       storageKey="skhoot-file-explorer-height" 
       defaultHeight={400}
@@ -323,8 +345,8 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = ({ isOpen, on
         <div className="px-4 py-2 border-b border-white/5">
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5">
             <Search size={14} style={{ color: 'var(--text-secondary)' }} />
-            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()} placeholder="Search files..."
+            <input type="text" value={searchQuery} onChange={handleSearchChange}
+              onKeyDown={handleSearchKeyDown} placeholder="Search files..."
               className="flex-1 bg-transparent border-none outline-none text-sm font-jakarta"
               style={{ color: 'var(--text-primary)' }} />
             {searchQuery && (
@@ -343,9 +365,9 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = ({ isOpen, on
       </div>
     </SecondaryPanel>
   );
-};
+});
 
-const RecentTab: React.FC<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading: boolean }> = ({ files, viewMode, isLoading }) => {
+const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading: boolean }>(({ files, viewMode, isLoading }) => {
   const [contextMenu, setContextMenu] = useState<{ file: FileItem; position: { x: number; y: number } } | null>(null);
   
   const handleOpenFolder = async (path: string, e: React.MouseEvent) => {
@@ -468,9 +490,10 @@ const RecentTab: React.FC<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoad
       )}
     </>
   );
-};
+});
+RecentTab.displayName = 'RecentTab';
 
-const DiskTab: React.FC = () => {
+const DiskTab = memo(() => {
   const disks = [
     { name: 'Main Drive', total: '500 GB', used: '320 GB', free: '180 GB', percent: 64 },
     { name: 'Home', total: '500 GB', used: '280 GB', free: '220 GB', percent: 56 },
@@ -497,9 +520,10 @@ const DiskTab: React.FC = () => {
       </div>
     ))}
   </div>;
-};
+});
+DiskTab.displayName = 'DiskTab';
 
-const AnalysisTab: React.FC = () => {
+const AnalysisTab = memo(() => {
   const categories = [
     { name: 'Documents', size: '45 GB', count: 1234, color: '#8b5cf6' },
     { name: 'Images', size: '32 GB', count: 5678, color: '#06b6d4' },
@@ -520,9 +544,10 @@ const AnalysisTab: React.FC = () => {
       </div>
     ))}
   </div>;
-};
+});
+AnalysisTab.displayName = 'AnalysisTab';
 
-const CleanupTab: React.FC = () => {
+const CleanupTab = memo(() => {
   const suggestions = [
     { name: 'Cache Files', size: '2.4 GB', description: 'Temporary cache from applications', safe: true },
     { name: 'Old Downloads', size: '1.8 GB', description: 'Files older than 30 days', safe: true },
@@ -557,6 +582,9 @@ const CleanupTab: React.FC = () => {
       </div>
     ))}
   </div>;
-};
+});
+CleanupTab.displayName = 'CleanupTab';
+
+FileExplorerPanel.displayName = 'FileExplorerPanel';
 
 export default FileExplorerPanel;

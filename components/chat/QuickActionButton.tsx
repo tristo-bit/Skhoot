@@ -1,5 +1,14 @@
 import React, { memo, useState } from 'react';
 import { Button } from '../buttonFormat';
+import { usePreloadOnHover } from '../performance';
+
+// Map button IDs to panel keys for preloading
+const PANEL_KEY_MAP: Record<string, string> = {
+  'Files': 'file-explorer',
+  'Agents': 'ai-settings',
+  'Workflows': 'workflows',
+  'Terminal': 'terminal',
+};
 
 interface QuickActionButtonProps {
   id: string;
@@ -22,6 +31,13 @@ export const QuickActionButton = memo<QuickActionButtonProps>(({
 }) => {
   const [isAnimating, setIsAnimating] = useState(false);
   
+  // Get preload handlers for this button's panel
+  const panelKey = PANEL_KEY_MAP[id];
+  const { onMouseEnter, onMouseLeave } = usePreloadOnHover({
+    panelKey: panelKey || '',
+    enabled: !!panelKey && !isActive, // Only preload when panel is closed
+  });
+  
   const handleClick = () => {
     setIsAnimating(true);
     setTimeout(() => setIsAnimating(false), 300);
@@ -31,6 +47,8 @@ export const QuickActionButton = memo<QuickActionButtonProps>(({
   return (
     <Button 
       onClick={handleClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       aria-label={id}
       title={id}
       variant="glass"

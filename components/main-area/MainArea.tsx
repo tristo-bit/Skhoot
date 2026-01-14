@@ -1,4 +1,4 @@
-import { forwardRef, useState, useEffect } from 'react';
+import { forwardRef, useState, useEffect, memo } from 'react';
 import { Message } from '../../types';
 import { MessageBubble, LoadingIndicator, SearchingIndicator } from '../conversations';
 import { VoiceMessage } from '../conversations/VoiceMessage';
@@ -33,8 +33,9 @@ interface MainAreaProps {
 /**
  * Main content area that displays messages, empty state, and voice messages
  * Previously named Conversations
+ * Wrapped with memo to prevent unnecessary re-renders
  */
-export const MainArea = forwardRef<HTMLDivElement, MainAreaProps>(({
+export const MainArea = memo(forwardRef<HTMLDivElement, MainAreaProps>(({
   messages,
   isLoading,
   searchType,
@@ -185,6 +186,6 @@ export const MainArea = forwardRef<HTMLDivElement, MainAreaProps>(({
       </div>
     </div>
   );
-});
+}));
 
 MainArea.displayName = 'MainArea';

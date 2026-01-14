@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import { Terminal, X, Plus, Copy, Trash2, GripHorizontal, Bot } from 'lucide-react';
 import { terminalService } from '../../services/terminalService';
 import { agentService } from '../../services/agentService';
@@ -28,7 +28,7 @@ const DEFAULT_HEIGHT = 250;
 const MIN_HEIGHT = 150;
 const MAX_HEIGHT = 600;
 
-export const TerminalView: React.FC<TerminalViewProps> = ({ 
+export const TerminalView: React.FC<TerminalViewProps> = memo(({ 
   isOpen, 
   onClose, 
   onSendCommand,
@@ -322,8 +322,12 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     createAgentLogTab();
   }, [autoCreateAgentLog, isOpen, tabs, onAgentLogCreated]);
 
-  const activeTab = tabs.find(t => t.id === activeTabId);
-  const activeOutput = activeTab ? terminalOutputs.get(activeTab.sessionId) || [] : [];
+  // Memoize computed values
+  const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId), [tabs, activeTabId]);
+  const activeOutput = useMemo(() => activeTab ? terminalOutputs.get(activeTab.sessionId) || [] : [], [activeTab, terminalOutputs]);
+  
+  // Memoize filtered tabs for rendering (exclude agent-log tabs from tab bar)
+  const visibleTabs = useMemo(() => tabs.filter(tab => tab.type !== 'agent-log'), [tabs]);
 
   if (!isOpen) return null;
 
@@ -379,7 +383,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
 
           {/* Tabs - Only show shell tabs, not agent-log tabs */}
           <div className="flex items-center gap-2 flex-1 overflow-x-auto ml-2">
-            {tabs.filter(tab => tab.type !== 'agent-log').map(tab => (
+            {visibleTabs.map(tab => (
               <button
                 key={tab.id}
                 className={`
@@ -517,4 +521,6 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       </div>
     </div>
   );
-};
+});
+
+TerminalView.displayName = 'TerminalView';

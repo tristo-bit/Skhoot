@@ -849,17 +849,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <TerminalView 
         isOpen={isTerminalOpen}
         onClose={onToggleTerminal || (() => {})}
-        onSendCommand={(sendFn) => {
+        onSendCommand={useCallback((sendFn) => {
           // Store the send function to be called from PromptArea
           (window as any).__terminalSendCommand = sendFn;
-        }}
+        }, [])}
         autoCreateAgentLog={shouldShowAgentLog ? agentSessionId : null}
-        onAgentLogCreated={(tabId) => {
+        onAgentLogCreated={useCallback((tabId: string) => {
           console.log('[ChatInterface] Agent Log tab created:', tabId);
-        }}
-        onAgentLogClosed={() => {
+        }, [])}
+        onAgentLogClosed={useCallback(() => {
           console.log('[ChatInterface] Agent Log tab closed');
-        }}
+        }, [])}
       />
       
       {/* File Explorer Panel - floats above PromptArea */}

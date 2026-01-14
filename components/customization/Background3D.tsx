@@ -159,6 +159,7 @@ class Background3DScene {
   private container: HTMLDivElement;
   private useAscii: boolean;
   private lastTime: number = 0;
+  private isPaused: boolean = false;
 
   constructor(config: SceneConfig) {
     this.container = config.container;
@@ -175,6 +176,7 @@ class Background3DScene {
       antialias: !config.asciiMode, 
       alpha: true,
       preserveDrawingBuffer: config.asciiMode,
+      powerPreference: 'low-power', // Prefer battery life over performance
     });
     this.renderer.setSize(config.container.clientWidth, config.container.clientHeight);
     this.renderer.setPixelRatio(config.asciiMode ? 1 : Math.min(window.devicePixelRatio, 2));
@@ -196,7 +198,11 @@ class Background3DScene {
     this.lastTime = performance.now();
     this.animate();
 
+    // Listen for visibility changes to pause/resume animation
     window.addEventListener('resize', this.handleResize);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    window.addEventListener('blur', this.handleWindowBlur);
+    window.addEventListener('focus', this.handleWindowFocus);
   }
 
   private setupLighting(isDarkMode: boolean) {
@@ -275,6 +281,9 @@ class Background3DScene {
   private animate = () => {
     this.animationId = requestAnimationFrame(this.animate);
 
+    // Skip rendering when paused (window hidden/minimized)
+    if (this.isPaused) return;
+
     const now = performance.now();
     const delta = now - this.lastTime;
     this.lastTime = now;
@@ -303,6 +312,35 @@ class Background3DScene {
     this.asciiRenderer?.setSize(width, height);
   };
 
+  // Pause animation when document is hidden (tab switched, minimized)
+  private handleVisibilityChange = () => {
+    this.isPaused = document.hidden;
+    if (!this.isPaused) {
+      // Reset lastTime to avoid large delta jump when resuming
+      this.lastTime = performance.now();
+    }
+  };
+
+  // Pause when window loses focus
+  private handleWindowBlur = () => {
+    this.isPaused = true;
+  };
+
+  // Resume when window gains focus
+  private handleWindowFocus = () => {
+    this.isPaused = false;
+    this.lastTime = performance.now();
+  };
+
+  pause() {
+    this.isPaused = true;
+  }
+
+  resume() {
+    this.isPaused = false;
+    this.lastTime = performance.now();
+  }
+
   updateRotationDuration(duration: number) {
     this.rotationDuration = duration;
   }
@@ -317,6 +355,9 @@ class Background3DScene {
 
   dispose() {
     window.removeEventListener('resize', this.handleResize);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    window.removeEventListener('blur', this.handleWindowBlur);
+    window.removeEventListener('focus', this.handleWindowFocus);
     if (this.animationId !== null) cancelAnimationFrame(this.animationId);
 
     this.scene.traverse((object) => {

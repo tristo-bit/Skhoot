@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { Message } from '../../types';
 import { COLORS } from '../../src/constants';
 
@@ -14,7 +14,7 @@ interface MessageMarkersProps {
 const HEADER_HEIGHT = 60;
 const TOOLTIP_HEIGHT = 48; // Approximate tooltip height
 
-export const MessageMarkers: React.FC<MessageMarkersProps> = ({
+export const MessageMarkers = memo<MessageMarkersProps>(({
   messages,
   scrollRef,
   containerHeight,
@@ -199,4 +199,6 @@ export const MessageMarkers: React.FC<MessageMarkersProps> = ({
       })}
     </div>
   );
-};
+});
+
+MessageMarkers.displayName = 'MessageMarkers';

@@ -779,6 +779,44 @@
     display: none;
   }
 
+  /* Performance Optimization Utilities */
+  
+  /* CSS Containment for message bubbles - isolates layout/paint calculations */
+  .contain-content {
+    contain: content;
+  }
+  
+  .contain-layout {
+    contain: layout;
+  }
+  
+  .contain-paint {
+    contain: paint;
+  }
+  
+  .contain-strict {
+    contain: strict;
+  }
+  
+  /* Will-change hints for animated elements */
+  .will-change-transform {
+    will-change: transform;
+  }
+  
+  .will-change-opacity {
+    will-change: opacity;
+  }
+  
+  .will-change-scroll {
+    will-change: scroll-position;
+  }
+  
+  /* GPU acceleration for smooth animations */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
   /* Blur Utilities */
   .blur-glass-light { backdrop-filter: var(--blur-light); }
   .blur-glass-medium { backdrop-filter: var(--blur-medium); }
