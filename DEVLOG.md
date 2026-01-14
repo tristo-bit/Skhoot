@@ -3977,3 +3977,142 @@ select.select-themed {
 ```
 
 **Build Status**: ✅ No diagnostics
+
+
+---
+
+### Whisper Server Temp Files & Startup Fix ✅
+- **Issue 1**: Whisper server creating temp WAV files in `src-tauri/` directory (e.g., `whisper-server-20260114-161550-243083525.wav`)
+- **Issue 2**: Whisper server process becoming zombie (`<defunct>`) when started from Tauri
+
+**Root Causes**:
+1. The `--convert` flag makes whisper-server use ffmpeg to convert incoming audio to WAV, creating temp files in the current working directory
+2. When started from Tauri, the CWD was `src-tauri/`, so temp files accumulated there
+3. Server stdout/stderr were piped to null, hiding any startup errors
+
+**Fixes Applied** (`src-tauri/src/whisper.rs`):
+
+1. **Set working directory to system temp**:
+   ```rust
+   let temp_dir = std::env::temp_dir();
+   let child = Command::new(&binary_path)
+       .current_dir(&temp_dir)  // Temp files now go to /tmp/
+       ...
+   ```
+
+2. **Added health check after startup**:
+   - 2-second delay to allow server initialization
+   - HTTP GET to verify server is responding
+   - Logs verification status
+
+3. **Capture stdout/stderr for debugging**:
+   - Changed from `Stdio::null()` to `Stdio::piped()`
+   - Allows debugging if server fails to start
+
+**Server Location**: `~/.local/share/com.skhoot.desktop-seeker/whisper/`
+- Binary: `bin/whisper-server`
+- Models: `models/ggml-base.bin` (148MB multilingual)
+
+**Manual Test Confirmed Working**:
+```bash
+~/.local/share/com.skhoot.desktop-seeker/whisper/bin/whisper-server \
+  --model ~/.local/share/com.skhoot.desktop-seeker/whisper/models/ggml-base.bin \
+  --host 127.0.0.1 --port 8000 \
+  --inference-path /v1/audio/transcriptions \
+  --threads 4 --convert
+```
+
+**Build Status**: ✅ Compiles successfully
+
+
+---
+
+### STT Service API Key Integration Fix ✅
+- **Issue**: OpenAI STT not working - provider selection not finding API key
+- **Root Cause**: `sttService` was using `apiKeyStore` (looks for `skhoot-api-key`) instead of `apiKeyService` (uses `skhoot_api_key_openai` in Tauri secure storage or localStorage)
+
+**Fixes Applied**:
+
+1. **Updated sttService.ts**:
+   - Changed import from `apiKeyStore` to `apiKeyService`
+   - Made `resolveProvider()` async to support async key lookup
+   - Made `getProviderDecision()` and `isAvailable()` async
+   - Added `isAvailableSync()` for UI components that need sync check
+   - Updated `transcribeWithOpenAI()` to use `apiKeyService.loadKey('openai')`
+
+2. **Updated useVoiceRecording.ts**:
+   - Changed `sttService.getProviderDecision()` to `await sttService.getProviderDecision()`
+   - Changed `sttService.isAvailable()` to `await sttService.isAvailable()`
+   - Added debug logging for mic stream and STT provider
+
+3. **Updated RecordButton.tsx**:
+   - Changed to use `sttService.isAvailableSync()` for UI state
+
+4. **Updated SoundPanel.tsx**:
+   - Added `sttProviderDecision` state with useEffect to fetch async
+   - Updated `handleTestStt` to use async provider decision
+
+**Key Storage Locations**:
+- Tauri: Secure storage via `save_api_key`/`load_api_key` commands
+- Web fallback: `localStorage` with key `skhoot_api_key_openai`
+
+**Debug Logging Added**:
+- `[Voice] Starting recording...`
+- `[Voice] Got audio stream: yes/no`
+- `[Voice] Audio tracks: count, labels, enabled, muted`
+- `[Voice] Provider decision: openai/local/web-speech`
+- `[Voice] STT transcript received: ...`
+
+**Build Status**: ✅ No diagnostics
+
+
+---
+
+### MediaRecorder Audio Capture Fix ✅
+- **Issue**: STT sending empty audio files (0 bytes) to whisper server
+- **Root Cause**: `MediaRecorder.start()` was called without a `timeslice` parameter, so `ondataavailable` only fires when `stop()` is called. But the async flow was checking chunks before the event fired.
+
+**Diagnosis from logs**:
+```
+[STT] Audio chunks: 0 mimeType: null
+[STT] Built audio file: "skhoot-recording.webm" size: 0
+[STT] JSON response: {error: "FFmpeg conversion failed."}
+```
+
+**Fix Applied** (`services/sttService.ts`):
+1. Added `timeslice` parameter to `recorder.start(1000)` - gets data every 1 second
+2. Restructured `stop()` to use Promise with `onstop` handler set BEFORE calling `stop()`
+3. Added extensive logging for MediaRecorder lifecycle:
+   - `onstart`, `ondataavailable`, `onerror`, `onstop` events
+   - Chunk counts at each stage
+
+**Key Changes**:
+```typescript
+// Before (broken)
+recorder.start();  // No timeslice, ondataavailable only fires on stop
+
+// After (fixed)
+recorder.start(1000);  // Get data every 1 second
+
+// Before (race condition)
+recorder.stop();
+await new Promise(resolve => { recorder.onstop = resolve; });
+// chunks might be empty here!
+
+// After (proper sequencing)
+return new Promise((resolve, reject) => {
+  recorder.onstop = async () => {
+    // Now chunks are guaranteed to be populated
+    const result = await transcribe(chunks);
+    resolve(result);
+  };
+  recorder.stop();
+});
+```
+
+**Mic Status Confirmed Working**:
+- Device: `USB PnP Audio Device Mono`
+- Track enabled: `true`, muted: `false`, readyState: `live`
+- AudioContext state: `running`
+
+**Build Status**: ✅ No diagnostics

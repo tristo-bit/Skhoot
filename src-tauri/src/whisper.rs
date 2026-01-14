@@ -472,8 +472,10 @@ pub async fn start_whisper_server(
         }
     }
     
-    // Start new server
+    // Start new server with working directory set to temp
+    let temp_dir = std::env::temp_dir();
     let child = Command::new(&binary_path)
+        .current_dir(&temp_dir)
         .args(&[
             "--model", model_path.to_str().unwrap_or(""),
             "--host", "127.0.0.1",
@@ -483,8 +485,8 @@ pub async fn start_whisper_server(
             "--convert",
         ])
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to start whisper server: {}", e))?;
     
@@ -493,6 +495,24 @@ pub async fn start_whisper_server(
     }
     if let Ok(mut p) = state.server_port.lock() {
         *p = Some(port);
+    }
+    
+    // Wait a moment for the server to start and verify it's running
+    tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+    
+    // Check if server is responding
+    let health_url = format!("http://127.0.0.1:{}/", port);
+    let client = reqwest::Client::new();
+    match client.get(&health_url).timeout(std::time::Duration::from_secs(5)).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            println!("[Skhoot] Whisper server verified running on 127.0.0.1:{}", port);
+        }
+        Ok(resp) => {
+            println!("[Skhoot] Whisper server responded with status: {}", resp.status());
+        }
+        Err(e) => {
+            println!("[Skhoot] Warning: Could not verify whisper server health: {}", e);
+        }
     }
     
     println!("[Skhoot] Started whisper server on 127.0.0.1:{}", port);
