@@ -291,11 +291,13 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = ({ isOpen, on
 
   const headerActions = (
     <>
-      <button onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
-        className="p-1.5 rounded-xl transition-all hover:bg-white/10"
-        style={{ color: 'var(--text-secondary)' }} title={viewMode === 'list' ? 'Grid View' : 'List View'}>
-        {viewMode === 'list' ? <Grid size={14} /> : <List size={14} />}
-      </button>
+      {activeTab === 'recent' && (
+        <button onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
+          className="p-1.5 rounded-xl transition-all hover:bg-white/10"
+          style={{ color: 'var(--text-secondary)' }} title={viewMode === 'list' ? 'Grid View' : 'List View'}>
+          {viewMode === 'list' ? <Grid size={14} /> : <List size={14} />}
+        </button>
+      )}
       <button onClick={loadRecentFiles}
         className={`p-1.5 rounded-xl transition-all hover:bg-cyan-500/10 hover:text-cyan-500 ${isLoading ? 'animate-spin' : ''}`}
         style={{ color: 'var(--text-secondary)' }} title="Refresh">
