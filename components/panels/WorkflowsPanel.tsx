@@ -144,7 +144,8 @@ export const WorkflowsPanel: React.FC<WorkflowsPanelProps> = ({ isOpen, onClose 
       onTabChange={(id) => setActiveTab(id as TabId)}
       headerActions={headerActions}
       storageKey="skhoot-workflows-height"
-      defaultHeight={400}
+      defaultHeight={450}
+      minHeight={300}
       animationName="workflowsSlideUp"
     >
       <div className="h-full flex">

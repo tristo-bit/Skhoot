@@ -313,7 +313,8 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = ({ isOpen, on
       onTabChange={(id) => setActiveTab(id as TabId)} 
       headerActions={headerActions}
       storageKey="skhoot-file-explorer-height" 
-      defaultHeight={350}
+      defaultHeight={400}
+      minHeight={250}
       animationName="fileExplorerSlideUp"
     >
       <div className="h-full flex flex-col">
@@ -526,20 +527,28 @@ const CleanupTab: React.FC = () => {
     { name: 'Duplicate Files', size: '890 MB', description: '23 duplicate files found', safe: false },
     { name: 'Large Files', size: '5.2 GB', description: 'Files larger than 100MB', safe: false },
   ];
-  return <div className="space-y-3">
-    <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Cleanup Suggestions</p>
+  return <div className="space-y-2">
+    <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cleanup Suggestions</p>
     {suggestions.map((item, i) => (
-      <div key={i} className="p-3 rounded-xl bg-white/5">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${item.safe ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
-            {item.safe ? 'Safe' : 'Review'}
-          </span>
+      <div key={i} className="flex items-center gap-3 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
+        {/* Status indicator dot */}
+        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.safe ? 'bg-green-400' : 'bg-amber-400'}`} />
+        
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${item.safe ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
+              {item.safe ? 'Safe' : 'Review'}
+            </span>
+          </div>
+          <p className="text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>{item.description}</p>
         </div>
-        <p className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>{item.description}</p>
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-bold text-purple-400">{item.size}</p>
-          <button className="px-3 py-1 rounded-lg bg-purple-500/20 text-purple-400 text-xs font-medium hover:bg-purple-500/30 transition-all">
+        
+        {/* Size + Action */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-xs font-bold text-purple-400">{item.size}</span>
+          <button className="px-2 py-1 rounded-lg bg-purple-500/20 text-purple-400 text-[10px] font-bold hover:bg-purple-500/30 transition-all">
             Clean
           </button>
         </div>
