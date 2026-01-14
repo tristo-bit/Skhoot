@@ -99,18 +99,34 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
             
             // If we got devices with labels, permission was already granted
             if (inputs.some(d => d.label)) {
-              setInputDevices(inputs.map((d, i) => ({
+              const mappedInputs = inputs.map((d, i) => ({
                 deviceId: d.deviceId,
                 label: d.label || `Microphone ${i + 1}`,
                 kind: 'audioinput' as const,
                 isDefault: i === 0
-              })));
-              setOutputDevices(outputs.map((d, i) => ({
+              }));
+              const mappedOutputs = outputs.map((d, i) => ({
                 deviceId: d.deviceId,
                 label: d.label || `Speaker ${i + 1}`,
                 kind: 'audiooutput' as const,
                 isDefault: i === 0
-              })));
+              }));
+              
+              setInputDevices(mappedInputs);
+              setOutputDevices(mappedOutputs);
+              
+              // Restore saved device selection
+              if (savedSettings.selectedInputDevice && mappedInputs.some(d => d.deviceId === savedSettings.selectedInputDevice)) {
+                setSelectedInputDevice(savedSettings.selectedInputDevice);
+              } else if (mappedInputs.length > 0) {
+                setSelectedInputDevice(mappedInputs[0].deviceId);
+              }
+              
+              if (savedSettings.selectedOutputDevice && mappedOutputs.some(d => d.deviceId === savedSettings.selectedOutputDevice)) {
+                setSelectedOutputDevice(savedSettings.selectedOutputDevice);
+              } else if (mappedOutputs.length > 0) {
+                setSelectedOutputDevice(mappedOutputs[0].deviceId);
+              }
             }
           } catch (e) {
             // Ignore enumeration errors
@@ -674,7 +690,7 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
             setSttTestStatus('idle');
             setSttTestMessage('');
           }}
-          className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
+          className="select-themed w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e1e1e] text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
         >
           <option value="auto">Auto (preferred)</option>
           <option value="web-speech">Web Speech API</option>
@@ -735,7 +751,7 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
               setSttTestStatus('idle');
               setSttTestMessage('');
             }}
-            className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
+            className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e1e1e] text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
             placeholder="http://127.0.0.1:8000/v1/audio/transcriptions"
           />
           <p className="text-xs text-text-secondary font-jakarta">
@@ -846,7 +862,7 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
                   disabled={whisperStatus.server_running}
-                  className="w-full p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
+                  className="select-themed w-full p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e1e1e] text-sm font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
                 >
                   {availableModels.map(model => {
                     const isDownloaded = whisperStatus.models.find(m => m.name === model.name)?.is_downloaded;
@@ -976,10 +992,10 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
               <select
                 value={selectedInputDevice}
                 onChange={(e) => handleInputDeviceChange(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                className="select-themed w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e1e1e] text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 {inputDevices.map(device => (
-                  <option key={device.deviceId} value={device.deviceId} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+                  <option key={device.deviceId} value={device.deviceId}>
                     {device.label}{device.isDefault ? ' (Default)' : ''}
                   </option>
                 ))}
@@ -998,10 +1014,10 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
               <select
                 value={selectedOutputDevice}
                 onChange={(e) => handleOutputDeviceChange(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                className="select-themed w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e1e1e] text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 {outputDevices.map(device => (
-                  <option key={device.deviceId} value={device.deviceId} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+                  <option key={device.deviceId} value={device.deviceId}>
                     {device.label}{device.isDefault ? ' (Default)' : ''}
                   </option>
                 ))}

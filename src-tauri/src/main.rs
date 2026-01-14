@@ -196,6 +196,34 @@ fn main() {
             }
           }
         }
+
+        // Linux: Enable MediaStream/WebRTC in WebKitGTK and auto-allow mic permissions
+        #[cfg(target_os = "linux")]
+        {
+          use webkit2gtk::{WebViewExt, SettingsExt, PermissionRequestExt};
+          use webkit2gtk::glib::prelude::ObjectExt;
+          
+          window.with_webview(|webview| {
+            let wv = webview.inner();
+            
+            // Enable MediaStream and WebRTC in WebKitGTK settings
+            if let Some(settings) = wv.settings() {
+              settings.set_enable_media_stream(true);
+              settings.set_enable_webrtc(true);
+              println!("[Skhoot] WebKitGTK MediaStream and WebRTC enabled");
+            }
+            
+            // Auto-allow microphone permission requests
+            wv.connect_permission_request(|_, req| {
+              if req.is::<webkit2gtk::UserMediaPermissionRequest>() {
+                req.allow();
+                println!("[Skhoot] Auto-allowed UserMedia permission request");
+                return true;
+              }
+              false
+            });
+          }).ok();
+        }
       }
 
       Ok(())
