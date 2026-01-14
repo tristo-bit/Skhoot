@@ -61,6 +61,7 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 - **Conversational AI**: Powered by Google Gemini for natural interactions
 - **Chat History**: Save and manage multiple conversation threads
 - **Rich Responses**: Support for file lists, disk usage charts, and cleanup suggestions
+- **Interactive File Paths**: Click on file paths in search results to open the containing folder
 - **Markdown Support**: Full markdown rendering in responses
 - **File Search Integration**: AI automatically detects when file search is needed
 - **Multilingual Intent Detection**: Understands search commands in English and French
@@ -840,6 +841,9 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
     - `no_method_available`: Backend not running, path copied to clipboard as fallback
   - **Graceful Fallback Chain**: Backend API → Tauri shell plugin → Clipboard copy with user guidance
   - **Backend API**: `/api/v1/files/reveal` endpoint provides best cross-platform support
+- **File Explorer Panel Integration**: Click on file paths in the File Explorer panel to reveal files in system explorer
+  - Works in both list and grid view modes
+  - Falls back to copying path to clipboard if reveal fails
 
 </details>
 

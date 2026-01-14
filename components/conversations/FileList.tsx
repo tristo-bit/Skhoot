@@ -112,7 +112,13 @@ export const FileItem = memo<{ file: FileInfo; searchInfo?: any }>(({ file }) =>
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[12px] font-bold truncate text-text-primary font-jakarta">{file.name}</p>
-          <p className="text-[10px] font-medium opacity-50 truncate font-jakarta text-text-secondary">{file.path}</p>
+          <p 
+            className="text-[10px] font-medium opacity-50 truncate font-jakarta text-text-secondary cursor-pointer hover:opacity-80 hover:underline transition-opacity"
+            onClick={handleGo}
+            title="Click to open folder"
+          >
+            {file.path}
+          </p>
           
           {(file as any).relevanceScore !== undefined && (
             <div className="flex items-center gap-2 mt-1">
@@ -208,7 +214,11 @@ export const FileItemGrid = memo<{ file: FileInfo }>(({ file }) => {
         <p className="text-[11px] font-bold truncate w-full text-text-primary font-jakarta" title={file.name}>
           {file.name}
         </p>
-        <p className="text-[9px] font-medium opacity-50 truncate w-full font-jakarta" title={file.path}>
+        <p 
+          className="text-[9px] font-medium opacity-50 truncate w-full font-jakarta cursor-pointer hover:opacity-80 hover:underline transition-opacity" 
+          title={`Click to open: ${file.path}`}
+          onClick={handleGo}
+        >
           {file.path.split('/').slice(-2).join('/')}
         </p>
         

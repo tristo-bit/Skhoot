@@ -10,6 +10,46 @@ import {
 import { SecondaryPanel, SecondaryPanelTab } from '../ui/SecondaryPanel';
 import { backendApi } from '../../services/backendApi';
 
+// Helper to open parent folder and select the file
+const openFolder = async (filePath: string): Promise<boolean> => {
+  // Normalize path for Windows (use backslashes)
+  const normalizedPath = filePath.replace(/\//g, '\\');
+  
+  // Try backend API first - it can select the file in the folder
+  try {
+    const response = await fetch('http://localhost:3001/api/v1/files/reveal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: normalizedPath }),
+    });
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) return true;
+    }
+  } catch {}
+  
+  // Try Tauri shell plugin with reveal command
+  try {
+    const { Command } = await import('@tauri-apps/plugin-shell');
+    const platform = navigator.platform.toLowerCase();
+    
+    if (platform.includes('win')) {
+      await Command.create('explorer', [`/select,${normalizedPath}`]).execute();
+      return true;
+    } else if (platform.includes('mac')) {
+      await Command.create('open', ['-R', filePath]).execute();
+      return true;
+    } else {
+      const lastSlash = filePath.lastIndexOf('/');
+      const parentDir = lastSlash > 0 ? filePath.substring(0, lastSlash) : filePath;
+      await Command.create('xdg-open', [parentDir]).execute();
+      return true;
+    }
+  } catch {}
+  
+  return false;
+};
+
 type TabId = 'recent' | 'disk' | 'analysis' | 'cleanup';
 
 interface FileItem {
@@ -149,6 +189,15 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = ({ isOpen, on
 };
 
 const RecentTab: React.FC<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading: boolean }> = ({ files, viewMode, isLoading }) => {
+  const handleOpenFolder = async (path: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const success = await openFolder(path);
+    if (!success) {
+      await navigator.clipboard.writeText(path);
+      alert(`📋 Path copied!\n\n${path}`);
+    }
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-full">
       <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--text-secondary)' }} />
@@ -168,7 +217,14 @@ const RecentTab: React.FC<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoad
             {file.type === 'folder' ? <Folder size={20} className="text-purple-400" /> : <File size={20} className="text-purple-400" />}
           </div>
           <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
-          <p className="text-[10px] mt-1" style={{ color: 'var(--text-secondary)' }}>{file.size}</p>
+          <p 
+            className="text-[10px] mt-1 cursor-pointer hover:underline hover:opacity-80 transition-opacity truncate" 
+            style={{ color: 'var(--text-secondary)' }}
+            onClick={(e) => handleOpenFolder(file.path, e)}
+            title="Click to open folder"
+          >
+            {file.size}
+          </p>
         </div>
       ))}
     </div>;
@@ -181,7 +237,14 @@ const RecentTab: React.FC<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoad
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
-          <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{file.path}</p>
+          <p 
+            className="text-xs truncate cursor-pointer hover:underline hover:opacity-80 transition-opacity" 
+            style={{ color: 'var(--text-secondary)' }}
+            onClick={(e) => handleOpenFolder(file.path, e)}
+            title="Click to open folder"
+          >
+            {file.path}
+          </p>
         </div>
         <div className="text-right flex-shrink-0">
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{file.size}</p>
