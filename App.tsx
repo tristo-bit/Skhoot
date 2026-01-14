@@ -218,26 +218,64 @@ const AppContent: React.FC = () => {
   const openActivity = useCallback(() => setIsActivityOpen(true), []);
   const closeActivity = useCallback(() => setIsActivityOpen(false), []);
   const closeFileSearchTest = useCallback(() => setIsFileSearchTestOpen(false), []);
-  const toggleTerminal = useCallback(() => setIsTerminalOpen(open => !open), []);
+  const toggleTerminal = useCallback(() => {
+    setIsTerminalOpen(open => {
+      if (!open) {
+        // Opening terminal, close other panels
+        setIsFileExplorerOpen(false);
+        setIsWorkflowsOpen(false);
+      }
+      return !open;
+    });
+  }, []);
   const closeTerminal = useCallback(() => setIsTerminalOpen(false), []);
-  const toggleFileExplorer = useCallback(() => setIsFileExplorerOpen(open => !open), []);
+  const toggleFileExplorer = useCallback(() => {
+    setIsFileExplorerOpen(open => {
+      if (!open) {
+        // Opening file explorer, close other panels
+        setIsTerminalOpen(false);
+        setIsWorkflowsOpen(false);
+      }
+      return !open;
+    });
+  }, []);
   const closeFileExplorer = useCallback(() => setIsFileExplorerOpen(false), []);
-  const toggleWorkflows = useCallback(() => setIsWorkflowsOpen(open => !open), []);
+  const toggleWorkflows = useCallback(() => {
+    setIsWorkflowsOpen(open => {
+      if (!open) {
+        // Opening workflows, close other panels
+        setIsTerminalOpen(false);
+        setIsFileExplorerOpen(false);
+      }
+      return !open;
+    });
+  }, []);
   const closeWorkflows = useCallback(() => setIsWorkflowsOpen(false), []);
   const openAISettings = useCallback(() => setIsAISettingsOpen(true), []);
   const closeAISettings = useCallback(() => setIsAISettingsOpen(false), []);
 
-  // Handle QuickAction panel opening
+  // Handle QuickAction panel opening - close other panels when opening a new one
   const handleQuickActionMode = useCallback((mode: string | null) => {
     setActiveQuickAction(mode);
     
-    // Open corresponding panel based on mode
+    // Close all panels first, then open the selected one
     if (mode === 'Files') {
+      setIsTerminalOpen(false);
+      setIsWorkflowsOpen(false);
       setIsFileExplorerOpen(true);
     } else if (mode === 'Workflows') {
+      setIsTerminalOpen(false);
+      setIsFileExplorerOpen(false);
       setIsWorkflowsOpen(true);
     } else if (mode === 'Terminal') {
+      setIsFileExplorerOpen(false);
+      setIsWorkflowsOpen(false);
       setIsTerminalOpen(true);
+    } else {
+      // If mode is null, close all panels
+      setIsTerminalOpen(false);
+      setIsFileExplorerOpen(false);
+      setIsWorkflowsOpen(false);
     }
   }, []);
 
