@@ -4064,3 +4064,55 @@ select.select-themed {
 - `[Voice] STT transcript received: ...`
 
 **Build Status**: ✅ No diagnostics
+
+
+---
+
+### MediaRecorder Audio Capture Fix ✅
+- **Issue**: STT sending empty audio files (0 bytes) to whisper server
+- **Root Cause**: `MediaRecorder.start()` was called without a `timeslice` parameter, so `ondataavailable` only fires when `stop()` is called. But the async flow was checking chunks before the event fired.
+
+**Diagnosis from logs**:
+```
+[STT] Audio chunks: 0 mimeType: null
+[STT] Built audio file: "skhoot-recording.webm" size: 0
+[STT] JSON response: {error: "FFmpeg conversion failed."}
+```
+
+**Fix Applied** (`services/sttService.ts`):
+1. Added `timeslice` parameter to `recorder.start(1000)` - gets data every 1 second
+2. Restructured `stop()` to use Promise with `onstop` handler set BEFORE calling `stop()`
+3. Added extensive logging for MediaRecorder lifecycle:
+   - `onstart`, `ondataavailable`, `onerror`, `onstop` events
+   - Chunk counts at each stage
+
+**Key Changes**:
+```typescript
+// Before (broken)
+recorder.start();  // No timeslice, ondataavailable only fires on stop
+
+// After (fixed)
+recorder.start(1000);  // Get data every 1 second
+
+// Before (race condition)
+recorder.stop();
+await new Promise(resolve => { recorder.onstop = resolve; });
+// chunks might be empty here!
+
+// After (proper sequencing)
+return new Promise((resolve, reject) => {
+  recorder.onstop = async () => {
+    // Now chunks are guaranteed to be populated
+    const result = await transcribe(chunks);
+    resolve(result);
+  };
+  recorder.stop();
+});
+```
+
+**Mic Status Confirmed Working**:
+- Device: `USB PnP Audio Device Mono`
+- Track enabled: `true`, muted: `false`, readyState: `live`
+- AudioContext state: `running`
+
+**Build Status**: ✅ No diagnostics

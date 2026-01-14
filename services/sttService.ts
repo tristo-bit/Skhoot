@@ -195,44 +195,72 @@ export const sttService = {
     }
 
     const mimeType = getPreferredMimeType();
+    console.log('[STT] Starting MediaRecorder with mimeType:', mimeType);
+    
     const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
     const chunks: BlobPart[] = [];
 
     recorder.ondataavailable = (event: BlobEvent) => {
+      console.log('[STT] ondataavailable fired, data size:', event.data?.size || 0);
       if (event.data && event.data.size > 0) {
         chunks.push(event.data);
+        console.log('[STT] Chunk added, total chunks:', chunks.length);
       }
     };
 
-    recorder.start();
+    recorder.onerror = (event: Event) => {
+      console.error('[STT] MediaRecorder error:', event);
+    };
+
+    recorder.onstart = () => {
+      console.log('[STT] MediaRecorder started, state:', recorder.state);
+    };
+
+    // Start recording with timeslice to get periodic data
+    recorder.start(1000); // Get data every 1 second
+    console.log('[STT] MediaRecorder.start() called');
 
     const stop = async (): Promise<string> => {
-      if (recorder.state !== 'inactive') {
-        recorder.stop();
-      }
+      console.log('[STT] Stopping recorder, current state:', recorder.state, 'chunks so far:', chunks.length);
+      
+      return new Promise((resolve, reject) => {
+        // Set up the onstop handler before calling stop
+        recorder.onstop = async () => {
+          console.log('[STT] MediaRecorder stopped, total chunks:', chunks.length);
+          
+          try {
+            if (provider === 'openai') {
+              const result = await transcribeWithOpenAI(chunks, mimeType);
+              resolve(result);
+              return;
+            }
 
-      await new Promise<void>((resolve) => {
-        if (recorder.state === 'inactive') {
-          resolve();
+            const config = sttConfigStore.get();
+            const url = config.localUrl?.trim();
+            if (!url) {
+              reject(new Error('Local STT URL is not configured.'));
+              return;
+            }
+
+            const result = await transcribeWithLocal(chunks, mimeType, url);
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        };
+
+        // Now stop the recorder
+        if (recorder.state !== 'inactive') {
+          recorder.stop();
         } else {
-          recorder.onstop = () => resolve();
+          // Already stopped, trigger onstop manually
+          recorder.onstop?.(new Event('stop'));
         }
       });
-
-      if (provider === 'openai') {
-        return await transcribeWithOpenAI(chunks, mimeType);
-      }
-
-      const config = sttConfigStore.get();
-      const url = config.localUrl?.trim();
-      if (!url) {
-        throw new Error('Local STT URL is not configured.');
-      }
-
-      return await transcribeWithLocal(chunks, mimeType, url);
     };
 
     const abort = () => {
+      console.log('[STT] Aborting recorder');
       if (recorder.state !== 'inactive') {
         recorder.stop();
       }
