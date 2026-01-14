@@ -4906,3 +4906,67 @@ Added new utility classes for performance optimization:
 7. When user clicks, panel opens instantly (already loaded)
 
 **Build Status**: ✅ All files compile without diagnostics
+
+
+---
+
+### Cross-Platform Release Scripts Created ✅
+- **Feature**: Complete release generation system for Windows 11, macOS, and Linux
+- **Goal**: One-click build process for Tauri + Backend as bundled installers
+
+**Files Created**:
+
+1. **`scripts/release.sh`** - Main cross-platform release script (Bash)
+   - Auto-detects current OS (Linux/macOS/Windows via MSYS/Cygwin)
+   - Dependency checking (Node.js 18+, Rust, Cargo, platform-specific libs)
+   - Options: `--skip-deps`, `--clean`, `--verbose`
+   - Usage: `./scripts/release.sh [all|linux|macos|windows]`
+   - Linux: Checks for WebKitGTK, GStreamer, and other required dev packages
+   - macOS: Supports universal binary builds (Intel + Apple Silicon)
+   - Colored output with status indicators
+
+2. **`scripts/release.ps1`** - Windows PowerShell release script
+   - Native PowerShell for Windows 11 users
+   - Checks Visual Studio Build Tools with C++ workload
+   - Checks WebView2 Runtime availability
+   - Parameters: `-SkipDeps`, `-Clean`, `-VerboseOutput`
+
+3. **`scripts/release.bat`** - Windows one-click batch script
+   - Double-click to run from Explorer
+   - Auto-opens bundle folder on completion
+   - Simple dependency checks with clear error messages
+
+4. **`.github/workflows/release.yml`** - GitHub Actions CI/CD workflow
+   - Triggers on version tags (`v*`) or manual dispatch
+   - Parallel builds for all 3 platforms:
+     - `ubuntu-22.04` → .deb + AppImage
+     - `macos-latest` → Universal DMG + .app
+     - `windows-latest` → MSI + NSIS installer
+   - Rust caching for faster builds
+   - Auto-creates draft GitHub Release with all artifacts
+   - Supports code signing secrets (optional)
+
+**npm Scripts Added to `package.json`**:
+- `npm run release` - Build for current platform
+- `npm run release:linux` - Linux build
+- `npm run release:macos` - macOS build  
+- `npm run release:windows` - Windows build
+- `npm run release:clean` - Clean build with fresh artifacts
+
+**Output Packages** (in `src-tauri/target/release/bundle/`):
+| Platform | Formats |
+|----------|---------|
+| Linux | `.deb`, `.AppImage` |
+| macOS | `.dmg`, `.app` |
+| Windows | `.msi`, `.exe` (NSIS) |
+
+**CI/CD Release Flow**:
+```bash
+git tag v0.1.0
+git push --tags
+# → GitHub Actions builds all platforms
+# → Draft release created with all installers
+```
+
+**Status**: ✅ Scripts created and ready for use
+

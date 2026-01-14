@@ -16,7 +16,12 @@
     "backend:dev": "cd backend && cargo run --bin skhoot-backend",
     "backend:build": "cd backend && cargo build --release",
     "backend:test": "cd backend && cargo test",
-    "dev:full": "concurrently \"npm run backend:dev\" \"npm run dev\""
+    "dev:full": "concurrently \"npm run backend:dev\" \"npm run dev\"",
+    "release": "bash scripts/release.sh",
+    "release:linux": "bash scripts/release.sh linux",
+    "release:macos": "bash scripts/release.sh macos",
+    "release:windows": "bash scripts/release.sh windows",
+    "release:clean": "bash scripts/release.sh all --clean"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",
