@@ -3977,3 +3977,49 @@ select.select-themed {
 ```
 
 **Build Status**: ✅ No diagnostics
+
+
+---
+
+### Whisper Server Temp Files & Startup Fix ✅
+- **Issue 1**: Whisper server creating temp WAV files in `src-tauri/` directory (e.g., `whisper-server-20260114-161550-243083525.wav`)
+- **Issue 2**: Whisper server process becoming zombie (`<defunct>`) when started from Tauri
+
+**Root Causes**:
+1. The `--convert` flag makes whisper-server use ffmpeg to convert incoming audio to WAV, creating temp files in the current working directory
+2. When started from Tauri, the CWD was `src-tauri/`, so temp files accumulated there
+3. Server stdout/stderr were piped to null, hiding any startup errors
+
+**Fixes Applied** (`src-tauri/src/whisper.rs`):
+
+1. **Set working directory to system temp**:
+   ```rust
+   let temp_dir = std::env::temp_dir();
+   let child = Command::new(&binary_path)
+       .current_dir(&temp_dir)  // Temp files now go to /tmp/
+       ...
+   ```
+
+2. **Added health check after startup**:
+   - 2-second delay to allow server initialization
+   - HTTP GET to verify server is responding
+   - Logs verification status
+
+3. **Capture stdout/stderr for debugging**:
+   - Changed from `Stdio::null()` to `Stdio::piped()`
+   - Allows debugging if server fails to start
+
+**Server Location**: `~/.local/share/com.skhoot.desktop-seeker/whisper/`
+- Binary: `bin/whisper-server`
+- Models: `models/ggml-base.bin` (148MB multilingual)
+
+**Manual Test Confirmed Working**:
+```bash
+~/.local/share/com.skhoot.desktop-seeker/whisper/bin/whisper-server \
+  --model ~/.local/share/com.skhoot.desktop-seeker/whisper/models/ggml-base.bin \
+  --host 127.0.0.1 --port 8000 \
+  --inference-path /v1/audio/transcriptions \
+  --threads 4 --convert
+```
+
+**Build Status**: ✅ Compiles successfully
