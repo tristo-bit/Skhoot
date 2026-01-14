@@ -21,7 +21,8 @@
     "release:linux": "bash scripts/release.sh linux",
     "release:macos": "bash scripts/release.sh macos",
     "release:windows": "bash scripts/release.sh windows",
-    "release:clean": "bash scripts/release.sh all --clean"
+    "release:clean": "bash scripts/release.sh all --clean",
+    "prepare:whisper": "node scripts/prepare-whispercpp.js"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",

@@ -1,15 +1,24 @@
 name: Release Build
 
+# TEMPORARILY DISABLED - uncomment to enable
+# on:
+#   push:
+#     tags:
+#       - 'v*'
+#   workflow_dispatch:
+#     inputs:
+#       version:
+#         description: 'Version tag (e.g., v0.1.0)'
+#         required: false
+#         default: ''
+
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version tag (e.g., v0.1.0)'
-        required: false
-        default: ''
+      run_build:
+        description: 'Manual trigger only'
+        required: true
+        default: 'false'
 
 env:
   CARGO_TERM_COLOR: always
