@@ -1,0 +1,16 @@
+This is a test file for the file reference feature.
+
+You can add this file to chat using the File Explorer:
+1. Click the Files button
+2. Find this file (test-file-reference.txt)
+3. Click the three dots (•••)
+4. Select "Add to chat"
+5. Type a message like: "What does this file contain?"
+6. Send the message
+
+The AI will receive both your message and the content of this file!
+
+Test content:
+- Line 1: Hello from the test file
+- Line 2: This is a demonstration
+- Line 3: File references work!

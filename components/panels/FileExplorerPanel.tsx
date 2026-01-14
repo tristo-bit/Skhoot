@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import { 
   Search, HardDrive, BarChart3, Trash2, 
   File, Folder, Clock, RefreshCw, Grid, List, MoreHorizontal,
-  ExternalLink, Copy, Scissors, Info, Archive, FolderOpen
+  ExternalLink, Copy, Scissors, Info, Archive, FolderOpen, MessageSquarePlus
 } from 'lucide-react';
 import { SecondaryPanel, SecondaryPanelTab } from '../ui/SecondaryPanel';
 import { backendApi } from '../../services/backendApi';
@@ -124,6 +124,33 @@ const FileContextMenu: React.FC<{
   if (!isOpen) return null;
   
   const menuItems = [
+    { icon: <MessageSquarePlus size={14} />, label: 'Add to chat', action: async () => { 
+      // Add file reference to chat input
+      const fileName = file.path.split(/[/\\]/).pop() || file.path;
+      const fileRef = `@${fileName} `;
+      
+      // Find the chat textarea and insert the reference
+      const textarea = document.querySelector('textarea[placeholder*="Type"]') as HTMLTextAreaElement;
+      if (textarea) {
+        const currentValue = textarea.value;
+        textarea.value = currentValue + fileRef;
+        textarea.focus();
+        
+        // Trigger input event to update React state
+        const event = new Event('input', { bubbles: true });
+        textarea.dispatchEvent(event);
+        
+        // Store file path in a global map for later retrieval
+        if (!(window as any).__chatFileReferences) {
+          (window as any).__chatFileReferences = new Map();
+        }
+        (window as any).__chatFileReferences.set(fileName, file.path);
+        
+        // Visual feedback
+        console.log(`[FileExplorer] Added file reference: @${fileName} -> ${file.path}`);
+      }
+    }, highlight: true },
+    { divider: true },
     { icon: <ExternalLink size={14} />, label: 'Open', action: async () => { await fileActions.open(file.path); } },
     { icon: <FolderOpen size={14} />, label: 'Show in folder', action: async () => { await fileActions.revealInExplorer(file.path); } },
     { divider: true },
@@ -167,11 +194,12 @@ const FileContextMenu: React.FC<{
               onClose();
             }}
             className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs font-medium transition-all hover:bg-white/10 ${
-              item.danger ? 'text-red-400 hover:bg-red-500/10' : ''
+              item.danger ? 'text-red-400 hover:bg-red-500/10' : 
+              (item as any).highlight ? 'bg-purple-500/10 hover:bg-purple-500/20' : ''
             }`}
-            style={{ color: item.danger ? undefined : 'var(--text-primary)' }}
+            style={{ color: item.danger ? undefined : (item as any).highlight ? '#a78bfa' : 'var(--text-primary)' }}
           >
-            <span className={item.danger ? 'text-red-400' : 'text-text-secondary'}>{item.icon}</span>
+            <span className={item.danger ? 'text-red-400' : (item as any).highlight ? 'text-purple-400' : 'text-text-secondary'}>{item.icon}</span>
             {item.label}
           </button>
         )

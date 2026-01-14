@@ -30,6 +30,7 @@ pub fn search_routes() -> Router<crate::AppState> {
         .route("/files/reveal", post(reveal_file_in_explorer))
         .route("/files/properties", post(show_file_properties))
         .route("/files/open-with", post(open_with_dialog))
+        .route("/files/read", get(read_file_content))
 }
 
 #[allow(dead_code)]
@@ -904,6 +905,52 @@ pub async fn open_with_dialog(
             "message": format!("Opened 'Open with' dialog for: {}", absolute_path.display())
         }))),
         Err(e) => Err(AppError::Internal(format!("Failed to open 'Open with' dialog: {}", e)))
+    }
+}
+
+/// Read file content endpoint
+pub async fn read_file_content(
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let path_str = params.get("path")
+        .ok_or_else(|| AppError::BadRequest("Missing 'path' parameter".to_string()))?;
+    
+    let path = PathBuf::from(path_str);
+    
+    let absolute_path = if path.is_absolute() {
+        path
+    } else {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+            .join(&path)
+    };
+    
+    tracing::info!("Reading file content: {:?}", absolute_path);
+    
+    // Check if file exists
+    if !absolute_path.exists() {
+        return Err(AppError::NotFound(format!("File not found: {}", absolute_path.display())));
+    }
+    
+    // Check if it's a file (not a directory)
+    if !absolute_path.is_file() {
+        return Err(AppError::BadRequest(format!("Path is not a file: {}", absolute_path.display())));
+    }
+    
+    // Read file content
+    match tokio::fs::read_to_string(&absolute_path).await {
+        Ok(content) => {
+            Ok(Json(serde_json::json!({
+                "success": true,
+                "path": absolute_path.display().to_string(),
+                "content": content,
+                "size": content.len()
+            })))
+        }
+        Err(e) => {
+            tracing::error!("Failed to read file {:?}: {}", absolute_path, e);
+            Err(AppError::Internal(format!("Failed to read file: {}", e)))
+        }
     }
 }
 

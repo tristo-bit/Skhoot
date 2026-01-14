@@ -3413,3 +3413,134 @@ The system prompt was completely rewritten to match the OpenAI Codex approach:
 - Terminal → TerminalView (existing)
 
 **Result**: Users can now access file explorer, workflow management, and AI settings through QuickAction buttons and dedicated panels.
+
+
+---
+
+## January 14, 2026
+
+### File Reference Feature (@mentions) - Complete ✅
+- **Feature**: Users can now reference files in chat messages using `@filename` syntax
+- **Implementation**: Full-stack feature with frontend UI, backend API, and file content loading
+- **Status**: ✅ Complete and ready for testing
+
+**Problem Solved**:
+- Users needed a way to reference file content in their chat messages
+- AI needed access to file content to answer questions about specific files
+- Manual copy-paste of file content was tedious and error-prone
+
+**Solution Implemented**:
+
+1. **Frontend - File Explorer Integration**
+   - Added "Add to chat" option to file context menu (three-dots dropdown)
+   - Positioned at top of menu with purple highlight for visibility
+   - Clicking "Add to chat" inserts `@filename` into chat textarea
+   - File path stored in `window.__chatFileReferences` Map for retrieval
+
+2. **Frontend - Chat Message Processing**
+   - Modified `ChatInterface.tsx` `handleSend` function to detect `@filename` patterns
+   - Regex pattern matching: `/@(\S+)/g` finds all file mentions
+   - Reads file content from backend API for each referenced file
+   - Appends file content to message before sending to AI
+   - Original message (without file content) displayed in chat history
+   - Works with both normal AI chat and Agent mode
+
+3. **Backend - File Read Endpoint**
+   - New endpoint: `GET /api/v1/files/read?path=<filepath>`
+   - Reads file content from disk using `tokio::fs::read_to_string`
+   - Returns JSON with file content, path, and size
+   - Handles absolute and relative paths (resolves from home directory)
+   - Error handling for missing files, directories, and read failures
+   - Cross-platform support (Windows, macOS, Linux)
+
+**File Content Format**:
+```
+User message: @config.json what does this do?
+
+AI receives:
+"@config.json what does this do?
+
+--- File: config.json (C:\Users\...\config.json) ---
+{
+  "setting1": "value1",
+  "setting2": "value2"
+}
+--- End of config.json ---"
+```
+
+**User Workflow**:
+1. Open File Explorer (Files button)
+2. Find desired file
+3. Click three dots (•••) → "Add to chat"
+4. `@filename` inserted into chat input
+5. Type message alongside file reference
+6. Send message
+7. AI receives message + file content
+
+**Technical Implementation**:
+
+**Frontend Changes**:
+- `components/panels/FileExplorerPanel.tsx`:
+  - Added "Add to chat" menu item with `MessageSquarePlus` icon
+  - Styled with `bg-purple-500/10 hover:bg-purple-500/20` for prominence
+  - Inserts `@filename` into textarea and stores path in global Map
+  
+- `components/chat/ChatInterface.tsx`:
+  - File reference detection using regex: `/@(\S+)/g`
+  - Async file content loading from backend
+  - Content appended with clear delimiters
+  - Error handling for failed reads
+  - Works in both AI and Agent modes
+
+- `components/chat/PromptArea.tsx`:
+  - Added `file-mention-input` CSS class for future styling
+
+**Backend Changes**:
+- `backend/src/api/search.rs`:
+  - Added `read_file_content` handler function
+  - Route: `.route("/files/read", get(read_file_content))`
+  - Path resolution from query parameter
+  - File existence and type validation
+  - Async file reading with tokio
+  - Comprehensive error responses
+
+**Files Modified**:
+- `components/panels/FileExplorerPanel.tsx` - UI integration
+- `components/chat/ChatInterface.tsx` - Message processing
+- `components/chat/PromptArea.tsx` - CSS class addition
+- `backend/src/api/search.rs` - File read endpoint
+- `src/index.css` - Styling placeholder
+
+**Files Created**:
+- `FILE_REFERENCE_FEATURE.md` - User documentation
+- `TASK_7_FILE_REFERENCES_COMPLETE.md` - Implementation summary
+- `test-file-reference.txt` - Test file for feature validation
+
+**Features**:
+- ✅ Multiple file references in one message
+- ✅ Works with AI chat and Agent mode
+- ✅ Automatic file content loading
+- ✅ Error handling for missing/unreadable files
+- ✅ Visual feedback in File Explorer
+- ✅ Cross-platform support
+- ✅ Clean file content formatting
+- ✅ No TypeScript errors
+
+**Future Enhancements**:
+- [ ] Autocomplete dropdown when typing `@` to select files
+- [ ] Visual highlighting of `@mentions` in textarea (colored text)
+- [ ] File content preview before sending
+- [ ] File content caching to avoid re-reading
+- [ ] Drag-and-drop files to add references
+- [ ] File size warnings for large files
+- [ ] Support for binary file metadata (images, PDFs)
+
+**Testing**:
+- Dev server running at http://localhost:5173/
+- Backend endpoint functional and tested
+- No compilation errors
+- Ready for end-to-end testing
+
+**Build Status**: ✅ All checks pass, no diagnostics
+
+**Impact**: Users can now seamlessly reference file content in their conversations, enabling the AI to provide context-aware answers about specific files without manual copy-paste.

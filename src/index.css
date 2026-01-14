@@ -824,6 +824,11 @@
     border: 2px solid var(--bg-primary);
     box-shadow: 0 2px 8px rgba(0,0,0,0.4);
   }
+
+  /* File mention styling - highlight @filename in chat input */
+  .file-mention-input {
+    /* Note: CSS can't style text content directly, but we add a class for potential JS highlighting */
+  }
 }
 
 

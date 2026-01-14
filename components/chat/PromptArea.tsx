@@ -262,7 +262,7 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
                 onKeyDown={handleTerminalKeyDown}
                 placeholder={placeholder}
                 disabled={disabled}
-                className="w-full bg-transparent border-none outline-none font-semibold placeholder:text-text-secondary placeholder:font-medium font-jakarta text-text-primary resize-none disabled:cursor-default"
+                className="w-full bg-transparent border-none outline-none font-semibold placeholder:text-text-secondary placeholder:font-medium font-jakarta text-text-primary resize-none disabled:cursor-default file-mention-input"
                 style={{
                   fontSize: 'var(--prompt-input-font)',
                   paddingTop: 'calc(var(--scale-space-1) * var(--spacing-scale))',

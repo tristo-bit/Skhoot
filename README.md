@@ -617,6 +617,20 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 ## 📝 Recent Updates
 
 <details>
+<summary><strong>Agent Mode File Reference Support</strong></summary>
+
+- **Bug Fix**: Agent mode now properly processes file references (`@filename`) in messages
+- **File Content Loading**: When using agent mode with file references:
+  - File contents are automatically loaded from backend via `/api/v1/files/read`
+  - Complete file contents appended to message before sending to agent
+  - Enables agent to access and analyze referenced files during tool execution
+  - Works seamlessly with agent's tool calling capabilities
+- **Consistent Behavior**: File references now work identically in both normal AI mode and agent mode
+- **Technical Details**: Changed from `messageText` to `processedMessage` in `agentChatService.executeWithTools()` call
+
+</details>
+
+<details>
 <summary><strong>File Operations Service</strong></summary>
 
 - **New File Operations Service**: Comprehensive file management API for common file operations (`services/fileOperations.ts`)
@@ -637,9 +651,22 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 </details>
 
 <details>
-<summary><strong>File Explorer Context Menu</strong></summary>
+<summary><strong>File Explorer Context Menu & File References</strong></summary>
 
 - **Rich Context Menu**: Right-click or use the "more" button on any file in the File Explorer panel for quick actions
+  - **Add to chat**: Insert file reference into chat input for AI context (e.g., `@config.json`)
+    - Simplified reference format: `@filename` (changed from `@file:filename` for cleaner syntax)
+    - Automatically focuses chat textarea and appends file reference
+    - Stores file path mapping in global registry for retrieval
+    - Triggers React input event for proper state synchronization
+    - **File Content Loading**: When you send a message with `@filename` references:
+      - Backend automatically reads the file content via `/api/v1/files/read` endpoint
+      - File contents are appended to your message in a structured format
+      - AI receives both your message and the complete file contents for context
+      - Works in both normal AI mode and agent mode
+      - Original message displayed in chat UI (without file contents for readability)
+      - Full message with file contents sent to AI/agent for processing
+    - Console logging for debugging: `[ChatInterface] Loaded file content for @filename`
   - **Open**: Launch file with default system application (Tauri shell.open → backend API → clipboard fallback)
   - **Open Folder**: Reveal and select file in system file explorer
   - **Copy Path**: Copy full file path to clipboard
@@ -652,6 +679,7 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
   - `/api/v1/files/delete` - Delete files
   - `/api/v1/files/info` - Get file properties
   - `/api/v1/files/compress` - Create ZIP archives
+  - `/api/v1/files/read` - Read file contents for AI context
 - **Graceful Fallbacks**: All actions provide helpful clipboard + instructions fallback when APIs unavailable
 - **Glassmorphic Design**: Context menu follows the embossed glassmorphic design system with smooth animations
 - **Smart Positioning**: Menu automatically adjusts position to stay within viewport bounds

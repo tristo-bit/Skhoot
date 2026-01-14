@@ -429,10 +429,53 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }, 100);
     }
 
+    // Process file references (@filename)
+    let processedMessage = messageText;
+    const fileRefMap = (window as any).__chatFileReferences as Map<string, string> | undefined;
+    
+    if (fileRefMap && fileRefMap.size > 0) {
+      // Find all @mentions in the message
+      const mentionRegex = /@(\S+)/g;
+      const mentions = Array.from(messageText.matchAll(mentionRegex));
+      
+      if (mentions.length > 0) {
+        const fileContents: string[] = [];
+        
+        for (const match of mentions) {
+          const fileName = match[1];
+          const filePath = fileRefMap.get(fileName);
+          
+          if (filePath) {
+            try {
+              // Read file content from backend
+              const response = await fetch(`http://localhost:3001/api/v1/files/read?path=${encodeURIComponent(filePath)}`);
+              if (response.ok) {
+                const data = await response.json();
+                const content = data.content || '';
+                fileContents.push(`\n\n--- File: ${fileName} (${filePath}) ---\n${content}\n--- End of ${fileName} ---`);
+                console.log(`[ChatInterface] Loaded file content for @${fileName}`);
+              } else {
+                console.warn(`[ChatInterface] Failed to read file: ${filePath}`);
+                fileContents.push(`\n\n[Note: Could not read file ${fileName} at ${filePath}]`);
+              }
+            } catch (error) {
+              console.error(`[ChatInterface] Error reading file ${filePath}:`, error);
+              fileContents.push(`\n\n[Note: Error reading file ${fileName}]`);
+            }
+          }
+        }
+        
+        // Append file contents to the message
+        if (fileContents.length > 0) {
+          processedMessage = messageText + fileContents.join('');
+        }
+      }
+    }
+
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: messageText,
+      content: messageText, // Display original message without file contents
       type: 'text',
       timestamp: new Date()
     };
@@ -486,7 +529,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         const toolResults: AgentToolResultData[] = [];
 
         const result = await agentChatService.executeWithTools(
-          messageText,
+          processedMessage, // Use processed message with file contents
           agentHistory,
           {
             sessionId: currentSessionId,
@@ -547,7 +590,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           content: m.content
         }));
 
-        const result = await aiService.chat(messageText, history, (status) => {
+        const result = await aiService.chat(processedMessage, history, (status) => { // Use processed message with file contents
           setSearchStatus(status);
           // Detect if AI is doing a file search and update searchType accordingly
           if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
