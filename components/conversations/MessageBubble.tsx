@@ -5,6 +5,7 @@ import { FileList } from './FileList';
 import { MessageList } from './MessageList';
 import { DiskUsage } from './DiskUsage';
 import { CleanupList } from './CleanupList';
+import { AgentAction } from './AgentAction';
 import { Button } from '../buttonFormat';
 import { ArrowRight } from 'lucide-react';
 
@@ -67,6 +68,32 @@ export const MessageBubble = memo<{ message: Message }>(({ message }) => {
           {message.type === 'cleanup' && message.data && (
             <CleanupList items={message.data} />
           )}
+
+          {/* Agent Actions - Tool Calls */}
+          {message.type === 'agent_action' && message.toolCalls && message.toolCalls.map((toolCall, index) => {
+            const result = message.toolResults?.find(r => r.toolCallId === toolCall.id);
+            return (
+              <AgentAction
+                key={toolCall.id || index}
+                toolCall={toolCall}
+                result={result}
+                isExecuting={!result}
+              />
+            );
+          })}
+
+          {/* Inline tool calls in regular messages */}
+          {message.toolCalls && message.type !== 'agent_action' && message.toolCalls.map((toolCall, index) => {
+            const result = message.toolResults?.find(r => r.toolCallId === toolCall.id);
+            return (
+              <AgentAction
+                key={toolCall.id || index}
+                toolCall={toolCall}
+                result={result}
+                isExecuting={!result}
+              />
+            );
+          })}
         </div>
       </div>
     );

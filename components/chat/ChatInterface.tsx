@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { COLORS, WELCOME_MESSAGES, QUICK_ACTIONS } from '../../src/constants';
-import { Message } from '../../types';
+import { Message, AgentToolCallData, AgentToolResultData } from '../../types';
 import { aiService, type AIMessage } from '../../services/aiService';
+import { agentService } from '../../services/agentService';
+import { agentChatService } from '../../services/agentChatService';
 import { activityLogger } from '../../services/activityLogger';
 import { nativeNotifications } from '../../services/nativeNotifications';
 import { MainArea } from '../main-area';
 import { PromptArea } from './PromptArea';
 import { TerminalView } from '../terminal';
 import { useVoiceRecording } from './hooks';
+import { useAgentLogTab } from '../../hooks';
 
 interface ChatInterfaceProps {
   chatId: string | null;
@@ -16,14 +19,18 @@ interface ChatInterfaceProps {
   onActiveModeChange?: (mode: string | null) => void;
   isTerminalOpen?: boolean;
   onToggleTerminal?: () => void;
+  /** Callback when agent mode changes */
+  onAgentModeChange?: (isAgentMode: boolean) => void;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
+  chatId,
   initialMessages, 
   onMessagesChange, 
   onActiveModeChange,
   isTerminalOpen = false,
   onToggleTerminal,
+  onAgentModeChange,
 }) => {
   // State
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -57,6 +64,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     editVoiceTranscript,
   } = useVoiceRecording(inputRef);
 
+  // Agent mode hook
+  const {
+    isAgentMode,
+    agentSessionId,
+    shouldShowAgentLog,
+    isCreatingSession: isAgentLoading,
+    error: agentError,
+    toggleAgentMode,
+    closeAgentSession,
+  } = useAgentLogTab({
+    conversationId: chatId,
+    onAgentModeChange: (isAgent) => {
+      onAgentModeChange?.(isAgent);
+      // Auto-open terminal when agent mode is enabled
+      if (isAgent && !isTerminalOpen && onToggleTerminal) {
+        onToggleTerminal();
+      }
+    },
+  });
+
   // Computed values
   const activeColor = useMemo(() => {
     const action = QUICK_ACTIONS.find(a => a.id === activeMode);
@@ -70,6 +97,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     onActiveModeChange?.(activeMode);
   }, [activeMode, onActiveModeChange]);
+
+  // Keyboard shortcut for agent mode toggle (Ctrl+Shift+A)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        toggleAgentMode();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleAgentMode]);
 
   // Notify parent when messages change
   useEffect(() => {
@@ -385,12 +425,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       timestamp: new Date()
     };
 
-    // Convert history to AIMessage format
-    const history: AIMessage[] = messages.map(m => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content
-    }));
-
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
@@ -398,46 +432,126 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setSearchType(getSearchType(messageText));
 
     try {
-      const result = await aiService.chat(messageText, history, (status) => {
-        setSearchStatus(status);
-        // Detect if AI is doing a file search and update searchType accordingly
-        if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
-          setSearchType(prev => prev || 'files');
-        }
-      });
-      setSearchType(null);
-      setSearchStatus('');
-      
-      const assistantMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant' as const,
-        content: (result.text || 'I received your message.').trim(),
-        type: (result.type as Message['type']) || 'text',
-        data: result.data || undefined,
-        searchInfo: result.searchInfo || undefined,
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, assistantMsg]);
-      
-      // Send success notification
-      await nativeNotifications.success(
-        'Response Received',
-        'AI assistant has responded to your message',
-        {
-          tag: 'chat-response',
-          data: { messageId: assistantMsg.id, type: result.type }
-        }
-      );
-      
-      // Log AI chat activity (only for non-search responses, searches are logged in gemini service)
-      if (result.type === 'text') {
+      // Route based on agent mode
+      if (isAgentMode && agentSessionId) {
+        // Agent mode: use agentChatService with tool execution loop
+        setSearchStatus('Connecting to agent...');
+        
+        // Convert history to agent chat format
+        const agentHistory = messages.map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          toolCalls: m.toolCalls,
+          toolResults: m.toolResults,
+        }));
+
+        // Track tool calls for this message
+        const toolCalls: AgentToolCallData[] = [];
+        const toolResults: AgentToolResultData[] = [];
+
+        const result = await agentChatService.executeWithTools(
+          messageText,
+          agentHistory,
+          {
+            sessionId: agentSessionId,
+            onToolStart: (toolCall) => {
+              toolCalls.push(toolCall);
+              setSearchStatus(`Executing ${toolCall.name}...`);
+            },
+            onToolComplete: (result) => {
+              toolResults.push(result);
+              setSearchStatus(result.success ? 'Tool completed' : 'Tool failed');
+            },
+            onStatusUpdate: (status) => {
+              setSearchStatus(status);
+            },
+          }
+        );
+
+        setSearchType(null);
+        setSearchStatus('');
+
+        // Create assistant message with tool calls and results
+        const assistantMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant' as const,
+          content: result.content || 'Task completed.',
+          type: toolCalls.length > 0 ? 'agent_action' : 'text',
+          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+          toolResults: toolResults.length > 0 ? toolResults : undefined,
+          timestamp: new Date()
+        };
+
+        setMessages(prev => [...prev, assistantMsg]);
+
+        // Log agent activity
         activityLogger.log(
-          'AI Chat',
+          'Agent',
           messageText.slice(0, 50) + (messageText.length > 50 ? '...' : ''),
-          'Response received',
+          `Completed with ${toolCalls.length} tool calls`,
           'success'
         );
+
+        // Send success notification
+        await nativeNotifications.success(
+          'Agent Response',
+          toolCalls.length > 0 
+            ? `Executed ${toolCalls.length} tool(s)` 
+            : 'Agent has responded',
+          {
+            tag: 'agent-response',
+            data: { messageId: assistantMsg.id, toolCount: toolCalls.length }
+          }
+        );
+      } else {
+        // Normal mode: send to AI service
+        // Convert history to AIMessage format
+        const history: AIMessage[] = messages.map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content
+        }));
+
+        const result = await aiService.chat(messageText, history, (status) => {
+          setSearchStatus(status);
+          // Detect if AI is doing a file search and update searchType accordingly
+          if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
+            setSearchType(prev => prev || 'files');
+          }
+        });
+        setSearchType(null);
+        setSearchStatus('');
+        
+        const assistantMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant' as const,
+          content: (result.text || 'I received your message.').trim(),
+          type: (result.type as Message['type']) || 'text',
+          data: result.data || undefined,
+          searchInfo: result.searchInfo || undefined,
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, assistantMsg]);
+        
+        // Send success notification
+        await nativeNotifications.success(
+          'Response Received',
+          'AI assistant has responded to your message',
+          {
+            tag: 'chat-response',
+            data: { messageId: assistantMsg.id, type: result.type }
+          }
+        );
+        
+        // Log AI chat activity (only for non-search responses, searches are logged in gemini service)
+        if (result.type === 'text') {
+          activityLogger.log(
+            'AI Chat',
+            messageText.slice(0, 50) + (messageText.length > 50 ? '...' : ''),
+            'Response received',
+            'success'
+          );
+        }
       }
     } catch (error) {
       setSearchType(null);
@@ -447,7 +561,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // Send error notification
       await nativeNotifications.error(
         'Connection Failed',
-        `Unable to reach AI service: ${errorMessage}`,
+        `Unable to reach ${isAgentMode ? 'agent' : 'AI'} service: ${errorMessage}`,
         {
           tag: 'chat-error',
           data: { error: errorMessage, retry: true }
@@ -456,7 +570,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       // Log failed chat
       activityLogger.log(
-        'AI Chat',
+        isAgentMode ? 'Agent' : 'AI Chat',
         messageText.slice(0, 50) + (messageText.length > 50 ? '...' : ''),
         'Error: ' + errorMessage.slice(0, 30),
         'error'
@@ -465,14 +579,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `Sorry, I encountered an error: ${errorMessage}. Please check your API key configuration.`,
+        content: `Sorry, I encountered an error: ${errorMessage}. ${isAgentMode ? 'Check the Agent Log for details.' : 'Please check your API key configuration.'}`,
         type: 'text',
         timestamp: new Date()
       }]);
     } finally {
       setIsLoading(false);
     }
-  }, [input, voiceTranscript, isLoading, messages, stopRecording, discardVoice, isEmptyStateVisible]);
+  }, [input, voiceTranscript, isLoading, messages, stopRecording, discardVoice, isEmptyStateVisible, isAgentMode, agentSessionId]);
 
   const handleQuickAction = useCallback((mode: string, _placeholder: string) => {
     if (activeMode === mode) {
@@ -526,6 +640,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           // Store the send function to be called from PromptArea
           (window as any).__terminalSendCommand = sendFn;
         }}
+        autoCreateAgentLog={shouldShowAgentLog ? agentSessionId : null}
+        onAgentLogCreated={(tabId) => {
+          console.log('[ChatInterface] Agent Log tab created:', tabId);
+        }}
+        onAgentLogClosed={() => {
+          console.log('[ChatInterface] Agent Log tab closed');
+        }}
       />
       
       <PromptArea
@@ -545,6 +666,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onQuickAction={handleQuickAction}
         isTerminalOpen={isTerminalOpen}
         onToggleTerminal={onToggleTerminal}
+        isAgentMode={isAgentMode}
+        onToggleAgentMode={toggleAgentMode}
+        isAgentLoading={isAgentLoading}
       />
     </div>
   );

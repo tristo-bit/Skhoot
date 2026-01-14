@@ -1,5 +1,5 @@
 import React, { forwardRef, useRef, useEffect, useState } from 'react';
-import { Search, Bot, HardDrive, Trash2, Terminal } from 'lucide-react';
+import { Search, Bot, HardDrive, Trash2, Terminal, Cpu } from 'lucide-react';
 import { QUICK_ACTIONS } from '../../src/constants';
 import SynthesisVisualizer from '../ui/SynthesisVisualizer';
 import { useTheme } from '../../src/contexts/ThemeContext';
@@ -33,6 +33,12 @@ interface PromptAreaProps {
   disabled?: boolean;
   isTerminalOpen?: boolean;
   onToggleTerminal?: () => void;
+  /** Whether agent mode is enabled */
+  isAgentMode?: boolean;
+  /** Callback to toggle agent mode */
+  onToggleAgentMode?: () => void;
+  /** Whether agent session is being created */
+  isAgentLoading?: boolean;
 }
 
 export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
@@ -51,6 +57,9 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   disabled = false,
   isTerminalOpen = false,
   onToggleTerminal,
+  isAgentMode = false,
+  onToggleAgentMode,
+  isAgentLoading = false,
 }, ref) => {
   const { resolvedTheme } = useTheme();
   const { illumination } = useSettings();
@@ -60,9 +69,11 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   const showQuickActions = !isRecording && !hasPendingVoiceMessage && !isTerminalOpen;
   const placeholder = isTerminalOpen
     ? "Type command and press Enter..."
-    : hasPendingVoiceMessage 
-      ? "Send your message?" 
-      : "Skhoot is listening...";
+    : isAgentMode
+      ? "Ask the agent to help with files, commands..."
+      : hasPendingVoiceMessage 
+        ? "Send your message?" 
+        : "Skhoot is listening...";
   
   // Handle terminal command sending
   const handleTerminalKeyDown = (e: React.KeyboardEvent) => {
@@ -234,6 +245,35 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
               aria-label="Toggle Terminal"
             >
               <Terminal size={16} />
+            </button>
+          )}
+          
+          {/* Agent Mode Toggle Button */}
+          {onToggleAgentMode && (
+            <button
+              onClick={onToggleAgentMode}
+              disabled={isAgentLoading}
+              className="flex-shrink-0 transition-all duration-300 ease-out hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                padding: 'calc(10px * var(--component-scale) * var(--scale))',
+                borderRadius: 'calc(12px * var(--component-scale) * var(--scale))',
+                marginLeft: onToggleTerminal ? '0' : 'calc(var(--scale-space-1) * var(--spacing-scale))',
+                background: isAgentMode 
+                  ? 'rgba(16, 185, 129, 0.15)'
+                  : 'rgba(255, 255, 255, 0.05)',
+                border: isAgentMode
+                  ? '1px solid rgba(16, 185, 129, 0.3)'
+                  : '1px solid rgba(255, 255, 255, 0.1)',
+                color: isAgentMode ? '#10b981' : 'var(--text-secondary)',
+              }}
+              title={isAgentMode ? "Disable Agent Mode (Ctrl+Shift+A)" : "Enable Agent Mode (Ctrl+Shift+A)"}
+              aria-label={isAgentMode ? "Disable Agent Mode" : "Enable Agent Mode"}
+            >
+              {isAgentLoading ? (
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Cpu size={16} />
+              )}
             </button>
           )}
           

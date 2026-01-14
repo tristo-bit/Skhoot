@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Terminal, X, Plus, Copy, Trash2, GripHorizontal } from 'lucide-react';
+import { Terminal, X, Plus, Copy, Trash2, GripHorizontal, Bot } from 'lucide-react';
 import { terminalService } from '../../services/terminalService';
+import { agentService } from '../../services/agentService';
+import { AgentLogTab } from './AgentLogTab';
 
 interface TerminalTab {
   id: string;
   title: string;
-  type: 'shell' | 'codex' | 'skhoot-log';
+  type: 'shell' | 'codex' | 'skhoot-log' | 'agent-log';
   sessionId: string;
 }
 
@@ -13,6 +15,12 @@ interface TerminalViewProps {
   isOpen: boolean;
   onClose: () => void;
   onSendCommand: (sendFn: (command: string) => void) => void;
+  /** Auto-create an agent log tab with this session ID */
+  autoCreateAgentLog?: string | null;
+  /** Callback when agent log tab is created */
+  onAgentLogCreated?: (tabId: string) => void;
+  /** Callback when agent log tab is closed */
+  onAgentLogClosed?: () => void;
 }
 
 const TERMINAL_HEIGHT_KEY = 'skhoot-terminal-height';
@@ -20,7 +28,14 @@ const DEFAULT_HEIGHT = 250;
 const MIN_HEIGHT = 150;
 const MAX_HEIGHT = 600;
 
-export const TerminalView: React.FC<TerminalViewProps> = ({ isOpen, onClose, onSendCommand }) => {
+export const TerminalView: React.FC<TerminalViewProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSendCommand,
+  autoCreateAgentLog,
+  onAgentLogCreated,
+  onAgentLogClosed,
+}) => {
   const [tabs, setTabs] = useState<TerminalTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const terminalRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -75,7 +90,11 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ isOpen, onClose, onS
   useEffect(() => {
     return () => {
       tabs.forEach(tab => {
-        terminalService.closeSession(tab.sessionId).catch(console.error);
+        if (tab.type === 'agent-log') {
+          agentService.closeSession(tab.sessionId).catch(console.error);
+        } else {
+          terminalService.closeSession(tab.sessionId).catch(console.error);
+        }
       });
     };
   }, [tabs]);
@@ -127,7 +146,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ isOpen, onClose, onS
     };
   }, [isResizing, height]);
 
-  const handleCreateTab = useCallback(async (type: 'shell' | 'codex' | 'skhoot-log') => {
+  const handleCreateTab = useCallback(async (type: 'shell' | 'codex' | 'skhoot-log' | 'agent-log') => {
     if (isCreatingTab) {
       console.log('[TerminalView] Already creating a tab, skipping...');
       return;
@@ -141,12 +160,30 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ isOpen, onClose, onS
     }, 10000);
     
     try {
-      const sessionId = await terminalService.createSession(type);
+      let sessionId: string;
+      
+      if (type === 'agent-log') {
+        // Create agent session
+        const agentSessionId = `agent-${Date.now()}`;
+        await agentService.createSession(agentSessionId);
+        sessionId = agentSessionId;
+      } else {
+        // Create terminal session
+        sessionId = await terminalService.createSession(type);
+      }
+      
       clearTimeout(timeoutId);
+      
+      const titles: Record<string, string> = {
+        'shell': 'Shell',
+        'codex': 'Codex',
+        'skhoot-log': 'Skhoot Log',
+        'agent-log': 'Agent Log',
+      };
       
       const newTab: TerminalTab = {
         id: `tab-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-        title: type === 'shell' ? 'Shell' : type === 'codex' ? 'Codex' : 'Skhoot Log',
+        title: titles[type] || 'Terminal',
         type,
         sessionId,
       };
@@ -167,7 +204,12 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ isOpen, onClose, onS
     if (!tab) return;
 
     try {
-      await terminalService.closeSession(tab.sessionId);
+      if (tab.type === 'agent-log') {
+        await agentService.closeSession(tab.sessionId);
+        onAgentLogClosed?.();
+      } else {
+        await terminalService.closeSession(tab.sessionId);
+      }
       setTabs(prev => prev.filter(t => t.id !== tabId));
       
       if (activeTabId === tabId) {
@@ -181,7 +223,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ isOpen, onClose, onS
     } catch (error) {
       console.error('Failed to close terminal tab:', error);
     }
-  }, [tabs, activeTabId, onClose]);
+  }, [tabs, activeTabId, onClose, onAgentLogClosed]);
 
   const handleCopyOutput = useCallback((sessionId: string) => {
     const output = terminalOutputs.get(sessionId)?.join('\n') || '';
@@ -198,7 +240,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ isOpen, onClose, onS
 
   // Create initial shell tab when component mounts
   useEffect(() => {
-    if (isOpen && tabs.length === 0 && !isCreatingInitialTab.current) {
+    if (isOpen && tabs.length === 0 && !isCreatingInitialTab.current && !autoCreateAgentLog) {
       isCreatingInitialTab.current = true;
       handleCreateTab('shell').finally(() => {
         setTimeout(() => {
@@ -206,7 +248,54 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ isOpen, onClose, onS
         }, 1000);
       });
     }
-  }, [isOpen, tabs.length, handleCreateTab]);
+  }, [isOpen, tabs.length, handleCreateTab, autoCreateAgentLog]);
+
+  // Auto-create agent log tab when autoCreateAgentLog is provided
+  const autoCreateAgentLogRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!autoCreateAgentLog || !isOpen) return;
+    
+    // Check if we already have an agent-log tab for this session
+    const existingTab = tabs.find(t => t.type === 'agent-log' && t.sessionId === autoCreateAgentLog);
+    if (existingTab) {
+      // Just activate it
+      setActiveTabId(existingTab.id);
+      return;
+    }
+    
+    // Check if we're already creating this session
+    if (autoCreateAgentLogRef.current === autoCreateAgentLog) return;
+    autoCreateAgentLogRef.current = autoCreateAgentLog;
+    
+    // Create the agent log tab with the provided session ID
+    const createAgentLogTab = async () => {
+      try {
+        // Check if session already exists in agentService
+        const hasSession = agentService.hasSession(autoCreateAgentLog);
+        
+        if (!hasSession) {
+          // Session doesn't exist, create it
+          await agentService.createSession(autoCreateAgentLog);
+        }
+        
+        const newTab: TerminalTab = {
+          id: `tab-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+          title: 'Agent Log',
+          type: 'agent-log',
+          sessionId: autoCreateAgentLog,
+        };
+        
+        setTabs(prev => [...prev, newTab]);
+        setActiveTabId(newTab.id);
+        onAgentLogCreated?.(newTab.id);
+      } catch (error) {
+        console.error('[TerminalView] Failed to auto-create agent log tab:', error);
+        autoCreateAgentLogRef.current = null;
+      }
+    };
+    
+    createAgentLogTab();
+  }, [autoCreateAgentLog, isOpen, tabs, onAgentLogCreated]);
 
   const activeTab = tabs.find(t => t.id === activeTabId);
   const activeOutput = activeTab ? terminalOutputs.get(activeTab.sessionId) || [] : [];
@@ -276,7 +365,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ isOpen, onClose, onS
                 }}
                 onClick={() => setActiveTabId(tab.id)}
               >
-                <Terminal size={14} />
+                {tab.type === 'agent-log' ? <Bot size={14} /> : <Terminal size={14} />}
                 <span className="font-medium font-jakarta">{tab.title}</span>
                 <button
                   onClick={(e) => {
@@ -297,6 +386,15 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ isOpen, onClose, onS
               title="New Terminal"
             >
               <Plus size={16} className={isCreatingTab ? 'animate-spin' : ''} />
+            </button>
+            <button
+              onClick={() => handleCreateTab('agent-log')}
+              disabled={isCreatingTab}
+              className={`p-1.5 rounded-xl transition-all hover:bg-purple-500/10 hover:text-purple-500 ${isCreatingTab ? 'opacity-50 cursor-wait' : ''}`}
+              style={{ color: 'var(--text-secondary)' }}
+              title="New Agent Log"
+            >
+              <Bot size={16} />
             </button>
           </div>
 
@@ -336,29 +434,36 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ isOpen, onClose, onS
         {/* Terminal Output */}
         <div className="overflow-hidden" style={{ height: 'calc(100% - 72px)' }}>
           {activeTab ? (
-            <div 
-              ref={(el) => {
-                if (el) terminalRefs.current.set(activeTab.sessionId, el);
-              }}
-              className="h-full overflow-y-auto p-4 font-mono text-sm"
-              style={{ 
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(139, 92, 246, 0.3) transparent',
-                color: 'var(--text-primary)',
-              }}
-            >
-              {activeOutput.length === 0 ? (
-                <div style={{ color: 'var(--text-secondary)' }}>
-                  <span className="text-purple-500">&gt;</span> waiting for your input
-                </div>
-              ) : (
-                activeOutput.map((line, index) => (
-                  <div key={index} className="whitespace-pre-wrap break-words leading-relaxed">
-                    {line}
+            activeTab.type === 'agent-log' ? (
+              <AgentLogTab 
+                sessionId={activeTab.sessionId} 
+                isActive={activeTabId === activeTab.id}
+              />
+            ) : (
+              <div 
+                ref={(el) => {
+                  if (el) terminalRefs.current.set(activeTab.sessionId, el);
+                }}
+                className="h-full overflow-y-auto p-4 font-mono text-sm"
+                style={{ 
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'rgba(139, 92, 246, 0.3) transparent',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                {activeOutput.length === 0 ? (
+                  <div style={{ color: 'var(--text-secondary)' }}>
+                    <span className="text-purple-500">&gt;</span> waiting for your input
                   </div>
-                ))
-              )}
-            </div>
+                ) : (
+                  activeOutput.map((line, index) => (
+                    <div key={index} className="whitespace-pre-wrap break-words leading-relaxed">
+                      {line}
+                    </div>
+                  ))
+                )}
+              </div>
+            )
           ) : (
             <div className="h-full flex items-center justify-center" style={{ color: 'var(--text-secondary)' }}>
               <div className="text-center">

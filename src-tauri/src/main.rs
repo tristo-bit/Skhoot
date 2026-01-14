@@ -4,6 +4,7 @@
 
 mod terminal;
 mod api_keys;
+mod agent;
 
 use tauri::Manager;
 use std::process::{Command, Stdio};
@@ -155,6 +156,9 @@ fn main() {
       // Initialize terminal state
       app.manage(terminal::TerminalState::default());
       
+      // Initialize agent state
+      app.manage(agent::AgentTauriState::default());
+      
       #[cfg(desktop)]
       {
         // Use an empty app-wide menu to avoid showing a menubar.
@@ -213,6 +217,16 @@ fn main() {
         api_keys::set_active_provider,
         api_keys::test_api_key,
         api_keys::fetch_provider_models,
+        agent::create_agent_session,
+        agent::send_agent_message,
+        agent::get_agent_status,
+        agent::execute_agent_tool,
+        agent::cancel_agent_action,
+        agent::close_agent_session,
+        agent::list_agent_sessions,
+        agent::get_agent_messages,
+        agent::add_assistant_message,
+        agent::get_agent_config,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

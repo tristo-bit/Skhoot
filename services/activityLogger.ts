@@ -9,6 +9,7 @@ export type ActivityAction =
   | 'Cleanup' 
   | 'Disk Analysis'
   | 'AI Chat'
+  | 'Agent'
   | 'Voice Input'
   | 'Settings Change';
 

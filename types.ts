@@ -3,10 +3,29 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  type: 'text' | 'file_list' | 'message_list' | 'analysis' | 'disk_usage' | 'cleanup';
+  type: 'text' | 'file_list' | 'message_list' | 'analysis' | 'disk_usage' | 'cleanup' | 'agent_action';
   data?: any;
   searchInfo?: any; // Enhanced search information from backend
   timestamp: Date;
+  // Agent-specific fields
+  toolCalls?: AgentToolCallData[];
+  toolResults?: AgentToolResultData[];
+}
+
+// Agent tool call data for messages
+export interface AgentToolCallData {
+  id: string;
+  name: 'shell' | 'read_file' | 'write_file' | 'list_directory' | 'search_files';
+  arguments: Record<string, any>;
+}
+
+// Agent tool result data for messages
+export interface AgentToolResultData {
+  toolCallId: string;
+  success: boolean;
+  output: string;
+  error?: string;
+  durationMs?: number;
 }
 
 export interface Chat {
