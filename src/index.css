@@ -867,3 +867,35 @@
 .animate-slide-up {
   animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Custom Select Dropdown Styling for Dark Mode */
+select.select-themed {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+.dark select.select-themed {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a0a0a0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+
+select.select-themed option {
+  background-color: white;
+  color: #2D3436;
+  padding: 8px 12px;
+}
+
+.dark select.select-themed option {
+  background-color: #1e1e1e;
+  color: #e5e5e5;
+}
+
+select.select-themed:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: var(--accent);
+}

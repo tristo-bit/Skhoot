@@ -3861,3 +3861,119 @@ AI receives:
 5. Use mic button in chat for local STT
 
 **Build Status**: ✅ Frontend compiles with no diagnostics
+
+
+---
+
+## January 14, 2026
+
+### Linux WebKitGTK MediaStream/WebRTC Fix 🔧
+- **Issue**: Microphone not working on Linux - `getUserMedia`/`enumerateDevices` behave like "no mic found"
+- **Root Cause**: Tauri uses WebKitGTK as the webview on Linux, which has MediaStream/WebRTC disabled by default. Additionally, user-media permission requests are denied unless the embedder explicitly handles them.
+
+**Solution**: Enable MediaStream/WebRTC and auto-allow mic permission requests in the Linux webview.
+
+**Changes Made**:
+
+1. **`src-tauri/Cargo.toml`**:
+   - Added Linux-only dependency: `webkit2gtk = "2.0"`
+   ```toml
+   [target.'cfg(target_os = "linux")'.dependencies]
+   webkit2gtk = "2.0"
+   ```
+
+2. **`src-tauri/src/main.rs`**:
+   - Added Linux-specific webview configuration in the setup hook
+   - Imports: `webkit2gtk::{WebViewExt, SettingsExt, PermissionRequestExt}`
+   - Enables `set_enable_media_stream(true)` and `set_enable_webrtc(true)`
+   - Auto-allows `UserMediaPermissionRequest` for microphone access
+
+**Technical Details**:
+- WebKitGTK's MediaStream/WebRTC support is off by default
+- Permission requests are denied if not handled by the embedder
+- Tauri exposes native webview via `with_webview()` for platform-specific configuration
+- `enable-webrtc` implies MediaStream support (both set for clarity)
+- Requires WebKitGTK ≥ 2.38 for the `enable-webrtc` setting
+
+**Code Added**:
+```rust
+#[cfg(target_os = "linux")]
+{
+  use webkit2gtk::{WebViewExt, SettingsExt, PermissionRequestExt};
+  
+  window.with_webview(|webview| {
+    let wv = webview.inner();
+    
+    if let Some(settings) = wv.settings() {
+      settings.set_enable_media_stream(true);
+      settings.set_enable_webrtc(true);
+    }
+    
+    wv.connect_permission_request(|_, req| {
+      if req.is::<webkit2gtk::UserMediaPermissionRequest>() {
+        req.allow();
+        return true;
+      }
+      false
+    });
+  }).ok();
+}
+```
+
+**Build Status**: ✅ Compiles successfully (only unrelated warning about unused `MasterPty` import in backend)
+
+**References**:
+- [WebKitGTK Settings](https://webkitgtk.org/reference/webkit2gtk/2.36.5/WebKitSettings.html)
+- [WebKitGTK UserMediaPermissionRequest](https://webkitgtk.org/reference/webkit2gtk/2.32.0/WebKitUserMediaPermissionRequest.html)
+- [Tauri with_webview](https://docs.rs/tauri/latest/tauri/webview/struct.Webview.html)
+
+---
+
+### Audio Settings Panel Fixes ✅
+- **Issue 1**: Input device selection not persisting - always reverts to first device when closing settings
+- **Issue 2**: Dropdown selectors have white background in dark mode, not theme-friendly
+
+**Root Causes**:
+1. When permission wasn't explicitly granted but devices were enumerable (cached permission), the code path didn't restore saved device selection from localStorage
+2. Native `<select>` elements don't fully respect CSS styling for dropdown options in most browsers
+
+**Fixes Applied**:
+
+1. **Device Selection Persistence** (`components/settings/SoundPanel.tsx`):
+   - Added device selection restoration in the `else` branch (lines 93-130)
+   - Now properly checks `savedSettings.selectedInputDevice` and `savedSettings.selectedOutputDevice`
+   - Validates saved device still exists before selecting it
+
+2. **Dark Mode Dropdown Styling** (`src/index.css`):
+   - Added new `.select-themed` CSS class with:
+     - Custom dropdown arrow SVG (adapts to light/dark)
+     - `color-scheme: dark` for native dark mode support
+     - Proper option background colors (`#1e1e1e` in dark mode)
+     - Consistent text colors
+
+3. **Updated All Select Elements** (`components/settings/SoundPanel.tsx`):
+   - Input Device selector: Added `select-themed` class, `bg-[#1e1e1e]` for dark
+   - Output Device selector: Same treatment
+   - STT Provider selector: Same treatment
+   - Whisper Model selector: Same treatment
+   - Local STT URL input: Fixed dark background color
+
+**CSS Added**:
+```css
+select.select-themed {
+  appearance: none;
+  background-image: url("data:image/svg+xml,..."); /* Custom arrow */
+  cursor: pointer;
+}
+
+.dark select.select-themed {
+  color-scheme: dark;
+}
+
+.dark select.select-themed option {
+  background-color: #1e1e1e;
+  color: #e5e5e5;
+}
+```
+
+**Build Status**: ✅ No diagnostics
