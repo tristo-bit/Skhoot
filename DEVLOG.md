@@ -2,6 +2,23 @@
 
 ## January 14, 2026
 
+### Linux AppImage CSS Fix - Removed Broken CDN References ✅
+- **Issue**: CSS completely broken on Linux distributed AppImage version
+- **Root Cause**: `index.html` had two problematic references:
+  1. `<script src="https://cdn.tailwindcss.com">` - CDN won't work offline in desktop app
+  2. `<link rel="stylesheet" href="/index.css">` - File doesn't exist at that path (Vite warning: `/index.css doesn't exist at build time`)
+- **Actual CSS Path**: `src/index.css` imported via `index.tsx` with `import './src/index.css'`
+- **How Tailwind Works**: Vite/PostCSS processes Tailwind directives (`@tailwind base/components/utilities`) at build time, bundling all CSS into the output
+
+**Fix Applied to `index.html`**:
+- ❌ Removed `<script src="https://cdn.tailwindcss.com">` (CDN not needed, breaks offline)
+- ❌ Removed `<link rel="stylesheet" href="/index.css">` (non-existent file)
+- ✅ CSS now properly bundled by Vite from `src/index.css` via `index.tsx` import
+
+**Status**: Ready for rebuild - push changes and re-run GitHub Actions
+
+---
+
 ### Agent Mode UI Integration - File Tools Now Use Existing UI Components ✅
 - **Issue**: When using agent mode, file-related tools (`list_directory`, `search_files`, `read_file`) displayed raw text output instead of using the existing beautiful UI components
 - **Root Cause**: The `AgentAction` component was rendering all tool outputs as plain text in a `<pre>` block, not leveraging the existing `FileList`, `FileItem` UI components that were already built for the non-agent search mode
