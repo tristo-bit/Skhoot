@@ -488,7 +488,7 @@ const DiskTab: React.FC = () => {
         <div className="h-2 w-full rounded-full overflow-hidden bg-white/10">
           <div className="h-full rounded-full transition-all" style={{ 
             width: `${disk.percent}%`,
-            backgroundColor: disk.percent > 80 ? '#ef4444' : disk.percent > 60 ? '#f59e0b' : '#8b5cf6'
+            backgroundColor: disk.percent > 85 ? '#ef4444' : disk.percent > 60 ? '#f59e0b' : '#22c55e'
           }} />
         </div>
         <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-secondary)' }}>{disk.used} used ({disk.percent}%)</p>

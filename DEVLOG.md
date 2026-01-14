@@ -2,6 +2,53 @@
 
 ## January 14, 2026
 
+### Real Disk Information Display in FilesPanel ✅
+- **Issue**: FilesPanel was showing mock/hardcoded disk data with incorrect purple color scheme
+- **Requirements**: 
+  1. Show REAL system disks (not mock data)
+  2. Use proper colors: Green (< 60%), Yellow/Orange (60-85%), Red (> 85%)
+  3. Calculate correct percentages based on actual disk usage
+
+- **Solution**: Created full-stack disk information system with Tauri backend integration
+
+**New Files Created**:
+1. **`services/diskService.ts`** - Frontend disk service
+   - `DiskInfo` interface for type safety
+   - `formatBytes()` - Human-readable size formatting
+   - `getDiskColor()` - Color based on usage thresholds
+   - `getDiskStatus()` - Status text (Healthy/Getting Full/Almost Full/Critical)
+   - `getSystemDisks()` - Async function with fallback chain: Tauri API → Backend API → Browser Storage API → Placeholder
+
+2. **`src-tauri/src/disk_info.rs`** - Rust backend module
+   - `DiskInfo` struct with serde serialization
+   - `get_system_disks` Tauri command
+   - Platform-specific implementations:
+     - **Windows**: WMIC + PowerShell fallback
+     - **macOS**: `df -h` with APFS detection
+     - **Linux**: `df -B1` with virtual filesystem filtering
+
+**Modified Files**:
+1. **`components/panels/FilesPanel.tsx`**
+   - Rewrote `DisksTab` component to use real disk data
+   - Added loading state with spinner
+   - Added error handling with retry button
+   - Added refresh button for manual updates
+   - Status badges with dynamic colors matching disk health
+   - Icon colors now match disk status
+
+2. **`src-tauri/src/main.rs`**
+   - Added `mod disk_info;` module declaration
+   - Registered `disk_info::get_system_disks` in invoke_handler
+
+**Color Scheme**:
+- 🟢 Green (`#22c55e`): < 60% used - Healthy
+- 🟠 Orange (`#f59e0b`): 60-85% used - Warning
+- 🔴 Red (`#ef4444`): > 85% used - Critical
+
+**Build Status**: ✅ Rust compiles successfully
+
+---
+
 ### Z-Index Priority Fix for Header Panels ✅
 - **Issue**: Action button panels (Terminal, FileExplorer, Workflows) were appearing ABOVE header panels (Settings, UserPanel, ActivityPanel, Sidebar) when both were open
 - **Root Cause**: Header panels were rendered inside `app-glass` container which has `z-10`, creating a stacking context that limited their effective z-index. Action button panels were rendered via `createPortal` directly to `document.body`, escaping this stacking context.

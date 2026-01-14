@@ -100,7 +100,7 @@ const DisksTab = memo(() => {
               className="h-full rounded-full transition-all duration-500"
               style={{ 
                 width: `${disk.percent}%`,
-                backgroundColor: disk.percent > 80 ? '#ef4444' : disk.percent > 60 ? '#f59e0b' : 'var(--accent)',
+                backgroundColor: disk.percent > 85 ? '#ef4444' : disk.percent > 60 ? '#f59e0b' : '#22c55e',
               }}
             />
           </div>

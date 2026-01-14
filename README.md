@@ -233,6 +233,7 @@ skhoot/
 │   └── SettingsPanel.tsx
 ├── services/            # API and data services
 │   ├── apiKeyService.ts        # Secure API key management
+│   ├── diskService.ts          # System disk information
 │   ├── notificationService.ts  # Native desktop notifications
 │   ├── audioService.ts         # Audio management
 │   ├── backendApi.ts          # Backend communication
@@ -419,6 +420,68 @@ const providerInfo = apiKeyService.getProviderInfo('openai');
 - **Anthropic**: Claude models with API key validation
 - **Google AI**: Gemini and other Google AI models
 - **Custom**: Support for custom API endpoints
+
+</details>
+
+<details>
+<summary><strong>Disk Service API</strong></summary>
+
+```typescript
+import { diskService, getSystemDisks, formatBytes, getDiskColor, getDiskStatus } from './services/diskService';
+import type { DiskInfo } from './services/diskService';
+
+// Get all system disks with usage information
+const disks: DiskInfo[] = await getSystemDisks();
+// Returns array of disk info objects:
+// {
+//   name: 'System Drive',
+//   mountPoint: 'C:',
+//   totalBytes: 500000000000,
+//   usedBytes: 320000000000,
+//   freeBytes: 180000000000,
+//   percentUsed: 64,
+//   fileSystem: 'NTFS',
+//   isRemovable: false
+// }
+
+// Format bytes to human-readable string
+formatBytes(1024);           // '1 KB'
+formatBytes(1073741824);     // '1 GB'
+formatBytes(1099511627776);  // '1 TB'
+
+// Get color based on disk usage (for UI indicators)
+getDiskColor(50);   // '#22c55e' (green - healthy)
+getDiskColor(70);   // '#f59e0b' (orange - warning)
+getDiskColor(90);   // '#ef4444' (red - critical)
+
+// Get status text based on usage
+getDiskStatus(50);  // 'Healthy'
+getDiskStatus(70);  // 'Getting Full'
+getDiskStatus(87);  // 'Almost Full'
+getDiskStatus(92);  // 'Critical'
+
+// Using the service object
+const disks = await diskService.getSystemDisks();
+const formatted = diskService.formatBytes(disk.freeBytes);
+const color = diskService.getDiskColor(disk.percentUsed);
+const status = diskService.getDiskStatus(disk.percentUsed);
+```
+
+**Data Sources (in priority order):**
+1. **Tauri API**: Native `get_system_disks` command for accurate system disk info
+2. **Backend API**: REST endpoint at `http://localhost:3001/api/v1/system/disks`
+3. **Browser Storage API**: `navigator.storage.estimate()` for web-only environments
+4. **Fallback**: Placeholder data when no other source is available
+
+**DiskInfo Interface:**
+- `name`: Disk label or identifier
+- `mountPoint`: Mount path (e.g., 'C:', '/', '/home')
+- `totalBytes`: Total disk capacity in bytes
+- `usedBytes`: Used space in bytes
+- `freeBytes`: Available space in bytes
+- `percentUsed`: Usage percentage (0-100)
+- `fileSystem`: File system type (NTFS, ext4, APFS, etc.)
+- `isRemovable`: Whether the disk is removable media
 
 </details>
 

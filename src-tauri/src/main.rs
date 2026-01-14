@@ -6,6 +6,7 @@ mod terminal;
 mod api_keys;
 mod agent;
 mod whisper;
+mod disk_info;
 
 use tauri::Manager;
 use std::process::{Command, Stdio};
@@ -239,6 +240,7 @@ fn main() {
         whisper::stop_whisper_server,
         whisper::uninstall_whisper,
         whisper::delete_whisper_model,
+        disk_info::get_system_disks,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
