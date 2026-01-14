@@ -302,26 +302,29 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
 
   if (!isOpen) return null;
 
+  // Calculate bottom offset: prompt panel offset + prompt panel height (padding + quick actions + input row)
+  // Quick actions ~60px, input row ~50px, padding ~24px = ~134px total prompt area height
+  const bottomOffset = 'calc(var(--prompt-panel-bottom-offset) + 150px)';
+
   return (
     <div 
-      className="absolute bottom-0 left-0 right-0 pointer-events-auto z-10"
+      className="absolute left-0 right-0 pointer-events-auto z-10"
       style={{
         paddingLeft: 'var(--prompt-area-x)',
         paddingRight: 'var(--prompt-area-x)',
-        paddingBottom: 'var(--prompt-area-x)',
-        transform: 'translateY(calc(-1 * var(--prompt-panel-bottom-offset) - var(--prompt-panel-padding) * 2 - 60px))',
-        animation: isResizing ? 'none' : 'slideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
+        bottom: bottomOffset,
+        animation: isResizing ? 'none' : 'terminalSlideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
       }}
     >
       <style>{`
-        @keyframes slideUp {
+        @keyframes terminalSlideUp {
           from {
             opacity: 0;
-            transform: translateY(calc(-1 * var(--prompt-panel-bottom-offset) - var(--prompt-panel-padding) * 2 - 40px));
+            transform: translateY(20px);
           }
           to {
             opacity: 1;
-            transform: translateY(calc(-1 * var(--prompt-panel-bottom-offset) - var(--prompt-panel-padding) * 2 - 60px));
+            transform: translateY(0);
           }
         }
       `}</style>

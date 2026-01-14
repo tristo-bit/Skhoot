@@ -2,8 +2,10 @@
  * SecondaryPanel - Shared floating panel component for terminal-style interfaces
  * Used by TerminalView, FileExplorerPanel, WorkflowsPanel, etc.
  * Positioned above the PromptArea with consistent styling
+ * Rendered via portal to avoid parent overflow clipping
  */
 import React, { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X, GripHorizontal } from 'lucide-react';
 
 export interface SecondaryPanelTab {
@@ -87,15 +89,18 @@ export const SecondaryPanel: React.FC<SecondaryPanelProps> = ({
 
   // Calculate content height based on whether we have tabs
   const headerHeight = tabs && tabs.length > 0 ? 85 : 34; // 85px with tabs, 34px without (just resize handle + close)
+  
+  // Calculate bottom offset: prompt panel offset + prompt panel height (padding + quick actions + input row)
+  // Quick actions ~60px, input row ~50px, padding ~24px = ~150px total prompt area height
+  const bottomOffset = 'calc(var(--prompt-panel-bottom-offset) + 150px)';
 
-  return (
+  const panel = (
     <div 
-      className="absolute bottom-0 left-0 right-0 pointer-events-auto z-10"
+      className="fixed left-0 right-0 pointer-events-auto z-[100]"
       style={{
         paddingLeft: 'var(--prompt-area-x)',
         paddingRight: 'var(--prompt-area-x)',
-        paddingBottom: 'var(--prompt-area-x)',
-        transform: 'translateY(calc(-1 * var(--prompt-panel-bottom-offset) - var(--prompt-panel-padding) * 2 - 60px))',
+        bottom: bottomOffset,
         animation: isResizing ? 'none' : `${animationName} 0.3s cubic-bezier(0.22, 1, 0.36, 1)`,
       }}
     >
@@ -103,21 +108,20 @@ export const SecondaryPanel: React.FC<SecondaryPanelProps> = ({
         @keyframes ${animationName} {
           from {
             opacity: 0;
-            transform: translateY(calc(-1 * var(--prompt-panel-bottom-offset) - var(--prompt-panel-padding) * 2 - 40px));
+            transform: translateY(20px);
           }
           to {
             opacity: 1;
-            transform: translateY(calc(-1 * var(--prompt-panel-bottom-offset) - var(--prompt-panel-padding) * 2 - 60px));
+            transform: translateY(0);
           }
         }
       `}</style>
       
       <div 
-        className="overflow-hidden backdrop-blur-sm"
+        className="overflow-hidden backdrop-blur-sm glass-elevated"
         style={{
           borderRadius: 'var(--prompt-panel-radius)',
           height: `${height}px`,
-          background: 'transparent',
         }}
       >
         {/* Resize Handle */}
@@ -201,6 +205,9 @@ export const SecondaryPanel: React.FC<SecondaryPanelProps> = ({
       </div>
     </div>
   );
+
+  // Render via portal to avoid parent overflow clipping
+  return createPortal(panel, document.body);
 };
 
 export default SecondaryPanel;

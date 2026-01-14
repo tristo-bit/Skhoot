@@ -1023,6 +1023,7 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 - Tailwind-based action colors with dark mode support
 - 50 unique prompts per action type
 - Branding toggle with localStorage persistence
+- **SecondaryPanel Portal Rendering**: Floating panels (terminal, file explorer, workflows) now render via React portal to `document.body`, preventing parent overflow clipping issues and ensuring proper z-index stacking
 
 </details>
 

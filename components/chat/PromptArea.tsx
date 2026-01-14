@@ -63,7 +63,7 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   const isDarkMode = resolvedTheme === 'dark';
   
   const hasContent = input.trim().length > 0;
-  const showQuickActions = !isRecording && !hasPendingVoiceMessage && !isTerminalOpen;
+  const showQuickActions = !isRecording && !hasPendingVoiceMessage;
   const placeholder = isTerminalOpen
     ? "Type command and press Enter..."
     : hasPendingVoiceMessage 
