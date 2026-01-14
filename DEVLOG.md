@@ -3353,3 +3353,63 @@ The system prompt was completely rewritten to match the OpenAI Codex approach:
    - Instead of "I cannot tell you", now says "Please enable Agent Mode (Ctrl+Shift+A)"
 
 **Result**: Agent mode now properly auto-enables on app start and uses shell tools to answer system questions.
+
+
+---
+
+### New Panel Interfaces - Files, Workflows, AI Settings ✅
+**Date**: January 14, 2026
+
+**Feature**: Created three new panel interfaces using terminal-style floating layout
+
+**New Components Created**:
+
+1. **`components/panels/PanelBase.tsx`**
+   - Shared base component for terminal-style floating panels
+   - Resizable height with drag handle
+   - Tab navigation system
+   - Consistent styling with TerminalView
+
+2. **`components/panels/FileExplorerPanel.tsx`**
+   - File explorer with 4 tabs: Recent, Disk, Analysis, Cleanup
+   - Search functionality with backend integration
+   - List/Grid view toggle
+   - Disk usage visualization
+   - Storage analysis by category
+   - Cleanup suggestions with safe/review badges
+
+3. **`components/panels/WorkflowsPanel.tsx`**
+   - Workflow management with editable prompt chains
+   - 3 tabs: Workflows, Running, History
+   - Create, edit, delete workflows
+   - Multi-step prompt sequences
+   - Run/pause workflow execution
+   - Status badges (idle, running, completed, failed)
+
+4. **`components/panels/AISettingsModal.tsx`**
+   - AI configuration modal with 3 tabs: General, Parameters, Usage
+   - General: Agent mode default, AI logs toggle, Advanced mode toggle
+   - Provider selection with active indicator
+   - Parameters: Temperature, Max Tokens, Top P, Frequency/Presence Penalty
+   - Usage: Token count, request count, estimated cost for current/last month
+
+**App.tsx Updates**:
+- Added state for new panels: `isFileExplorerOpen`, `isWorkflowsOpen`, `isAISettingsOpen`
+- Added handlers: `toggleFileExplorer`, `toggleWorkflows`, `openAISettings`
+- Added `handleQuickActionMode` to open panels when QuickActions clicked
+- Added event listener for `open-ai-settings` event
+- Integrated FileExplorerPanel and WorkflowsPanel in main content area
+
+**ChatInterface Updates**:
+- Updated `handleQuickAction` to notify parent via `onActiveModeChange` callback
+- Files QuickAction opens FileExplorerPanel
+- Workflows QuickAction opens WorkflowsPanel
+- Terminal QuickAction opens TerminalView (existing)
+
+**QuickAction Mapping**:
+- Files → FileExplorerPanel (floating, terminal-style)
+- Agents → Chat mode (existing behavior)
+- Workflows → WorkflowsPanel (floating, terminal-style)
+- Terminal → TerminalView (existing)
+
+**Result**: Users can now access file explorer, workflow management, and AI settings through QuickAction buttons and dedicated panels.

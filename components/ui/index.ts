@@ -3,3 +3,4 @@ export { SoundWave } from './SoundWave';
 export { ScrollbarStyles } from './Scrollbar';
 export { MarkdownRenderer } from './MarkdownRenderer';
 export { Modal } from './Modal';
+export { SecondaryPanel, type SecondaryPanelTab } from './SecondaryPanel';

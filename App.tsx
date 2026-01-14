@@ -6,6 +6,7 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import UserPanel from './components/settings/UserPanel';
 import FilesPanel from './components/panels/FilesPanel';
+import { AISettingsModal } from './components/panels/AISettingsModal';
 import { ActivityPanel } from './components/activity';
 import { FileSearchTest } from './components/search-engine';
 import { Header, ResizeHandles, AppBackground } from './components/layout';
@@ -48,6 +49,9 @@ const AppContent: React.FC = () => {
   const [isActivityOpen, setIsActivityOpen] = useState(false);
   const [isFileSearchTestOpen, setIsFileSearchTestOpen] = useState(false);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const [isFileExplorerOpen, setIsFileExplorerOpen] = useState(false);
+  const [isWorkflowsOpen, setIsWorkflowsOpen] = useState(false);
+  const [isAISettingsOpen, setIsAISettingsOpen] = useState(false);
   
   // Track pending chat creation to avoid remounting during first message
   const pendingChatIdRef = useRef<string | null>(null);
@@ -124,11 +128,18 @@ const AppContent: React.FC = () => {
       }, 100);
     };
 
+    // Listen for open-ai-settings event
+    const handleOpenAISettings = () => {
+      setIsAISettingsOpen(true);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('open-api-config', handleOpenApiConfig);
+    window.addEventListener('open-ai-settings', handleOpenAISettings);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('open-api-config', handleOpenApiConfig);
+      window.removeEventListener('open-ai-settings', handleOpenAISettings);
     };
   }, []);
 
@@ -209,6 +220,26 @@ const AppContent: React.FC = () => {
   const closeFileSearchTest = useCallback(() => setIsFileSearchTestOpen(false), []);
   const toggleTerminal = useCallback(() => setIsTerminalOpen(open => !open), []);
   const closeTerminal = useCallback(() => setIsTerminalOpen(false), []);
+  const toggleFileExplorer = useCallback(() => setIsFileExplorerOpen(open => !open), []);
+  const closeFileExplorer = useCallback(() => setIsFileExplorerOpen(false), []);
+  const toggleWorkflows = useCallback(() => setIsWorkflowsOpen(open => !open), []);
+  const closeWorkflows = useCallback(() => setIsWorkflowsOpen(false), []);
+  const openAISettings = useCallback(() => setIsAISettingsOpen(true), []);
+  const closeAISettings = useCallback(() => setIsAISettingsOpen(false), []);
+
+  // Handle QuickAction panel opening
+  const handleQuickActionMode = useCallback((mode: string | null) => {
+    setActiveQuickAction(mode);
+    
+    // Open corresponding panel based on mode
+    if (mode === 'Files') {
+      setIsFileExplorerOpen(true);
+    } else if (mode === 'Workflows') {
+      setIsWorkflowsOpen(true);
+    } else if (mode === 'Terminal') {
+      setIsTerminalOpen(true);
+    }
+  }, []);
 
   // Auth handlers
   const handleSignIn = useCallback(() => setAuthView('login'), []);
@@ -270,6 +301,7 @@ const AppContent: React.FC = () => {
           {isFilesPanelOpen && <FilesPanel onClose={closeFilesPanel} />}
           {isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
           {isFileSearchTestOpen && <FileSearchTest onClose={closeFileSearchTest} />}
+          {isAISettingsOpen && <AISettingsModal onClose={closeAISettings} />}
 
           {/* Auth Views */}
           {authView === 'login' && (
@@ -298,9 +330,13 @@ const AppContent: React.FC = () => {
                 chatId={currentChatId}
                 initialMessages={currentChat?.messages || []}
                 onMessagesChange={isDemoMode ? () => {} : handleMessagesChange}
-                onActiveModeChange={setActiveQuickAction}
+                onActiveModeChange={handleQuickActionMode}
                 isTerminalOpen={isTerminalOpen}
                 onToggleTerminal={toggleTerminal}
+                isFileExplorerOpen={isFileExplorerOpen}
+                onToggleFileExplorer={toggleFileExplorer}
+                isWorkflowsOpen={isWorkflowsOpen}
+                onToggleWorkflows={toggleWorkflows}
               />
             </div>
           </main>

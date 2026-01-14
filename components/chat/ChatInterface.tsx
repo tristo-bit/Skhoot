@@ -9,6 +9,8 @@ import { nativeNotifications } from '../../services/nativeNotifications';
 import { MainArea } from '../main-area';
 import { PromptArea } from './PromptArea';
 import { TerminalView } from '../terminal';
+import { FileExplorerPanel } from '../panels/FileExplorerPanel';
+import { WorkflowsPanel } from '../panels/WorkflowsPanel';
 import { useVoiceRecording } from './hooks';
 import { useAgentLogTab } from '../../hooks';
 
@@ -19,6 +21,10 @@ interface ChatInterfaceProps {
   onActiveModeChange?: (mode: string | null) => void;
   isTerminalOpen?: boolean;
   onToggleTerminal?: () => void;
+  isFileExplorerOpen?: boolean;
+  onToggleFileExplorer?: () => void;
+  isWorkflowsOpen?: boolean;
+  onToggleWorkflows?: () => void;
   /** Callback when agent mode changes */
   onAgentModeChange?: (isAgentMode: boolean) => void;
 }
@@ -30,6 +36,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onActiveModeChange,
   isTerminalOpen = false,
   onToggleTerminal,
+  isFileExplorerOpen = false,
+  onToggleFileExplorer,
+  isWorkflowsOpen = false,
+  onToggleWorkflows,
   onAgentModeChange,
 }) => {
   // State
@@ -623,15 +633,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return;
     }
     
-    // Handle other QuickActions
+    // Handle other QuickActions - notify parent to open panels
     if (activeMode === mode) {
       setActiveMode(null);
+      onActiveModeChange?.(null);
     } else {
       setActiveMode(mode);
       setPromptKey(prev => prev + 1);
+      onActiveModeChange?.(mode);
     }
     inputRef.current?.focus();
-  }, [activeMode, onToggleTerminal]);
+  }, [activeMode, onToggleTerminal, onActiveModeChange]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -682,6 +694,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onAgentLogClosed={() => {
           console.log('[ChatInterface] Agent Log tab closed');
         }}
+      />
+      
+      {/* File Explorer Panel - floats above PromptArea */}
+      <FileExplorerPanel 
+        isOpen={isFileExplorerOpen}
+        onClose={onToggleFileExplorer || (() => {})}
+      />
+      
+      {/* Workflows Panel - floats above PromptArea */}
+      <WorkflowsPanel 
+        isOpen={isWorkflowsOpen}
+        onClose={onToggleWorkflows || (() => {})}
       />
       
       <PromptArea
