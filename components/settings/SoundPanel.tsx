@@ -459,10 +459,11 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
       const status = await whisperInstaller.getStatus();
       setWhisperStatus(status);
       
-      // Update local STT URL
+      // Update local STT URL and switch provider to local
       const url = whisperInstaller.getLocalSttUrl(whisperPort);
       setLocalSttUrl(url);
-      sttConfigStore.set({ localUrl: url });
+      sttConfigStore.set({ localUrl: url, provider: 'local' });
+      setSttProvider('local');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to start server';
       setWhisperError(message);
@@ -678,8 +679,24 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
           <option value="auto">Auto (preferred)</option>
           <option value="web-speech">Web Speech API</option>
           <option value="openai">OpenAI Whisper (cloud)</option>
-          <option value="local">Local STT Server</option>
+          <option value="local">Local STT Server {whisperStatus?.server_running ? '✓ Running' : ''}</option>
         </select>
+        {sttProvider === 'local' && whisperStatus?.server_running && (
+          <p className="text-xs text-green-600 dark:text-green-400 font-jakarta flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+            Local Whisper server is running on port {whisperStatus.server_port}
+          </p>
+        )}
+        {sttProvider === 'local' && !whisperStatus?.server_running && whisperStatus?.installed && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 font-jakarta">
+            Whisper is installed but server is not running. Start it in the section below.
+          </p>
+        )}
+        {sttProvider === 'local' && !whisperStatus?.installed && isTauriEnv && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 font-jakarta">
+            Whisper is not installed. Install it in the section below.
+          </p>
+        )}
         <p className="text-xs text-text-secondary font-jakarta">
           Choose how speech is transcribed. Auto uses Web Speech when available, otherwise local first, then cloud.
         </p>
@@ -734,6 +751,15 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
             <HardDrive size={18} className="text-accent" />
             <SectionLabel label="Local Whisper STT" />
           </div>
+          
+          {/* Hint to select Local STT provider */}
+          {sttProvider !== 'local' && whisperStatus?.server_running && (
+            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+              <p className="text-xs text-blue-700 dark:text-blue-400 font-jakarta">
+                💡 Whisper server is running! Select <strong>"Local STT Server"</strong> above to use it.
+              </p>
+            </div>
+          )}
           
           {/* Status indicator */}
           <div className="flex items-center gap-2 text-sm">
@@ -931,7 +957,7 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
           )}
           
           <p className="text-xs text-text-secondary font-jakarta">
-            Install Whisper locally for offline speech-to-text. Works on Windows, macOS, and Linux.
+            Install Whisper locally for offline speech-to-text. Once installed and running, select "Local STT Server" in the provider dropdown above to use it.
           </p>
         </div>
       )}

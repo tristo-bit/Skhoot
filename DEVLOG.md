@@ -3737,3 +3737,45 @@ AI receives:
 - `num_cpus` - For parallel build jobs
 
 **Build Status**: ✅ Backend compiles, Frontend builds
+
+
+---
+
+### Cross-Platform Whisper STT - UX Improvements ✅
+
+**Improvements**:
+- Auto-switches STT provider to "Local STT Server" when whisper server starts
+- Auto-configures the local STT URL to `http://127.0.0.1:8000/v1/audio/transcriptions`
+- Shows hint when server is running but provider not set to local: "💡 Whisper server is running! Select 'Local STT Server' above to use it."
+
+**Complete User Flow**:
+1. Settings → Sound → Local Whisper STT section
+2. Install Whisper (builds from source)
+3. Download a model (Base English recommended)
+4. Start Server → automatically selects local provider
+5. Use voice input in chat → transcribed locally via Whisper
+
+**Status**: ✅ Feature complete and ready for testing
+
+
+---
+
+### Cross-Platform Whisper STT - UI Integration Improvements ✅
+
+**Improved STT Provider Integration**:
+- Starting whisper server now auto-switches provider to "Local STT Server"
+- Dropdown shows "✓ Running" indicator when local server is active
+- Status messages below dropdown:
+  - Green: "Local Whisper server is running on port X"
+  - Amber: "Whisper is installed but server is not running"
+  - Amber: "Whisper is not installed"
+- Updated help text to guide users through the workflow
+
+**User Flow**:
+1. Settings → Sound → Local Whisper STT section
+2. Install Whisper (builds from source)
+3. Download a model (Base English recommended)
+4. Start Server → auto-switches to Local provider
+5. Use mic button in chat for local STT
+
+**Build Status**: ✅ Frontend compiles with no diagnostics
