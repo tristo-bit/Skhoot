@@ -1,4 +1,5 @@
-const { spawnSync } = require('child_process');
+import { spawnSync } from 'child_process';
+import { platform } from 'os';
 
 const target = process.env.TAURI_ENV_PLATFORM;
 if (target && target !== 'linux') {
@@ -6,7 +7,7 @@ if (target && target !== 'linux') {
   process.exit(0);
 }
 
-if (process.platform !== 'linux') {
+if (platform() !== 'linux') {
   console.log('Skipping whisper.cpp build on non-Linux host');
   process.exit(0);
 }
