@@ -1144,6 +1144,12 @@ This project is private and proprietary.
 
 ---
 
+## 📄 Version
+
+v0.0.1
+
+---
+
 ## 🆘 Support
 
 - Check the built-in Help Center in Settings
