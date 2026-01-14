@@ -129,16 +129,21 @@ const FileContextMenu: React.FC<{
       const fileName = file.path.split(/[/\\]/).pop() || file.path;
       const fileRef = `@${fileName} `;
       
-      // Find the chat textarea and insert the reference
-      const textarea = document.querySelector('textarea[placeholder*="Type"]') as HTMLTextAreaElement;
+      // Find the chat textarea using the file-mention-input class
+      const textarea = document.querySelector('textarea.file-mention-input') as HTMLTextAreaElement;
       if (textarea) {
-        const currentValue = textarea.value;
-        textarea.value = currentValue + fileRef;
-        textarea.focus();
+        // Get the native value setter to properly update React state
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+        if (nativeInputValueSetter) {
+          const currentValue = textarea.value;
+          nativeInputValueSetter.call(textarea, currentValue + fileRef);
+          
+          // Dispatch input event to trigger React's onChange
+          const inputEvent = new Event('input', { bubbles: true });
+          textarea.dispatchEvent(inputEvent);
+        }
         
-        // Trigger input event to update React state
-        const event = new Event('input', { bubbles: true });
-        textarea.dispatchEvent(event);
+        textarea.focus();
         
         // Store file path in a global map for later retrieval
         if (!(window as any).__chatFileReferences) {
@@ -148,6 +153,11 @@ const FileContextMenu: React.FC<{
         
         // Visual feedback
         console.log(`[FileExplorer] Added file reference: @${fileName} -> ${file.path}`);
+      } else {
+        console.error('[FileExplorer] Could not find chat textarea');
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(fileRef);
+        alert(`📋 File reference copied!\n\nPaste @${fileName} in the chat to reference this file.`);
       }
     }, highlight: true },
     { divider: true },
