@@ -261,7 +261,7 @@ export function useVoiceRecording(
             }
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Transcription failed.';
-            alert(message);
+            showNotification(message, 'error');
           }
         } else {
           if (fullTranscript) {
@@ -316,7 +316,7 @@ export function useVoiceRecording(
       const permissionStatus = await audioService.requestPermission();
       
       if (!permissionStatus.granted) {
-        alert(permissionStatus.error || 'Microphone access denied. Please check your system settings.');
+        showNotification(permissionStatus.error || 'Microphone access denied. Please check your system settings.', 'error');
         return;
       }
 
@@ -332,7 +332,7 @@ export function useVoiceRecording(
         } else if (error.name === 'NotFoundError') {
           showNotification('No microphone found. Please connect a microphone and try again.');
         } else {
-          alert(`Recording error: ${error.message}`);
+          showNotification(`Recording error: ${error.message}`, 'error');
         }
       }
     }

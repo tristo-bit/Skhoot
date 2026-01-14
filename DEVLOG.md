@@ -2,6 +2,47 @@
 
 ## January 14, 2026
 
+### WebKitGTK MediaRecorder Workaround - WebAudioRecorder Fallback ✅
+- **Issue**: STT (Speech-to-Text) not working on Linux in Tauri - MediaRecorder returns 0-byte audio chunks
+- **Root Cause**: WebKitGTK's MediaRecorder implementation on Linux is broken - `ondataavailable` fires with `data.size: 0` even though the stream appears valid (enabled, not muted, live state)
+- **Solution**: Created WebAudioRecorder fallback using Web Audio API's ScriptProcessorNode
+
+**New File Created**:
+- **`services/webAudioRecorder.ts`** - Web Audio API based recorder
+  - Uses `ScriptProcessorNode` to capture raw PCM audio
+  - Converts Float32Array samples to 16-bit PCM WAV format
+  - Proper WAV header encoding with RIFF/WAVE format
+  - Sample rate: 16kHz (Whisper's preferred rate)
+  - Mono channel output
+
+**Modified Files**:
+1. **`services/sttService.ts`**
+   - Added WebKitGTK detection: `navigator.userAgent.includes('WebKit') && !navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Safari')`
+   - Added `transcribeWithOpenAIFile()` - accepts File directly for WAV uploads
+   - Added `transcribeWithLocalFile()` - accepts File directly for local Whisper server
+   - Integrated WebAudioRecorder as fallback when `isWebKitGTK` is true
+   - Standard MediaRecorder path still used for Chrome/Firefox/Safari
+
+2. **`components/chat/hooks/useVoiceRecording.ts`**
+   - Replaced all `alert()` calls with `showNotification()` for Tauri compatibility
+   - Tauri's dialog permissions cause issues with native alerts
+
+**How It Works**:
+1. When recording starts, sttService detects if running in WebKitGTK
+2. If WebKitGTK: uses WebAudioRecorder to capture PCM audio via ScriptProcessorNode
+3. On stop: converts PCM samples to WAV blob, creates File, sends to OpenAI/local Whisper
+4. If not WebKitGTK: uses standard MediaRecorder path
+
+**Technical Details**:
+- ScriptProcessorNode captures audio in 4096-sample buffers
+- Float32 samples cloned to avoid buffer reuse issues
+- WAV encoding: 44-byte header + 16-bit PCM data
+- Proper cleanup of AudioContext and nodes on stop/abort
+
+**Status**: ✅ Implementation complete, ready for testing
+
+---
+
 ### Real Disk Information Display in FilesPanel ✅
 - **Issue**: FilesPanel was showing mock/hardcoded disk data with incorrect purple color scheme
 - **Requirements**: 

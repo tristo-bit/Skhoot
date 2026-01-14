@@ -1,6 +1,7 @@
 import { audioService } from './audioService';
 import { apiKeyService } from './apiKeyService';
 import { sttConfigStore, SttProvider } from './sttConfig';
+import { webAudioRecorder, WebAudioRecorderSession } from './webAudioRecorder';
 
 const OPENAI_TRANSCRIPTION_URL = 'https://api.openai.com/v1/audio/transcriptions';
 
@@ -14,13 +15,22 @@ const getPreferredMimeType = (): string | null => {
     'audio/webm;codecs=opus',
     'audio/webm',
     'audio/ogg;codecs=opus',
-    'audio/ogg'
+    'audio/ogg',
+    'audio/mp4',
+    'audio/wav',
+    'audio/mpeg',
+    ''  // Empty string = browser default
   ];
 
+  console.log('[STT] Checking supported MIME types...');
   for (const mimeType of candidates) {
-    if (MediaRecorder.isTypeSupported(mimeType)) return mimeType;
+    const supported = mimeType === '' || MediaRecorder.isTypeSupported(mimeType);
+    console.log(`[STT] MIME type "${mimeType || '(default)'}": ${supported ? 'supported' : 'not supported'}`);
+    if (supported && mimeType !== '') return mimeType;
   }
 
+  // Return null to let browser choose default
+  console.log('[STT] No explicit MIME type supported, using browser default');
   return null;
 };
 
@@ -114,6 +124,44 @@ const transcribeWithOpenAI = async (chunks: BlobPart[], mimeType: string | null)
   return (result?.text || '').trim();
 };
 
+// Version that takes a File directly (for WebAudioRecorder)
+const transcribeWithOpenAIFile = async (audioFile: File): Promise<string> => {
+  let apiKey: string;
+  try {
+    apiKey = await apiKeyService.loadKey('openai');
+  } catch {
+    throw new Error('Missing OpenAI API key. Add your API key in User Profile → API Configuration.');
+  }
+  
+  if (!apiKey) {
+    throw new Error('Missing OpenAI API key. Add your API key in User Profile → API Configuration.');
+  }
+
+  const formData = new FormData();
+  formData.append('file', audioFile);
+  formData.append('model', 'whisper-1');
+  const lang = getLanguageHint();
+  if (lang) formData.append('language', lang);
+
+  console.log('[STT] Sending WAV file to OpenAI, size:', audioFile.size);
+
+  const response = await fetch(OPENAI_TRANSCRIPTION_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Transcription failed: ${response.status} ${errorText}`);
+  }
+
+  const result = await response.json();
+  return (result?.text || '').trim();
+};
+
 const transcribeWithLocal = async (chunks: BlobPart[], mimeType: string | null, url: string): Promise<string> => {
   console.log('[STT] Transcribing with local server:', url);
   console.log('[STT] Audio chunks:', chunks.length, 'mimeType:', mimeType);
@@ -131,6 +179,46 @@ const transcribeWithLocal = async (chunks: BlobPart[], mimeType: string | null, 
   }
 
   console.log('[STT] Sending request to:', url);
+  const response = await fetch(url, {
+    method: 'POST',
+    body: formData
+  });
+
+  console.log('[STT] Response status:', response.status, response.statusText);
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[STT] Transcription failed:', errorText);
+    throw new Error(`Transcription failed: ${response.status} ${errorText}`);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const result = await response.json();
+    console.log('[STT] JSON response:', result);
+    return (result?.text || result?.transcript || '').trim();
+  }
+
+  const text = await response.text();
+  console.log('[STT] Text response:', text);
+  return text.trim();
+};
+
+// Version that takes a File directly (for WebAudioRecorder)
+const transcribeWithLocalFile = async (audioFile: File, url: string): Promise<string> => {
+  console.log('[STT] Transcribing WAV with local server:', url);
+  console.log('[STT] WAV file size:', audioFile.size);
+  
+  const formData = new FormData();
+  formData.append('file', audioFile);
+  const lang = getLanguageHint();
+  if (lang) formData.append('language', lang);
+  if (url.includes('/v1/audio/transcriptions')) {
+    formData.append('model', 'whisper-1');
+    formData.append('response_format', 'json');
+  }
+
+  console.log('[STT] Sending WAV request to:', url);
   const response = await fetch(url, {
     method: 'POST',
     body: formData
@@ -194,10 +282,90 @@ export const sttService = {
       throw new Error('No STT provider available for fallback transcription.');
     }
 
+    // Diagnostic: Check if stream actually has audio
+    const audioTracks = stream.getAudioTracks();
+    console.log('[STT] Stream audio tracks:', audioTracks.length);
+    audioTracks.forEach((track, i) => {
+      console.log(`[STT] Track ${i}: enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`);
+      const capabilities = track.getCapabilities?.() || {};
+      console.log(`[STT] Track ${i} capabilities:`, JSON.stringify(capabilities));
+    });
+
+    // Check if we should use WebAudioRecorder fallback
+    // WebKitGTK on Linux has broken MediaRecorder, so we detect and use fallback
+    const isWebKitGTK = navigator.userAgent.includes('WebKit') && 
+                        !navigator.userAgent.includes('Chrome') && 
+                        !navigator.userAgent.includes('Safari');
+    const useWebAudioFallback = isWebKitGTK;
+    
+    console.log('[STT] User agent:', navigator.userAgent);
+    console.log('[STT] Using WebAudio fallback:', useWebAudioFallback);
+
+    if (useWebAudioFallback) {
+      // Use WebAudioRecorder for WebKitGTK
+      console.log('[STT] Starting WebAudioRecorder (fallback for WebKitGTK)');
+      let webAudioSession: WebAudioRecorderSession;
+      
+      try {
+        webAudioSession = await webAudioRecorder.start(stream);
+      } catch (e) {
+        console.error('[STT] WebAudioRecorder failed to start:', e);
+        throw new Error('Failed to start audio recording');
+      }
+
+      return {
+        stop: async () => {
+          console.log('[STT] Stopping WebAudioRecorder');
+          const wavBlob = await webAudioSession.stop();
+          console.log('[STT] Got WAV blob, size:', wavBlob.size);
+          
+          if (wavBlob.size < 1000) {
+            console.error('[STT] WAV blob too small, likely no audio captured');
+            return '';
+          }
+          
+          const wavFile = new File([wavBlob], 'recording.wav', { type: 'audio/wav' });
+          
+          if (provider === 'openai') {
+            return await transcribeWithOpenAIFile(wavFile);
+          }
+          
+          const config = sttConfigStore.get();
+          const url = config.localUrl?.trim();
+          if (!url) {
+            throw new Error('Local STT URL is not configured.');
+          }
+          
+          return await transcribeWithLocalFile(wavFile, url);
+        },
+        abort: () => {
+          webAudioSession.abort();
+        }
+      };
+    }
+
+    // Standard MediaRecorder path
     const mimeType = getPreferredMimeType();
     console.log('[STT] Starting MediaRecorder with mimeType:', mimeType);
     
-    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    // Try to create MediaRecorder with explicit options
+    let recorder: MediaRecorder;
+    try {
+      const options: MediaRecorderOptions = {};
+      if (mimeType) {
+        options.mimeType = mimeType;
+      }
+      // Try with higher bitrate
+      options.audioBitsPerSecond = 128000;
+      
+      recorder = new MediaRecorder(stream, options);
+      console.log('[STT] MediaRecorder created with mimeType:', recorder.mimeType);
+    } catch (e) {
+      console.error('[STT] Failed to create MediaRecorder with options, trying default:', e);
+      recorder = new MediaRecorder(stream);
+      console.log('[STT] MediaRecorder created with default mimeType:', recorder.mimeType);
+    }
+    
     const chunks: BlobPart[] = [];
 
     recorder.ondataavailable = (event: BlobEvent) => {
@@ -213,11 +381,11 @@ export const sttService = {
     };
 
     recorder.onstart = () => {
-      console.log('[STT] MediaRecorder started, state:', recorder.state);
+      console.log('[STT] MediaRecorder started, state:', recorder.state, 'mimeType:', recorder.mimeType);
     };
 
     // Start recording with timeslice to get periodic data
-    recorder.start(1000); // Get data every 1 second
+    recorder.start(500); // Get data every 500ms for faster feedback
     console.log('[STT] MediaRecorder.start() called');
 
     const stop = async (): Promise<string> => {
@@ -228,9 +396,22 @@ export const sttService = {
         recorder.onstop = async () => {
           console.log('[STT] MediaRecorder stopped, total chunks:', chunks.length);
           
+          // Calculate total size
+          let totalSize = 0;
+          chunks.forEach(chunk => {
+            if (chunk instanceof Blob) totalSize += chunk.size;
+          });
+          console.log('[STT] Total audio data size:', totalSize, 'bytes');
+          
+          if (totalSize === 0) {
+            console.error('[STT] No audio data captured! This is likely a WebKitGTK MediaRecorder issue on Linux.');
+            resolve(''); // Return empty instead of failing
+            return;
+          }
+          
           try {
             if (provider === 'openai') {
-              const result = await transcribeWithOpenAI(chunks, mimeType);
+              const result = await transcribeWithOpenAI(chunks, recorder.mimeType || mimeType);
               resolve(result);
               return;
             }
@@ -242,7 +423,7 @@ export const sttService = {
               return;
             }
 
-            const result = await transcribeWithLocal(chunks, mimeType, url);
+            const result = await transcribeWithLocal(chunks, recorder.mimeType || mimeType, url);
             resolve(result);
           } catch (error) {
             reject(error);
