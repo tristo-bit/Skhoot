@@ -16,6 +16,10 @@ skhoot-backend = { path = "../backend" }
 portable-pty = "0.8"
 uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
+reqwest = { version = "0.11", features = ["stream"] }
+zip = "0.6"
+futures-util = "0.3"
+num_cpus = "1.16"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

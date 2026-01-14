@@ -3636,3 +3636,181 @@ AI receives:
 
 **Build Status**: ✅ No diagnostics
 
+### Feature Plan: Cross-Platform Whisper STT Integration 📋
+
+**Goal**: Make local Whisper speech-to-text available on all platforms (Windows, macOS, Linux) with a user-friendly install/manage UI in the Sound settings panel.
+
+**Current State**:
+- whisper.cpp integration exists but is Linux-only (builds from source)
+- Requires cmake, compilers, and build tools
+- STT service already supports local server at `/v1/audio/transcriptions`
+- Settings UI has basic STT provider dropdown
+
+**Planned Architecture**:
+
+1. **Cross-Platform Binary Distribution**
+   - Download pre-built whisper.cpp binaries instead of building from source
+   - Linux: Pre-built server binary
+   - Windows: Pre-built `.exe` from whisper.cpp releases
+   - macOS: Universal binary (arm64 + x86_64)
+   - Binaries + models stored in user data directory (not bundled)
+
+2. **Backend Service (Tauri Commands)**
+   - New `src-tauri/src/whisper.rs` module:
+     - `check_whisper_status` - Check if installed, version, model info
+     - `install_whisper` - Download binary + model for current OS
+     - `uninstall_whisper` - Remove binary and models
+     - `start_whisper_server` - Start local server on configurable port
+     - `stop_whisper_server` - Stop running server
+     - `download_model` - Download specific model (tiny/base/small/medium)
+   - OS/architecture detection for correct binary download
+   - Checksum verification for security
+   - Progress reporting during download
+
+3. **Frontend: New "Local STT" Section in SoundPanel**
+   - Toggle: Enable Local Whisper STT
+   - Status indicator: Not installed / Installing / Ready / Running
+   - Install/Uninstall button with progress feedback
+   - Model selector dropdown (tiny ~75MB, base ~142MB, small ~466MB, medium ~1.5GB)
+   - Language selector (Auto-detect, English, French, etc.)
+   - Advanced settings: Port, Auto-start with app
+   - Agent mode integration for guided installation
+
+4. **STT Provider Selection Enhancement**
+   - Auto → Uses local Whisper if installed, falls back to Web Speech API
+   - Web Speech API → Browser native
+   - OpenAI Whisper (cloud) → Requires API key
+   - Local Whisper → Only enabled when installed
+
+**Files to Create/Modify**:
+| File | Purpose |
+|------|---------|
+| `src-tauri/src/whisper.rs` | New module: download, install, start/stop, status |
+| `src-tauri/src/main.rs` | Register new Tauri commands |
+| `components/settings/SoundPanel.tsx` | Add "Local STT" section with install UI |
+| `services/whisperInstaller.ts` | Frontend service for Tauri commands |
+| `services/sttService.ts` | Update to check local whisper availability |
+| `src/contexts/SettingsContext.tsx` | Add whisper-related settings state |
+
+**Model Options**:
+| Model | Size | Speed | Quality |
+|-------|------|-------|---------|
+| tiny.en | ~75MB | Fastest | Basic |
+| base.en | ~142MB | Fast | Good |
+| small.en | ~466MB | Medium | Better |
+| medium.en | ~1.5GB | Slow | Great |
+
+**Status**: 📋 Plan documented, awaiting implementation approval
+
+
+---
+
+### Cross-Platform Whisper STT - Implementation Phase 1 ✅
+
+**Completed**: Backend module + Frontend service + UI integration
+
+**Files Created**:
+- `src-tauri/src/whisper.rs` - Rust module for whisper management
+- `services/whisperInstaller.ts` - Frontend service for Tauri commands
+
+**Files Modified**:
+- `src-tauri/src/main.rs` - Registered whisper module and commands
+- `src-tauri/Cargo.toml` - Added reqwest, zip, futures-util dependencies
+- `components/settings/SoundPanel.tsx` - Added Local Whisper STT section
+
+**Backend Commands Implemented**:
+- `check_whisper_status` - Get installation status, models, server state
+- `get_whisper_models` - List available models for download
+- `install_whisper_binary` - Download and install whisper.cpp binary
+- `download_whisper_model` - Download specific model (tiny/base/small/medium)
+- `start_whisper_server` - Start local STT server on configurable port
+- `stop_whisper_server` - Stop running server
+- `uninstall_whisper` - Remove binary and optionally models
+- `delete_whisper_model` - Remove specific model
+
+**UI Features**:
+- Status indicator (not installed / installed / running)
+- Platform/arch display
+- Install/Uninstall buttons with progress
+- Model selector dropdown with download status
+- Download model button for undownloaded models
+- Port configuration
+- Start/Stop server controls
+- Downloaded models list with delete option
+
+**Model Options**:
+- Tiny English (~75MB) - Fastest
+- Base English (~142MB) - Recommended
+- Small English (~466MB) - Better accuracy
+- Medium English (~1.5GB) - Best quality
+- Tiny Multilingual (~75MB) - 99 languages
+- Base Multilingual (~142MB) - Good multilingual
+
+**Build Status**: ✅ Backend compiles, Frontend builds successfully
+
+
+---
+
+### Cross-Platform Whisper STT - Build from Source Fix ✅
+
+**Issue**: Initial implementation tried to download pre-built binaries, but whisper.cpp doesn't provide them in releases.
+
+**Solution**: Changed to build-from-source approach:
+- Clones whisper.cpp v1.8.1 from GitHub
+- Builds with cmake (Release mode)
+- Copies server binary to app data directory
+
+**New Features**:
+- Build requirements check (cmake, git, g++/clang++)
+- UI shows missing requirements with install instructions
+- Install button disabled if build tools missing
+- Platform-specific help text:
+  - Linux: `sudo apt install cmake g++ git`
+  - macOS: `xcode-select --install`
+
+**Dependencies Added**:
+- `num_cpus` - For parallel build jobs
+
+**Build Status**: ✅ Backend compiles, Frontend builds
+
+
+---
+
+### Cross-Platform Whisper STT - UX Improvements ✅
+
+**Improvements**:
+- Auto-switches STT provider to "Local STT Server" when whisper server starts
+- Auto-configures the local STT URL to `http://127.0.0.1:8000/v1/audio/transcriptions`
+- Shows hint when server is running but provider not set to local: "💡 Whisper server is running! Select 'Local STT Server' above to use it."
+
+**Complete User Flow**:
+1. Settings → Sound → Local Whisper STT section
+2. Install Whisper (builds from source)
+3. Download a model (Base English recommended)
+4. Start Server → automatically selects local provider
+5. Use voice input in chat → transcribed locally via Whisper
+
+**Status**: ✅ Feature complete and ready for testing
+
+
+---
+
+### Cross-Platform Whisper STT - UI Integration Improvements ✅
+
+**Improved STT Provider Integration**:
+- Starting whisper server now auto-switches provider to "Local STT Server"
+- Dropdown shows "✓ Running" indicator when local server is active
+- Status messages below dropdown:
+  - Green: "Local Whisper server is running on port X"
+  - Amber: "Whisper is installed but server is not running"
+  - Amber: "Whisper is not installed"
+- Updated help text to guide users through the workflow
+
+**User Flow**:
+1. Settings → Sound → Local Whisper STT section
+2. Install Whisper (builds from source)
+3. Download a model (Base English recommended)
+4. Start Server → auto-switches to Local provider
+5. Use mic button in chat for local STT
+
+**Build Status**: ✅ Frontend compiles with no diagnostics
