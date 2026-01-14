@@ -1,5 +1,5 @@
 /**
- * Secure API Key Service
+  * Secure API Key Service
  * Communicates with Tauri backend for encrypted key storage
  * Falls back to localStorage when Tauri is not available (web dev mode)
  */

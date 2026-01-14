@@ -2,52 +2,185 @@
  * FileExplorerPanel - File explorer with tabs for Recent, Disk, Analysis, Cleanup
  * Uses terminal-style floating panel layout
  */
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Search, HardDrive, BarChart3, Trash2, 
-  File, Folder, Clock, RefreshCw, Grid, List, MoreHorizontal
+  File, Folder, Clock, RefreshCw, Grid, List, MoreHorizontal,
+  ExternalLink, Copy, Scissors, Info, Archive, FolderOpen
 } from 'lucide-react';
 import { SecondaryPanel, SecondaryPanelTab } from '../ui/SecondaryPanel';
 import { backendApi } from '../../services/backendApi';
+import { fileOperations } from '../../services/fileOperations';
 
-// Helper to open parent folder and select the file
-const openFolder = async (filePath: string): Promise<boolean> => {
-  // Normalize path for Windows (use backslashes)
-  const normalizedPath = filePath.replace(/\//g, '\\');
-  
-  // Try backend API first - it can select the file in the folder
-  try {
-    const response = await fetch('http://localhost:3001/api/v1/files/reveal', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: normalizedPath }),
-    });
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success) return true;
+// File action handlers - using fileOperations service
+const fileActions = {
+  open: async (filePath: string): Promise<boolean> => {
+    const success = await fileOperations.open(filePath);
+    if (!success) {
+      await navigator.clipboard.writeText(filePath);
+      alert(`📋 Path copied!\n\n${filePath}\n\nCould not open file automatically.`);
     }
-  } catch {}
+    return success;
+  },
   
-  // Try Tauri shell plugin with reveal command
-  try {
-    const { Command } = await import('@tauri-apps/plugin-shell');
-    const platform = navigator.platform.toLowerCase();
+  copy: async (filePath: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  
+  delete: async (filePath: string): Promise<boolean> => {
+    if (!confirm(`⚠️ Delete this file?\n\n${filePath}\n\nThis cannot be undone.`)) {
+      return false;
+    }
     
-    if (platform.includes('win')) {
-      await Command.create('explorer', [`/select,${normalizedPath}`]).execute();
-      return true;
-    } else if (platform.includes('mac')) {
-      await Command.create('open', ['-R', filePath]).execute();
-      return true;
+    const success = await fileOperations.delete(filePath);
+    if (success) {
+      alert('✅ File deleted');
     } else {
-      const lastSlash = filePath.lastIndexOf('/');
-      const parentDir = lastSlash > 0 ? filePath.substring(0, lastSlash) : filePath;
-      await Command.create('xdg-open', [parentDir]).execute();
-      return true;
+      await navigator.clipboard.writeText(filePath);
+      alert(`❌ Could not delete automatically.\n\nPath copied - delete manually.`);
     }
-  } catch {}
+    return success;
+  },
   
-  return false;
+  properties: async (filePath: string): Promise<boolean> => {
+    const success = await fileOperations.showProperties(filePath);
+    if (!success) {
+      // Fallback: show basic info
+      const info = await fileOperations.getInfo(filePath);
+      const fileName = filePath.split(/[/\\]/).pop() || 'Unknown';
+      const extension = fileName.includes('.') ? fileName.split('.').pop()?.toUpperCase() : 'Folder';
+      
+      if (info) {
+        alert(`📄 File Properties\n\nName: ${fileName}\nType: ${extension}\nSize: ${info.size || 'Unknown'}\nModified: ${info.modified || 'Unknown'}\n\nPath: ${filePath}`);
+      } else {
+        alert(`📄 File Properties\n\nName: ${fileName}\nType: ${extension}\nPath: ${filePath}`);
+      }
+    }
+    return true;
+  },
+  
+  compress: async (filePath: string): Promise<boolean> => {
+    const result = await fileOperations.compress(filePath);
+    if (result.success) {
+      alert(`✅ Compressed!\n\nSaved to: ${result.zipPath || filePath + '.zip'}`);
+    } else {
+      alert(`❌ Compression not available.\n\nUse Windows Explorer: Right-click → Send to → Compressed folder`);
+    }
+    return result.success;
+  },
+  
+  openWith: async (filePath: string): Promise<boolean> => {
+    const success = await fileOperations.openWith(filePath);
+    if (!success) {
+      await navigator.clipboard.writeText(filePath);
+      alert(`📋 Path copied!\n\n${filePath}\n\nIn File Explorer:\nRight-click → "Open with" → Choose app`);
+    }
+    return success;
+  },
+  
+  revealInExplorer: async (filePath: string): Promise<boolean> => {
+    return await fileOperations.reveal(filePath);
+  },
+};
+
+// File context menu dropdown component - rendered as portal to avoid overflow issues
+const FileContextMenu: React.FC<{
+  file: FileItem;
+  isOpen: boolean;
+  onClose: () => void;
+  position: { x: number; y: number };
+}> = ({ file, isOpen, onClose, position }) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, onClose]);
+  
+  if (!isOpen) return null;
+  
+  const menuItems = [
+    { icon: <ExternalLink size={14} />, label: 'Open', action: async () => { await fileActions.open(file.path); } },
+    { icon: <FolderOpen size={14} />, label: 'Show in folder', action: async () => { await fileActions.revealInExplorer(file.path); } },
+    { divider: true },
+    { icon: <Copy size={14} />, label: 'Copy path', action: async () => { 
+      const success = await fileActions.copy(file.path);
+      if (success) {
+        alert('✅ Path copied to clipboard!');
+      }
+    }},
+    { icon: <Scissors size={14} />, label: 'Cut (copy path)', action: async () => { 
+      await fileActions.copy(file.path);
+      alert('✅ Path copied (cut)');
+    }},
+    { divider: true },
+    { icon: <Archive size={14} />, label: 'Compress to ZIP', action: async () => { await fileActions.compress(file.path); } },
+    { icon: <ExternalLink size={14} />, label: 'Open with...', action: async () => { await fileActions.openWith(file.path); } },
+    { divider: true },
+    { icon: <Info size={14} />, label: 'Properties', action: async () => { await fileActions.properties(file.path); } },
+    { icon: <Trash2 size={14} />, label: 'Delete', action: async () => { await fileActions.delete(file.path); }, danger: true },
+  ];
+  
+  const menu = (
+    <div
+      ref={menuRef}
+      className="fixed z-[99999] min-w-[180px] py-1.5 rounded-xl backdrop-blur-xl border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+      style={{ 
+        top: Math.min(position.y, window.innerHeight - 320),
+        left: Math.min(position.x, window.innerWidth - 200),
+        backgroundColor: 'var(--bg-primary)',
+      }}
+    >
+      {menuItems.map((item, i) => 
+        item.divider ? (
+          <div key={i} className="my-1 border-t border-white/10" />
+        ) : (
+          <button
+            key={i}
+            onClick={async (e) => {
+              e.stopPropagation();
+              await item.action?.();
+              onClose();
+            }}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs font-medium transition-all hover:bg-white/10 ${
+              item.danger ? 'text-red-400 hover:bg-red-500/10' : ''
+            }`}
+            style={{ color: item.danger ? undefined : 'var(--text-primary)' }}
+          >
+            <span className={item.danger ? 'text-red-400' : 'text-text-secondary'}>{item.icon}</span>
+            {item.label}
+          </button>
+        )
+      )}
+    </div>
+  );
+  
+  // Render as portal to avoid overflow issues
+  return createPortal(menu, document.body);
 };
 
 type TabId = 'recent' | 'disk' | 'analysis' | 'cleanup';
@@ -189,13 +322,27 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = ({ isOpen, on
 };
 
 const RecentTab: React.FC<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading: boolean }> = ({ files, viewMode, isLoading }) => {
+  const [contextMenu, setContextMenu] = useState<{ file: FileItem; position: { x: number; y: number } } | null>(null);
+  
   const handleOpenFolder = async (path: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const success = await openFolder(path);
+    const success = await fileOperations.reveal(path);
     if (!success) {
       await navigator.clipboard.writeText(path);
       alert(`📋 Path copied!\n\n${path}`);
     }
+  };
+  
+  const handleContextMenu = (file: FileItem, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ file, position: { x: e.clientX, y: e.clientY } });
+  };
+  
+  const handleMoreClick = (file: FileItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    setContextMenu({ file, position: { x: rect.left, y: rect.bottom + 4 } });
   };
 
   if (isLoading) {
@@ -210,51 +357,93 @@ const RecentTab: React.FC<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoad
     </div>;
   }
   if (viewMode === 'grid') {
-    return <div className="grid grid-cols-4 gap-3">
-      {files.map(file => (
-        <div key={file.id} className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer">
-          <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center mb-2">
-            {file.type === 'folder' ? <Folder size={20} className="text-purple-400" /> : <File size={20} className="text-purple-400" />}
-          </div>
-          <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
-          <p 
-            className="text-[10px] mt-1 cursor-pointer hover:underline hover:opacity-80 transition-opacity truncate" 
-            style={{ color: 'var(--text-secondary)' }}
-            onClick={(e) => handleOpenFolder(file.path, e)}
-            title="Click to open folder"
-          >
-            {file.size}
-          </p>
+    return (
+      <>
+        <div className="grid grid-cols-4 gap-3">
+          {files.map(file => (
+            <div 
+              key={file.id} 
+              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer relative group"
+              onContextMenu={(e) => handleContextMenu(file, e)}
+            >
+              <button
+                onClick={(e) => handleMoreClick(file, e)}
+                className="absolute top-2 right-2 p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all opacity-0 group-hover:opacity-100"
+              >
+                <MoreHorizontal size={12} className="text-text-secondary" />
+              </button>
+              <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center mb-2">
+                {file.type === 'folder' ? <Folder size={20} className="text-purple-400" /> : <File size={20} className="text-purple-400" />}
+              </div>
+              <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+              <p 
+                className="text-[10px] mt-1 cursor-pointer hover:underline hover:opacity-80 transition-opacity truncate" 
+                style={{ color: 'var(--text-secondary)' }}
+                onClick={(e) => handleOpenFolder(file.path, e)}
+                title="Click to open folder"
+              >
+                {file.size}
+              </p>
+            </div>
+          ))}
         </div>
-      ))}
-    </div>;
+        {contextMenu && (
+          <FileContextMenu
+            file={contextMenu.file}
+            isOpen={true}
+            onClose={() => setContextMenu(null)}
+            position={contextMenu.position}
+          />
+        )}
+      </>
+    );
   }
-  return <div className="space-y-1">
-    {files.map(file => (
-      <div key={file.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all cursor-pointer group">
-        <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-          {file.type === 'folder' ? <Folder size={16} className="text-purple-400" /> : <File size={16} className="text-purple-400" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
-          <p 
-            className="text-xs truncate cursor-pointer hover:underline hover:opacity-80 transition-opacity" 
-            style={{ color: 'var(--text-secondary)' }}
-            onClick={(e) => handleOpenFolder(file.path, e)}
-            title="Click to open folder"
+  return (
+    <>
+      <div className="space-y-1">
+        {files.map(file => (
+          <div 
+            key={file.id} 
+            className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all cursor-pointer group"
+            onContextMenu={(e) => handleContextMenu(file, e)}
           >
-            {file.path}
-          </p>
-        </div>
-        <div className="text-right flex-shrink-0">
-          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{file.size}</p>
-        </div>
-        <button className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-white/10 transition-all">
-          <MoreHorizontal size={14} style={{ color: 'var(--text-secondary)' }} />
-        </button>
+            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+              {file.type === 'folder' ? <Folder size={16} className="text-purple-400" /> : <File size={16} className="text-purple-400" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+              <p 
+                className="text-xs truncate cursor-pointer hover:underline hover:opacity-80 transition-opacity" 
+                style={{ color: 'var(--text-secondary)' }}
+                onClick={(e) => handleOpenFolder(file.path, e)}
+                title="Click to open folder"
+              >
+                {file.path}
+              </p>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{file.size}</p>
+            </div>
+            <button 
+              onClick={(e) => handleMoreClick(file, e)}
+              className="p-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 transition-all opacity-60 group-hover:opacity-100"
+              title="More actions"
+            >
+              <MoreHorizontal size={14} className="text-purple-400" />
+            </button>
+          </div>
+        ))}
       </div>
-    ))}
-  </div>;
+      {contextMenu && (
+        <FileContextMenu
+          file={contextMenu.file}
+          isOpen={true}
+          onClose={() => setContextMenu(null)}
+          position={contextMenu.position}
+        />
+      )}
+    </>
+  );
 };
 
 const DiskTab: React.FC = () => {

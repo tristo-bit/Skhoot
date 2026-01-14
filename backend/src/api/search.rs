@@ -28,6 +28,8 @@ pub fn search_routes() -> Router<crate::AppState> {
         .route("/search/config", post(update_search_config))
         .route("/files/open", post(open_file_location))
         .route("/files/reveal", post(reveal_file_in_explorer))
+        .route("/files/properties", post(show_file_properties))
+        .route("/files/open-with", post(open_with_dialog))
 }
 
 #[allow(dead_code)]
@@ -766,6 +768,142 @@ pub async fn reveal_file_in_explorer(
             "message": format!("Revealed file: {}", absolute_path.display())
         }))),
         Err(e) => Err(AppError::Internal(format!("Failed to reveal file: {}", e)))
+    }
+}
+
+/// Show file properties dialog
+pub async fn show_file_properties(
+    Json(request): Json<OpenFileRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let path = PathBuf::from(&request.path);
+    
+    let absolute_path = if path.is_absolute() {
+        path
+    } else {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+            .join(&path)
+    };
+    
+    tracing::info!("Showing properties for: {:?}", absolute_path);
+    
+    #[cfg(target_os = "windows")]
+    let result = {
+        // Windows: Use shell32.dll to show properties
+        // Don't use canonicalize() as it adds \\?\ prefix which breaks PowerShell
+        let path_str = absolute_path.display().to_string()
+            .replace("/", "\\")
+            .replace("\\\\?\\", ""); // Remove UNC prefix if present
+        
+        tracing::info!("Windows properties path: {}", path_str);
+        
+        // Use a simpler approach with explorer.exe properties
+        tokio::process::Command::new("cmd")
+            .args([
+                "/c",
+                "start",
+                "",
+                "explorer.exe",
+                &format!("/select,\"{}\"", path_str)
+            ])
+            .spawn()
+    };
+    
+    #[cfg(target_os = "macos")]
+    let result = {
+        // macOS: Use AppleScript to show info window
+        let path_str = absolute_path.display().to_string();
+        tokio::process::Command::new("osascript")
+            .args([
+                "-e",
+                &format!(
+                    "tell application \"Finder\" to open information window of (POSIX file \"{}\" as alias)",
+                    path_str
+                )
+            ])
+            .spawn()
+    };
+    
+    #[cfg(target_os = "linux")]
+    let result = {
+        // Linux: Try different file managers' properties commands
+        let path_str = absolute_path.display().to_string();
+        let nautilus_result = tokio::process::Command::new("nautilus")
+            .args(["--properties", &path_str])
+            .spawn();
+        
+        if nautilus_result.is_err() {
+            tokio::process::Command::new("dolphin")
+                .args(["--properties", &absolute_path.display().to_string()])
+                .spawn()
+        } else {
+            nautilus_result
+        }
+    };
+    
+    match result {
+        Ok(_) => Ok(Json(serde_json::json!({
+            "success": true,
+            "message": format!("Showing properties for: {}", absolute_path.display())
+        }))),
+        Err(e) => Err(AppError::Internal(format!("Failed to show properties: {}", e)))
+    }
+}
+
+/// Open "Open with" dialog
+pub async fn open_with_dialog(
+    Json(request): Json<OpenFileRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let path = PathBuf::from(&request.path);
+    
+    let absolute_path = if path.is_absolute() {
+        path
+    } else {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+            .join(&path)
+    };
+    
+    tracing::info!("Opening 'Open with' dialog for: {:?}", absolute_path);
+    
+    #[cfg(target_os = "windows")]
+    let result = {
+        // Windows: Use rundll32 to show "Open with" dialog
+        let path_str = absolute_path.display().to_string()
+            .replace("/", "\\")
+            .replace("\\\\?\\", ""); // Remove UNC prefix if present
+        
+        tracing::info!("Windows open-with path: {}", path_str);
+        
+        tokio::process::Command::new("rundll32")
+            .args(["shell32.dll,OpenAs_RunDLL", &path_str])
+            .spawn()
+    };
+    
+    #[cfg(target_os = "macos")]
+    let result = {
+        // macOS: Reveal in Finder (user can then right-click and choose "Open With")
+        let path_str = absolute_path.display().to_string();
+        tokio::process::Command::new("open")
+            .args(["-R", &path_str])
+            .spawn()
+    };
+    
+    #[cfg(target_os = "linux")]
+    let result = {
+        // Linux: Try to use xdg-open or show in file manager
+        let path_str = absolute_path.display().to_string();
+        tokio::process::Command::new("xdg-open")
+            .arg(&path_str)
+            .spawn()
+    };
+    
+    match result {
+        Ok(_) => Ok(Json(serde_json::json!({
+            "success": true,
+            "message": format!("Opened 'Open with' dialog for: {}", absolute_path.display())
+        }))),
+        Err(e) => Err(AppError::Internal(format!("Failed to open 'Open with' dialog: {}", e)))
     }
 }
 

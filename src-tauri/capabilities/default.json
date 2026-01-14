@@ -24,6 +24,7 @@
     "notification:allow-cancel",
     "notification:allow-get-pending",
     "notification:allow-remove-active",
-    "notification:allow-get-active"
+    "notification:allow-get-active",
+    "shell:allow-open"
   ]
 }

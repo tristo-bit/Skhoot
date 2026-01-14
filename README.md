@@ -319,6 +319,36 @@ const suggestions = await backendApi.getSearchSuggestions({
 await backendApi.openFileLocation("/path/to/file.txt");
 ```
 
+**File Operations API:**
+```typescript
+import { fileOperations } from './services/fileOperations';
+
+// Open file with default application
+const opened = await fileOperations.open('/path/to/document.pdf');
+
+// Reveal file in system file explorer (select the file)
+const revealed = await fileOperations.reveal('/path/to/file.txt');
+
+// Show file properties dialog
+const shown = await fileOperations.showProperties('/path/to/file.txt');
+
+// Open "Open with" application picker
+const openedWith = await fileOperations.openWith('/path/to/file.txt');
+
+// Delete a file
+const deleted = await fileOperations.delete('/path/to/old-file.txt');
+
+// Compress file or folder to ZIP
+const result = await fileOperations.compress('/path/to/folder');
+if (result.success) {
+  console.log('ZIP created at:', result.zipPath);
+}
+
+// Get file information
+const info = await fileOperations.getInfo('/path/to/file.txt');
+console.log('File info:', info); // { name, type, size, modified, ... }
+```
+
 </details>
 
 <details>
@@ -587,6 +617,49 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 ## 📝 Recent Updates
 
 <details>
+<summary><strong>File Operations Service</strong></summary>
+
+- **New File Operations Service**: Comprehensive file management API for common file operations (`services/fileOperations.ts`)
+- **Backend Integration**: All operations communicate with Rust backend REST API at `http://localhost:3001/api/v1`
+- **Supported Operations**:
+  - **Open**: Launch files with default system application
+  - **Reveal**: Open file explorer and select the file (Windows Explorer, macOS Finder, Linux file managers)
+  - **Properties**: Display native file properties dialog with metadata
+  - **Open With**: Show system "Open with" application picker
+  - **Delete**: Remove files with backend confirmation
+  - **Compress**: Create ZIP archives from files or folders
+  - **Get Info**: Retrieve file metadata (name, type, size, modified date)
+- **Cross-Platform**: Consistent behavior across Windows, macOS, and Linux
+- **Error Handling**: Graceful error handling with detailed console logging
+- **Simple API**: Promise-based methods with boolean or object return values
+- **Usage**: Import and call methods directly: `await fileOperations.open(path)`
+
+</details>
+
+<details>
+<summary><strong>File Explorer Context Menu</strong></summary>
+
+- **Rich Context Menu**: Right-click or use the "more" button on any file in the File Explorer panel for quick actions
+  - **Open**: Launch file with default system application (Tauri shell.open → backend API → clipboard fallback)
+  - **Open Folder**: Reveal and select file in system file explorer
+  - **Copy Path**: Copy full file path to clipboard
+  - **Cut**: Copy path with cut simulation
+  - **Compress**: Create ZIP archive via backend API with user-friendly fallback instructions
+  - **Open With**: Copy path with instructions for manual "Open with" selection
+  - **Properties**: View file properties via backend API (name, type, size, modified date)
+  - **Delete**: Remove file via backend API with confirmation dialog
+- **Backend API Integration**: File actions use backend endpoints for reliable cross-platform support
+  - `/api/v1/files/delete` - Delete files
+  - `/api/v1/files/info` - Get file properties
+  - `/api/v1/files/compress` - Create ZIP archives
+- **Graceful Fallbacks**: All actions provide helpful clipboard + instructions fallback when APIs unavailable
+- **Glassmorphic Design**: Context menu follows the embossed glassmorphic design system with smooth animations
+- **Smart Positioning**: Menu automatically adjusts position to stay within viewport bounds
+- **Keyboard & Mouse**: Supports both right-click context menu and click-based dropdown via more button
+
+</details>
+
+<details>
 <summary><strong>Secure API Key Management Service</strong></summary>
 
 - **New API Key Service**: Comprehensive secure API key management system (`services/apiKeyService.ts`)
@@ -844,6 +917,56 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 - **File Explorer Panel Integration**: Click on file paths in the File Explorer panel to reveal files in system explorer
   - Works in both list and grid view modes
   - Falls back to copying path to clipboard if reveal fails
+
+</details>
+
+<details>
+<summary><strong>File Operations Service</strong></summary>
+
+- **New File Operations Service**: Comprehensive file management system (`services/fileOperations.ts`)
+  - **Backend API Integration**: All operations communicate with backend REST API (`http://localhost:3001/api/v1`)
+  - **File Actions**:
+    - `open(filePath)`: Open file with default system application
+    - `reveal(filePath)`: Reveal and select file in system file explorer
+    - `showProperties(filePath)`: Display file properties dialog (Windows/macOS/Linux)
+    - `openWith(filePath)`: Show "Open with" application picker dialog
+    - `delete(filePath)`: Delete file with backend confirmation
+    - `compress(filePath)`: Create ZIP archive of file or folder
+    - `getInfo(filePath)`: Retrieve file metadata (name, type, size, modified date)
+  - **Cross-Platform Support**: Works consistently across Windows, macOS, and Linux
+  - **Error Handling**: Graceful error handling with console logging for debugging
+  - **Return Values**: All methods return success status, compress returns `{ success, zipPath }`
+  - **Usage Example**:
+    ```typescript
+    import { fileOperations } from './services/fileOperations';
+    
+    // Open file with default app
+    const opened = await fileOperations.open('/path/to/file.txt');
+    
+    // Reveal in file explorer
+    const revealed = await fileOperations.reveal('/path/to/file.txt');
+    
+    // Show properties dialog
+    const shown = await fileOperations.showProperties('/path/to/file.txt');
+    
+    // Compress to ZIP
+    const result = await fileOperations.compress('/path/to/folder');
+    if (result.success) {
+      console.log('Created:', result.zipPath);
+    }
+    
+    // Get file info
+    const info = await fileOperations.getInfo('/path/to/file.txt');
+    console.log('Size:', info.size, 'Modified:', info.modified);
+    ```
+  - **Backend Endpoints**:
+    - `POST /api/v1/files/open` - Open file with default application
+    - `POST /api/v1/files/reveal` - Reveal file in system explorer
+    - `POST /api/v1/files/properties` - Show file properties dialog
+    - `POST /api/v1/files/open-with` - Open "Open with" dialog
+    - `POST /api/v1/files/delete` - Delete file
+    - `POST /api/v1/files/compress` - Create ZIP archive
+    - `GET /api/v1/files/info?path=...` - Get file information
 
 </details>
 
