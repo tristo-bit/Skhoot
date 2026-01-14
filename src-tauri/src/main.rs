@@ -5,6 +5,7 @@
 mod terminal;
 mod api_keys;
 mod agent;
+mod whisper;
 
 use tauri::Manager;
 use std::process::{Command, Stdio};
@@ -159,6 +160,9 @@ fn main() {
       // Initialize agent state
       app.manage(agent::AgentTauriState::default());
       
+      // Initialize whisper state
+      app.manage(whisper::WhisperState::default());
+      
       #[cfg(desktop)]
       {
         // Use an empty app-wide menu to avoid showing a menubar.
@@ -227,6 +231,14 @@ fn main() {
         agent::get_agent_messages,
         agent::add_assistant_message,
         agent::get_agent_config,
+        whisper::check_whisper_status,
+        whisper::get_whisper_models,
+        whisper::install_whisper_binary,
+        whisper::download_whisper_model,
+        whisper::start_whisper_server,
+        whisper::stop_whisper_server,
+        whisper::uninstall_whisper,
+        whisper::delete_whisper_model,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

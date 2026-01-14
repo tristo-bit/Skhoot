@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, VolumeX, Volume2, AlertCircle, Terminal, CheckCircle } from 'lucide-react';
+import { Mic, VolumeX, Volume2, AlertCircle, Terminal, CheckCircle, Download, Trash2, Play, Square, HardDrive } from 'lucide-react';
 import { audioService, AudioDevice } from '../../services/audioService';
 import { linuxAudioSetup, LinuxAudioStatus } from '../../services/linuxAudioSetup';
 import { sttConfigStore, SttProvider } from '../../services/sttConfig';
 import { sttService } from '../../services/sttService';
+import { whisperInstaller, WhisperStatus, AvailableModel, InstallProgress } from '../../services/whisperInstaller';
 import { PanelHeader, SectionLabel } from './shared';
 import { Button, ToggleButton } from '../buttonFormat';
 
@@ -33,6 +34,17 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
   const [localSttUrl, setLocalSttUrl] = useState('');
   const [sttTestStatus, setSttTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [sttTestMessage, setSttTestMessage] = useState('');
+  
+  // Whisper local STT state
+  const [whisperStatus, setWhisperStatus] = useState<WhisperStatus | null>(null);
+  const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
+  const [selectedModel, setSelectedModel] = useState('ggml-base.en.bin');
+  const [whisperPort, setWhisperPort] = useState(8000);
+  const [whisperAutoStart, setWhisperAutoStart] = useState(true);
+  const [isInstallingWhisper, setIsInstallingWhisper] = useState(false);
+  const [isDownloadingModel, setIsDownloadingModel] = useState(false);
+  const [whisperProgress, setWhisperProgress] = useState<InstallProgress | null>(null);
+  const [whisperError, setWhisperError] = useState<string | null>(null);
 
   // Refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -115,6 +127,26 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
     const sttConfig = sttConfigStore.get();
     setSttProvider(sttConfig.provider);
     setLocalSttUrl(sttConfig.localUrl);
+    
+    // Load whisper status
+    const loadWhisperStatus = async () => {
+      try {
+        const status = await whisperInstaller.getStatus();
+        setWhisperStatus(status);
+        
+        const models = await whisperInstaller.getAvailableModels();
+        setAvailableModels(models);
+        
+        // Set selected model to first downloaded one, or default
+        const downloadedModel = status.models.find(m => m.is_downloaded);
+        if (downloadedModel) {
+          setSelectedModel(downloadedModel.name);
+        }
+      } catch (error) {
+        console.log('[SoundPanel] Whisper not available (likely browser mode)');
+      }
+    };
+    loadWhisperStatus();
     
     // Check Linux audio status
     if (linuxAudioSetup.isLinuxTauri()) {
@@ -374,6 +406,112 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
     }
   };
 
+  // Whisper installation handlers
+  const handleInstallWhisper = async () => {
+    setIsInstallingWhisper(true);
+    setWhisperError(null);
+    setWhisperProgress(null);
+
+    try {
+      await whisperInstaller.installBinary((progress) => {
+        setWhisperProgress(progress);
+      });
+
+      // Refresh status
+      const status = await whisperInstaller.getStatus();
+      setWhisperStatus(status);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to install Whisper';
+      setWhisperError(message);
+    } finally {
+      setIsInstallingWhisper(false);
+      setWhisperProgress(null);
+    }
+  };
+
+  const handleDownloadModel = async (modelName: string) => {
+    setIsDownloadingModel(true);
+    setWhisperError(null);
+    setWhisperProgress(null);
+
+    try {
+      await whisperInstaller.downloadModel(modelName, (progress) => {
+        setWhisperProgress(progress);
+      });
+
+      // Refresh status
+      const status = await whisperInstaller.getStatus();
+      setWhisperStatus(status);
+      setSelectedModel(modelName);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to download model';
+      setWhisperError(message);
+    } finally {
+      setIsDownloadingModel(false);
+      setWhisperProgress(null);
+    }
+  };
+
+  const handleStartWhisperServer = async () => {
+    setWhisperError(null);
+    try {
+      await whisperInstaller.startServer(selectedModel, whisperPort);
+      const status = await whisperInstaller.getStatus();
+      setWhisperStatus(status);
+      
+      // Update local STT URL
+      const url = whisperInstaller.getLocalSttUrl(whisperPort);
+      setLocalSttUrl(url);
+      sttConfigStore.set({ localUrl: url });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to start server';
+      setWhisperError(message);
+    }
+  };
+
+  const handleStopWhisperServer = async () => {
+    setWhisperError(null);
+    try {
+      await whisperInstaller.stopServer();
+      const status = await whisperInstaller.getStatus();
+      setWhisperStatus(status);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to stop server';
+      setWhisperError(message);
+    }
+  };
+
+  const handleUninstallWhisper = async () => {
+    if (!confirm('Are you sure you want to uninstall Whisper? This will remove the binary and all downloaded models.')) {
+      return;
+    }
+    
+    setWhisperError(null);
+    try {
+      await whisperInstaller.uninstall(true);
+      const status = await whisperInstaller.getStatus();
+      setWhisperStatus(status);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to uninstall';
+      setWhisperError(message);
+    }
+  };
+
+  const handleDeleteModel = async (modelName: string) => {
+    setWhisperError(null);
+    try {
+      await whisperInstaller.deleteModel(modelName);
+      const status = await whisperInstaller.getStatus();
+      setWhisperStatus(status);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete model';
+      setWhisperError(message);
+    }
+  };
+
+  // Check if we're in Tauri environment
+  const isTauriEnv = whisperStatus !== null;
+
   return (
     <div className="space-y-6">
       <PanelHeader title="Sound Settings" onBack={onBack} />
@@ -584,7 +722,216 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
             placeholder="http://127.0.0.1:8000/v1/audio/transcriptions"
           />
           <p className="text-xs text-text-secondary font-jakarta">
-            {'Skhoot bundles whisper.cpp on Linux and starts it automatically at /v1/audio/transcriptions.'}
+            URL for your local STT server. Use the section below to install and manage Whisper locally.
+          </p>
+        </div>
+      )}
+
+      {/* Local Whisper STT Section */}
+      {isTauriEnv && (
+        <div className="space-y-4 p-4 rounded-xl glass-subtle border border-glass-border">
+          <div className="flex items-center gap-2">
+            <HardDrive size={18} className="text-accent" />
+            <SectionLabel label="Local Whisper STT" />
+          </div>
+          
+          {/* Status indicator */}
+          <div className="flex items-center gap-2 text-sm">
+            <div className={`w-2 h-2 rounded-full ${
+              whisperStatus?.server_running ? 'bg-green-500' : 
+              whisperStatus?.installed ? 'bg-yellow-500' : 'bg-gray-400'
+            }`} />
+            <span className="text-text-secondary font-jakarta">
+              {whisperStatus?.server_running ? `Running on port ${whisperStatus.server_port}` :
+               whisperStatus?.installed ? 'Installed (server stopped)' : 'Not installed'}
+            </span>
+            {whisperStatus?.platform && (
+              <span className="text-xs text-text-secondary/60 ml-auto">
+                {whisperStatus.platform}/{whisperStatus.arch}
+              </span>
+            )}
+          </div>
+
+          {/* Error message */}
+          {whisperError && (
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <p className="text-xs text-red-600 dark:text-red-400 font-jakarta">{whisperError}</p>
+            </div>
+          )}
+
+          {/* Progress indicator */}
+          {whisperProgress && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-text-secondary">
+                <span>{whisperProgress.message}</span>
+                <span>{whisperProgress.progress.toFixed(0)}%</span>
+              </div>
+              <div className="h-2 bg-glass-border rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-accent transition-all duration-300"
+                  style={{ width: `${whisperProgress.progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Install/Uninstall buttons */}
+          {!whisperStatus?.installed ? (
+            <>
+              {/* Build requirements warning */}
+              {whisperStatus && !whisperStatus.build_available && whisperStatus.build_requirements.length > 0 && (
+                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <p className="text-xs font-bold text-amber-700 dark:text-amber-400 mb-1">Build tools required</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-500">
+                    Missing: {whisperStatus.build_requirements.join(', ')}
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+                    {whisperStatus.platform === 'linux' && 'Install with: sudo apt install cmake g++ git'}
+                    {whisperStatus.platform === 'macos' && 'Install Xcode Command Line Tools: xcode-select --install'}
+                  </p>
+                </div>
+              )}
+              <Button
+                onClick={handleInstallWhisper}
+                variant="primary"
+                size="md"
+                disabled={isInstallingWhisper || (whisperStatus && !whisperStatus.build_available)}
+                className="w-full"
+              >
+                {isInstallingWhisper ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    Building from source...
+                  </>
+                ) : (
+                  <>
+                    <Download size={16} className="mr-2" />
+                    Install Whisper (Build from Source)
+                  </>
+                )}
+              </Button>
+            </>
+          ) : (
+            <>
+              {/* Model selection */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold font-jakarta text-text-primary">Model</label>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  disabled={whisperStatus.server_running}
+                  className="w-full p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
+                >
+                  {availableModels.map(model => {
+                    const isDownloaded = whisperStatus.models.find(m => m.name === model.name)?.is_downloaded;
+                    return (
+                      <option key={model.name} value={model.name}>
+                        {model.display_name} ({model.size_mb}MB) {isDownloaded ? '✓' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Download model button if not downloaded */}
+              {!whisperStatus.models.find(m => m.name === selectedModel)?.is_downloaded && (
+                <Button
+                  onClick={() => handleDownloadModel(selectedModel)}
+                  variant="secondary"
+                  size="sm"
+                  disabled={isDownloadingModel}
+                  className="w-full"
+                >
+                  {isDownloadingModel ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin mr-2" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={14} className="mr-2" />
+                      Download {availableModels.find(m => m.name === selectedModel)?.display_name}
+                    </>
+                  )}
+                </Button>
+              )}
+
+              {/* Port setting */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold font-jakarta text-text-primary">Server Port</label>
+                <input
+                  type="number"
+                  value={whisperPort}
+                  onChange={(e) => setWhisperPort(Number(e.target.value))}
+                  disabled={whisperStatus.server_running}
+                  className="w-full p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
+                  min={1024}
+                  max={65535}
+                />
+              </div>
+
+              {/* Start/Stop server buttons */}
+              <div className="flex gap-2">
+                {!whisperStatus.server_running ? (
+                  <Button
+                    onClick={handleStartWhisperServer}
+                    variant="primary"
+                    size="sm"
+                    disabled={!whisperStatus.models.find(m => m.name === selectedModel)?.is_downloaded}
+                    className="flex-1"
+                  >
+                    <Play size={14} className="mr-2" />
+                    Start Server
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleStopWhisperServer}
+                    variant="danger"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    <Square size={14} className="mr-2" />
+                    Stop Server
+                  </Button>
+                )}
+                
+                <Button
+                  onClick={handleUninstallWhisper}
+                  variant="ghost"
+                  size="sm"
+                  disabled={whisperStatus.server_running}
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+
+              {/* Downloaded models list */}
+              {whisperStatus.models.filter(m => m.is_downloaded).length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold font-jakarta text-text-primary">Downloaded Models</label>
+                  <div className="space-y-1">
+                    {whisperStatus.models.filter(m => m.is_downloaded).map(model => (
+                      <div key={model.name} className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                        <span className="text-xs text-text-secondary font-jakarta">
+                          {availableModels.find(m => m.name === model.name)?.display_name || model.name}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteModel(model.name)}
+                          disabled={whisperStatus.server_running && selectedModel === model.name}
+                          className="p-1 rounded hover:bg-red-500/10 text-text-secondary hover:text-red-500 transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+          
+          <p className="text-xs text-text-secondary font-jakarta">
+            Install Whisper locally for offline speech-to-text. Works on Windows, macOS, and Linux.
           </p>
         </div>
       )}
