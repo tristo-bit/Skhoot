@@ -1,6 +1,12 @@
 import { spawnSync } from 'child_process';
 import { platform } from 'os';
 
+// Skip on CI environments
+if (process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true') {
+  console.log('Skipping whisper.cpp build on CI (optional component)');
+  process.exit(0);
+}
+
 const target = process.env.TAURI_ENV_PLATFORM;
 if (target && target !== 'linux') {
   console.log(`Skipping whisper.cpp build for platform: ${target}`);
