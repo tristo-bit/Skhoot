@@ -1,19 +1,20 @@
 import React, { useState, memo } from 'react';
-import { ChevronRight, Volume2, Shield, Palette, HelpCircle, Bell } from 'lucide-react';
+import { ChevronRight, Volume2, Shield, Palette, HelpCircle, Bell, Bot } from 'lucide-react';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { Modal } from '../ui';
-import { AppearancePanel, HelpCenterPanel, PrivacyPanel, SoundPanel, NotificationsPanel } from '../settings';
+import { AISettingsPanel, AppearancePanel, HelpCenterPanel, PrivacyPanel, SoundPanel, NotificationsPanel } from '../settings';
 
 interface SettingsPanelProps {
   onClose: () => void;
 }
 
 const SETTINGS_ITEMS = [
+  { icon: Bot, label: 'AI Settings', color: 'orchid-tint' },
   { icon: Volume2, label: 'Sound', color: 'almost-aqua' },
-  { icon: Bell, label: 'Notifications', color: 'orchid-tint' },
+  { icon: Bell, label: 'Notifications', color: 'peach-dust' },
   { icon: Palette, label: 'Appearance', color: 'lemon-icing' },
   { icon: Shield, label: 'Privacy', color: 'ice-melt' },
-  { icon: HelpCircle, label: 'Help Center', color: 'peach-dust' },
+  { icon: HelpCircle, label: 'Help Center', color: 'raindrops-on-roses' },
 ] as const;
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
@@ -44,7 +45,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
         </p>
       )}
     >
-      {activePanel === 'Sound' ? (
+      {activePanel === 'AI Settings' ? (
+        <AISettingsPanel onBack={handleBack} />
+      ) : activePanel === 'Sound' ? (
         <SoundPanel onBack={handleBack} />
       ) : activePanel === 'Notifications' ? (
         <NotificationsPanel onBack={handleBack} />

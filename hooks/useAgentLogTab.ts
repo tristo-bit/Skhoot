@@ -61,6 +61,13 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
     onSessionClosed,
   } = options;
 
+  // Check localStorage for agent mode preference (default: true)
+  const getDefaultAgentMode = useCallback(() => {
+    if (typeof window === 'undefined') return true;
+    const saved = localStorage.getItem('skhoot_agent_mode_default');
+    return saved !== 'false'; // Default to true unless explicitly disabled
+  }, []);
+
   const [state, setState] = useState<AgentLogTabState>({
     isAgentMode: false,
     agentSessionId: null,
@@ -69,29 +76,43 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
     error: null,
   });
 
+  // Ref to track current state for async operations
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   // Track sessions per conversation
   const sessionMapRef = useRef<Map<string, string>>(new Map());
+  
+  // Track if we've auto-enabled
+  const hasAutoEnabled = useRef(false);
 
   // Generate session ID for a conversation
   const generateSessionId = useCallback((convId: string) => {
     return `agent-${convId}-${Date.now()}`;
   }, []);
 
-  // Enable agent mode
+  // Enable agent mode - defined early so it can be used in useEffect
   const enableAgentMode = useCallback(async () => {
-    if (state.isCreatingSession || state.isAgentMode) return;
-
+    // Check current state to avoid duplicate creation
+    const currentState = stateRef.current;
+    if (currentState.isCreatingSession || currentState.isAgentMode) {
+      console.log('[useAgentLogTab] Already creating or enabled, skipping');
+      return;
+    }
+    
+    // Set creating state
     setState(prev => ({ ...prev, isCreatingSession: true, error: null }));
-
+    
+    const convId = conversationId || 'default';
+    
     try {
-      const convId = conversationId || 'default';
-      
-      // Check if we already have a session for this conversation
       let sessionId = sessionMapRef.current.get(convId);
       
       if (!sessionId || !agentService.hasSession(sessionId)) {
-        // Create new session
         sessionId = generateSessionId(convId);
+        console.log('[useAgentLogTab] Creating new session:', sessionId);
         await agentService.createSession(sessionId, defaultOptions);
         sessionMapRef.current.set(convId, sessionId);
         onSessionCreated?.(sessionId);
@@ -106,6 +127,7 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
       }));
 
       onAgentModeChange?.(true);
+      console.log('[useAgentLogTab] Agent mode enabled with session:', sessionId);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('[useAgentLogTab] Failed to enable agent mode:', errorMessage);
@@ -115,8 +137,38 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
         isCreatingSession: false,
         error: errorMessage,
       }));
+      
+      throw error; // Re-throw so retry logic can catch it
     }
-  }, [conversationId, defaultOptions, state.isCreatingSession, state.isAgentMode, generateSessionId, onAgentModeChange, onSessionCreated]);
+  }, [conversationId, defaultOptions, generateSessionId, onAgentModeChange, onSessionCreated]);
+
+  // Auto-enable agent mode on first mount if it's the default
+  useEffect(() => {
+    if (!hasAutoEnabled.current && getDefaultAgentMode()) {
+      hasAutoEnabled.current = true;
+      console.log('[useAgentLogTab] Auto-enabling agent mode on mount');
+      
+      // Retry logic for session creation (backend might not be ready immediately)
+      const attemptEnable = async (retries = 3, delay = 500) => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            await enableAgentMode();
+            console.log('[useAgentLogTab] Agent mode enabled successfully');
+            return;
+          } catch (error) {
+            console.warn(`[useAgentLogTab] Enable attempt ${i + 1}/${retries} failed:`, error);
+            if (i < retries - 1) {
+              await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+            }
+          }
+        }
+        console.error('[useAgentLogTab] Failed to auto-enable agent mode after retries');
+      };
+      
+      attemptEnable();
+    }
+  }, [enableAgentMode, getDefaultAgentMode]);
 
   // Disable agent mode (keeps log visible for reference)
   const disableAgentMode = useCallback(async () => {

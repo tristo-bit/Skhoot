@@ -366,6 +366,45 @@
     overflow: hidden;
   }
 
+  /* Larger modals on bigger screens */
+  @media (min-width: 768px) and (min-height: 700px) {
+    .modal-panel {
+      max-width: 480px;
+      max-height: 640px;
+    }
+  }
+
+  @media (min-width: 1024px) and (min-height: 800px) {
+    .modal-panel {
+      max-width: 520px;
+      max-height: 720px;
+    }
+  }
+
+  @media (min-width: 1280px) and (min-height: 900px) {
+    .modal-panel {
+      max-width: 560px;
+      max-height: 800px;
+    }
+  }
+
+  @media (min-width: 1536px) and (min-height: 1000px) {
+    .modal-panel {
+      max-width: 600px;
+      max-height: 880px;
+    }
+  }
+
+  /* Fullscreen or near-fullscreen: use more space */
+  @media (min-width: 1800px) and (min-height: 1000px) {
+    .modal-panel {
+      width: 85vw;
+      max-width: 680px;
+      height: 80vh;
+      max-height: 920px;
+    }
+  }
+
   .modal-header,
   .modal-footer {
     padding-left: calc(var(--scale-space-4) * var(--spacing-scale));

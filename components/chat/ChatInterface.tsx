@@ -73,16 +73,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     error: agentError,
     toggleAgentMode,
     closeAgentSession,
+    getSessionId,
   } = useAgentLogTab({
     conversationId: chatId,
     onAgentModeChange: (isAgent) => {
       onAgentModeChange?.(isAgent);
-      // Auto-open terminal when agent mode is enabled
-      if (isAgent && !isTerminalOpen && onToggleTerminal) {
-        onToggleTerminal();
-      }
     },
   });
+
+  // Debug: Log agent mode state changes
+  useEffect(() => {
+    console.log('[ChatInterface] Agent state:', { isAgentMode, agentSessionId, isAgentLoading, agentError });
+  }, [isAgentMode, agentSessionId, isAgentLoading, agentError]);
 
   // Computed values
   const activeColor = useMemo(() => {
@@ -433,8 +435,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     try {
       // Route based on agent mode
-      if (isAgentMode && agentSessionId) {
+      if (isAgentMode) {
         // Agent mode: use agentChatService with tool execution loop
+        
+        // Check if session is ready
+        let currentSessionId = agentSessionId;
+        
+        // Wait for session to be created if it's still loading
+        if (!currentSessionId && isAgentLoading) {
+          setSearchStatus('Waiting for agent session...');
+          // Wait up to 3 seconds for session to be created
+          for (let i = 0; i < 30; i++) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            // Re-check the session ID from the hook's current state
+            const sessionId = getSessionId();
+            if (sessionId) {
+              currentSessionId = sessionId;
+              break;
+            }
+          }
+        }
+        
+        // If still no session, show error
+        if (!currentSessionId) {
+          throw new Error('Agent session not ready. Please wait a moment and try again.');
+        }
+        
         setSearchStatus('Connecting to agent...');
         
         // Convert history to agent chat format
@@ -453,7 +479,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           messageText,
           agentHistory,
           {
-            sessionId: agentSessionId,
+            sessionId: currentSessionId,
             onToolStart: (toolCall) => {
               toolCalls.push(toolCall);
               setSearchStatus(`Executing ${toolCall.name}...`);
@@ -589,6 +615,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [input, voiceTranscript, isLoading, messages, stopRecording, discardVoice, isEmptyStateVisible, isAgentMode, agentSessionId]);
 
   const handleQuickAction = useCallback((mode: string, _placeholder: string) => {
+    // Handle Terminal QuickAction - toggle terminal instead of setting mode
+    if (mode === 'Terminal') {
+      if (onToggleTerminal) {
+        onToggleTerminal();
+      }
+      return;
+    }
+    
+    // Handle other QuickActions
     if (activeMode === mode) {
       setActiveMode(null);
     } else {
@@ -596,7 +631,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setPromptKey(prev => prev + 1);
     }
     inputRef.current?.focus();
-  }, [activeMode]);
+  }, [activeMode, onToggleTerminal]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -666,9 +701,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onQuickAction={handleQuickAction}
         isTerminalOpen={isTerminalOpen}
         onToggleTerminal={onToggleTerminal}
-        isAgentMode={isAgentMode}
-        onToggleAgentMode={toggleAgentMode}
-        isAgentLoading={isAgentLoading}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { forwardRef, useRef, useEffect, useState } from 'react';
-import { Search, Bot, HardDrive, Trash2, Terminal, Cpu } from 'lucide-react';
+import { Search, Bot, Workflow, Terminal } from 'lucide-react';
 import { QUICK_ACTIONS } from '../../src/constants';
 import SynthesisVisualizer from '../ui/SynthesisVisualizer';
 import { useTheme } from '../../src/contexts/ThemeContext';
@@ -12,8 +12,8 @@ import { SendButton } from './SendButton';
 const QUICK_ACTION_ICONS: Record<string, (props: { size: number }) => React.ReactNode> = {
   Files: ({ size }) => <Search size={size} />,
   Agents: ({ size }) => <Bot size={size} />,
-  Space: ({ size }) => <HardDrive size={size} />,
-  Cleanup: ({ size }) => <Trash2 size={size} />,
+  Workflows: ({ size }) => <Workflow size={size} />,
+  Terminal: ({ size }) => <Terminal size={size} />,
 };
 
 interface PromptAreaProps {
@@ -33,12 +33,6 @@ interface PromptAreaProps {
   disabled?: boolean;
   isTerminalOpen?: boolean;
   onToggleTerminal?: () => void;
-  /** Whether agent mode is enabled */
-  isAgentMode?: boolean;
-  /** Callback to toggle agent mode */
-  onToggleAgentMode?: () => void;
-  /** Whether agent session is being created */
-  isAgentLoading?: boolean;
 }
 
 export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
@@ -57,9 +51,6 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   disabled = false,
   isTerminalOpen = false,
   onToggleTerminal,
-  isAgentMode = false,
-  onToggleAgentMode,
-  isAgentLoading = false,
 }, ref) => {
   const { resolvedTheme } = useTheme();
   const { illumination } = useSettings();
@@ -69,9 +60,7 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   const showQuickActions = !isRecording && !hasPendingVoiceMessage && !isTerminalOpen;
   const placeholder = isTerminalOpen
     ? "Type command and press Enter..."
-    : isAgentMode
-      ? "Ask the agent to help with files, commands..."
-      : hasPendingVoiceMessage 
+    : hasPendingVoiceMessage 
         ? "Send your message?" 
         : "Skhoot is listening...";
   
@@ -224,59 +213,6 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
         
         {/* Input Row */}
         <div className="flex items-center gap-2">
-          {/* Terminal Button */}
-          {onToggleTerminal && (
-            <button
-              onClick={onToggleTerminal}
-              className="flex-shrink-0 transition-all duration-300 ease-out hover:scale-105 active:scale-95"
-              style={{
-                padding: 'calc(10px * var(--component-scale) * var(--scale))',
-                borderRadius: 'calc(12px * var(--component-scale) * var(--scale))',
-                marginLeft: 'calc(var(--scale-space-1) * var(--spacing-scale))',
-                background: isTerminalOpen 
-                  ? 'rgba(139, 92, 246, 0.15)'
-                  : 'rgba(255, 255, 255, 0.05)',
-                border: isTerminalOpen
-                  ? '1px solid rgba(139, 92, 246, 0.3)'
-                  : '1px solid rgba(255, 255, 255, 0.1)',
-                color: isTerminalOpen ? '#8b5cf6' : 'var(--text-secondary)',
-              }}
-              title="Toggle Terminal (Ctrl+`)"
-              aria-label="Toggle Terminal"
-            >
-              <Terminal size={16} />
-            </button>
-          )}
-          
-          {/* Agent Mode Toggle Button */}
-          {onToggleAgentMode && (
-            <button
-              onClick={onToggleAgentMode}
-              disabled={isAgentLoading}
-              className="flex-shrink-0 transition-all duration-300 ease-out hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                padding: 'calc(10px * var(--component-scale) * var(--scale))',
-                borderRadius: 'calc(12px * var(--component-scale) * var(--scale))',
-                marginLeft: onToggleTerminal ? '0' : 'calc(var(--scale-space-1) * var(--spacing-scale))',
-                background: isAgentMode 
-                  ? 'rgba(16, 185, 129, 0.15)'
-                  : 'rgba(255, 255, 255, 0.05)',
-                border: isAgentMode
-                  ? '1px solid rgba(16, 185, 129, 0.3)'
-                  : '1px solid rgba(255, 255, 255, 0.1)',
-                color: isAgentMode ? '#10b981' : 'var(--text-secondary)',
-              }}
-              title={isAgentMode ? "Disable Agent Mode (Ctrl+Shift+A)" : "Enable Agent Mode (Ctrl+Shift+A)"}
-              aria-label={isAgentMode ? "Disable Agent Mode" : "Enable Agent Mode"}
-            >
-              {isAgentLoading ? (
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Cpu size={16} />
-              )}
-            </button>
-          )}
-          
           <div
             className="flex-1 relative"
             style={{

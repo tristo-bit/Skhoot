@@ -3129,3 +3129,227 @@ private async getActiveProvider(): Promise<string | null> {
 
 **Status**: Ready for testing
 
+
+
+### Agent System Prompt Overhaul - OpenAI Codex Style ✅
+- **Issue**: Agent was responding with "I cannot directly execute terminal commands" even though it has full shell access
+- **Root Cause**: System prompt was too restrictive, making the AI think it could only do file search operations
+- **Reference**: Studied `documentation/codex-main/codex-rs/core/prompt.md` - OpenAI's actual agent prompt
+
+**Changes to `services/agentChatService.ts`**:
+
+The system prompt was completely rewritten to match the OpenAI Codex approach:
+
+1. **Identity**: Changed from "file operations assistant" to "general-purpose coding and system assistant"
+
+2. **Capabilities**: Now explicitly states the agent can:
+   - Execute ANY shell command (bash, system commands, package managers, etc.)
+   - Read ANY file on the system
+   - Write/modify files anywhere
+   - Full filesystem exploration
+   - Search by name or content
+
+3. **Task Execution Philosophy** (from Codex):
+   - "Keep going until the query is completely resolved"
+   - "Autonomously resolve the query to the best of your ability"
+   - "Do NOT guess or make up an answer - use tools to verify"
+
+4. **Shell Command Examples**:
+   - System utilities: `df`, `du`, `free`, `top`, `ps`
+   - Package managers, build tools, scripts
+   - Text search with `rg` (ripgrep) or `grep`
+   - File discovery with `find` or `fd`
+
+5. **Examples of What Agent Can Do**:
+   - Analyze disk usage and find large files
+   - Run system diagnostics
+   - Execute builds and tests
+   - Git operations
+   - Process automation
+   - "ANY other task that can be done via terminal"
+
+**Key Phrase Added**: "You have full access to the user's system through the shell tool. Use it to accomplish whatever the user needs."
+
+**Result**: Agent should now properly use shell commands for system tasks like disk analysis, instead of refusing and saying it can only search files.
+
+
+
+---
+
+### UI Overhaul Phase 1 - Agent Default + QuickActions Redesign ✅
+
+**Major Changes**:
+
+1. **Agent Mode Now Default**
+   - Agent mode auto-enables on app start
+   - Preference saved to localStorage (`skhoot_agent_mode_default`)
+   - Can be toggled off, preference persists
+   - Modified `hooks/useAgentLogTab.ts`
+
+2. **QuickActions Redesigned**
+   - **Files** → Opens file explorer panel (placeholder for now)
+   - **Agents** → Kept as-is for agent-related prompts
+   - **Workflows** (was Space) → Opens workflow automation panel (placeholder)
+   - **Terminal** (was Cleanup) → Opens terminal directly
+   - Updated `src/constants.ts` with new QUICK_ACTIONS
+
+3. **Terminal Button Moved**
+   - Removed separate terminal button from input row
+   - Terminal now accessible via QuickAction button
+   - Cleaner UI with one less button in input area
+   - Modified `components/chat/PromptArea.tsx`
+
+4. **QuickAction Handler Updated**
+   - Terminal QuickAction directly toggles terminal
+   - Other QuickActions set active mode as before
+   - Modified `components/chat/ChatInterface.tsx`
+
+**Files Changed**:
+- `hooks/useAgentLogTab.ts` - Auto-enable agent mode
+- `src/constants.ts` - New QUICK_ACTIONS (Files, Agents, Workflows, Terminal)
+- `components/chat/PromptArea.tsx` - New icons, removed terminal button
+- `components/chat/ChatInterface.tsx` - Terminal QuickAction handler
+
+**Spec Created**: `.kiro/specs/ui-overhaul/requirements.md`
+
+**Next Steps**:
+- Create AI Settings Panel (move API config from UserPanel)
+- Create File Explorer Panel (terminal-style with tabs)
+- Create Workflows Panel (prompt automation)
+- Enhance agent behavior system (Codex-style persistence)
+
+
+
+### AI Settings Panel Created ✅
+
+**New Component**: `components/settings/AISettingsPanel.tsx`
+
+**Features**:
+1. **Agent Settings Section**
+   - Agent Mode Default toggle (persists to localStorage)
+   - Agent Logs in Terminal toggle
+   - Advanced Mode toggle (placeholder for future features)
+
+2. **API Configuration Section**
+   - Provider selection (OpenAI, Anthropic, Google, Custom)
+   - API key input with show/hide toggle
+   - Model selection dropdown
+   - Model capabilities display (Tools, Vision, Streaming, Context)
+   - Connection test button
+   - Save API key button
+
+3. **API Parameters Section**
+   - Temperature slider (0-2)
+   - Max Output Tokens slider (256-16384)
+   - Settings persist to localStorage
+
+4. **Token Usage Section**
+   - Monthly usage display (mock data for now)
+   - Input/Output token breakdown
+   - Estimated cost display
+
+**Integration**:
+- Added to `components/settings/index.ts`
+- Added to `components/panels/SettingsPanel.tsx` as first item
+- Uses existing `providerRegistry` for model capabilities
+
+**Files Changed**:
+- `components/settings/AISettingsPanel.tsx` (NEW)
+- `components/settings/index.ts`
+- `components/panels/SettingsPanel.tsx`
+
+
+
+### Agent Mode Simplified - Always On by Default ✅
+
+**Changes**:
+1. **Removed agent toggle button** from PromptArea input row
+2. **Agent mode always ON by default** - no button needed in UI
+3. **Setting renamed** to "Agent Mode" (ON/OFF) in AI Settings panel
+4. **Cleaned up** unused imports and props (Cpu icon, isAgentMode, onToggleAgentMode, isAgentLoading)
+
+**Files Modified**:
+- `components/chat/PromptArea.tsx` - Removed button, cleaned props
+- `components/chat/ChatInterface.tsx` - Removed agent props from PromptArea
+- `components/settings/AISettingsPanel.tsx` - Renamed setting to "Agent Mode"
+
+**Result**: Cleaner UI with agent mode controlled only via Settings → AI Settings
+
+
+
+### Agent Mode Auto-Enable Bug Fix ✅
+
+**Issue**: Agent mode wasn't enabling by default despite the setting being ON
+
+**Root Cause**: 
+- The `useEffect` for auto-enabling ran before `enableAgentMode` was properly defined
+- Empty dependency array `[]` captured a stale closure of `enableAgentMode`
+- The function was called but with undefined/stale references
+
+**Fix in `hooks/useAgentLogTab.ts`**:
+1. Moved `enableAgentMode` definition before the auto-enable `useEffect`
+2. Made `getDefaultAgentMode` a `useCallback` 
+3. Added proper dependencies `[enableAgentMode, getDefaultAgentMode]` to the useEffect
+4. Refactored `enableAgentMode` to use functional setState to avoid stale state issues
+5. Added console logging for debugging: `[useAgentLogTab] Auto-enabling agent mode on mount`
+
+**Debug logging added to `ChatInterface.tsx`**:
+- Logs agent state changes: `[ChatInterface] Agent state: { isAgentMode, agentSessionId, ... }`
+
+**Result**: Agent mode now properly auto-enables on app mount when the setting is ON (default)
+
+
+
+### Modal Responsive Scaling ✅
+
+**Issue**: Modals had fixed max-width (420px) and max-height (560px), not utilizing space on larger screens
+
+**Fix in `src/index.css`**: Added responsive media queries for modal sizing:
+
+| Screen Size | Max Width | Max Height |
+|-------------|-----------|------------|
+| Default | 420px | 560px |
+| 768px+ × 700px+ | 480px | 640px |
+| 1024px+ × 800px+ | 520px | 720px |
+| 1280px+ × 900px+ | 560px | 800px |
+| 1536px+ × 1000px+ | 600px | 880px |
+| 1800px+ × 1000px+ (fullscreen) | 680px | 920px |
+
+**Result**: Modals now scale proportionally with screen size, using more space on larger/fullscreen displays
+
+
+---
+
+### Agent Mode Auto-Enable Fix ✅
+**Date**: January 14, 2026
+
+**Issue**: Agent mode was supposed to be ON by default, but users had to manually enable it with Ctrl+Shift+A. When asking "Tell me about my computer", the AI responded with "I can help you find files... However, I cannot tell you general information about your computer" instead of using shell tools.
+
+**Root Causes Identified**:
+1. **Race condition in message routing** (`ChatInterface.tsx`): The condition `if (isAgentMode && agentSessionId)` would fall back to regular AI service if session wasn't created yet (200ms delay)
+2. **Async session creation issue** (`useAgentLogTab.ts`): The `enableAgentMode` function used an async IIFE inside `setState` which could fail silently
+3. **Agent system prompt not proactive** (`agentChatService.ts`): The prompt didn't explicitly instruct the AI to USE tools for system questions
+
+**Fixes Applied**:
+
+1. **`components/chat/ChatInterface.tsx`**:
+   - Changed routing condition from `if (isAgentMode && agentSessionId)` to `if (isAgentMode)`
+   - Added wait loop that polls for session ID when agent mode is enabled but session still loading
+   - Added `getSessionId` to hook destructuring for real-time session checking
+
+2. **`hooks/useAgentLogTab.ts`**:
+   - Refactored `enableAgentMode` to be properly async (removed nested IIFE pattern)
+   - Added `stateRef` to track current state for async operations
+   - Added retry logic (3 attempts with exponential backoff) for auto-enable on mount
+   - Better error handling with re-throw for retry mechanism
+
+3. **`services/agentChatService.ts`**:
+   - Added "CRITICAL BEHAVIOR - ALWAYS USE TOOLS" section to system prompt
+   - Added explicit examples: "Tell me about my computer" → Run: uname -a, free -h, df -h, lscpu
+   - Added instruction: "NEVER say 'I cannot' - TRY using tools first!"
+
+4. **`services/aiService.ts`** (fallback improvement):
+   - Updated system prompt to guide users to enable Agent Mode for system commands
+   - Instead of "I cannot tell you", now says "Please enable Agent Mode (Ctrl+Shift+A)"
+
+**Result**: Agent mode now properly auto-enables on app start and uses shell tools to answer system questions.
