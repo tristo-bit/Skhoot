@@ -96,7 +96,7 @@ export const SecondaryPanel: React.FC<SecondaryPanelProps> = ({
 
   const panel = (
     <div 
-      className="fixed left-0 right-0 pointer-events-auto z-[100]"
+      className="fixed left-0 right-0 pointer-events-auto z-40"
       style={{
         paddingLeft: 'var(--prompt-area-x)',
         paddingRight: 'var(--prompt-area-x)',

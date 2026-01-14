@@ -1,5 +1,6 @@
 // Activity Panel - Main component that composes UI and hooks
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Download } from 'lucide-react';
 import { BackButton, CloseButton } from '../buttonFormat';
 import { useActivityLogs } from './hooks/useActivityLogs';
@@ -23,9 +24,9 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ onClose, onBack })
     isEmpty 
   } = useActivityLogs();
 
-  return (
+  const panel = (
     <div 
-      className="absolute inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
@@ -80,6 +81,9 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ onClose, onBack })
       </div>
     </div>
   );
+
+  // Render via portal to escape parent stacking context
+  return createPortal(panel, document.body);
 };
 
 export default ActivityPanel;

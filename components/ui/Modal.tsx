@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { CloseButton } from '../buttonFormat';
 
@@ -30,42 +31,47 @@ export const Modal: React.FC<ModalProps> = ({
   overlayClassName = '',
   showClose = true,
   closeAriaLabel = 'Close',
-}) => (
-  <div
-    className={`modal-overlay absolute inset-0 z-50 flex items-center justify-center ${overlayClassName}`}
-    onClick={onClose}
-  >
+}) => {
+  const modal = (
     <div
-      className={`modal-panel glass-elevated animate-in zoom-in-95 duration-300 flex flex-col ${panelClassName}`}
-      onClick={(e) => e.stopPropagation()}
+      className={`modal-overlay fixed inset-0 z-50 flex items-center justify-center ${overlayClassName}`}
+      onClick={onClose}
     >
-      {(title || headerContent || showClose) && (
-        <div className={`modal-header flex items-center justify-between ${headerClassName}`}>
-          <div className="flex items-center gap-2 min-w-0">
-            {headerContent ?? (
-              <h2 className="text-lg font-black font-jakarta text-text-primary truncate">
-                {title}
-              </h2>
+      <div
+        className={`modal-panel glass-elevated animate-in zoom-in-95 duration-300 flex flex-col ${panelClassName}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {(title || headerContent || showClose) && (
+          <div className={`modal-header flex items-center justify-between ${headerClassName}`}>
+            <div className="flex items-center gap-2 min-w-0">
+              {headerContent ?? (
+                <h2 className="text-lg font-black font-jakarta text-text-primary truncate">
+                  {title}
+                </h2>
+              )}
+            </div>
+            {showClose && (
+              <CloseButton
+                onClick={onClose}
+                className="modal-close"
+                aria-label={closeAriaLabel}
+                title={closeAriaLabel}
+              />
             )}
           </div>
-          {showClose && (
-            <CloseButton
-              onClick={onClose}
-              className="modal-close"
-              aria-label={closeAriaLabel}
-              title={closeAriaLabel}
-            />
-          )}
+        )}
+        <div className={`modal-body flex-1 overflow-y-auto no-scrollbar ${bodyClassName}`}>
+          {children}
         </div>
-      )}
-      <div className={`modal-body flex-1 overflow-y-auto no-scrollbar ${bodyClassName}`}>
-        {children}
+        {footer && (
+          <div className={`modal-footer ${footerClassName}`}>
+            {footer}
+          </div>
+        )}
       </div>
-      {footer && (
-        <div className={`modal-footer ${footerClassName}`}>
-          {footer}
-        </div>
-      )}
     </div>
-  </div>
-);
+  );
+
+  // Render via portal to escape parent stacking context
+  return createPortal(modal, document.body);
+};

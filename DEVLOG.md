@@ -1,5 +1,40 @@
 # Development Log
 
+## January 14, 2026
+
+### Z-Index Priority Fix for Header Panels ✅
+- **Issue**: Action button panels (Terminal, FileExplorer, Workflows) were appearing ABOVE header panels (Settings, UserPanel, ActivityPanel, Sidebar) when both were open
+- **Root Cause**: Header panels were rendered inside `app-glass` container which has `z-10`, creating a stacking context that limited their effective z-index. Action button panels were rendered via `createPortal` directly to `document.body`, escaping this stacking context.
+
+- **Solution**: Modified all header panels to use `createPortal` to render directly to `document.body`, ensuring they share the same stacking context as action button panels.
+
+**Changes**:
+1. **`components/ui/Modal.tsx`**:
+   - Added `createPortal` import from `react-dom`
+   - Changed from `absolute` to `fixed` positioning
+   - Wrapped modal content in `createPortal(modal, document.body)`
+
+2. **`components/activity/ActivityPanel.tsx`**:
+   - Added `createPortal` import from `react-dom`
+   - Changed from `absolute` to `fixed` positioning
+   - Wrapped panel content in `createPortal(panel, document.body)`
+
+3. **`components/layout/Sidebar.tsx`**:
+   - Added `createPortal` import from `react-dom`
+   - Added `isOpen` prop to control visibility
+   - Changed to `fixed` positioning with `z-50`
+   - Wrapped sidebar content in `createPortal(sidebar, document.body)`
+
+4. **`App.tsx`**:
+   - Updated Sidebar component usage to pass `isOpen={isSidebarOpen}` prop
+   - Removed wrapper div with `data-sidebar` attribute (now handled internally by Sidebar)
+
+**Z-Index Hierarchy**:
+- Action button panels (SecondaryPanel, TerminalView): `z-40`
+- Header panels (Modal, ActivityPanel, Sidebar): `z-50`
+
+---
+
 ## January 13, 2026
 
 ### AI Message Text Opacity Fix ✅

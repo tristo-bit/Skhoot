@@ -1,4 +1,5 @@
 import React, { memo, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Plus, X, MessageSquare, LogIn, LogOut } from 'lucide-react';
 import { Chat, User } from '../../types';
 import { CloseButton, Button, IconButton } from '../buttonFormat';
@@ -14,6 +15,7 @@ interface SidebarProps {
   user: User | null;
   onSignIn: () => void;
   onSignOut: () => void;
+  isOpen: boolean;
 }
 
 const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
@@ -21,13 +23,24 @@ const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
 ));
 SkhootLogo.displayName = 'SkhootLogo';
 
-const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onDeleteChat, chats, currentChatId, user, onSignIn, onSignOut }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onDeleteChat, chats, currentChatId, user, onSignIn, onSignOut, isOpen }) => {
   const { showBranding } = useTheme();
   
-  return (
+  const sidebar = (
     <div 
-      className="w-64 h-full border-r border-black/5 flex flex-col relative glass z-50" 
+      data-sidebar
+      className={`fixed top-0 left-0 bottom-0 z-50 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
+      style={{ 
+        width: '16rem',
+        borderRadius: 'var(--app-radius)',
+      }}
     >
+      <div 
+        className="w-full h-full border-r border-black/5 flex flex-col relative glass" 
+        style={{ borderRadius: 'var(--app-radius) 0 0 var(--app-radius)' }}
+      >
       
       {/* Sidebar Header */}
       <div className="relative z-10 px-5 py-5 flex items-center gap-4 flex-shrink-0">
@@ -86,8 +99,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onD
     <div className="relative z-10 px-5 py-4 border-t border-black/5 flex-shrink-0">
       <AuthButton user={user} onSignIn={onSignIn} onSignOut={onSignOut} />
     </div>
-  </div>
+      </div>
+    </div>
   );
+
+  // Render via portal to escape parent stacking context
+  return createPortal(sidebar, document.body);
 };
 
 interface ChatItemProps {

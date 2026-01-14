@@ -308,7 +308,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
 
   return (
     <div 
-      className="absolute left-0 right-0 pointer-events-auto z-10"
+      className="fixed left-0 right-0 pointer-events-auto z-40"
       style={{
         paddingLeft: 'var(--prompt-area-x)',
         paddingRight: 'var(--prompt-area-x)',

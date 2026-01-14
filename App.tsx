@@ -313,25 +313,19 @@ const AppContent: React.FC = () => {
             onDragMouseDown={handleDragMouseDown}
           />
 
-          {/* Sidebar */}
-          <div 
-            data-sidebar
-            className={`absolute top-0 left-0 bottom-0 z-40 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
-              isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}
-          >
-            <Sidebar 
-              onNewChat={handleNewChat} 
-              onClose={toggleSidebar}
-              onSelectChat={handleSelectChat}
-              onDeleteChat={handleDeleteChat}
-              chats={chats}
-              currentChatId={currentChatId}
-              user={user}
-              onSignIn={handleSignIn}
-              onSignOut={handleSignOut}
-            />
-          </div>
+          {/* Sidebar - rendered via portal */}
+          <Sidebar 
+            onNewChat={handleNewChat} 
+            onClose={toggleSidebar}
+            onSelectChat={handleSelectChat}
+            onDeleteChat={handleDeleteChat}
+            chats={chats}
+            currentChatId={currentChatId}
+            user={user}
+            onSignIn={handleSignIn}
+            onSignOut={handleSignOut}
+            isOpen={isSidebarOpen}
+          />
 
           {/* Panels */}
           {isSettingsOpen && <SettingsPanel onClose={closeSettings} />}
