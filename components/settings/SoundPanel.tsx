@@ -373,20 +373,30 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
   const hasPermission = audioService.getPermissionStatus().granted;
   const showEnableButton = !hasPermission && !micPermissionError && !isRequestingPermission && inputDevices.length === 0;
   const showLinuxFix = linuxAudioStatus?.isLinux && linuxAudioStatus?.needsSetup;
-  const sttProviderDecision = sttService.getProviderDecision();
+  
+  // STT provider decision state
+  const [sttProviderDecision, setSttProviderDecision] = useState<string | null>(null);
   const isWebSpeechOnly = sttProviderDecision === 'web-speech';
+  
+  // Update STT provider decision when provider changes
+  useEffect(() => {
+    sttService.getProviderDecision().then(decision => {
+      setSttProviderDecision(decision);
+    });
+  }, [sttProvider]);
 
   const handleTestStt = async () => {
     setSttTestStatus('testing');
     setSttTestMessage('');
 
-    if (!sttProviderDecision) {
+    const currentProvider = await sttService.getProviderDecision();
+    if (!currentProvider) {
       setSttTestStatus('error');
       setSttTestMessage('No STT provider is available. Configure one above.');
       return;
     }
 
-    if (isWebSpeechOnly) {
+    if (currentProvider === 'web-speech') {
       setSttTestStatus('error');
       setSttTestMessage('Web Speech API should be tested via the mic button in chat.');
       return;
@@ -399,7 +409,7 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
         throw new Error('Microphone not available.');
       }
 
-      const session = await sttService.startRecording(stream, sttProviderDecision || undefined);
+      const session = await sttService.startRecording(stream, currentProvider || undefined);
 
       await new Promise(resolve => setTimeout(resolve, 2500));
       const transcript = await session.stop();

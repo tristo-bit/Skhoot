@@ -346,10 +346,13 @@ class AudioService {
   async getInputStream(deviceId?: string): Promise<MediaStream | null> {
     const targetDevice = deviceId || this.settings.selectedInputDevice;
     
-    console.log('[AudioService] Getting input stream, device:', targetDevice || 'default');
+    console.log('[AudioService] Getting input stream');
+    console.log('[AudioService] Target device ID:', targetDevice || 'default');
+    console.log('[AudioService] Saved settings:', JSON.stringify(this.settings));
 
     // Ensure we have permission first
     if (!this.permissionStatus.granted) {
+      console.log('[AudioService] No permission yet, requesting...');
       const result = await this.requestPermission();
       if (!result.granted) {
         console.error('[AudioService] Cannot get stream - permission denied');
@@ -371,17 +374,28 @@ class AudioService {
         }
       };
 
+      console.log('[AudioService] getUserMedia constraints:', JSON.stringify(constraints));
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      const tracks = stream.getAudioTracks();
       console.log('[AudioService] Got input stream successfully');
+      console.log('[AudioService] Audio tracks:', tracks.length);
+      tracks.forEach((track, i) => {
+        console.log(`[AudioService] Track ${i}: label="${track.label}", enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`);
+        const settings = track.getSettings();
+        console.log(`[AudioService] Track ${i} settings:`, JSON.stringify(settings));
+      });
+      
       return stream;
     } catch (error: any) {
-      console.error('[AudioService] Failed to get input stream:', error);
+      console.error('[AudioService] Failed to get input stream:', error.name, error.message);
       
       // Try fallback with no device constraint
       if (targetDevice) {
         console.log('[AudioService] Retrying with default device...');
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          console.log('[AudioService] Fallback stream obtained');
           return stream;
         } catch (retryError) {
           console.error('[AudioService] Fallback also failed:', retryError);

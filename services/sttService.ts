@@ -1,5 +1,5 @@
 import { audioService } from './audioService';
-import { apiKeyStore } from './apiKeyStore';
+import { apiKeyService } from './apiKeyService';
 import { sttConfigStore, SttProvider } from './sttConfig';
 
 const OPENAI_TRANSCRIPTION_URL = 'https://api.openai.com/v1/audio/transcriptions';
@@ -38,29 +38,56 @@ const getLanguageHint = (): string | undefined => {
   return base || undefined;
 };
 
-const resolveProvider = (): SttProvider | null => {
+const resolveProvider = async (): Promise<SttProvider | null> => {
   const config = sttConfigStore.get();
   const preference = config.provider;
+  
+  console.log('[STT] Resolving provider, preference:', preference);
+  console.log('[STT] Config:', JSON.stringify(config));
 
   const hasWebSpeech = sttConfigStore.hasWebSpeechSupport();
-  const hasOpenAI = apiKeyStore.has();
+  console.log('[STT] Web Speech supported:', hasWebSpeech);
+  
+  // Check if OpenAI key is available
+  let hasOpenAI = false;
+  try {
+    const openaiKey = await apiKeyService.loadKey('openai');
+    hasOpenAI = !!openaiKey;
+    console.log('[STT] OpenAI key available:', hasOpenAI);
+  } catch (e) {
+    console.log('[STT] OpenAI key check failed:', e);
+    hasOpenAI = false;
+  }
+  
   const hasLocal = !!config.localUrl?.trim();
+  console.log('[STT] Local URL configured:', hasLocal, config.localUrl);
 
-  if (preference === 'web-speech') return hasWebSpeech ? 'web-speech' : null;
-  if (preference === 'openai') return hasOpenAI ? 'openai' : null;
-  if (preference === 'local') return hasLocal ? 'local' : null;
+  let result: SttProvider | null = null;
+  
+  if (preference === 'web-speech') result = hasWebSpeech ? 'web-speech' : null;
+  else if (preference === 'openai') result = hasOpenAI ? 'openai' : null;
+  else if (preference === 'local') result = hasLocal ? 'local' : null;
+  else {
+    // Auto mode: prefer web-speech, then local, then openai
+    if (hasWebSpeech) result = 'web-speech';
+    else if (hasLocal) result = 'local';
+    else if (hasOpenAI) result = 'openai';
+  }
 
-  if (hasWebSpeech) return 'web-speech';
-  if (hasLocal) return 'local';
-  if (hasOpenAI) return 'openai';
-
-  return null;
+  console.log('[STT] Resolved provider:', result);
+  return result;
 };
 
 const transcribeWithOpenAI = async (chunks: BlobPart[], mimeType: string | null): Promise<string> => {
-  const apiKey = apiKeyStore.get();
+  let apiKey: string;
+  try {
+    apiKey = await apiKeyService.loadKey('openai');
+  } catch {
+    throw new Error('Missing OpenAI API key. Add your API key in User Profile → API Configuration.');
+  }
+  
   if (!apiKey) {
-    throw new Error('Missing API key. Add your API key in User Profile to enable cloud transcription.');
+    throw new Error('Missing OpenAI API key. Add your API key in User Profile → API Configuration.');
   }
 
   const audioFile = buildAudioFile(chunks, mimeType);
@@ -88,7 +115,12 @@ const transcribeWithOpenAI = async (chunks: BlobPart[], mimeType: string | null)
 };
 
 const transcribeWithLocal = async (chunks: BlobPart[], mimeType: string | null, url: string): Promise<string> => {
+  console.log('[STT] Transcribing with local server:', url);
+  console.log('[STT] Audio chunks:', chunks.length, 'mimeType:', mimeType);
+  
   const audioFile = buildAudioFile(chunks, mimeType);
+  console.log('[STT] Built audio file:', audioFile.name, 'size:', audioFile.size, 'type:', audioFile.type);
+  
   const formData = new FormData();
   formData.append('file', audioFile);
   const lang = getLanguageHint();
@@ -98,33 +130,55 @@ const transcribeWithLocal = async (chunks: BlobPart[], mimeType: string | null, 
     formData.append('response_format', 'json');
   }
 
+  console.log('[STT] Sending request to:', url);
   const response = await fetch(url, {
     method: 'POST',
     body: formData
   });
 
+  console.log('[STT] Response status:', response.status, response.statusText);
+  
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('[STT] Transcription failed:', errorText);
     throw new Error(`Transcription failed: ${response.status} ${errorText}`);
   }
 
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
     const result = await response.json();
+    console.log('[STT] JSON response:', result);
     return (result?.text || result?.transcript || '').trim();
   }
 
-  return (await response.text()).trim();
+  const text = await response.text();
+  console.log('[STT] Text response:', text);
+  return text.trim();
 };
 
 export const sttService = {
-  getProviderDecision(): SttProvider | null {
-    return resolveProvider();
+  async getProviderDecision(): Promise<SttProvider | null> {
+    return await resolveProvider();
   },
 
-  isAvailable(): boolean {
+  // Sync version for UI checks - uses simple heuristics
+  isAvailableSync(): boolean {
     if (typeof window === 'undefined') return false;
-    const provider = resolveProvider();
+    const config = sttConfigStore.get();
+    const hasWebSpeech = sttConfigStore.hasWebSpeechSupport();
+    const hasLocal = !!config.localUrl?.trim();
+    // For sync check, assume OpenAI might be available if not web-speech or local
+    if (hasWebSpeech) return true;
+    if (hasLocal) return true;
+    // Can't check OpenAI key synchronously, so return true to allow attempt
+    if (!('MediaRecorder' in window)) return false;
+    if (!audioService.isAudioSupported()) return false;
+    return true;
+  },
+
+  async isAvailable(): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+    const provider = await resolveProvider();
     if (!provider) return false;
     if (provider === 'web-speech') {
       return audioService.isSpeechRecognitionSupported();
@@ -135,7 +189,7 @@ export const sttService = {
   },
 
   async startRecording(stream: MediaStream, providerOverride?: SttProvider): Promise<SttSession> {
-    const provider = providerOverride || resolveProvider();
+    const provider = providerOverride || await resolveProvider();
     if (!provider || provider === 'web-speech') {
       throw new Error('No STT provider available for fallback transcription.');
     }

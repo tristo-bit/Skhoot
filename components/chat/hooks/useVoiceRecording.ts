@@ -4,6 +4,13 @@ import { sttService, SttSession } from '../../../services/sttService';
 import { sttConfigStore } from '../../../services/sttConfig';
 import { activityLogger } from '../../../services/activityLogger';
 
+// Helper to show notifications (console + optional UI callback)
+const showNotification = (message: string, type: 'error' | 'warning' | 'info' = 'error') => {
+  const prefix = type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+  console.log(`[Voice] ${prefix} ${message}`);
+  // Don't use alert() in Tauri - it requires dialog permissions
+};
+
 interface UseVoiceRecordingOptions {
   onTranscriptChange?: (transcript: string, pending: string) => void;
 }
@@ -110,15 +117,22 @@ export function useVoiceRecording(
     setVoiceTranscript('');
     setPendingVoiceText('');
 
+    console.log('[Voice] Starting recording...');
+
     // Setup audio visualization
     try {
       const stream = await audioService.getInputStream();
+      console.log('[Voice] Got audio stream:', stream ? 'yes' : 'no');
       if (stream) {
+        const tracks = stream.getAudioTracks();
+        console.log('[Voice] Audio tracks:', tracks.length, tracks.map(t => ({ label: t.label, enabled: t.enabled, muted: t.muted })));
+        
         streamRef.current = stream;
         setAudioStream(stream);
         
         const context = await audioService.createAudioContext();
         if (context) {
+          console.log('[Voice] AudioContext created, state:', context.state);
           audioContextRef.current = context;
           const source = context.createMediaStreamSource(stream);
           analyserRef.current = context.createAnalyser();
@@ -131,19 +145,23 @@ export function useVoiceRecording(
       console.warn('[Voice] Audio visualization setup failed:', audioError);
     }
 
-    const providerDecision = sttService.getProviderDecision();
+    const providerDecision = await sttService.getProviderDecision();
+    console.log('[Voice] Provider decision:', providerDecision);
     const useFallback = providerDecision && providerDecision !== 'web-speech';
 
-    if (useFallback) {
+      if (useFallback) {
+      console.log('[Voice] Using fallback STT provider:', providerDecision);
       try {
         if (!streamRef.current) {
           throw new Error('Microphone not available.');
         }
         sttSessionRef.current = await sttService.startRecording(streamRef.current, providerDecision);
+        console.log('[Voice] STT session started successfully');
       } catch (error) {
         stopRecording();
         const message = error instanceof Error ? error.message : 'Failed to start voice transcription.';
-        alert(message);
+        console.error('[Voice] STT start error:', message);
+        // Use console.error instead of alert for Tauri compatibility
       }
       return;
     }
@@ -152,7 +170,7 @@ export function useVoiceRecording(
     const recognition = audioService.createSpeechRecognition();
     if (!recognition) {
       stopRecording();
-      alert('Could not initialize speech recognition. Please try again.');
+      showNotification('Could not initialize speech recognition. Please try again.');
       return;
     }
     
@@ -179,13 +197,13 @@ export function useVoiceRecording(
         case 'no-speech':
           return;
         case 'audio-capture':
-          alert('Microphone not available.');
+          showNotification('Microphone not available.');
           break;
         case 'not-allowed':
-          alert('Microphone permission denied.');
+          showNotification('Microphone permission denied.');
           break;
         case 'network':
-          alert('Network error occurred. Speech recognition requires an internet connection.');
+          showNotification('Network error occurred. Speech recognition requires an internet connection.');
           break;
         default:
           console.warn('[Voice] Recognition error:', event.error);
@@ -214,14 +232,18 @@ export function useVoiceRecording(
   const handleMicClick = useCallback(async () => {
     try {
       if (isRecording) {
+        console.log('[Voice] Stopping recording...');
         stopRecording(false);
         const fullTranscript = (voiceTranscript + ' ' + pendingVoiceText).trim();
+        console.log('[Voice] Full transcript so far:', fullTranscript);
 
         if (sttSessionRef.current) {
+          console.log('[Voice] Waiting for STT session to complete...');
           const session = sttSessionRef.current;
           sttSessionRef.current = null;
           try {
             const transcript = await session.stop();
+            console.log('[Voice] STT transcript received:', transcript);
             if (transcript) {
               setVoiceTranscript(transcript);
               setPendingVoiceText('');
@@ -265,7 +287,7 @@ export function useVoiceRecording(
 
       const preference = sttConfigStore.getProviderPreference();
       if (preference === 'web-speech' && !audioService.isSpeechRecognitionSupported()) {
-        alert('Web Speech API is not supported on this platform. Choose a different STT provider in Sound Settings.');
+        showNotification('Web Speech API is not supported on this platform. Choose a different STT provider in Sound Settings.');
         return;
       }
 
@@ -285,8 +307,8 @@ export function useVoiceRecording(
           return;
         }
 
-        if (!sttService.isAvailable()) {
-          alert('Speech recognition is unavailable. Configure a provider in Sound Settings or add an API key.');
+        if (!(await sttService.isAvailable())) {
+          showNotification('Speech recognition is unavailable. Configure a provider in Sound Settings or add an API key.');
           return;
         }
       }
@@ -306,9 +328,9 @@ export function useVoiceRecording(
       
       if (error instanceof Error) {
         if (error.name === 'NotAllowedError') {
-          alert('Microphone access denied. Please allow microphone access and try again.');
+          showNotification('Microphone access denied. Please allow microphone access and try again.');
         } else if (error.name === 'NotFoundError') {
-          alert('No microphone found. Please connect a microphone and try again.');
+          showNotification('No microphone found. Please connect a microphone and try again.');
         } else {
           alert(`Recording error: ${error.message}`);
         }

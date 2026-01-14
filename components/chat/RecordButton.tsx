@@ -13,7 +13,7 @@ interface RecordButtonProps {
 export const RecordButton = memo<RecordButtonProps>(({ isRecording, onClick }) => {
   const isOpera = navigator.userAgent.indexOf('OPR') !== -1 || navigator.userAgent.indexOf('Opera') !== -1;
   const preferredProvider = sttConfigStore.getProviderPreference();
-  const isSpeechSupported = audioService.isSpeechRecognitionSupported() || sttService.isAvailable();
+  const isSpeechSupported = audioService.isSpeechRecognitionSupported() || sttService.isAvailableSync();
 
   const getAriaLabel = () => {
     if (isRecording) return 'Stop recording';

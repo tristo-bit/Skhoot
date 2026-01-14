@@ -4023,3 +4023,44 @@ select.select-themed {
 ```
 
 **Build Status**: ✅ Compiles successfully
+
+
+---
+
+### STT Service API Key Integration Fix ✅
+- **Issue**: OpenAI STT not working - provider selection not finding API key
+- **Root Cause**: `sttService` was using `apiKeyStore` (looks for `skhoot-api-key`) instead of `apiKeyService` (uses `skhoot_api_key_openai` in Tauri secure storage or localStorage)
+
+**Fixes Applied**:
+
+1. **Updated sttService.ts**:
+   - Changed import from `apiKeyStore` to `apiKeyService`
+   - Made `resolveProvider()` async to support async key lookup
+   - Made `getProviderDecision()` and `isAvailable()` async
+   - Added `isAvailableSync()` for UI components that need sync check
+   - Updated `transcribeWithOpenAI()` to use `apiKeyService.loadKey('openai')`
+
+2. **Updated useVoiceRecording.ts**:
+   - Changed `sttService.getProviderDecision()` to `await sttService.getProviderDecision()`
+   - Changed `sttService.isAvailable()` to `await sttService.isAvailable()`
+   - Added debug logging for mic stream and STT provider
+
+3. **Updated RecordButton.tsx**:
+   - Changed to use `sttService.isAvailableSync()` for UI state
+
+4. **Updated SoundPanel.tsx**:
+   - Added `sttProviderDecision` state with useEffect to fetch async
+   - Updated `handleTestStt` to use async provider decision
+
+**Key Storage Locations**:
+- Tauri: Secure storage via `save_api_key`/`load_api_key` commands
+- Web fallback: `localStorage` with key `skhoot_api_key_openai`
+
+**Debug Logging Added**:
+- `[Voice] Starting recording...`
+- `[Voice] Got audio stream: yes/no`
+- `[Voice] Audio tracks: count, labels, enabled, muted`
+- `[Voice] Provider decision: openai/local/web-speech`
+- `[Voice] STT transcript received: ...`
+
+**Build Status**: ✅ No diagnostics
