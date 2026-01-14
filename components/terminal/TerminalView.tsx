@@ -214,7 +214,11 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       
       if (activeTabId === tabId) {
         const remainingTabs = tabs.filter(t => t.id !== tabId);
-        if (remainingTabs.length > 0) {
+        // Prefer shell tabs over agent-log tabs
+        const shellTabs = remainingTabs.filter(t => t.type !== 'agent-log');
+        if (shellTabs.length > 0) {
+          setActiveTabId(shellTabs[0].id);
+        } else if (remainingTabs.length > 0) {
           setActiveTabId(remainingTabs[0].id);
         } else {
           onClose();
@@ -238,9 +242,31 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     });
   }, []);
 
-  // Create initial shell tab when component mounts
+  // Toggle agent log visibility - acts as show/hide switch (session keeps running)
+  const handleToggleAgentLog = useCallback(async () => {
+    const agentLogTab = tabs.find(t => t.type === 'agent-log');
+    
+    if (agentLogTab) {
+      // Agent log exists
+      if (activeTabId === agentLogTab.id) {
+        // Currently viewing agent log - switch back to first shell tab (hide agent log)
+        const shellTab = tabs.find(t => t.type !== 'agent-log');
+        if (shellTab) {
+          setActiveTabId(shellTab.id);
+        }
+      } else {
+        // Not viewing agent log - switch to it (show agent log)
+        setActiveTabId(agentLogTab.id);
+      }
+    } else {
+      // No agent log exists - create one
+      await handleCreateTab('agent-log');
+    }
+  }, [tabs, activeTabId, handleCreateTab]);
+
+  // Create initial shell tab when component mounts - ALWAYS create shell first
   useEffect(() => {
-    if (isOpen && tabs.length === 0 && !isCreatingInitialTab.current && !autoCreateAgentLog) {
+    if (isOpen && tabs.length === 0 && !isCreatingInitialTab.current) {
       isCreatingInitialTab.current = true;
       handleCreateTab('shell').finally(() => {
         setTimeout(() => {
@@ -248,9 +274,9 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
         }, 1000);
       });
     }
-  }, [isOpen, tabs.length, handleCreateTab, autoCreateAgentLog]);
+  }, [isOpen, tabs.length, handleCreateTab]);
 
-  // Auto-create agent log tab when autoCreateAgentLog is provided
+  // Auto-create agent log tab when autoCreateAgentLog is provided (but don't switch to it)
   const autoCreateAgentLogRef = useRef<string | null>(null);
   useEffect(() => {
     if (!autoCreateAgentLog || !isOpen) return;
@@ -258,8 +284,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     // Check if we already have an agent-log tab for this session
     const existingTab = tabs.find(t => t.type === 'agent-log' && t.sessionId === autoCreateAgentLog);
     if (existingTab) {
-      // Just activate it
-      setActiveTabId(existingTab.id);
+      // Don't auto-switch to agent log - user can click the bot icon to view it
       return;
     }
     
@@ -267,7 +292,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     if (autoCreateAgentLogRef.current === autoCreateAgentLog) return;
     autoCreateAgentLogRef.current = autoCreateAgentLog;
     
-    // Create the agent log tab with the provided session ID
+    // Create the agent log tab with the provided session ID (but don't activate it)
     const createAgentLogTab = async () => {
       try {
         // Check if session already exists in agentService
@@ -286,7 +311,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
         };
         
         setTabs(prev => [...prev, newTab]);
-        setActiveTabId(newTab.id);
+        // Don't set active tab - keep the shell tab active
         onAgentLogCreated?.(newTab.id);
       } catch (error) {
         console.error('[TerminalView] Failed to auto-create agent log tab:', error);
@@ -337,23 +362,24 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
           background: 'transparent',
         }}
       >
-        {/* Resize Handle */}
-        <div
-          className={`flex items-center justify-center h-6 cursor-ns-resize transition-colors ${isResizing ? 'bg-purple-500/20' : 'hover:bg-white/5'}`}
-          onMouseDown={handleResizeStart}
-        >
-          <GripHorizontal size={16} className="opacity-40" style={{ color: 'var(--text-secondary)' }} />
-        </div>
-
-        {/* Terminal Tabs - No border */}
+        {/* Unified Header with Resize Handle and Tabs */}
         <div 
           className="flex items-center justify-between"
           style={{
             padding: 'calc(var(--prompt-panel-padding) * 0.5) var(--prompt-panel-radius)',
           }}
         >
-          <div className="flex items-center gap-2 flex-1 overflow-x-auto">
-            {tabs.map(tab => (
+          {/* Resize Handle */}
+          <div
+            className={`flex items-center justify-center px-2 cursor-ns-resize transition-colors ${isResizing ? 'bg-purple-500/20' : 'hover:bg-white/5'} rounded`}
+            onMouseDown={handleResizeStart}
+          >
+            <GripHorizontal size={16} className="opacity-40" style={{ color: 'var(--text-secondary)' }} />
+          </div>
+
+          {/* Tabs - Only show shell tabs, not agent-log tabs */}
+          <div className="flex items-center gap-2 flex-1 overflow-x-auto ml-2">
+            {tabs.filter(tab => tab.type !== 'agent-log').map(tab => (
               <button
                 key={tab.id}
                 className={`
@@ -368,7 +394,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                 }}
                 onClick={() => setActiveTabId(tab.id)}
               >
-                {tab.type === 'agent-log' ? <Bot size={14} /> : <Terminal size={14} />}
+                <Terminal size={14} />
                 <span className="font-medium font-jakarta">{tab.title}</span>
                 <button
                   onClick={(e) => {
@@ -390,20 +416,11 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
             >
               <Plus size={16} className={isCreatingTab ? 'animate-spin' : ''} />
             </button>
-            <button
-              onClick={() => handleCreateTab('agent-log')}
-              disabled={isCreatingTab}
-              className={`p-1.5 rounded-xl transition-all hover:bg-purple-500/10 hover:text-purple-500 ${isCreatingTab ? 'opacity-50 cursor-wait' : ''}`}
-              style={{ color: 'var(--text-secondary)' }}
-              title="New Agent Log"
-            >
-              <Bot size={16} />
-            </button>
           </div>
 
           {/* Toolbar */}
           <div className="flex items-center gap-2 ml-4">
-            {activeTab && (
+            {activeTab && activeTab.type !== 'agent-log' && (
               <>
                 <button
                   onClick={() => handleCopyOutput(activeTab.sessionId)}
@@ -424,6 +441,19 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
               </>
             )}
             <button
+              onClick={handleToggleAgentLog}
+              disabled={isCreatingTab}
+              className={`p-1.5 rounded-xl transition-all ${
+                activeTab?.type === 'agent-log' 
+                  ? 'bg-purple-500/20 text-purple-500' 
+                  : 'hover:bg-purple-500/10 hover:text-purple-500'
+              } ${isCreatingTab ? 'opacity-50 cursor-wait' : ''}`}
+              style={{ color: activeTab?.type === 'agent-log' ? undefined : 'var(--text-secondary)' }}
+              title={activeTab?.type === 'agent-log' ? 'Close Agent Log' : 'Open Agent Log'}
+            >
+              <Bot size={16} />
+            </button>
+            <button
               onClick={onClose}
               className="p-1.5 rounded-xl transition-all hover:bg-red-500/10 hover:text-red-500"
               style={{ color: 'var(--text-secondary)' }}
@@ -435,7 +465,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
         </div>
 
         {/* Terminal Output */}
-        <div className="overflow-hidden" style={{ height: 'calc(100% - 72px)' }}>
+        <div className="overflow-hidden" style={{ height: 'calc(100% - 48px)' }}>
           {activeTab ? (
             activeTab.type === 'agent-log' ? (
               <AgentLogTab 

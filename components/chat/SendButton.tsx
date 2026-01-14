@@ -8,6 +8,7 @@ interface SendButtonProps {
   hasContent: boolean;
   hasPendingVoiceMessage: boolean;
   onClick: () => void;
+  onStop?: () => void;
 }
 
 export const SendButton = memo<SendButtonProps>(({ 
@@ -15,10 +16,19 @@ export const SendButton = memo<SendButtonProps>(({
   isRecording, 
   hasContent, 
   hasPendingVoiceMessage, 
-  onClick 
+  onClick,
+  onStop,
 }) => {
   const smoothEasing = 'cubic-bezier(0.22, 1, 0.36, 1)';
   const isActive = (hasContent || hasPendingVoiceMessage) && !isLoading;
+
+  const handleClick = () => {
+    if (isLoading && onStop) {
+      onStop();
+    } else {
+      onClick();
+    }
+  };
 
   return (
     <div
@@ -34,7 +44,6 @@ export const SendButton = memo<SendButtonProps>(({
             <Square
               size={18}
               fill="currentColor"
-              className="animate-pulse"
               style={{ 
                 width: 'calc(18px * var(--icon-scale) * var(--scale-text))', 
                 height: 'calc(18px * var(--icon-scale) * var(--scale-text))' 
@@ -50,14 +59,14 @@ export const SendButton = memo<SendButtonProps>(({
               className={isActive ? 'animate-in zoom-in duration-200' : 'opacity-50'} 
             />
           )}
-          onClick={onClick}
-          disabled={isLoading}
-          variant={isActive ? "glass" : "ghost"}
+          onClick={handleClick}
+          disabled={false}
+          variant={isLoading ? "glass" : isActive ? "glass" : "ghost"}
           size="lg"
-          aria-label="Send message"
+          aria-label={isLoading ? "Stop generation" : "Send message"}
           data-send-button
           style={{ 
-            backgroundColor: isActive ? '#3b82f640' : '#3b82f620',
+            backgroundColor: isLoading ? '#ef444440' : isActive ? '#3b82f640' : '#3b82f620',
             opacity: isRecording ? 0 : 1,
             transform: isRecording ? 'scale(0.85)' : 'scale(1)',
             transition: `opacity 0.35s ${smoothEasing}, transform 0.4s ${smoothEasing}, background-color 0.2s ease`,

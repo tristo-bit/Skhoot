@@ -7,6 +7,9 @@ import { useSettings } from '../../src/contexts/SettingsContext';
 import { QuickActionButton } from './QuickActionButton';
 import { RecordButton } from './RecordButton';
 import { SendButton } from './SendButton';
+import { AddFileButton } from './AddFileButton';
+import { FileChip, MultiFileChip } from './FileChip';
+import { FileAttachmentModal, AttachedFile } from './FileAttachmentModal';
 
 // Icon mapping for quick actions
 const QUICK_ACTION_ICONS: Record<string, (props: { size: number }) => React.ReactNode> = {
@@ -15,12 +18,6 @@ const QUICK_ACTION_ICONS: Record<string, (props: { size: number }) => React.Reac
   Workflows: ({ size }) => <Workflow size={size} />,
   Terminal: ({ size }) => <Terminal size={size} />,
 };
-
-// File reference chip type
-interface FileReference {
-  fileName: string;
-  filePath: string;
-}
 
 interface PromptAreaProps {
   input: string;
@@ -34,6 +31,7 @@ interface PromptAreaProps {
   onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
   onSend: () => void;
+  onStop?: () => void;
   onMicClick: () => void;
   onQuickAction: (mode: string, placeholder: string) => void;
   disabled?: boolean;
@@ -52,6 +50,7 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   onInputChange,
   onKeyDown,
   onSend,
+  onStop,
   onMicClick,
   onQuickAction,
   disabled = false,
@@ -94,7 +93,8 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   const quickActionsRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const [showOperaNotification, setShowOperaNotification] = useState(false);
-  const [fileReferences, setFileReferences] = useState<FileReference[]>([]);
+  const [fileReferences, setFileReferences] = useState<AttachedFile[]>([]);
+  const [isFileModalOpen, setIsFileModalOpen] = useState(false);
   
   // Listen for file reference additions from FileExplorerPanel
   useEffect(() => {
@@ -139,9 +139,29 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
     };
   }, []);
   
+  // Add a file reference
+  const addFileReference = useCallback((file: AttachedFile) => {
+    setFileReferences(prev => {
+      if (prev.some(ref => ref.fileName === file.fileName)) {
+        return prev;
+      }
+      return [...prev, file];
+    });
+  }, []);
+  
   // Remove a file reference
   const removeFileReference = useCallback((fileName: string) => {
     setFileReferences(prev => prev.filter(ref => ref.fileName !== fileName));
+  }, []);
+  
+  // Clear all file references
+  const clearAllFileReferences = useCallback(() => {
+    setFileReferences([]);
+  }, []);
+  
+  // Handle + button click
+  const handleAddFileClick = useCallback(() => {
+    setIsFileModalOpen(true);
   }, []);
   
   // Show Opera notification briefly when component mounts (skip in demo mode)
@@ -268,6 +288,36 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
         
         {/* Input Row */}
         <div className="flex items-center gap-2">
+          {/* Add File Button */}
+          <div
+            style={{
+              paddingLeft: 'calc(var(--scale-space-1) * var(--spacing-scale))',
+            }}
+          >
+            <AddFileButton 
+              onClick={handleAddFileClick} 
+              fileCount={fileReferences.length}
+            />
+          </div>
+          
+          {/* File Chips - shown to the right of + button */}
+          {fileReferences.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {fileReferences.length === 1 ? (
+                <FileChip
+                  fileName={fileReferences[0].fileName}
+                  filePath={fileReferences[0].filePath}
+                  onRemove={() => removeFileReference(fileReferences[0].fileName)}
+                />
+              ) : (
+                <MultiFileChip
+                  fileCount={fileReferences.length}
+                  onClick={handleAddFileClick}
+                />
+              )}
+            </div>
+          )}
+          
           <div
             className="flex-1 relative"
             style={{
@@ -305,29 +355,6 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
                 transition: `opacity 0.4s ${smoothEasing}, transform 0.5s ${smoothEasing}`,
               }}
             >
-              {/* File Reference Chips */}
-              {fileReferences.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {fileReferences.map((ref) => (
-                    <div
-                      key={ref.fileName}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-400 text-xs font-medium animate-in fade-in zoom-in-95 duration-200"
-                      title={ref.filePath}
-                    >
-                      <FileText size={12} className="flex-shrink-0" />
-                      <span className="truncate max-w-[120px]">@{ref.fileName}</span>
-                      <button
-                        onClick={() => removeFileReference(ref.fileName)}
-                        className="flex-shrink-0 p-0.5 rounded-full hover:bg-purple-500/30 transition-colors"
-                        title="Remove file reference"
-                      >
-                        <X size={10} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
               <textarea 
                 ref={(node) => {
                   textAreaRef.current = node;
@@ -367,6 +394,7 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
               hasContent={hasContent}
               hasPendingVoiceMessage={hasPendingVoiceMessage}
               onClick={onSend}
+              onStop={onStop}
             />
           </div>
         </div>
@@ -392,6 +420,16 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
           </div>
         </div>
       )}
+      
+      {/* File Attachment Modal */}
+      <FileAttachmentModal
+        isOpen={isFileModalOpen}
+        onClose={() => setIsFileModalOpen(false)}
+        attachedFiles={fileReferences}
+        onAddFile={addFileReference}
+        onRemoveFile={removeFileReference}
+        onClearAll={clearAllFileReferences}
+      />
     </div>
   );
 });

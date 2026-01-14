@@ -2,6 +2,7 @@ import { forwardRef, useState, useEffect } from 'react';
 import { Message } from '../../types';
 import { MessageBubble, LoadingIndicator, SearchingIndicator } from '../conversations';
 import { VoiceMessage } from '../conversations/VoiceMessage';
+import { QueuedMessage } from '../conversations/QueuedMessage';
 import { ScrollbarStyles } from '../ui';
 import { WelcomeMessage } from './WelcomeMessage';
 import { MessageMarkers } from './MessageMarkers';
@@ -20,9 +21,13 @@ interface MainAreaProps {
   isEmptyStateExiting: boolean;
   activeMode: string | null;
   promptKey?: number;
+  queuedMessage?: string | null;
   onSendVoice: () => void;
   onDiscardVoice: () => void;
   onEditVoice?: (newText: string) => void;
+  onSendQueuedNow?: () => void;
+  onDiscardQueued?: () => void;
+  onEditQueued?: (newText: string) => void;
 }
 
 /**
@@ -43,9 +48,13 @@ export const MainArea = forwardRef<HTMLDivElement, MainAreaProps>(({
   isEmptyStateExiting,
   activeMode,
   promptKey = 0,
+  queuedMessage,
   onSendVoice,
   onDiscardVoice,
   onEditVoice,
+  onSendQueuedNow,
+  onDiscardQueued,
+  onEditQueued,
 }, ref) => {
   const hasMessages = messages.length > 0;
   const showEmptyState = isEmptyStateVisible && !hasMessages && !isLoading && !hasPendingVoiceMessage && !isRecording;
@@ -155,6 +164,16 @@ export const MainArea = forwardRef<HTMLDivElement, MainAreaProps>(({
               onEdit={onEditVoice}
               isRecording={isRecording}
               isPending={hasPendingVoiceMessage}
+            />
+          )}
+          
+          {/* Queued Message - shown when user sends while AI is responding */}
+          {queuedMessage && (
+            <QueuedMessage
+              message={queuedMessage}
+              onSendNow={onSendQueuedNow || (() => {})}
+              onDiscard={onDiscardQueued || (() => {})}
+              onEdit={onEditQueued}
             />
           )}
           

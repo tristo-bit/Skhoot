@@ -7,7 +7,7 @@ import { DiskUsage } from './DiskUsage';
 import { CleanupList } from './CleanupList';
 import { AgentAction } from './AgentAction';
 import { Button } from '../buttonFormat';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, FileText, Paperclip } from 'lucide-react';
 
 // Check if message is the "No AI provider configured" warning
 const isApiConfigWarning = (content: string): boolean => {
@@ -111,6 +111,26 @@ export const MessageBubble = memo<{ message: Message }>(({ message }) => {
           boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.1)',
         }}
       >
+        {/* Attached Files Indicator */}
+        {message.attachedFiles && message.attachedFiles.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-glass-border">
+            <div className="flex items-center gap-1 text-emerald-500 text-[10px] font-medium">
+              <Paperclip size={10} />
+              <span>{message.attachedFiles.length} file{message.attachedFiles.length !== 1 ? 's' : ''} attached:</span>
+            </div>
+            {message.attachedFiles.map((file) => (
+              <div
+                key={file.fileName}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-medium"
+                title={file.filePath}
+              >
+                <FileText size={10} />
+                <span className="truncate max-w-[80px]">{file.fileName}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        
         <p className="text-[13px] leading-relaxed font-semibold font-jakarta text-text-primary">
           {message.content}
         </p>

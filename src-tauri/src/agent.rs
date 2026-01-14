@@ -396,25 +396,32 @@ async fn execute_read_file_direct(request: &ExecuteToolRequest, working_dir: &Pa
         .and_then(|v| v.as_u64())
         .map(|v| v as usize);
     
-    let content = tokio::fs::read_to_string(&path).await
-        .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+    // Use spawn_blocking for file I/O to avoid blocking the async runtime
+    let result = tokio::task::spawn_blocking(move || {
+        let content = std::fs::read_to_string(&path)
+            .map_err(|e| format!("Failed to read {}: {}", path.display(), e))?;
+        
+        let lines: Vec<&str> = content.lines().collect();
+        let total_lines = lines.len();
+        
+        let start_idx = start_line.saturating_sub(1).min(total_lines);
+        let end_idx = end_line.map(|e| e.min(total_lines)).unwrap_or(total_lines);
+        
+        let output = lines[start_idx..end_idx].join("\n");
+        
+        const MAX_SIZE: usize = 1024 * 1024;
+        if output.len() > MAX_SIZE {
+            let mut truncated = output[..MAX_SIZE].to_string();
+            truncated.push_str("\n... [content truncated]");
+            Ok(truncated)
+        } else {
+            Ok(output)
+        }
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?;
     
-    let lines: Vec<&str> = content.lines().collect();
-    let total_lines = lines.len();
-    
-    let start_idx = start_line.saturating_sub(1).min(total_lines);
-    let end_idx = end_line.map(|e| e.min(total_lines)).unwrap_or(total_lines);
-    
-    let output = lines[start_idx..end_idx].join("\n");
-    
-    const MAX_SIZE: usize = 1024 * 1024;
-    if output.len() > MAX_SIZE {
-        let mut truncated = output[..MAX_SIZE].to_string();
-        truncated.push_str("\n... [content truncated]");
-        Ok(truncated)
-    } else {
-        Ok(output)
-    }
+    result
 }
 
 
@@ -427,39 +434,46 @@ async fn execute_write_file_direct(request: &ExecuteToolRequest, working_dir: &P
     
     let content = args.get("content")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| "Missing 'content' argument".to_string())?;
+        .ok_or_else(|| "Missing 'content' argument".to_string())?
+        .to_string();
     
     let mode = args.get("mode")
         .and_then(|v| v.as_str())
-        .unwrap_or("overwrite");
+        .unwrap_or("overwrite")
+        .to_string();
     
     let path = resolve_path(path_str, working_dir);
+    let content_len = content.len();
     
-    if let Some(parent) = path.parent() {
-        tokio::fs::create_dir_all(parent).await
-            .map_err(|e| format!("Failed to create directory: {}", e))?;
-    }
-    
-    match mode {
-        "append" => {
-            use tokio::io::AsyncWriteExt;
-            let mut file = tokio::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&path)
-                .await
-                .map_err(|e| format!("Failed to open {}: {}", path.display(), e))?;
-            
-            file.write_all(content.as_bytes()).await
-                .map_err(|e| format!("Failed to write: {}", e))?;
+    // Use spawn_blocking for file I/O to avoid blocking the async runtime
+    tokio::task::spawn_blocking(move || {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create directory: {}", e))?;
         }
-        _ => {
-            tokio::fs::write(&path, content).await
-                .map_err(|e| format!("Failed to write {}: {}", path.display(), e))?;
+        
+        match mode.as_str() {
+            "append" => {
+                use std::io::Write;
+                let mut file = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&path)
+                    .map_err(|e| format!("Failed to open {}: {}", path.display(), e))?;
+                
+                file.write_all(content.as_bytes())
+                    .map_err(|e| format!("Failed to write: {}", e))?;
+            }
+            _ => {
+                std::fs::write(&path, &content)
+                    .map_err(|e| format!("Failed to write {}: {}", path.display(), e))?;
+            }
         }
-    }
-    
-    Ok(format!("Successfully wrote {} bytes to {}", content.len(), path.display()))
+        
+        Ok::<String, String>(format!("Successfully wrote {} bytes to {}", content_len, path.display()))
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
 }
 
 async fn execute_list_directory_direct(request: &ExecuteToolRequest, working_dir: &PathBuf) -> Result<String, String> {
@@ -479,11 +493,19 @@ async fn execute_list_directory_direct(request: &ExecuteToolRequest, working_dir
     
     let path = resolve_path(path_str, working_dir);
     
-    let entries = list_dir_iterative(&path, depth, include_hidden).await?;
+    // Use spawn_blocking for filesystem operations to avoid blocking the async runtime
+    let entries = tokio::task::spawn_blocking(move || {
+        list_dir_sync(&path, depth, include_hidden)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+    .map_err(|e| format!("Directory listing error: {}", e))?;
+    
     Ok(entries.join("\n"))
 }
 
-async fn list_dir_iterative(path: &std::path::Path, max_depth: usize, include_hidden: bool) -> Result<Vec<String>, String> {
+/// Synchronous directory listing - runs in spawn_blocking
+fn list_dir_sync(path: &std::path::Path, max_depth: usize, include_hidden: bool) -> Result<Vec<String>, String> {
     let mut entries = Vec::new();
     let mut stack: Vec<(PathBuf, usize)> = vec![(path.to_path_buf(), 0)];
     
@@ -494,20 +516,22 @@ async fn list_dir_iterative(path: &std::path::Path, max_depth: usize, include_hi
         
         let indent = "  ".repeat(depth);
         
-        let mut dir = tokio::fs::read_dir(&current_path).await
+        let dir = std::fs::read_dir(&current_path)
             .map_err(|e| format!("Failed to read directory {}: {}", current_path.display(), e))?;
         
-        let mut dir_entries = Vec::new();
-        while let Some(entry) = dir.next_entry().await
-            .map_err(|e| format!("Failed to read entry: {}", e))? 
-        {
+        let mut dir_entries: Vec<(String, String, bool, PathBuf)> = Vec::new();
+        
+        for entry_result in dir {
+            let entry = entry_result
+                .map_err(|e| format!("Failed to read entry: {}", e))?;
+            
             let name = entry.file_name().to_string_lossy().to_string();
             
             if !include_hidden && name.starts_with('.') {
                 continue;
             }
             
-            let metadata = entry.metadata().await
+            let metadata = entry.metadata()
                 .map_err(|e| format!("Failed to get metadata: {}", e))?;
             
             let type_indicator = if metadata.is_dir() { "/" } else { "" };
@@ -517,7 +541,12 @@ async fn list_dir_iterative(path: &std::path::Path, max_depth: usize, include_hi
                 String::new()
             };
             
-            dir_entries.push((name.clone(), format!("{}{}{}{}", indent, name, type_indicator, size), metadata.is_dir(), entry.path()));
+            dir_entries.push((
+                name.clone(), 
+                format!("{}{}{}{}", indent, name, type_indicator, size), 
+                metadata.is_dir(), 
+                entry.path()
+            ));
         }
         
         dir_entries.sort_by(|a, b| a.0.cmp(&b.0));

@@ -2,6 +2,154 @@
 
 ## January 14, 2026
 
+### Agent Mode UI Integration - File Tools Now Use Existing UI Components ✅
+- **Issue**: When using agent mode, file-related tools (`list_directory`, `search_files`, `read_file`) displayed raw text output instead of using the existing beautiful UI components
+- **Root Cause**: The `AgentAction` component was rendering all tool outputs as plain text in a `<pre>` block, not leveraging the existing `FileList`, `FileItem` UI components that were already built for the non-agent search mode
+- **Solution**: Enhanced `AgentAction` component to parse tool outputs and render them using the existing UI patterns
+
+**Changes to `components/conversations/AgentAction.tsx`**:
+
+1. **Added Output Parsing Utilities**:
+   - `parseDirectoryListing()` - Parses Unix `ls -la` style output, simple file listings, and JSON formatted output
+   - `parseSearchResults()` - Parses grep-style output (`file:line:content`) and simple file paths
+   - `parseUnixLsLine()` - Handles standard Unix ls output format
+   - `parseSimpleLine()` - Handles simple file path listings
+   - `parseJsonLine()` - Handles JSON formatted file entries
+   - Helper functions: `formatFileSize()`, `detectCategory()`, `getFileExtension()`, `isCodeFile()`
+
+2. **Created `DirectoryItem` Component** - Compact, interactive file item:
+   - File/folder icon (amber for folders, gray for files)
+   - File name and path display
+   - File size indicator
+   - Hover actions: Open file, Show in folder, Copy path
+   - Uses same backend API calls as `FileList` component
+
+3. **Enhanced `AgentAction` Component**:
+   - Auto-expands for file-related tools when results are available
+   - Shows result summary (e.g., "5 items found" or "42 lines")
+   - Toggle between UI view and raw output for file listings
+   - Special rendering for `read_file`:
+     - Code files get monospace formatting
+     - Markdown files render with `MarkdownRenderer`
+     - Other files show as plain text
+
+4. **Integrated with Existing UI Patterns**:
+   - Uses same glass-morphism styling (`glass-subtle`, `glass-elevated`)
+   - Consistent with `FileList` and `FileItem` components
+   - Same action buttons (Open, Folder, Copy) with same backend API calls
+   - Imported `MarkdownRenderer` for markdown file rendering
+
+**How Agent Mode File Tools Now Work**:
+- `list_directory` → Shows interactive file list with icons, sizes, and action buttons
+- `search_files` → Shows search results with file paths and snippets
+- `read_file` → Shows file content with appropriate formatting (code/markdown/text)
+- `shell` → Shows raw command output (unchanged)
+- `write_file` → Shows success/error status (unchanged)
+
+**User Interactions Available**:
+- Click on files to open them
+- Click folder icon to reveal in file explorer
+- Copy file paths with one click
+- Toggle between UI and raw output view
+- Expand/collapse tool results
+
+**Build Status**: ✅ No TypeScript diagnostics
+
+---
+
+### Agent Tool Output Always Visible in Conversation ✅
+- **Issue**: Agent tool outputs were collapsed by default, requiring users to click to see results. Users wanted outputs always visible in the conversation without needing to open the terminal.
+- **Solution**: Restructured `AgentAction` component with new layout - compact header card + always-visible output
+
+**New Layout Structure**:
+```
+┌─────────────────────────────────────────────────┐
+│ [Icon] List Directory  ✓ Done  5 items found  > │  ← Compact header (collapsed)
+│        /home/user/project                       │     Click to show Arguments
+└─────────────────────────────────────────────────┘
+
+┌─ OUTPUT ──────────────────────────── [Copy] ────┐
+│ 📁 src/           -                          ⋮  │  ← Beautiful file UI
+│ 📄 package.json   1.2 KB                     ⋮  │     Always visible
+│ 📄 README.md      3.4 KB                     ⋮  │
+└─────────────────────────────────────────────────┘
+```
+
+**Changes to `components/conversations/AgentAction.tsx`**:
+1. **Compact header card** - Shows tool icon, name, status badge, result summary, and path
+2. **Arguments hidden by default** - Click header to expand and see full arguments JSON
+3. **Output always visible below** - File UI, code content, or shell output shown immediately
+4. **Separate visual sections** - Header card and output are distinct rounded elements
+5. **Improved styling** - Smaller header (p-2.5), better spacing (mt-2, mt-3), rounded-xl borders
+
+**User Experience**:
+- ✅ Tool results visible immediately without clicking
+- ✅ Compact header shows key info at a glance
+- ✅ Arguments accessible but not cluttering the view
+- ✅ Beautiful file UI for directory listings and search results
+- ✅ Terminal stays separate - outputs in conversation
+
+---
+
+### Agent Tool Execution Performance Optimization ✅
+- **Issue**: Agent mode was slowing down the Tauri app significantly when executing file-related tools (`list_directory`, `read_file`, `write_file`)
+- **Root Cause**: Async file operations using `tokio::fs` were blocking the Tauri main thread. The directory listing was doing many sequential `await` calls on each entry, causing UI freezes.
+- **Solution**: Moved all file I/O operations to `tokio::task::spawn_blocking()` with synchronous `std::fs` operations
+
+**Changes to `src-tauri/src/agent.rs`**:
+
+1. **`execute_list_directory_direct`**:
+   - Replaced async `tokio::fs::read_dir()` with `spawn_blocking` + sync `std::fs::read_dir()`
+   - Created new `list_dir_sync()` function for synchronous directory traversal
+   - Eliminates sequential awaits on each directory entry
+
+2. **`execute_read_file_direct`**:
+   - Replaced `tokio::fs::read_to_string()` with `spawn_blocking` + sync `std::fs::read_to_string()`
+   - File reading now happens in dedicated thread pool
+
+3. **`execute_write_file_direct`**:
+   - Replaced `tokio::fs::write()` and `tokio::fs::create_dir_all()` with sync equivalents in `spawn_blocking`
+   - Directory creation and file writing now non-blocking to UI
+
+**Why `spawn_blocking` is better here**:
+- Moves I/O work to a dedicated thread pool, freeing the async runtime
+- Synchronous file operations in a blocking thread avoid async state machine overhead
+- Tauri UI thread stays responsive while file operations run in background
+- Better performance for filesystem-heavy operations
+
+**Build Status**: ✅ Rust compiles successfully (only 1 unrelated warning about unused import)
+
+---
+
+### Audio Backend Service Architecture Plan 📋
+- **Decision**: Move all audio capture and STT processing from frontend to Rust backend
+- **Rationale**: WebKitGTK's MediaRecorder is broken on Linux, and having audio logic in the frontend creates a fragile architecture
+
+**New Architecture**:
+- Backend handles audio capture using `cpal` crate (cross-platform: PipeWire/PulseAudio/ALSA/CoreAudio/WASAPI)
+- Backend manages Whisper server lifecycle
+- Frontend makes simple HTTP calls to `/api/v1/audio/*` endpoints
+- Eliminates WebKitGTK audio limitations entirely
+
+**API Endpoints Planned**:
+- `POST /api/v1/audio/start` - Start recording
+- `POST /api/v1/audio/stop` - Stop and optionally transcribe
+- `GET /api/v1/audio/devices` - List input devices
+- `GET /api/v1/audio/status` - Recording status
+
+**Spec Created**: `.kiro/specs/audio-backend-service/`
+- `requirements.md` - Functional and non-functional requirements
+- `design.md` - Architecture, module structure, API design
+- `tasks.md` - Implementation tasks in 5 phases
+
+**Benefits**:
+- Native audio APIs bypass WebKitGTK limitations
+- Clean separation: Frontend = UI, Backend = audio + AI
+- Better resource management and error handling
+- Single source of truth for Whisper server state
+
+---
+
 ### WebKitGTK MediaRecorder Workaround - WebAudioRecorder Fallback ✅
 - **Issue**: STT (Speech-to-Text) not working on Linux in Tauri - MediaRecorder returns 0-byte audio chunks
 - **Root Cause**: WebKitGTK's MediaRecorder implementation on Linux is broken - `ondataavailable` fires with `data.size: 0` even though the stream appears valid (enabled, not muted, live state)
@@ -4157,3 +4305,399 @@ return new Promise((resolve, reject) => {
 - AudioContext state: `running`
 
 **Build Status**: ✅ No diagnostics
+
+
+---
+
+### Terminal UI Panel Improvements ✅
+- **Issue**: Multiple UI/UX issues in the terminal panel
+  1. Two separate headers (resize handle + tabs) taking up space
+  2. "All Logs" dropdown had no dark mode styling (white background)
+  3. Footer showing "6 log entries / Session: agent-de..." was unnecessary
+  4. Agent log tab opened by default instead of shell terminal
+  5. Bug: Typing commands auto-switched to agent log tab
+  6. Agent log tab cluttering the tab bar
+
+- **Solution**: Comprehensive terminal UI cleanup
+
+**Changes Made**:
+
+1. **Merged Headers into One**
+   - Combined resize handle and tabs into a single unified header row
+   - Resize handle now inline on the left side of the header
+   - Reduced header height from 72px to 48px
+   - Cleaner, more compact layout
+
+2. **Fixed Dark Mode for "All Logs" Dropdown**
+   - Added proper background color: `var(--bg-primary, #1a1a2e)`
+   - Applied dark styling to all `<option>` elements
+   - Dropdown now matches the overall dark theme
+
+3. **Removed AgentLogTab Footer**
+   - Deleted the footer showing log count and session ID
+   - Cleaner interface without redundant information
+
+4. **Shell Terminal Now Default**
+   - Removed condition that skipped shell creation when `autoCreateAgentLog` was provided
+   - Shell tab always created first when terminal opens
+   - Agent log tabs created in background without auto-activation
+
+5. **Fixed Auto-Switch Bug**
+   - Agent log tabs no longer auto-activate when created
+   - Removed `setActiveTabId(newTab.id)` from auto-create agent log effect
+   - User stays on shell tab while typing commands
+
+6. **Reorganized Agent Log Access**
+   - Removed agent-log tabs from visible tab bar (filtered out)
+   - Moved "New Agent Log" button to right toolbar with other icons
+   - Agent logs accessible via bot icon button
+   - When closing tabs, shell tabs are preferred over agent-log tabs
+
+**Files Modified**:
+- `components/terminal/TerminalView.tsx` - Header merge, tab filtering, default behavior
+- `components/terminal/AgentLogTab.tsx` - Footer removal, dropdown styling
+
+**Result**:
+- ✅ Single unified header (cleaner UI)
+- ✅ Dark mode dropdown properly styled
+- ✅ No footer clutter
+- ✅ Shell terminal opens by default
+- ✅ No more auto-switching to agent log
+- ✅ Agent log accessible via dedicated button
+
+**Build Status**: ✅ No diagnostics
+
+
+---
+
+### AI Response Stop & Message Queue Feature ✅
+- **Feature**: Added ability to stop AI generation mid-response and queue new messages
+
+**Problem Solved**:
+- Users couldn't interrupt the AI while it was generating a response
+- Sending a new message while AI was responding would be blocked
+- No way to cancel long-running or unwanted AI responses
+
+**Implementation**:
+
+1. **Stop Button** (`components/chat/SendButton.tsx`)
+   - Send button transforms into a stop button (red square icon) when AI is loading
+   - Button is no longer disabled during loading - it's clickable to stop
+   - Red background (`#ef444440`) indicates destructive action
+   - Aria label changes to "Stop generation" when loading
+
+2. **Abort Controller** (`components/chat/ChatInterface.tsx`)
+   - Added `abortControllerRef` to track ongoing requests
+   - `handleStop` callback aborts the current request
+   - Adds "⏹️ Generation stopped." message when stopped
+   - Resets loading state and clears search status
+
+3. **Message Queue System**
+   - Added `queuedMessage` state to hold pending messages
+   - If user sends message while AI is responding, it gets queued
+   - Status shows "Message queued: [preview]" as feedback
+   - After current response completes, queued message auto-sends
+   - Uses `setTimeout` chain to properly sequence state updates
+
+4. **Props Flow**
+   - `SendButton`: Added `onStop` prop for stop handler
+   - `PromptArea`: Added `onStop` prop, passes to SendButton
+   - `ChatInterface`: Implements `handleStop`, passes to PromptArea
+
+**User Experience**:
+- Click stop button (red square) to cancel AI response
+- Type and send new message while AI is responding - it queues automatically
+- Queued message sends after current response completes
+- Visual feedback shows what's queued
+
+**Files Modified**:
+- `components/chat/SendButton.tsx` - Stop button UI and click handling
+- `components/chat/PromptArea.tsx` - Added onStop prop
+- `components/chat/ChatInterface.tsx` - Abort controller, queue logic, handleStop
+
+**Build Status**: ✅ No diagnostics
+
+
+---
+
+### Enhanced Message Queue with Interrupt & Adapt UI ✅
+- **Enhancement**: Improved queued message system with dedicated UI component and interrupt capability
+
+**New Features**:
+
+1. **QueuedMessage Component** (`components/conversations/QueuedMessage.tsx`)
+   - Visual bubble similar to VoiceMessage component
+   - Amber/yellow theme to distinguish from voice messages
+   - Lightning bolt indicator showing "Queued - will interrupt AI"
+   - Three action buttons:
+     - ⚡ Send Now: Immediately interrupts AI and sends the queued message
+     - ✏️ Edit: Modify the queued message before sending
+     - ✕ Discard: Cancel the queued message
+   - Smooth animations matching the app's design system
+
+2. **Interrupt & Adapt Behavior**
+   - When user clicks "Send Now" on queued message:
+     - Current AI generation is immediately stopped
+     - Partial response (if any) is saved with "[Interrupted - adapting to new input]" marker
+     - Queued message is sent as new input
+   - AI receives the conversation history including the partial response
+   - This allows AI to "read and adapt" to the interruption
+
+3. **Updated ChatInterface**
+   - `handleSendQueuedNow`: Interrupts AI and sends queued message
+   - `handleDiscardQueued`: Removes queued message
+   - `handleEditQueued`: Updates queued message text
+   - `partialResponseRef`: Tracks partial AI response for interrupt flow
+   - Queued messages now shown via UI component instead of status text
+
+4. **MainArea Integration**
+   - Added props for queued message display and handlers
+   - QueuedMessage appears below voice message, above loading indicator
+   - Proper prop drilling from ChatInterface
+
+**User Experience**:
+- Type message while AI is responding → Message appears in queued bubble
+- Click ⚡ to interrupt AI and send immediately
+- Click ✏️ to edit before sending
+- Click ✕ to discard
+- AI's partial response is preserved with interrupt marker
+
+**Files Created**:
+- `components/conversations/QueuedMessage.tsx`
+
+**Files Modified**:
+- `components/chat/ChatInterface.tsx` - Interrupt handlers, partial response tracking
+- `components/main-area/MainArea.tsx` - QueuedMessage display and props
+
+**Build Status**: ✅ No diagnostics
+
+
+---
+
+### File Attachment System Redesign ✅
+- **Feature**: Complete redesign of file attachment UI with reusable components and modal interface
+
+**New Components Created**:
+
+1. **AddFileButton** (`components/chat/AddFileButton.tsx`)
+   - Green + button matching RecordButton styling
+   - Shows file count badge when files are attached
+   - Positioned to the left of the prompt input area
+   - Emerald green color scheme (#10b981)
+
+2. **FileChip** (`components/chat/FileChip.tsx`)
+   - Single file display: Shows filename with extension badge
+   - Inline remove button (X)
+   - Emerald green styling to match AddFileButton
+   - `MultiFileChip`: When 2+ files attached, shows "X files loaded" button
+
+3. **FileAttachmentModal** (`components/chat/FileAttachmentModal.tsx`)
+   - Three-tab interface:
+     - **Attached**: View and manage currently attached files
+     - **Search**: Search for files using backend AI search
+     - **Drop**: Drag and drop zone for file uploads
+   - Full file management: add, remove, clear all
+   - Search integration with backendApi.aiFileSearch
+   - File size display and path information
+
+**UI Layout Changes**:
+- + button positioned to the left of the input area
+- File chips appear to the right of the + button (not above input)
+- Single file: Shows FileChip with filename
+- Multiple files: Shows MultiFileChip "X files loaded" button
+- Clicking MultiFileChip or + button opens the modal
+
+**User Flow**:
+1. Click + button to open file attachment modal
+2. Search for files, drag & drop, or manage attached files
+3. Single file shows as chip next to + button
+4. Multiple files collapse into "X files loaded" button
+5. Click the button to manage files in modal
+6. Files are cleared after sending message
+
+**Files Created**:
+- `components/chat/AddFileButton.tsx`
+- `components/chat/FileChip.tsx`
+- `components/chat/FileAttachmentModal.tsx`
+
+**Files Modified**:
+- `components/chat/PromptArea.tsx` - Integrated new components, removed old file chips above input
+
+**Build Status**: ✅ No diagnostics
+
+
+---
+
+### File Attachment AI Integration ✅
+- **Enhancement**: Attached files are now properly sent to the AI with their full contents
+
+**Changes Made**:
+
+1. **ChatInterface.tsx - File Processing**
+   - Changed from `@mention` based detection to automatic processing of ALL attached files
+   - Files are loaded from backend via `/api/v1/files/read` endpoint
+   - File contents are appended to the message with clear markers:
+     ```
+     [Attached files: file1.ts, file2.tsx]
+     
+     --- File: file1.ts (/path/to/file1.ts) ---
+     <file content>
+     --- End of file1.ts ---
+     ```
+   - AI receives full file contents for analysis/modification
+
+2. **types.ts - Message Type Update**
+   - Added `attachedFiles?: { fileName: string; filePath: string }[]` field
+   - Allows tracking which files were attached to each message
+
+3. **MessageBubble.tsx - Visual Indicator**
+   - User messages now show attached files with emerald-colored chips
+   - Shows "X files attached:" header with file names
+   - Each file chip shows filename with FileText icon
+   - Tooltip shows full file path
+
+**How It Works**:
+1. User attaches files via + button or file panel
+2. User types message and sends
+3. All attached file contents are loaded from backend
+4. Contents are appended to message (hidden from display, sent to AI)
+5. User message shows attached file indicators
+6. AI receives full context and can analyze/modify files
+
+**AI Context Format**:
+```
+User's message text
+
+[Attached files: config.ts, utils.ts]
+
+--- File: config.ts (/home/user/project/config.ts) ---
+export const config = { ... }
+--- End of config.ts ---
+
+--- File: utils.ts (/home/user/project/utils.ts) ---
+export function helper() { ... }
+--- End of utils.ts ---
+```
+
+**Build Status**: ✅ No diagnostics
+
+
+---
+
+### Unified FileCard Component Created ✅
+- **Issue**: Multiple file card implementations across the codebase with duplicated code and inconsistent features
+  - `FileItem` / `FileItemGrid` in `FileList.tsx` - had relevance scores, snippets, action buttons
+  - `DirectoryItem` in `AgentAction.tsx` - compact version with hover actions
+  - Archive files in `FilesPanel.tsx` - had restore/delete actions
+- **Solution**: Created unified `FileCard` component that combines best features from all implementations
+
+**New File Created**:
+- **`components/ui/FileCard.tsx`** - Unified file display component
+  - Supports 3 layouts: `list`, `grid`, `compact`
+  - Supports 2 variants: `default`, `archive`
+  - Features:
+    - File/folder icon (amber for folders, gray for files, accent for archives)
+    - Relevance score percentage badge (green ≥80%, yellow ≥50%, red <50%)
+    - Score reason text display
+    - Snippet display for search results
+    - Action buttons: Open, Folder, Copy (default) or Restore, Delete (archive)
+    - Hover actions for compact layout
+  - Exported helper functions: `openFile()`, `openFolder()`
+  - Full TypeScript types: `FileCardFile`, `FileCardLayout`, `FileCardVariant`, `FileCardProps`
+
+**Modified Files**:
+1. **`components/ui/index.ts`**
+   - Added exports for `FileCard`, `openFile`, `openFolder`, and types
+
+2. **`components/conversations/FileList.tsx`**
+   - Simplified to use `FileCard` internally
+   - `FileItem` and `FileItemGrid` now wrap `FileCard` with appropriate layout
+   - Re-exports `openFile` and `openFolder` for backward compatibility
+   - Reduced from ~200 lines to ~100 lines
+
+3. **`components/conversations/AgentAction.tsx`**
+   - Removed `DirectoryItem` component (replaced by `FileCard`)
+   - Now uses `FileCard` with `layout="compact"` for agent results
+   - Search results show relevance scores and snippets
+   - Cleaner imports from `../ui`
+
+4. **`components/panels/FilesPanel.tsx`**
+   - Archive tab now uses `FileCard` with `variant="archive"`
+   - Removed inline archive file card implementation
+   - Cleaner imports, removed unused `RefreshCw`, `Trash2`, `FolderOpen` icons
+
+**Benefits**:
+- ✅ Single source of truth for file display
+- ✅ Consistent styling across all file displays
+- ✅ Relevance scores visible in agent mode results
+- ✅ Reduced code duplication (~150 lines removed)
+- ✅ Easier to maintain and extend
+- ✅ All three locations now share the same component
+
+**Build Status**: ✅ No TypeScript diagnostics
+
+
+---
+
+### FileCard Enhanced with Add to Chat, Folder Navigation, and Layout Settings ✅
+- **Issue**: FileCard needed additional features:
+  1. "Add to Chat" button to use existing file reference workflow
+  2. Clickable folders for directory navigation
+  3. Respect list/grid display settings from Appearance settings
+  4. Support adding entire folders to chat context
+
+- **Solution**: Enhanced FileCard component with new features and updated AgentAction to use settings
+
+**Changes to `components/ui/FileCard.tsx`**:
+1. **Add to Chat Button**:
+   - New `showAddToChat` prop (default: true)
+   - Purple-themed button with `MessageSquarePlus` icon
+   - Uses existing `add-file-reference` custom event workflow
+   - Works for both files AND folders
+   - Shows "Added!" confirmation state
+
+2. **Folder Navigation**:
+   - New `onNavigate` prop for handling folder clicks
+   - Folders become clickable when `onNavigate` is provided
+   - Shows `ChevronRight` indicator on navigable folders
+   - Cursor changes to pointer for clickable folders
+
+3. **New Helper Function**:
+   - `addToChat(fileName, filePath)` - Dispatches `add-file-reference` event
+   - Exported from `components/ui/index.ts`
+
+4. **Layout Support**:
+   - All three layouts (list, grid, compact) support Add to Chat
+   - All layouts support folder navigation
+   - Consistent button placement across layouts
+
+**Changes to `components/conversations/AgentAction.tsx`**:
+1. **Layout Settings Integration**:
+   - Now uses `useSettings()` to get `searchDisplay` preferences
+   - Local layout toggle (list/grid button) overrides settings
+   - Grid/List toggle button in output header
+
+2. **Folder Navigation**:
+   - New `onNavigateDirectory` prop
+   - Passes `handleNavigate` to FileCard components
+   - Fallback: dispatches `agent-navigate-directory` event
+
+3. **UI Improvements**:
+   - Grid layout uses responsive columns (3/4/5 based on screen)
+   - Layout toggle button shows current mode icon
+   - Both layouts show Add to Chat buttons
+
+**How Add to Chat Works**:
+1. User clicks "Add to Chat" on any file or folder
+2. FileCard dispatches `add-file-reference` custom event
+3. PromptArea listens for this event and adds to `fileReferences` state
+4. File/folder appears as chip in prompt area
+5. When message is sent, references are included with the message
+
+**Folder Navigation Flow**:
+1. User clicks on a folder card (when `onNavigate` is provided)
+2. `onNavigate(path)` callback is called
+3. Parent component can trigger new `list_directory` agent action
+4. Or dispatch `agent-navigate-directory` event for agent handling
+
+**Build Status**: ✅ No TypeScript diagnostics

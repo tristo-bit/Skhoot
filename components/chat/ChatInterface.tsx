@@ -55,10 +55,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   );
   const [isEmptyStateVisible, setIsEmptyStateVisible] = useState(initialMessages.length === 0);
   const [isEmptyStateExiting, setIsEmptyStateExiting] = useState(false);
+  const [queuedMessage, setQueuedMessage] = useState<string | null>(null);
   
   // Refs
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const partialResponseRef = useRef<string>('');
 
   // Voice recording hook
   const {
@@ -409,10 +412,106 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return null;
   };
 
+  // Stop the current AI generation and optionally send queued message
+  const handleStop = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+      setSearchType(null);
+      setSearchStatus('');
+      
+      // If there's a queued message, we'll handle it with the interrupt flow
+      if (queuedMessage) {
+        // Add partial response if any (marked as interrupted)
+        if (partialResponseRef.current) {
+          setMessages(prev => [...prev, {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: partialResponseRef.current + '\n\n⏹️ *[Interrupted by new message]*',
+            type: 'text',
+            timestamp: new Date()
+          }]);
+        }
+        partialResponseRef.current = '';
+        
+        // The queued message will be sent via handleSendQueuedNow
+      } else {
+        // No queued message - just show stopped indicator
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: '⏹️ Generation stopped.',
+          type: 'text',
+          timestamp: new Date()
+        }]);
+        partialResponseRef.current = '';
+      }
+    }
+  }, [queuedMessage]);
+
+  // Send queued message immediately (interrupts current AI response)
+  const handleSendQueuedNow = useCallback(() => {
+    if (!queuedMessage) return;
+    
+    const messageToSend = queuedMessage;
+    setQueuedMessage(null);
+    
+    // Stop current generation if running
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      
+      // Add partial response if any
+      if (partialResponseRef.current) {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: partialResponseRef.current + '\n\n⏹️ *[Interrupted - adapting to new input]*',
+          type: 'text',
+          timestamp: new Date()
+        }]);
+      }
+      partialResponseRef.current = '';
+    }
+    
+    setIsLoading(false);
+    setSearchType(null);
+    setSearchStatus('');
+    
+    // Set the message as input and trigger send
+    setInput(messageToSend);
+    setTimeout(() => {
+      const sendBtn = document.querySelector('[data-send-button]') as HTMLButtonElement;
+      if (sendBtn) sendBtn.click();
+    }, 50);
+  }, [queuedMessage]);
+
+  // Discard queued message
+  const handleDiscardQueued = useCallback(() => {
+    setQueuedMessage(null);
+  }, []);
+
+  // Edit queued message
+  const handleEditQueued = useCallback((newText: string) => {
+    setQueuedMessage(newText);
+  }, []);
+
   const handleSend = useCallback(async () => {
     const messageText = voiceTranscript.trim() || input.trim();
     
-    if (!messageText || isLoading) return;
+    // If already loading, queue the message instead
+    if (isLoading && messageText) {
+      setQueuedMessage(messageText);
+      setInput('');
+      // Clear voice if that was the source
+      if (voiceTranscript.trim()) {
+        discardVoice();
+      }
+      return;
+    }
+    
+    if (!messageText) return;
 
     stopRecording();
     
@@ -429,55 +528,55 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }, 100);
     }
 
-    // Process file references (@filename)
+    // Process attached files - load their contents to send to AI
     let processedMessage = messageText;
     const fileRefMap = (window as any).__chatFileReferences as Map<string, string> | undefined;
     
     if (fileRefMap && fileRefMap.size > 0) {
-      // Find all @mentions in the message
-      const mentionRegex = /@(\S+)/g;
-      const mentions = Array.from(messageText.matchAll(mentionRegex));
+      const fileContents: string[] = [];
+      const attachedFileNames: string[] = [];
       
-      if (mentions.length > 0) {
-        const fileContents: string[] = [];
-        
-        for (const match of mentions) {
-          const fileName = match[1];
-          const filePath = fileRefMap.get(fileName);
-          
-          if (filePath) {
-            try {
-              // Read file content from backend
-              const response = await fetch(`http://localhost:3001/api/v1/files/read?path=${encodeURIComponent(filePath)}`);
-              if (response.ok) {
-                const data = await response.json();
-                const content = data.content || '';
-                fileContents.push(`\n\n--- File: ${fileName} (${filePath}) ---\n${content}\n--- End of ${fileName} ---`);
-                console.log(`[ChatInterface] Loaded file content for @${fileName}`);
-              } else {
-                console.warn(`[ChatInterface] Failed to read file: ${filePath}`);
-                fileContents.push(`\n\n[Note: Could not read file ${fileName} at ${filePath}]`);
-              }
-            } catch (error) {
-              console.error(`[ChatInterface] Error reading file ${filePath}:`, error);
-              fileContents.push(`\n\n[Note: Error reading file ${fileName}]`);
-            }
+      // Load content for ALL attached files (not just @mentions)
+      for (const [fileName, filePath] of fileRefMap.entries()) {
+        try {
+          // Read file content from backend
+          const response = await fetch(`http://localhost:3001/api/v1/files/read?path=${encodeURIComponent(filePath)}`);
+          if (response.ok) {
+            const data = await response.json();
+            const content = data.content || '';
+            fileContents.push(`\n\n--- File: ${fileName} (${filePath}) ---\n${content}\n--- End of ${fileName} ---`);
+            attachedFileNames.push(fileName);
+            console.log(`[ChatInterface] Loaded file content for ${fileName}`);
+          } else {
+            console.warn(`[ChatInterface] Failed to read file: ${filePath}`);
+            fileContents.push(`\n\n[Note: Could not read file ${fileName} at ${filePath}]`);
           }
-        }
-        
-        // Append file contents to the message
-        if (fileContents.length > 0) {
-          processedMessage = messageText + fileContents.join('');
+        } catch (error) {
+          console.error(`[ChatInterface] Error reading file ${filePath}:`, error);
+          fileContents.push(`\n\n[Note: Error reading file ${fileName}]`);
         }
       }
+      
+      // Append file contents to the message for AI processing
+      if (fileContents.length > 0) {
+        // Add a context header so AI knows files are attached
+        const fileHeader = `\n\n[Attached files: ${attachedFileNames.join(', ')}]`;
+        processedMessage = messageText + fileHeader + fileContents.join('');
+      }
     }
+
+    // Build attached files list for display
+    const attachedFilesForMessage = fileRefMap && fileRefMap.size > 0
+      ? Array.from(fileRefMap.entries()).map(([fileName, filePath]) => ({ fileName, filePath }))
+      : undefined;
 
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: messageText, // Display original message without file contents
       type: 'text',
-      timestamp: new Date()
+      timestamp: new Date(),
+      attachedFiles: attachedFilesForMessage,
     };
 
     setMessages(prev => [...prev, userMsg]);
@@ -643,6 +742,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     } catch (error) {
       setSearchType(null);
       setSearchStatus('');
+      
+      // Check if this was an abort
+      if (error instanceof Error && error.name === 'AbortError') {
+        // Already handled in handleStop
+        return;
+      }
+      
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
       // Send error notification
@@ -672,8 +778,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }]);
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
+      partialResponseRef.current = '';
+      
+      // Note: Queued messages are now handled via the QueuedMessage UI component
+      // The user can click "Send Now" to interrupt, or wait for natural completion
     }
-  }, [input, voiceTranscript, isLoading, messages, stopRecording, discardVoice, isEmptyStateVisible, isAgentMode, agentSessionId]);
+  }, [input, voiceTranscript, isLoading, messages, stopRecording, discardVoice, isEmptyStateVisible, isAgentMode, agentSessionId, queuedMessage]);
 
   const handleQuickAction = useCallback((mode: string, _placeholder: string) => {
     // Handle Terminal QuickAction - toggle terminal instead of setting mode
@@ -725,9 +836,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         isEmptyStateExiting={isEmptyStateExiting}
         activeMode={activeMode}
         promptKey={promptKey}
+        queuedMessage={queuedMessage}
         onSendVoice={handleSend}
         onDiscardVoice={discardVoice}
         onEditVoice={editVoiceTranscript}
+        onSendQueuedNow={handleSendQueuedNow}
+        onDiscardQueued={handleDiscardQueued}
+        onEditQueued={handleEditQueued}
       />
       
       {/* Terminal View - floats above PromptArea */}
@@ -772,6 +887,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onInputChange={handleInputChange}
         onKeyDown={handleKeyDown}
         onSend={handleSend}
+        onStop={handleStop}
         onMicClick={handleMicClick}
         onQuickAction={handleQuickAction}
         isTerminalOpen={isTerminalOpen}

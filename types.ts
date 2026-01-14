@@ -10,6 +10,8 @@ export interface Message {
   // Agent-specific fields
   toolCalls?: AgentToolCallData[];
   toolResults?: AgentToolResultData[];
+  // Attached files for context
+  attachedFiles?: { fileName: string; filePath: string }[];
 }
 
 // Agent tool call data for messages

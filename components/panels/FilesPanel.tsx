@@ -1,7 +1,7 @@
 import React, { memo, useState } from 'react';
-import { HardDrive, Link2, Archive, RefreshCw, Plus, Trash2, FolderOpen, Check } from 'lucide-react';
+import { HardDrive, Link2, Archive, Plus, Check } from 'lucide-react';
 import { MOCK_CONNECTED_APPS, MOCK_ARCHIVED_FILES } from '../../browser-test/demo';
-import { Modal } from '../ui';
+import { Modal, FileCard, type FileCardFile } from '../ui';
 import { TabButton } from '../buttonFormat';
 
 interface FilesPanelProps {
@@ -194,45 +194,31 @@ const ArchiveTab = memo<ArchiveTabProps>(({ files, onDelete }) => (
         </p>
       </div>
     ) : (
-      files.map(file => (
-        <div 
-          key={file.id}
-          className="p-3 rounded-xl glass-subtle border-glass-border"
-        >
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 glass-subtle">
-              <Archive size={16} className="text-accent" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-bold font-jakarta text-text-primary truncate">{file.name}</p>
-              <p className="text-[9px] font-medium text-text-secondary font-jakarta truncate">
-                {file.originalPath}
-              </p>
-              <p className="text-[9px] font-medium text-text-secondary font-jakarta mt-1">
-                {file.size} • Archived {file.archivedDate}
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2 mt-3">
-            <button
-              className="flex-1 py-2 rounded-lg text-[10px] font-bold font-jakarta glass-subtle text-text-primary hover:glass-elevated transition-all flex items-center justify-center gap-1.5"
-              aria-label={`Restore ${file.name}`}
-              title={`Restore ${file.name}`}
-            >
-              <FolderOpen size={12} />
-              Restore
-            </button>
-            <button 
-              onClick={() => onDelete(file.id)}
-              aria-label={`Delete ${file.name}`}
-              title={`Delete ${file.name}`}
-              className="py-2 px-3 rounded-lg text-[10px] font-bold font-jakarta text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-            >
-              <Trash2 size={12} />
-            </button>
-          </div>
-        </div>
-      ))
+      files.map(file => {
+        const fileCardFile: FileCardFile = {
+          id: file.id,
+          name: file.name,
+          path: file.originalPath,
+          size: file.size,
+          category: 'Archive',
+          safeToRemove: true,
+          lastUsed: file.archivedDate,
+          archivedDate: file.archivedDate,
+          originalPath: file.originalPath,
+        };
+        return (
+          <FileCard
+            key={file.id}
+            file={fileCardFile}
+            layout="list"
+            variant="archive"
+            showRelevanceScore={false}
+            showSnippet={false}
+            onRestore={() => {/* TODO: implement restore */}}
+            onDelete={() => onDelete(file.id)}
+          />
+        );
+      })
     )}
   </div>
 ));

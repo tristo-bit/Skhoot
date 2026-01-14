@@ -368,19 +368,20 @@ export const AgentLogTab: React.FC<AgentLogTabProps> = ({ sessionId, isActive })
           <select
             value={filterType || ''}
             onChange={(e) => setFilterType(e.target.value || null)}
-            className="text-xs px-2 py-1 rounded bg-transparent border"
+            className="text-xs px-2 py-1 rounded border cursor-pointer"
             style={{ 
               borderColor: 'var(--glass-border)',
-              color: 'var(--text-secondary)'
+              color: 'var(--text-secondary)',
+              background: 'var(--bg-primary, #1a1a2e)',
             }}
           >
-            <option value="">All logs</option>
-            <option value="status">Status</option>
-            <option value="message">Messages</option>
-            <option value="tool_start">Tool Start</option>
-            <option value="tool_complete">Tool Complete</option>
-            <option value="error">Errors</option>
-            <option value="info">Info</option>
+            <option value="" style={{ background: 'var(--bg-primary, #1a1a2e)', color: 'var(--text-secondary)' }}>All logs</option>
+            <option value="status" style={{ background: 'var(--bg-primary, #1a1a2e)', color: 'var(--text-secondary)' }}>Status</option>
+            <option value="message" style={{ background: 'var(--bg-primary, #1a1a2e)', color: 'var(--text-secondary)' }}>Messages</option>
+            <option value="tool_start" style={{ background: 'var(--bg-primary, #1a1a2e)', color: 'var(--text-secondary)' }}>Tool Start</option>
+            <option value="tool_complete" style={{ background: 'var(--bg-primary, #1a1a2e)', color: 'var(--text-secondary)' }}>Tool Complete</option>
+            <option value="error" style={{ background: 'var(--bg-primary, #1a1a2e)', color: 'var(--text-secondary)' }}>Errors</option>
+            <option value="info" style={{ background: 'var(--bg-primary, #1a1a2e)', color: 'var(--text-secondary)' }}>Info</option>
           </select>
 
           {/* Auto-scroll toggle */}
@@ -499,18 +500,6 @@ export const AgentLogTab: React.FC<AgentLogTabProps> = ({ sessionId, isActive })
             />
           ))
         )}
-      </div>
-
-      {/* Footer with stats */}
-      <div 
-        className="px-4 py-2 border-t text-xs flex items-center justify-between"
-        style={{ 
-          borderColor: 'var(--glass-border)',
-          color: 'var(--text-secondary)'
-        }}
-      >
-        <span>{filteredLogs.length} log entries</span>
-        <span>Session: {sessionId.slice(0, 8)}...</span>
       </div>
     </div>
   );
