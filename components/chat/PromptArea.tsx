@@ -1,5 +1,5 @@
-import React, { forwardRef, useRef, useEffect, useState } from 'react';
-import { Search, Bot, Workflow, Terminal } from 'lucide-react';
+import React, { forwardRef, useRef, useEffect, useState, useCallback } from 'react';
+import { Search, Bot, Workflow, Terminal, X, FileText } from 'lucide-react';
 import { QUICK_ACTIONS } from '../../src/constants';
 import SynthesisVisualizer from '../ui/SynthesisVisualizer';
 import { useTheme } from '../../src/contexts/ThemeContext';
@@ -15,6 +15,12 @@ const QUICK_ACTION_ICONS: Record<string, (props: { size: number }) => React.Reac
   Workflows: ({ size }) => <Workflow size={size} />,
   Terminal: ({ size }) => <Terminal size={size} />,
 };
+
+// File reference chip type
+interface FileReference {
+  fileName: string;
+  filePath: string;
+}
 
 interface PromptAreaProps {
   input: string;
@@ -88,6 +94,55 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
   const quickActionsRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const [showOperaNotification, setShowOperaNotification] = useState(false);
+  const [fileReferences, setFileReferences] = useState<FileReference[]>([]);
+  
+  // Listen for file reference additions from FileExplorerPanel
+  useEffect(() => {
+    const handleAddFileReference = (event: CustomEvent<{ fileName: string; filePath: string }>) => {
+      const { fileName, filePath } = event.detail;
+      setFileReferences(prev => {
+        // Don't add duplicates
+        if (prev.some(ref => ref.fileName === fileName)) {
+          return prev;
+        }
+        return [...prev, { fileName, filePath }];
+      });
+    };
+    
+    window.addEventListener('add-file-reference', handleAddFileReference as EventListener);
+    return () => {
+      window.removeEventListener('add-file-reference', handleAddFileReference as EventListener);
+    };
+  }, []);
+  
+  // Update global file references map when fileReferences changes
+  useEffect(() => {
+    if (!(window as any).__chatFileReferences) {
+      (window as any).__chatFileReferences = new Map();
+    }
+    const map = (window as any).__chatFileReferences as Map<string, string>;
+    map.clear();
+    fileReferences.forEach(ref => {
+      map.set(ref.fileName, ref.filePath);
+    });
+  }, [fileReferences]);
+  
+  // Clear file references after sending a message
+  useEffect(() => {
+    const handleMessageSent = () => {
+      setFileReferences([]);
+    };
+    
+    window.addEventListener('chat-message-sent', handleMessageSent);
+    return () => {
+      window.removeEventListener('chat-message-sent', handleMessageSent);
+    };
+  }, []);
+  
+  // Remove a file reference
+  const removeFileReference = useCallback((fileName: string) => {
+    setFileReferences(prev => prev.filter(ref => ref.fileName !== fileName));
+  }, []);
   
   // Show Opera notification briefly when component mounts (skip in demo mode)
   useEffect(() => {
@@ -250,6 +305,29 @@ export const PromptArea = forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
                 transition: `opacity 0.4s ${smoothEasing}, transform 0.5s ${smoothEasing}`,
               }}
             >
+              {/* File Reference Chips */}
+              {fileReferences.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {fileReferences.map((ref) => (
+                    <div
+                      key={ref.fileName}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-400 text-xs font-medium animate-in fade-in zoom-in-95 duration-200"
+                      title={ref.filePath}
+                    >
+                      <FileText size={12} className="flex-shrink-0" />
+                      <span className="truncate max-w-[120px]">@{ref.fileName}</span>
+                      <button
+                        onClick={() => removeFileReference(ref.fileName)}
+                        className="flex-shrink-0 p-0.5 rounded-full hover:bg-purple-500/30 transition-colors"
+                        title="Remove file reference"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
               <textarea 
                 ref={(node) => {
                   textAreaRef.current = node;

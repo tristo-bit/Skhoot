@@ -125,40 +125,23 @@ const FileContextMenu: React.FC<{
   
   const menuItems = [
     { icon: <MessageSquarePlus size={14} />, label: 'Add to chat', action: async () => { 
-      // Add file reference to chat input
+      // Add file reference to chat via custom event
       const fileName = file.path.split(/[/\\]/).pop() || file.path;
-      const fileRef = `@${fileName} `;
       
-      // Find the chat textarea using the file-mention-input class
+      // Dispatch custom event for PromptArea to handle
+      const event = new CustomEvent('add-file-reference', {
+        detail: { fileName, filePath: file.path }
+      });
+      window.dispatchEvent(event);
+      
+      // Focus the textarea
       const textarea = document.querySelector('textarea.file-mention-input') as HTMLTextAreaElement;
       if (textarea) {
-        // Get the native value setter to properly update React state
-        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-        if (nativeInputValueSetter) {
-          const currentValue = textarea.value;
-          nativeInputValueSetter.call(textarea, currentValue + fileRef);
-          
-          // Dispatch input event to trigger React's onChange
-          const inputEvent = new Event('input', { bubbles: true });
-          textarea.dispatchEvent(inputEvent);
-        }
-        
         textarea.focus();
-        
-        // Store file path in a global map for later retrieval
-        if (!(window as any).__chatFileReferences) {
-          (window as any).__chatFileReferences = new Map();
-        }
-        (window as any).__chatFileReferences.set(fileName, file.path);
-        
-        // Visual feedback
-        console.log(`[FileExplorer] Added file reference: @${fileName} -> ${file.path}`);
-      } else {
-        console.error('[FileExplorer] Could not find chat textarea');
-        // Fallback: copy to clipboard
-        await navigator.clipboard.writeText(fileRef);
-        alert(`📋 File reference copied!\n\nPaste @${fileName} in the chat to reference this file.`);
       }
+      
+      // Visual feedback
+      console.log(`[FileExplorer] Dispatched add-file-reference: @${fileName} -> ${file.path}`);
     }, highlight: true },
     { divider: true },
     { icon: <ExternalLink size={14} />, label: 'Open', action: async () => { await fileActions.open(file.path); } },

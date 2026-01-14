@@ -3544,3 +3544,60 @@ AI receives:
 **Build Status**: ✅ All checks pass, no diagnostics
 
 **Impact**: Users can now seamlessly reference file content in their conversations, enabling the AI to provide context-aware answers about specific files without manual copy-paste.
+
+
+---
+
+## January 14, 2026
+
+### File Reference Chips - "Add to Chat" Feature Fixed ✅
+- **Issue**: Clicking "Add to chat" in FileExplorerPanel dropdown menu did nothing - no chip appeared in chat
+- **Root Cause**: `FileExplorerPanel` was directly manipulating the textarea instead of dispatching the `add-file-reference` custom event that `PromptArea` listens for
+
+**Problem Analysis**:
+- `PromptArea.tsx` had proper event listener for `add-file-reference` custom event
+- `PromptArea.tsx` had state management for `fileReferences` and chip rendering
+- `FileExplorerPanel.tsx` was using native value setter to manipulate textarea directly
+- The two components weren't communicating via the expected event system
+
+**Fixes Applied**:
+
+1. **FileExplorerPanel.tsx** - Simplified "Add to chat" action:
+   ```typescript
+   // Before: Direct textarea manipulation (broken)
+   const nativeInputValueSetter = Object.getOwnPropertyDescriptor(...)
+   nativeInputValueSetter.call(textarea, currentValue + fileRef);
+   
+   // After: Dispatch custom event (working)
+   const event = new CustomEvent('add-file-reference', {
+     detail: { fileName, filePath: file.path }
+   });
+   window.dispatchEvent(event);
+   ```
+
+2. **ChatInterface.tsx** - Added message sent event dispatch:
+   ```typescript
+   // Clear file reference chips after sending
+   window.dispatchEvent(new CustomEvent('chat-message-sent'));
+   
+   // Clear the global file references map
+   if ((window as any).__chatFileReferences) {
+     (window as any).__chatFileReferences.clear();
+   }
+   ```
+
+**Complete Flow Now**:
+1. User clicks "Add to chat" on a file → dispatches `add-file-reference` event
+2. `PromptArea` receives event → adds purple chip with `@filename`
+3. User types message and sends → `ChatInterface` processes file references
+4. After send → dispatches `chat-message-sent` → chips cleared
+
+**UI Features**:
+- Purple colored chips with `@filename` format
+- FileText icon on each chip
+- X button to remove individual chips
+- Chips appear above the textarea input
+- Smooth fade-in animation
+
+**Build Status**: ✅ No diagnostics
+

@@ -617,6 +617,23 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 ## 📝 Recent Updates
 
 <details>
+<summary><strong>File Reference Chips in Chat Input</strong></summary>
+
+- **Visual File References**: File references now display as interactive chips above the chat input
+  - Purple-styled chips with `@filename` format for clear visual identification
+  - File icon and truncated filename (max 120px) with full path on hover
+  - Individual remove buttons (X) to delete specific references
+  - Smooth fade-in/zoom animations when chips appear
+- **Event-Driven Architecture**: 
+  - `add-file-reference` custom event for adding files from File Explorer
+  - `chat-message-sent` event automatically clears all file references after sending
+  - Global `__chatFileReferences` Map stores filename-to-path mappings for retrieval
+- **Duplicate Prevention**: Adding the same file twice is automatically prevented
+- **Seamless Integration**: Works with existing file reference loading system for AI context
+
+</details>
+
+<details>
 <summary><strong>Agent Mode File Reference Support</strong></summary>
 
 - **Bug Fix**: Agent mode now properly processes file references (`@filename`) in messages

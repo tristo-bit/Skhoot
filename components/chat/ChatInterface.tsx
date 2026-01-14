@@ -485,6 +485,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setIsLoading(true);
     setActiveMode(null);
     setSearchType(getSearchType(messageText));
+    
+    // Clear file reference chips by dispatching event
+    window.dispatchEvent(new CustomEvent('chat-message-sent'));
+    
+    // Clear the global file references map
+    if ((window as any).__chatFileReferences) {
+      (window as any).__chatFileReferences.clear();
+    }
 
     try {
       // Route based on agent mode
