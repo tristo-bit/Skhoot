@@ -116,9 +116,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-release
-          path: |
-            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           retention-days: 7
 
   # ==========================================================================
@@ -197,8 +195,10 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            artifacts/linux-release/**/*
-            artifacts/macos-release/**/*
-            artifacts/windows-release/**/*
+            artifacts/linux-release/*.deb
+            artifacts/linux-release/*.AppImage
+            artifacts/macos-release/*.dmg
+            artifacts/windows-release/*.msi
+            artifacts/windows-release/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

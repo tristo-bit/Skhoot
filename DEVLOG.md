@@ -2,6 +2,21 @@
 
 ## January 14, 2026
 
+### GitHub Release Workflow - Fixed Extra Files Leak ✅
+- **Issue**: Release v0.1.0 contained extra unwanted files: `icon.icns`, `Info.plist`, `src-tauri` binary
+- **Root Cause**: 
+  1. macOS artifact pattern `*.app` uploaded entire .app bundle directory contents
+  2. Release step used `**/*` glob which flattened all nested files
+- **Fix Applied to `.github/workflows/release.yml`**:
+  - macOS: Only upload `.dmg` (the .app is inside it anyway)
+  - Release: Use explicit file extensions instead of `**/*` glob
+- **Clean Release Files**:
+  - Linux: `.deb`, `.AppImage`
+  - macOS: `.dmg`
+  - Windows: `.msi`, `.exe`
+
+---
+
 ### Linux AppImage CSS Fix - Removed Broken CDN References ✅
 - **Issue**: CSS completely broken on Linux distributed AppImage version
 - **Root Cause**: `index.html` had two problematic references:
