@@ -4,8 +4,8 @@
   "version": "0.1.3",
   "identifier": "com.skhoot.desktop-seeker",
   "build": {
-    "beforeBuildCommand": "npm run build && npm run prepare:whisper && cd backend && cargo build --release",
-    "beforeBundleCommand": "node scripts/copy-backend-binary.js",
+    "beforeBuildCommand": "npm run build && npm run prepare:whisper && cd backend && cargo build --release && node ../scripts/copy-backend-binary.js",
+    "beforeBundleCommand": "",
     "beforeDevCommand": "npm run dev",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173"

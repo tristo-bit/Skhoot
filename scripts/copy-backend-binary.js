@@ -7,14 +7,20 @@
 const fs = require('fs');
 const path = require('path');
 
+// Detect if running from backend directory (beforeBuildCommand) or project root
+const cwd = process.cwd();
+const isInBackend = cwd.endsWith('backend') || cwd.endsWith('backend/') || cwd.endsWith('backend\\');
+const projectRoot = isInBackend ? path.join(cwd, '..') : cwd;
+
 const isWindows = process.platform === 'win32';
 const binaryName = isWindows ? 'skhoot-backend.exe' : 'skhoot-backend';
 
-const sourcePath = path.join(__dirname, '..', 'backend', 'target', 'release', binaryName);
-const resourcesDir = path.join(__dirname, '..', 'src-tauri', 'resources');
+const sourcePath = path.join(projectRoot, 'backend', 'target', 'release', binaryName);
+const resourcesDir = path.join(projectRoot, 'src-tauri', 'resources');
 const targetPath = path.join(resourcesDir, binaryName);
 
 console.log(`[copy-backend-binary] Platform: ${process.platform}`);
+console.log(`[copy-backend-binary] Project root: ${projectRoot}`);
 console.log(`[copy-backend-binary] Source: ${sourcePath}`);
 console.log(`[copy-backend-binary] Target: ${targetPath}`);
 
