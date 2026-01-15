@@ -5002,3 +5002,68 @@ git push --tags
 
 **Status**: ✅ Scripts created and ready for use
 
+
+
+---
+
+## January 15, 2026
+
+### Release Build Fix - Backend Sidecar Not Starting ✅
+- **Issue**: Release builds showed "Session not found" errors when using the embedded AI agent. The agent couldn't use its tools (list_directory, search_files, read_file, etc.)
+- **Root Cause**: Two critical issues in the release build:
+  1. **Backend sidecar never started** - The `start_backend_sidecar()` function existed in `main.rs` but was never called in the `setup()` function
+  2. **Backend binary not bundled** - The `resources` array in `tauri.conf.json` was empty, so the backend binary wasn't included in release packages
+
+- **Solution**: Fixed both issues to properly bundle and launch the backend
+
+**Changes Made**:
+
+1. **`src-tauri/src/main.rs`**:
+   - Added call to `start_backend_sidecar()` in the Tauri `setup()` function
+   - Improved the `start_backend_sidecar()` function with:
+     - Better logging with `[Skhoot]` prefix
+     - Platform-specific binary name handling (`.exe` on Windows)
+     - Graceful error handling when binary is missing
+     - Proper process monitoring
+
+2. **`src-tauri/tauri.conf.json`**:
+   - Added `beforeBundleCommand` to run `node scripts/copy-backend-binary.js`
+   - Updated `resources` to include `resources/*` directory
+
+3. **New file `scripts/copy-backend-binary.js`**:
+   - Copies the backend binary from `backend/target/release/` to `src-tauri/resources/`
+   - Handles platform-specific binary names (`.exe` on Windows)
+   - Sets executable permissions on Unix systems
+   - Provides clear error messages if binary is missing
+
+4. **`.gitignore`**:
+   - Added `src-tauri/resources/skhoot-backend` and `src-tauri/resources/skhoot-backend.exe` to ignore built binaries
+
+**Build Flow Now**:
+1. `beforeBuildCommand`: Builds frontend + backend (`cargo build --release`)
+2. `beforeBundleCommand`: Copies backend binary to resources directory
+3. Tauri bundles everything including the backend binary
+4. On app launch: `setup()` spawns the backend sidecar process
+
+**Status**: ✅ Ready for testing with `npm run release`
+
+
+
+---
+
+### Release v0.1.2 Published ✅
+- **Version**: 0.1.2
+- **Tag**: `v0.1.2`
+- **Changes**:
+  - Fixed backend sidecar not starting in release builds
+  - Backend binary now properly bundled in all platforms
+  - Agent mode tools now work correctly in production
+- **Files Updated**:
+  - `src-tauri/tauri.conf.json` - version bump + bundle config
+  - `src-tauri/src/main.rs` - added `start_backend_sidecar()` call
+  - `src-tauri/Cargo.toml` - version bump
+  - `backend/Cargo.toml` - version bump
+  - `package.json` - version bump
+  - `scripts/copy-backend-binary.js` - new script for cross-platform binary bundling
+- **Release Notes**: See `RELEASE_NOTES_v0.1.2.md`
+

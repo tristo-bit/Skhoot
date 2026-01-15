@@ -171,6 +171,12 @@ fn main() {
         app.set_menu(menu)?;
       }
 
+      // Start the backend sidecar
+      let app_handle_clone = app.handle().clone();
+      tauri::async_runtime::spawn(async move {
+        start_backend_sidecar(&app_handle_clone).await;
+      });
+
       // Start local whisper.cpp server if bundled
       start_local_whisper_server(app.handle());
 
@@ -349,16 +355,16 @@ fn log_audio_permission_info() {
 async fn start_backend_sidecar(app_handle: &tauri::AppHandle) {
   if cfg!(debug_assertions) {
     // In development, run cargo directly from the backend directory
-    println!("Starting backend in development mode...");
+    println!("[Skhoot] Starting backend in development mode...");
     
     // Get the current working directory and resolve backend path
     let current_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
     let backend_dir = current_dir.join("backend");
     
-    println!("Backend directory: {:?}", backend_dir);
+    println!("[Skhoot] Backend directory: {:?}", backend_dir);
     
     if !backend_dir.exists() {
-      eprintln!("Backend directory not found: {:?}", backend_dir);
+      eprintln!("[Skhoot] Backend directory not found: {:?}", backend_dir);
       return;
     }
     
@@ -370,58 +376,90 @@ async fn start_backend_sidecar(app_handle: &tauri::AppHandle) {
     
     match cmd.spawn() {
       Ok(mut child) => {
-        println!("Backend process spawned, waiting for startup...");
+        println!("[Skhoot] Backend process spawned, waiting for startup...");
         
         // Wait a moment and check if process is still running
         tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
         
         match child.try_wait() {
           Ok(Some(status)) => {
-            eprintln!("Backend process exited early with status: {}", status);
+            eprintln!("[Skhoot] Backend process exited early with status: {}", status);
             if let Ok(output) = child.wait_with_output() {
-              eprintln!("Backend stderr: {}", String::from_utf8_lossy(&output.stderr));
+              eprintln!("[Skhoot] Backend stderr: {}", String::from_utf8_lossy(&output.stderr));
             }
           }
           Ok(None) => {
-            println!("Backend started successfully and is running");
+            println!("[Skhoot] Backend started successfully and is running");
             tauri::async_runtime::spawn_blocking(move || {
               match child.wait() {
-                Ok(status) => println!("Backend process exited with status: {}", status),
-                Err(e) => eprintln!("Error waiting for backend process: {}", e),
+                Ok(status) => println!("[Skhoot] Backend process exited with status: {}", status),
+                Err(e) => eprintln!("[Skhoot] Error waiting for backend process: {}", e),
               }
             });
           }
           Err(e) => {
-            eprintln!("Error checking backend process status: {}", e);
+            eprintln!("[Skhoot] Error checking backend process status: {}", e);
           }
         }
       }
       Err(e) => {
-        eprintln!("Failed to start backend in development: {}", e);
-        eprintln!("Make sure you're in the project root directory and cargo is installed");
+        eprintln!("[Skhoot] Failed to start backend in development: {}", e);
+        eprintln!("[Skhoot] Make sure you're in the project root directory and cargo is installed");
       }
     }
   } else {
-    // In production, use the bundled binary
-    let resource_path = app_handle
-      .path()
-      .resource_dir()
-      .expect("failed to resolve resource dir");
+    // In production, use the bundled binary from resources
+    println!("[Skhoot] Starting backend sidecar in production mode...");
     
-    let backend_path = resource_path.join("skhoot-backend");
+    let resource_path = match app_handle.path().resource_dir() {
+      Ok(path) => path,
+      Err(e) => {
+        eprintln!("[Skhoot] Failed to resolve resource dir: {}", e);
+        return;
+      }
+    };
+    
+    // Platform-specific binary name
+    let binary_name = if cfg!(target_os = "windows") {
+      "skhoot-backend.exe"
+    } else {
+      "skhoot-backend"
+    };
+    
+    let backend_path = resource_path.join(binary_name);
+    
+    println!("[Skhoot] Backend binary path: {:?}", backend_path);
+    
+    if !backend_path.exists() {
+      eprintln!("[Skhoot] Backend binary not found at {:?}", backend_path);
+      eprintln!("[Skhoot] The backend will not be available. Agent features may not work.");
+      return;
+    }
     
     let mut cmd = Command::new(&backend_path);
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
     match cmd.spawn() {
       Ok(mut child) => {
-        println!("Backend sidecar started");
+        println!("[Skhoot] Backend sidecar started successfully");
+        
+        // Monitor the backend process
         tauri::async_runtime::spawn_blocking(move || {
-          let _ = child.wait();
+          match child.wait() {
+            Ok(status) => {
+              if status.success() {
+                println!("[Skhoot] Backend sidecar exited normally");
+              } else {
+                eprintln!("[Skhoot] Backend sidecar exited with status: {}", status);
+              }
+            }
+            Err(e) => eprintln!("[Skhoot] Error waiting for backend sidecar: {}", e),
+          }
         });
       }
       Err(e) => {
-        eprintln!("Failed to start backend sidecar: {}", e);
+        eprintln!("[Skhoot] Failed to start backend sidecar: {}", e);
+        eprintln!("[Skhoot] Agent features may not work correctly.");
       }
     }
   }

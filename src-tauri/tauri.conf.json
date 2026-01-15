@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Skhoot Desktop Seeker",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "identifier": "com.skhoot.desktop-seeker",
   "build": {
     "beforeBuildCommand": "npm run build && npm run prepare:whisper && cd backend && cargo build --release",
-    "beforeBundleCommand": "",
+    "beforeBundleCommand": "node scripts/copy-backend-binary.js",
     "beforeDevCommand": "npm run dev",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173"
@@ -51,7 +51,9 @@
       "icons/icon.ico",
       "icons/icon.png"
     ],
-    "resources": [],
+    "resources": [
+      "resources/*"
+    ],
     "macOS": {
       "entitlements": "entitlements.plist",
       "exceptionDomain": null,

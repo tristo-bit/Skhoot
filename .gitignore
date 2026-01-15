@@ -49,6 +49,8 @@ debug/
 release/
 third_party/whisper.cpp/
 src-tauri/resources/whisper/
+src-tauri/resources/skhoot-backend
+src-tauri/resources/skhoot-backend.exe
 
 # Temporary files
 *.tmp
