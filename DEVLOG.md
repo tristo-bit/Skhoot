@@ -5067,3 +5067,61 @@ git push --tags
   - `package.json` - version bump
   - `scripts/copy-backend-binary.cjs` - new script for cross-platform binary bundling
 - **Release Notes**: See `RELEASE_NOTES_v0.1.3.md`
+
+## January 15, 2026
+
+### GitHub Release Pipeline Fix - Workflow Condition Issue Resolved ✅
+- **Issue**: GitHub Action build artifacts (linux-release, macos-release, windows-release) were being created but not linked to releases
+- **Root Cause**: The `create-release` job had a restrictive condition `if: startsWith(github.ref, 'refs/tags/v')` that only ran on tag pushes, not manual workflow dispatches
+- **Investigation**: Tag `v0.1.3` existed and was properly pushed to origin (commit `b2e3a9d`), but the release job was being skipped
+
+**Problem Analysis**:
+- Build jobs ran successfully and created artifacts (145 MB Linux, 15.2 MB macOS, 17.5 MB Windows)
+- `create-release` job was skipped because workflow was triggered by manual dispatch, not tag push
+- The condition `startsWith(github.ref, 'refs/tags/v')` was false for workflow_dispatch events
+- Artifacts were uploaded but no GitHub release was created to attach them to
+
+**Solution Applied to `.github/workflows/release.yml`**:
+
+1. **Enhanced Release Job Condition**:
+   ```yaml
+   # Before (restrictive)
+   if: startsWith(github.ref, 'refs/tags/v')
+   
+   # After (flexible)
+   if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.version != '')
+   ```
+
+2. **Dynamic Version Detection**:
+   ```yaml
+   # Before (tag-only)
+   - name: Get version from tag
+     run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+   
+   # After (tag or input)
+   - name: Get version from tag or input
+     run: |
+       if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+         echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+       else
+         echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+       fi
+   ```
+
+**Workflow Now Supports**:
+- ✅ **Tag Push**: `git tag v0.1.4 && git push origin v0.1.4` (original behavior)
+- ✅ **Manual Dispatch**: Workflow dispatch with version input (new capability)
+- ✅ **Proper Artifact Linking**: Both triggers create releases with attached binaries
+
+**Next Steps for User**:
+1. **Option A**: Re-run workflow manually with version input `v0.1.3`
+2. **Option B**: Create new tag `v0.1.4` for next release
+3. **Option C**: Push changes and create proper `v0.1.3` release
+
+**Technical Details**:
+- Release job now runs when either condition is met
+- Version extraction handles both tag refs and manual inputs
+- All existing artifact upload logic remains unchanged
+- Maintains backward compatibility with tag-based releases
+
+**Status**: ✅ Release pipeline fixed and ready for testing
