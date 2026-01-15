@@ -5058,12 +5058,12 @@ git push --tags
   - Fixed backend sidecar not starting in release builds
   - Backend binary now properly bundled in all platforms
   - Agent mode tools now work correctly in production
-- **CI Fix**: Moved `copy-backend-binary.js` to `beforeBuildCommand` (runs after cargo build) because Tauri validates resources glob pattern before `beforeBundleCommand` runs
+- **CI Fix**: Moved `copy-backend-binary.cjs` to `beforeBuildCommand` (runs after cargo build) because Tauri validates resources glob pattern before `beforeBundleCommand` runs. Renamed to `.cjs` for CommonJS compatibility (package.json has `type: module`).
 - **Files Updated**:
   - `src-tauri/tauri.conf.json` - version bump + bundle config
   - `src-tauri/src/main.rs` - added `start_backend_sidecar()` call
   - `src-tauri/Cargo.toml` - version bump
   - `backend/Cargo.toml` - version bump
   - `package.json` - version bump
-  - `scripts/copy-backend-binary.js` - new script for cross-platform binary bundling
+  - `scripts/copy-backend-binary.cjs` - new script for cross-platform binary bundling
 - **Release Notes**: See `RELEASE_NOTES_v0.1.3.md`
