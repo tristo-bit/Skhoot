@@ -5125,3 +5125,21 @@ git push --tags
 - Maintains backward compatibility with tag-based releases
 
 **Status**: ✅ Release pipeline fixed and ready for testing
+
+
+---
+
+### Tauri Build Resources Glob Pattern Fix ✅
+- **Issue**: Build failing with error `glob pattern resources/* path not found or didn't match any files`
+- **Root Cause**: The glob pattern `resources/*` only matches files directly in the resources directory, not subdirectories. The actual structure was `resources/whisper/whisper-server` and `resources/whisper/models/`, so the pattern didn't match anything.
+- **Solution**: Changed glob pattern from `resources/*` to `resources/**/*` in `src-tauri/tauri.conf.json`
+
+**Changes**:
+- `src-tauri/tauri.conf.json`: Updated `bundle.resources` from `["resources/*"]` to `["resources/**/*"]`
+
+**Technical Details**:
+- Single asterisk `*` matches files in current directory only
+- Double asterisk `**` recursively matches all subdirectories
+- Pattern now correctly includes `resources/whisper/whisper-server` and all model files
+
+**Status**: ✅ Ready for testing with `npm run tauri:dev`

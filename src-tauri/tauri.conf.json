@@ -52,7 +52,7 @@
       "icons/icon.png"
     ],
     "resources": [
-      "resources/*"
+      "resources/**/*"
     ],
     "macOS": {
       "entitlements": "entitlements.plist",
