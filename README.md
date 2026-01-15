@@ -10,48 +10,111 @@
 
 <br />
 
-**An intelligent desktop assistant for file search, conversation management, and workspace organization.**
+**The first open-source GUI for CLI agents with unrestricted system access, voice control, and multi-provider support.**
 
 Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 
+🌐 **[Try Live Demo](https://tristo-bit.github.io/Skhoot/)** • 📦 **[Download Binaries](https://github.com/tristo-bit/skhoot/releases)** • 📖 **[Read Architecture](./ARCHITECTURE.md)**
+
 </div>
+
+---
+
+## 🎯 The Problem We Solve
+
+**CLI agents are powerful but trapped in terminal interfaces.** They output raw text, can't show visual file structures, lack voice control, and often run in sandboxes with restricted access.
+
+**Skhoot changes everything:**
+- ✅ **Full GUI** for agent tool execution with rich visual rendering
+- ✅ **Unrestricted Access** - agents can execute any system command, access any file
+- ✅ **Voice Control** - speak commands naturally, see real-time transcription
+- ✅ **Multi-Provider** - OpenAI, Anthropic, Google AI, or custom endpoints (bring your own API key)
+- ✅ **Visual Workflows** - file explorer, terminal, and agent tools integrated seamlessly
+- ✅ **Open Source** - complete transparency, extensible architecture
+
+**This is the GUI that CLI agents deserve.**
 
 ---
 
 ## ✨ Features
 
 <details>
-<summary><strong>🔍 Advanced Search & Discovery</strong></summary>
+<summary><strong>🤖 CLI Agent Mode with Visual Tool Execution</strong></summary>
 
-- **Intelligent File Search**: Multi-engine file search with fuzzy matching, CLI integration, and AI-powered suggestions
-- **Multilingual Search Detection**: Automatic search type detection with comprehensive English and French keyword support
-  - File search: "find", "search", "locate", "where is", "show me", "document" / "fichier", "chercher", "trouver", "rechercher", "localiser", "où est", "dossier"
-  - Disk analysis: "disk", "storage", "space", "memory", "drive", "capacity" / "disque", "stockage", "espace", "mémoire", "capacité", "taille"
-  - Cleanup: "cleanup", "clean", "delete", "remove", "clear", "free up" / "nettoyer", "nettoyage", "supprimer", "effacer", "libérer", "vider"
-  - Messages: "message", "conversation", "chat", "history" / "message", "conversation", "historique"
-- **Built-in Test Interface**: Interactive file search testing panel accessible via header search icon
-- **Rich Search Results**: Comprehensive metadata including execution time, search mode, and result count
-- **Hybrid Search Modes**: Combines Rust-based fuzzy search with CLI tools (ripgrep, fd)
-- **AI Search Assistance**: Context-aware suggestions and intent detection with reasoning
-- **Content Search**: Search inside files with snippet extraction and line number references
-- **Performance Tracking**: Real-time search metrics and execution time display
-- **Error Resilience**: Graceful fallback handling with informative error messages
+**The Core Innovation**: Unlike terminal-only CLI agents, Skhoot renders agent tool outputs with rich, interactive UI components.
+
+- **Visual File Operations**: `list_directory` shows interactive file lists with icons, sizes, and click-to-open functionality
+- **Rich Search Results**: `search_files` displays results with syntax highlighting, line numbers, and folder navigation
+- **Code Rendering**: `read_file` shows syntax-highlighted code with copy buttons and markdown rendering
+- **Terminal Integration**: `shell` commands display with ANSI color support and command history
+- **Unrestricted System Access**: Agents can execute ANY system command - no sandbox, no limitations
+- **File Context Loading**: Use `@filename` syntax to automatically load file contents for agent context
+- **Parallel Tool Execution**: Multiple tools run concurrently for maximum performance
+- **Interactive Results**: Click files to open, navigate folders visually, copy code with one click
+
+**Why This Matters**: See what your agent is doing in real-time with visual feedback. No more scrolling through terminal text - interact with results directly.
 
 </details>
 
 <details>
-<summary><strong>🎤 Voice Interface</strong></summary>
+<summary><strong>🔑 Multi-Provider API Key Management</strong></summary>
 
-- **Voice Input**: Speak your queries naturally (Chrome, Edge, Safari)
-- **Real-time Transcription**: See your speech converted to text in real-time
-- **Transcript Editing**: Edit voice transcriptions before sending - click the edit button on pending voice messages to modify text
-- **Advanced Audio Visualization**: Sophisticated synthesis visualizer with voice-optimized multi-line wave rendering, dynamic amplitude response, and real-time frequency harmonics
-- **Browser Compatibility**: Fallback text input for Opera and Firefox
-- **Advanced Audio Service**: Full-featured audio management with device selection, volume control, and sensitivity settings
-- **Audio Analysis Hook**: Real-time audio stream analysis with RMS volume calculation and frequency domain processing
-- **Microphone Testing**: Real-time audio level monitoring with synthesis visualization
+**Bring Your Own API Key**: No vendor lock-in, complete freedom to choose your AI provider.
+
+- **Supported Providers**: OpenAI (GPT-4, GPT-3.5), Anthropic (Claude), Google AI (Gemini), Custom Endpoints
+- **Secure Storage**: AES-256-GCM encryption with platform-specific keychain integration
+  - **Linux**: libsecret (GNOME Keyring, KWallet)
+  - **macOS**: Keychain Services
+  - **Windows**: Credential Manager
+- **Key Testing**: Validate API keys and fetch available models before saving
+- **Model Persistence**: Selected model per provider is saved and automatically restored
+- **Active Provider Switching**: Seamlessly switch between configured providers
+- **Smart Caching**: 5-minute cache TTL for improved performance
+- **Zero Exposure**: API keys never appear in logs or error messages
+
+**Why This Matters**: Use the best model for each task. Switch providers without changing your workflow. Your keys, your choice.
+
+</details>
+
+<details>
+<summary><strong>🎤 Voice-First Interface</strong></summary>
+
+**Control CLI agents with your voice** - no typing required, fully accessible.
+
+- **Natural Speech Input**: Speak commands like "find all Python files" or "search for TODO comments"
+- **Real-time Transcription**: See your speech converted to text as you speak
+- **Transcript Editing**: Edit voice transcriptions before sending with one-click edit button
+- **Advanced Audio Visualization**: 9-layer frequency visualizer with voice-optimized rendering
+  - Multi-line wave rendering with dynamic amplitude response
+  - Real-time frequency harmonics (carrier waves + modulation + ripples)
+  - Dynamic glow effects responding to voice peaks (up to 40px blur)
+  - Canvas-based rendering at 60fps with device pixel ratio support
+- **Audio Analysis**: Real-time RMS volume calculation and frequency domain processing
+- **Device Management**: Select microphone/speaker, adjust volume, configure sensitivity
+- **Microphone Testing**: Real-time audio level monitoring with visualization
 - **Device Hot-Swapping**: Automatic detection and handling of audio device changes
-- **Linux Audio Setup**: Automatic detection and guided setup for Linux audio permissions
+- **Cross-Platform Audio**: Works on Chrome, Edge, Safari (fallback for Opera/Firefox)
+
+**Why This Matters**: Accessibility for all users. Hands-free operation. Natural interaction with CLI agents.
+
+</details>
+
+<details>
+<summary><strong>🔍 Hybrid File Search Engine</strong></summary>
+
+**Multi-engine search** combining Rust performance with CLI tool power and AI intelligence.
+
+- **Rust Fuzzy Search**: Ultra-fast fuzzy matching using nucleo-matcher (Sublime Text algorithm)
+- **CLI Integration**: Leverages ripgrep, fd, find, and grep for comprehensive results
+- **Hybrid Mode**: Combines multiple engines for optimal accuracy
+- **Auto Mode**: Intelligently selects the best engine for each query
+- **AI-Enhanced Scoring**: Relevance scoring (0-100) with intelligent fallbacks
+- **Performance**: Small projects ~10ms, medium ~50ms, large ~200ms
+- **Content Search**: Search inside files with snippet extraction and line numbers
+- **Multilingual Detection**: English and French keyword support
+- **Interactive Results**: Click to open files, navigate folders, copy paths
+
+**Why This Matters**: Agents get fast, accurate search results with visual rendering - no more parsing grep output.
 
 </details>
 
@@ -161,34 +224,52 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 ### Prerequisites
 - **Node.js** (v16 or higher)
 - **Rust** (for desktop builds and backend - [Install Rust](https://rustup.rs/))
-- **Google Gemini API Key** ([Get one here](https://aistudio.google.com/apikey))
+- **API Key** from your preferred provider:
+  - [Google Gemini](https://aistudio.google.com/apikey) (recommended for getting started)
+  - [OpenAI](https://platform.openai.com/api-keys)
+  - [Anthropic](https://console.anthropic.com/settings/keys)
 
 ### Installation
 
 ```bash
 # Clone and install
-git clone <repository-url>
+git clone https://github.com/tristo-bit/skhoot.git
 cd skhoot
 npm install
 
-# Configure API key
+# Configure API key (optional for web version)
 cp .env.example .env
 # Edit .env: VITE_GEMINI_API_KEY=your_api_key_here
 
-# Start the backend
+# Build backend (one-time setup)
 cd backend
 cargo build --release
-cargo run --bin skhoot-backend
-# Backend runs on http://localhost:3001
+cd ..
 
-# Start development (in project root)
-npm run dev          # Web version
-npm run tauri:dev    # Desktop version
+# Start application
+npm run tauri:dev    # Desktop version (auto-starts backend)
+# OR
+npm run dev:full     # Web version (starts backend + frontend)
 ```
+
+**Note**: The desktop version automatically starts the backend. For the web version, the backend must be running separately (`npm run backend:dev`).
 
 ---
 
 ## 🛠️ Development
+  - **macOS**: Keychain Services
+  - **Windows**: Credential Manager
+- **Key Testing**: Validate API keys and fetch available models before saving
+- **Model Persistence**: Selected model per provider is saved and automatically restored
+- **Active Provider Management**: Switch between configured providers seamlessly
+- **Smart Caching**: 5-minute cache TTL for improved performance
+- **Secure Service Layer**: Frontend service communicates with Tauri backend for all key operations
+- **No Key Exposure**: API keys never appear in logs or error messages
+
+</details>
+
+---
+
 
 <details>
 <summary><strong>Available Scripts</strong></summary>

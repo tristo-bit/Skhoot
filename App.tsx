@@ -64,6 +64,22 @@ const AppContent: React.FC = () => {
     initUIConfig();
     initScaleManager();
     
+    // Check backend health
+    const checkBackendHealth = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/health');
+        if (response.ok) {
+          console.log('[App] Backend is healthy');
+        }
+      } catch (error) {
+        console.warn('[App] Backend not responding, it may still be starting up');
+      }
+    };
+    
+    // Check immediately and then after a delay
+    checkBackendHealth();
+    setTimeout(checkBackendHealth, 3000);
+    
     // Initialize notification service
     console.log('[App] Initializing notification service...');
     try {
