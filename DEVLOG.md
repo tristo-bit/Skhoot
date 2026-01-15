@@ -5051,9 +5051,9 @@ git push --tags
 
 ---
 
-### Release v0.1.2 Published ✅
-- **Version**: 0.1.2
-- **Tag**: `v0.1.2`
+### Release v0.1.3 Published ✅
+- **Version**: 0.1.3
+- **Tag**: `v0.1.3`
 - **Changes**:
   - Fixed backend sidecar not starting in release builds
   - Backend binary now properly bundled in all platforms

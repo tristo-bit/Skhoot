@@ -1,4 +1,4 @@
-# Skhoot Desktop Seeker v0.1.2
+# Skhoot Desktop Seeker v0.1.3
 
 ## 🚀 What's New
 
@@ -18,8 +18,8 @@ This release fixes a critical issue where the embedded AI agent couldn't use its
 ### Windows
 | File | Description |
 |------|-------------|
-| `Skhoot-Desktop-Seeker_0.1.2_x64-setup.exe` | **Recommended** - NSIS installer with auto-updates |
-| `Skhoot-Desktop-Seeker_0.1.2_x64_en-US.msi` | MSI installer for enterprise deployment |
+| `Skhoot-Desktop-Seeker_0.1.3_x64-setup.exe` | **Recommended** - NSIS installer with auto-updates |
+| `Skhoot-Desktop-Seeker_0.1.3_x64_en-US.msi` | MSI installer for enterprise deployment |
 
 **Installation:**
 1. Download the `.exe` installer
@@ -30,7 +30,7 @@ This release fixes a critical issue where the embedded AI agent couldn't use its
 ### macOS
 | File | Description |
 |------|-------------|
-| `Skhoot-Desktop-Seeker_0.1.2_universal.dmg` | Universal binary (Intel + Apple Silicon) |
+| `Skhoot-Desktop-Seeker_0.1.3_universal.dmg` | Universal binary (Intel + Apple Silicon) |
 
 **Installation:**
 1. Download the `.dmg` file
@@ -41,19 +41,19 @@ This release fixes a critical issue where the embedded AI agent couldn't use its
 ### Linux
 | File | Description |
 |------|-------------|
-| `skhoot-desktop-seeker_0.1.2_amd64.deb` | Debian/Ubuntu package |
-| `skhoot-desktop-seeker_0.1.2_amd64.AppImage` | Portable, runs on any distro |
+| `skhoot-desktop-seeker_0.1.3_amd64.deb` | Debian/Ubuntu package |
+| `skhoot-desktop-seeker_0.1.3_amd64.AppImage` | Portable, runs on any distro |
 
 **Debian/Ubuntu Installation:**
 ```bash
-sudo dpkg -i skhoot-desktop-seeker_0.1.2_amd64.deb
+sudo dpkg -i skhoot-desktop-seeker_0.1.3_amd64.deb
 sudo apt-get install -f  # Install dependencies if needed
 ```
 
 **AppImage Installation:**
 ```bash
-chmod +x skhoot-desktop-seeker_0.1.2_amd64.AppImage
-./skhoot-desktop-seeker_0.1.2_amd64.AppImage
+chmod +x skhoot-desktop-seeker_0.1.3_amd64.AppImage
+./skhoot-desktop-seeker_0.1.3_amd64.AppImage
 ```
 
 ---
