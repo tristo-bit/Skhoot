@@ -142,6 +142,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/search", get(search_files))
         .route("/api/v1/index/start", post(start_indexing))
         .nest("/api/v1", api::search::search_routes())
+        .nest("/api/v1", api::disk::disk_routes())
         .nest("/api/v1/terminal", terminal::terminal_routes().with_state(terminal_manager))
         .with_state(state)
         .layer(
