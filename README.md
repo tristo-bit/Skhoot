@@ -43,16 +43,27 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 
 **The Core Innovation**: Unlike terminal-only CLI agents, Skhoot renders agent tool outputs with rich, interactive UI components.
 
-- **Visual File Operations**: `list_directory` shows interactive file lists with icons, sizes, and click-to-open functionality
-- **Rich Search Results**: `search_files` displays results with syntax highlighting, line numbers, and folder navigation
-- **Code Rendering**: `read_file` shows syntax-highlighted code with copy buttons and markdown rendering
-- **Terminal Integration**: `shell` commands display with ANSI color support and command history
+- **Agent Mode Toggle**: Quick action button (Cpu icon) to enable/disable agent mode per conversation with visual indicator
+- **Visual Tool Execution**: Agent actions render as interactive UI components in the conversation:
+  - **Shell Commands**: `shell` tool displays commands with syntax highlighting, working directory, execution time, and ANSI color output
+  - **File Operations**: `read_file`, `write_file` tools show file paths, operation types, content previews, and diff views
+  - **Directory Listing**: `list_directory` tool renders interactive file lists with icons, sizes, and click-to-open functionality
+  - **File Search**: `search_files` tool displays results with syntax highlighting, line numbers, and folder navigation
+- **Agent Log Terminal Tab**: Dedicated monitoring tab showing:
+  - Agent launch status and readiness indicators
+  - Real-time tool call logging with timestamps
+  - Command execution tracking with results
+  - Configuration display (provider, model, message count, state)
+  - Auto-scroll with toggle, log filtering by type, and JSON export
+- **Multi-Provider Support**: Works with OpenAI, Anthropic (Claude), and Google AI (Gemini) with function/tool calling
 - **Unrestricted System Access**: Agents can execute ANY system command - no sandbox, no limitations
 - **File Context Loading**: Use `@filename` syntax to automatically load file contents for agent context
-- **Parallel Tool Execution**: Multiple tools run concurrently for maximum performance
+- **Tool Execution Loop**: Automatic multi-turn tool use (up to 10 iterations) with result feedback to AI
 - **Interactive Results**: Click files to open, navigate folders visually, copy code with one click
+- **Session Management**: Agent sessions tied to conversations with proper lifecycle management
+- **Event-Driven Architecture**: Real-time updates via Tauri events (tool_start, tool_complete, message, cancelled)
 
-**Why This Matters**: See what your agent is doing in real-time with visual feedback. No more scrolling through terminal text - interact with results directly.
+**Why This Matters**: See what your agent is doing in real-time with visual feedback. No more scrolling through terminal text - interact with results directly. Full transparency into agent decision-making and tool execution.
 
 </details>
 
@@ -303,27 +314,52 @@ skhoot/
 │   ├── src/
 │   │   ├── search_engine/  # File search implementation
 │   │   ├── cli_engine/     # CLI tool integration
+│   │   ├── cli_agent/      # Agent core module (NEW)
+│   │   │   ├── agent.rs    # Agent state machine
+│   │   │   ├── tools.rs    # Tool definitions (shell, file ops, etc.)
+│   │   │   ├── executor.rs # Command execution
+│   │   │   ├── session.rs  # Session state management
+│   │   │   ├── response.rs # Response parsing
+│   │   │   └── instructions.rs # System prompts
 │   │   └── api/            # REST API endpoints
 │   └── Cargo.toml
 ├── components/          # React components
+│   ├── conversations/   # Message and conversation UI
+│   │   ├── MessageBubble.tsx    # Message rendering with agent actions
+│   │   ├── AgentAction.tsx      # Agent tool call visualization (NEW)
+│   │   ├── CommandExecution.tsx # Shell command display (NEW)
+│   │   ├── CommandOutput.tsx    # Command output with ANSI colors (NEW)
+│   │   ├── FileOperation.tsx    # File operation display (NEW)
+│   │   └── ...
+│   ├── terminal/        # Terminal and agent log UI
+│   │   ├── TerminalPanel.tsx
+│   │   ├── AgentLogTab.tsx      # Agent monitoring interface (NEW)
+│   │   └── ...
+│   ├── chat/            # Chat interface components
+│   │   ├── ChatInterface.tsx    # Main chat with agent mode toggle
+│   │   └── ...
 │   ├── shared/          # Reusable UI components
 │   ├── library/         # Reusable hooks and utilities
 │   │   └── useAudioAnalyzer.ts  # Audio stream analysis
-│   ├── ChatInterface.tsx
-│   ├── FileSearchTest.tsx
-│   └── SettingsPanel.tsx
+│   └── ...
 ├── services/            # API and data services
+│   ├── agentService.ts         # Agent session management (NEW)
+│   ├── agentChatService.ts     # AI integration with tool calling (NEW)
 │   ├── apiKeyService.ts        # Secure API key management
 │   ├── diskService.ts          # System disk information
 │   ├── notificationService.ts  # Native desktop notifications
 │   ├── audioService.ts         # Audio management
 │   ├── backendApi.ts          # Backend communication
 │   └── gemini.ts              # AI integration
+├── hooks/               # Custom React hooks
+│   ├── useAgentLogTab.ts       # Agent log lifecycle management (NEW)
+│   └── ...
 ├── src/
 │   ├── contexts/        # React contexts
 │   └── constants.ts     # App constants
 ├── src-tauri/           # Tauri desktop configuration
 │   └── src/
+│       ├── agent.rs     # Agent Tauri commands (NEW)
 │       ├── api_keys.rs  # API key Tauri commands
 │       ├── terminal.rs  # Terminal management
 │       └── main.rs      # Tauri app entry point
@@ -430,6 +466,110 @@ if (result.success) {
 const info = await fileOperations.getInfo('/path/to/file.txt');
 console.log('File info:', info); // { name, type, size, modified, ... }
 ```
+
+**Agent Service API:**
+```typescript
+import { agentService } from './services/agentService';
+import type { AgentSessionOptions, AgentMessage, AgentToolCall } from './services/agentService';
+
+// Create an agent session
+const sessionId = await agentService.createSession({
+  conversationId: 'conv-123',
+  provider: 'openai',
+  model: 'gpt-4',
+  apiKey: 'sk-...'
+});
+
+// Send a message to the agent
+await agentService.sendMessage(sessionId, 'Find all TypeScript files in src/');
+
+// Add assistant message with tool calls
+await agentService.addAssistantMessage(sessionId, {
+  content: 'I found 42 TypeScript files.',
+  toolCalls: [
+    {
+      id: 'call_123',
+      name: 'search_files',
+      arguments: { pattern: '*.ts', path: 'src/' }
+    }
+  ]
+});
+
+// Get conversation messages
+const messages: AgentMessage[] = await agentService.getMessages(sessionId);
+
+// Execute a tool
+const result = await agentService.executeTool(sessionId, {
+  name: 'shell',
+  arguments: { command: 'ls -la', workingDir: '/home/user' }
+});
+
+// Listen for agent events
+agentService.on('tool_start', (data) => {
+  console.log('Tool started:', data.toolCall);
+});
+
+agentService.on('tool_complete', (data) => {
+  console.log('Tool completed:', data.result);
+});
+
+agentService.on('message', (data) => {
+  console.log('New message:', data.message);
+});
+
+// Get agent status
+const status = await agentService.getStatus(sessionId);
+console.log('Agent state:', status.state); // 'idle' | 'processing' | 'executing_tool'
+
+// List all sessions
+const sessions = await agentService.listSessions();
+
+// Close session
+await agentService.closeSession(sessionId);
+
+// Cancel ongoing action
+await agentService.cancelAction(sessionId);
+```
+
+**Agent Chat Service API:**
+```typescript
+import { agentChatService } from './services/agentChatService';
+import type { AgentMessage, AgentToolCallData, AgentToolResultData } from './services/agentChatService';
+
+// Execute agent with tool calling support
+const result = await agentChatService.executeWithTools(
+  'Find all TODO comments in the codebase',
+  {
+    provider: 'openai',
+    model: 'gpt-4',
+    apiKey: 'sk-...',
+    conversationHistory: previousMessages,
+    sessionId: 'session-123',
+    onToolStart: (toolCall: AgentToolCallData) => {
+      console.log(`Executing ${toolCall.name}...`);
+    },
+    onToolComplete: (result: AgentToolResultData) => {
+      console.log(`Tool ${result.success ? 'succeeded' : 'failed'}`);
+    }
+  }
+);
+
+console.log('Agent response:', result.content);
+console.log('Tool calls made:', result.toolCalls);
+console.log('Tool results:', result.toolResults);
+
+// Supported providers: 'openai', 'google', 'anthropic'
+// Each provider has its own tool calling format automatically handled
+// Tool execution loop runs up to 10 iterations
+// History is automatically converted to provider-specific format
+```
+
+**Available Agent Tools:**
+- `shell`: Execute terminal commands with working directory support
+- `read_file`: Read file contents from filesystem
+- `write_file`: Write or modify file contents
+- `list_directory`: List directory contents with file metadata
+- `search_files`: Search for files by pattern or content
 
 </details>
 
@@ -759,6 +899,68 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 
 
 ## 📝 Recent Updates
+
+<details>
+<summary><strong>Agent Mode Integration (Phase 3 Complete)</strong></summary>
+
+**Major Feature Release**: Full CLI agent mode with visual tool execution and monitoring capabilities.
+
+- **Agent Core Module**: Complete Rust backend implementation (`backend/src/cli_agent/`)
+  - Agent state machine with session management
+  - 5 tool definitions: `shell`, `read_file`, `write_file`, `list_directory`, `search_files`
+  - System prompts ported from codex-main behavior
+  - Direct tool execution via `tokio::process::Command`
+  - 21 passing unit tests
+- **Tauri Commands**: 10 agent commands for frontend-backend communication
+  - Session lifecycle: `create_agent_session`, `close_agent_session`, `list_agent_sessions`
+  - Messaging: `send_agent_message`, `add_assistant_message`, `get_agent_messages`
+  - Tool execution: `execute_agent_tool`, `cancel_agent_action`
+  - Status: `get_agent_status`, `get_agent_config`
+  - Event emitters: `tool_start`, `tool_complete`, `message`, `cancelled`
+- **Agent Service**: Frontend TypeScript service (`services/agentService.ts`)
+  - Complete session lifecycle management
+  - Message sending with tool call support
+  - Event listeners for agent actions (Tauri + DOM events)
+  - Tool execution and cancellation
+  - TypeScript interfaces for type safety
+- **Agent Chat Service**: AI integration with tool calling (`services/agentChatService.ts`)
+  - Multi-provider support: OpenAI, Google (Gemini), Anthropic
+  - Tool execution loop with max 10 iterations
+  - History conversion for each provider format
+  - Streaming response handling (basic implementation)
+- **Agent Log Terminal Tab**: Real-time monitoring interface (`components/terminal/AgentLogTab.tsx`)
+  - Status indicators: launch, API key, terminal access, readiness
+  - Real-time logging: tool calls, commands, responses, errors
+  - Configuration panel: provider, model, message count, state
+  - Auto-scroll with toggle, log filtering, JSON export
+  - Glass morphism theme styling
+- **Agent Mode Toggle**: Quick action button in chat interface
+  - Cpu icon with ON/OFF state and visual indicator (green when active)
+  - Auto-creates Agent Log tab when enabled
+  - Routes messages to agent service vs normal AI service
+  - Keyboard shortcut: Ctrl+Shift+A
+  - Per-conversation preference persistence
+- **Agent Action UI Components**: Rich visual rendering of tool executions
+  - `AgentAction`: Tool call header with expandable content, loading/success/error states
+  - `CommandExecution`: Command display with syntax highlighting, working directory, execution time, cancel button
+  - `CommandOutput`: Stdout/stderr with ANSI colors, truncation with "Show more", copy button, line numbers
+  - `FileOperation`: File path display, operation type, file preview, diff view for writes
+  - Integrated into `MessageBubble` for seamless conversation rendering
+- **File Reference Support**: Agent mode properly processes `@filename` references
+  - File contents automatically loaded from backend
+  - Complete file contents appended to message before sending to agent
+  - Consistent behavior between normal AI mode and agent mode
+
+**Technical Implementation**:
+- Lightweight HashMap-based session storage in Tauri state
+- DTOs for frontend communication: `AgentMessageDto`, `ToolCallDto`, `ToolResultDto`, `AgentStatusDto`
+- Tool schemas for OpenAI, Anthropic, and Gemini formats
+- Event-driven architecture with real-time updates
+- Proper error handling and recovery throughout stack
+
+**Status**: Tasks 3.1-3.8 complete. Remaining: Task 3.9 (test functions validation).
+
+</details>
 
 <details>
 <summary><strong>File Attachment Modal Improvements</strong></summary>
@@ -1365,7 +1567,14 @@ This project is private and proprietary.
 
 ## 📄 Version
 
-v0.0.1
+v0.2.0 - Agent Mode Release
+
+**Major Features:**
+- Full CLI agent mode with visual tool execution
+- Agent Log terminal tab for real-time monitoring
+- Multi-provider tool calling support (OpenAI, Anthropic, Google AI)
+- 5 agent tools: shell, read_file, write_file, list_directory, search_files
+- Rich UI components for agent actions and command output
 
 ---
 

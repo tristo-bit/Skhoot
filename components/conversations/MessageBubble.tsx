@@ -114,20 +114,61 @@ export const MessageBubble = memo<{ message: Message }>(({ message }) => {
         {/* Attached Files Indicator */}
         {message.attachedFiles && message.attachedFiles.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-glass-border">
-            <div className="flex items-center gap-1 text-emerald-500 text-[10px] font-medium">
+            <div className="flex items-center gap-1 text-text-secondary text-[10px] font-medium">
               <Paperclip size={10} />
               <span>{message.attachedFiles.length} file{message.attachedFiles.length !== 1 ? 's' : ''} attached:</span>
             </div>
-            {message.attachedFiles.map((file) => (
-              <div
-                key={file.fileName}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-medium"
-                title={file.filePath}
-              >
-                <FileText size={10} />
-                <span className="truncate max-w-[80px]">{file.fileName}</span>
-              </div>
-            ))}
+            {message.attachedFiles.map((file) => {
+              // Get file type info for color
+              const getFileExtension = (fileName: string): string => {
+                const parts = fileName.split('.');
+                return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+              };
+              
+              const getFileColor = (fileName: string): string => {
+                const ext = getFileExtension(fileName);
+                
+                // Images - violet
+                if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico'].includes(ext)) {
+                  return '#c0b7c9';
+                }
+                // Videos - pink
+                if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm'].includes(ext)) {
+                  return '#ec4899';
+                }
+                // Audio - blue
+                if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac'].includes(ext)) {
+                  return '#3b82f6';
+                }
+                // Code - cyan
+                if (['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c', 'h', 'css', 'html', 'json', 'xml', 'yaml', 'yml', 'sh', 'bash'].includes(ext)) {
+                  return '#06b6d4';
+                }
+                // Archives - orange
+                if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2'].includes(ext)) {
+                  return '#f97316';
+                }
+                // Documents - emerald (default)
+                return '#10b981';
+              };
+              
+              const fileColor = getFileColor(file.fileName);
+              
+              return (
+                <div
+                  key={file.fileName}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                  style={{
+                    backgroundColor: `${fileColor}20`,
+                    color: fileColor,
+                  }}
+                  title={file.filePath}
+                >
+                  <FileText size={10} />
+                  <span className="truncate max-w-[80px]">{file.fileName}</span>
+                </div>
+              );
+            })}
           </div>
         )}
         
