@@ -1170,6 +1170,48 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 - **Portal-Based Rendering**: UI components that need to escape parent stacking contexts now render via React portals to `document.body`:
   - **Sidebar**: Navigation sidebar renders via portal for reliable z-index stacking above all content
   - **SecondaryPanel**: Floating panels (terminal, file explorer, workflows) prevent parent overflow clipping issues
+- **SplittingText Component**: Advanced text animation component with typewriter effect and staggered slide-in animations (`components/ui/SplittingText.tsx`)
+  - **Typewriter Effect on Mount**: Characters appear sequentially with configurable speed (default: 50ms per character)
+    - Animated cursor (|) pulses during typing and disappears when complete
+    - Enable/disable via `typewriter` prop (default: true)
+    - Customize speed with `typewriterSpeed` prop (milliseconds per character)
+  - **Character & Word Splitting**: Split text into individual characters or words for granular animation control
+  - **Hover-Triggered Animation**: Smooth slide-in effect from right (150px) with staggered delays on hover (only after typewriter completes)
+  - **Customizable Timing**: 
+    - Characters: 0.05s delay per item for rapid sequential animation
+    - Words: 0.2s delay per item for dramatic effect
+  - **Smooth Easing**: Uses cubic-bezier(0.16, 1, 0.3, 1) for natural, elastic motion
+  - **Performance Optimized**: Memoized component with useMemo for split calculations and efficient state management
+  - **Flexible Styling**: Accepts className and style props for custom appearance
+  - **Inline Styles**: Self-contained CSS-in-JS for zero external dependencies
+  - **Usage**:
+    ```tsx
+    import { SplittingText } from './components/ui/SplittingText';
+    
+    // Character-based animation with typewriter (default)
+    <SplittingText text="Hello World" />
+    
+    // Faster typewriter speed
+    <SplittingText 
+      text="Quick typing" 
+      typewriterSpeed={30}
+    />
+    
+    // Disable typewriter, show all text immediately
+    <SplittingText 
+      text="Instant text" 
+      typewriter={false}
+    />
+    
+    // Word-based animation with typewriter
+    <SplittingText 
+      text="Welcome to Skhoot" 
+      type="words"
+      typewriterSpeed={100}
+      className="text-2xl font-bold"
+      style={{ color: '#6366f1' }}
+    />
+    ```
 
 </details>
 

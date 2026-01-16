@@ -1,4 +1,5 @@
 export { TypewriterText } from './TypewriterText';
+export { SplittingText } from './SplittingText';
 export { SoundWave } from './SoundWave';
 export { ScrollbarStyles } from './Scrollbar';
 export { MarkdownRenderer } from './MarkdownRenderer';
