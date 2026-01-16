@@ -131,42 +131,42 @@ export const MultiFileChip = memo<MultiFileChipProps>(({ fileCount, onClick, att
     return colorMap[color] || '#10b981';
   };
 
-  // Create gradient background from file colors
+  // Create gradient background from file colors - SUBTLE and LIGHT
   const getGradientStyle = () => {
     if (fileColors.length === 0) {
       return { 
-        backgroundColor: 'rgba(16, 185, 129, 0.3)',
-        borderColor: 'rgba(16, 185, 129, 0.5)',
+        background: 'rgba(16, 185, 129, 0.12)', // Très léger
+        borderColor: 'rgba(16, 185, 129, 0.35)',
       };
     }
     
     if (fileColors.length === 1) {
       const hexColor = colorToHex(fileColors[0]);
       return { 
-        backgroundColor: `${hexColor}50`,
-        borderColor: `${hexColor}80`,
+        background: `${hexColor}1F`, // 12% opacity - fond très léger
+        borderColor: `${hexColor}59`, // 35% opacity
       };
     }
     
-    // Create gradient from multiple colors with more opacity for visibility
+    // Create gradient from multiple colors - LIGHT opacity for background
     const gradientStops = fileColors.map((color, index) => {
       const position = (index / (fileColors.length - 1)) * 100;
       const hexColor = colorToHex(color);
-      return `${hexColor}80 ${position}%`;
+      return `${hexColor}26 ${position}%`; // 15% opacity - fond léger et subtil
     }).join(', ');
     
     return {
       background: `linear-gradient(135deg, ${gradientStops})`,
-      borderColor: `${colorToHex(fileColors[0])}90`,
+      borderColor: `${colorToHex(fileColors[0])}66`, // 40% opacity
     };
   };
 
   const gradientStyle = getGradientStyle();
   
-  // Use the first color for text, with better visibility
-  const textColor = fileColors.length > 0 
-    ? { color: colorToHex(fileColors[0]) } 
-    : { color: '#10b981' };
+  // Use darker, more visible text and icon color
+  const iconColor = fileColors.length > 0 
+    ? colorToHex(fileColors[0]) 
+    : '#10b981';
 
   return (
     <button
@@ -175,8 +175,8 @@ export const MultiFileChip = memo<MultiFileChipProps>(({ fileCount, onClick, att
       style={gradientStyle}
       title="Click to manage attached files"
     >
-      <Files size={12} className="flex-shrink-0" style={textColor} />
-      <span style={textColor}>{fileCount} files loaded</span>
+      <Files size={12} className="flex-shrink-0" style={{ color: iconColor }} />
+      <span style={{ color: iconColor, fontWeight: 600 }}>{fileCount} files loaded</span>
     </button>
   );
 });
