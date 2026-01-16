@@ -1167,9 +1167,46 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 - Tailwind-based action colors with dark mode support
 - 50 unique prompts per action type
 - Branding toggle with localStorage persistence
+- **Animated Logo Background**: Enhanced empty state logo with smooth floating animation and interactive hover effects
+  - **Floating Animation**: Continuous 3-second ease-in-out vertical float (12px range) for subtle, engaging motion
+  - **Hover Scale Pulse**: Interactive scale pulse animation (1.0 to 1.08) synchronized with float on hover
+  - **Smooth Transitions**: 300ms ease-out transforms for responsive hover feedback
+  - **Exit Animation**: Maintains existing rotate + scale exit transition (600ms cubic-bezier)
+  - **Performance Optimized**: CSS keyframe animations with GPU acceleration
+  - **Theme Aware**: Consistent with glassmorphic design system and dark mode support
 - **Portal-Based Rendering**: UI components that need to escape parent stacking contexts now render via React portals to `document.body`:
   - **Sidebar**: Navigation sidebar renders via portal for reliable z-index stacking above all content
   - **SecondaryPanel**: Floating panels (terminal, file explorer, workflows) prevent parent overflow clipping issues
+- **GlareCard Component**: Interactive card component with mouse-following glare effect (`components/ui/GlareCard.tsx`)
+  - **Pure CSS Implementation**: No external dependencies, uses native CSS and canvas for effects
+  - **Mouse-Following Glare**: Radial gradient spotlight follows cursor position with smooth transitions
+  - **Customizable Appearance**:
+    - `glareColor`: Custom glare color (default: `rgba(255, 255, 255, 0.6)`)
+    - `glareOpacity`: Opacity when hovering (default: 0.3)
+    - `className`: Additional CSS classes for styling
+  - **Smooth Animations**: 300ms ease-out transitions for hover states
+  - **Performance Optimized**: Memoized component with useCallback hooks for event handlers
+  - **Layered Rendering**: Glare overlay on separate layer (z-index 1) with content above (z-index 2)
+  - **Responsive**: Calculates cursor position relative to card bounds for accurate tracking
+  - **Usage**:
+    ```tsx
+    import { GlareCard } from './components/ui';
+    
+    // Basic usage
+    <GlareCard>
+      <div>Your content here</div>
+    </GlareCard>
+    
+    // Custom glare color and opacity
+    <GlareCard 
+      glareColor="rgba(168, 85, 247, 0.4)"
+      glareOpacity={0.5}
+      className="rounded-2xl p-6"
+    >
+      <div>Premium content with purple glare</div>
+    </GlareCard>
+    ```
+  - **Use Cases**: Logo backgrounds, feature cards, premium content highlights, interactive UI elements
 - **SplittingText Component**: Advanced text animation component with typewriter effect and staggered slide-in animations (`components/ui/SplittingText.tsx`)
   - **Typewriter Effect on Mount**: Characters appear sequentially with configurable speed (default: 50ms per character)
     - Animated cursor (|) pulses during typing and disappears when complete
