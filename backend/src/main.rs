@@ -113,6 +113,18 @@ async fn main() -> anyhow::Result<()> {
     
     // Initialize terminal manager
     let terminal_manager = TerminalManager::default();
+    
+    // Spawn background task to cleanup stale sessions every 5 minutes
+    {
+        let manager = terminal_manager.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300)); // 5 minutes
+            loop {
+                interval.tick().await;
+                manager.cleanup_stale_sessions().await;
+            }
+        });
+    }
 
     let state = AppState {
         config,
@@ -130,12 +142,18 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/search", get(search_files))
         .route("/api/v1/index/start", post(start_indexing))
         .nest("/api/v1", api::search::search_routes())
+        .nest("/api/v1", api::disk::disk_routes())
         .nest("/api/v1/terminal", terminal::terminal_routes().with_state(terminal_manager))
         .with_state(state)
         .layer(
             CorsLayer::new()
                 .allow_origin(tower_http::cors::Any)
-                .allow_methods([axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::OPTIONS])
+                .allow_methods([
+                    axum::http::Method::GET,
+                    axum::http::Method::POST,
+                    axum::http::Method::DELETE,
+                    axum::http::Method::OPTIONS
+                ])
                 .allow_headers([axum::http::header::CONTENT_TYPE]),
         );
 

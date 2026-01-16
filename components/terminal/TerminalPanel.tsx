@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Terminal, X, Plus, Search, Copy, Trash2 } from 'lucide-react';
+import { Terminal, X, Plus, Search, Copy, Trash2, Bot } from 'lucide-react';
 import { terminalService } from '../../services/terminalService';
+import { terminalContextStore } from '../../services/agentTools/terminalTools';
 
 interface TerminalTab {
   id: string;
   title: string;
   type: 'shell' | 'codex' | 'skhoot-log';
   sessionId: string;
+  createdBy?: 'user' | 'ai';
+  workspaceRoot?: string;
 }
 
 interface TerminalPanelProps {
@@ -22,15 +25,27 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ isOpen, onClose })
   const terminalRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [terminalOutputs, setTerminalOutputs] = useState<Map<string, string[]>>(new Map());
   const isCreatingInitialTab = useRef(false);
+  const tabsRef = useRef<TerminalTab[]>([]);
+  
+  // Keep tabsRef in sync with tabs
+  useEffect(() => {
+    tabsRef.current = tabs;
+  }, [tabs]);
 
   const handleCreateTab = useCallback(async (type: 'shell' | 'codex' | 'skhoot-log') => {
     try {
       const sessionId = await terminalService.createSession(type);
+      
+      // Check if this terminal was created by AI
+      const context = terminalContextStore.get(sessionId);
+      
       const newTab: TerminalTab = {
         id: `tab-${Date.now()}`,
         title: type === 'shell' ? 'Shell' : type === 'codex' ? 'Codex' : 'Skhoot Log',
         type,
         sessionId,
+        createdBy: context?.createdBy || 'user',
+        workspaceRoot: context?.workspaceRoot,
       };
       setTabs(prev => [...prev, newTab]);
       setActiveTabId(newTab.id);
@@ -69,14 +84,46 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ isOpen, onClose })
     };
   }, []);
 
+  // Handle AI-created terminals
+  useEffect(() => {
+    const handleAITerminalCreated = (event: CustomEvent) => {
+      const { sessionId, type, createdBy, workspaceRoot } = event.detail;
+      
+      // Check if tab already exists
+      const existingTab = tabs.find(t => t.sessionId === sessionId);
+      if (existingTab) {
+        return;
+      }
+
+      // Create new tab for AI-created terminal
+      const newTab: TerminalTab = {
+        id: `tab-${Date.now()}-${sessionId}`,
+        title: 'Shell',
+        type,
+        sessionId,
+        createdBy,
+        workspaceRoot,
+      };
+
+      setTabs(prev => [...prev, newTab]);
+      setActiveTabId(newTab.id);
+    };
+
+    window.addEventListener('ai-terminal-created', handleAITerminalCreated as EventListener);
+    return () => {
+      window.removeEventListener('ai-terminal-created', handleAITerminalCreated as EventListener);
+    };
+  }, [tabs]);
+
   // Cleanup sessions on unmount
   useEffect(() => {
     return () => {
-      tabs.forEach(tab => {
+      tabsRef.current.forEach(tab => {
         terminalService.closeSession(tab.sessionId).catch(console.error);
       });
     };
-  }, [tabs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run cleanup on unmount, not when tabs change
 
   const handleCloseTab = useCallback(async (tabId: string) => {
     const tab = tabs.find(t => t.id === tabId);
@@ -162,6 +209,15 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ isOpen, onClose })
             >
               <Terminal size={14} />
               <span className="text-sm font-medium">{tab.title}</span>
+              {tab.createdBy === 'ai' && (
+                <div 
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/30"
+                  title="Created by AI Agent"
+                >
+                  <Bot size={10} className="text-cyan-400" />
+                  <span className="text-xs text-cyan-400 font-medium">AI</span>
+                </div>
+              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -252,6 +308,28 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({ isOpen, onClose })
       <div className="flex-1 overflow-hidden" style={{ height: 'calc(100% - 60px)' }}>
         {activeTab ? (
           <div className="h-full flex flex-col">
+            {/* Terminal Header with Workspace Root */}
+            {activeTab.workspaceRoot && (
+              <div 
+                className="px-4 py-2 border-b glass-subtle flex items-center gap-2"
+                style={{
+                  borderColor: 'var(--glass-border)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                <Terminal size={14} />
+                <span className="text-xs font-mono">
+                  Workspace: {activeTab.workspaceRoot}
+                </span>
+                {activeTab.createdBy === 'ai' && (
+                  <div className="flex items-center gap-1 text-xs text-cyan-400">
+                    <Bot size={12} />
+                    <span>AI Controlled</span>
+                  </div>
+                )}
+              </div>
+            )}
+            
             {/* Output Area */}
             <div 
               ref={(el) => {

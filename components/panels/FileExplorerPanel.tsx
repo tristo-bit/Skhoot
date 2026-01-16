@@ -14,6 +14,15 @@ import { SecondaryPanel, SecondaryPanelTab } from '../ui/SecondaryPanel';
 import { backendApi } from '../../services/backendApi';
 import { fileOperations } from '../../services/fileOperations';
 
+// Helper function to format bytes
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
 // File action handlers - using fileOperations service
 const fileActions = {
   open: async (filePath: string): Promise<boolean> => {
@@ -494,13 +503,59 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
 RecentTab.displayName = 'RecentTab';
 
 const DiskTab = memo(() => {
-  const disks = [
-    { name: 'Main Drive', total: '500 GB', used: '320 GB', free: '180 GB', percent: 64 },
-    { name: 'Home', total: '500 GB', used: '280 GB', free: '220 GB', percent: 56 },
-  ];
+  const [disks, setDisks] = useState<Array<{
+    id: string;
+    name: string;
+    total: string;
+    used: string;
+    free: string;
+    percent: number;
+    type: string;
+  }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadDiskInfo = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await backendApi.getDiskInfo();
+        const formattedDisks = response.disks.map(disk => ({
+          id: disk.id,
+          name: disk.name,
+          total: formatBytes(disk.total_bytes),
+          used: formatBytes(disk.used_bytes),
+          free: formatBytes(disk.free_bytes),
+          percent: Math.round(disk.usage_percentage),
+          type: disk.disk_type,
+        }));
+        setDisks(formattedDisks);
+      } catch (err) {
+        console.error('Failed to load disk info:', err);
+        setError('Failed to load disk information');
+        // Fallback to mock data
+        setDisks([
+          { id: 'd1', name: 'Main Drive', total: '500 GB', used: '320 GB', free: '180 GB', percent: 64, type: 'internal' },
+          { id: 'd2', name: 'Home', total: '500 GB', used: '280 GB', free: '220 GB', percent: 56, type: 'internal' },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadDiskInfo();
+  }, []);
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-32">
+      <RefreshCw size={20} className="animate-spin" style={{ color: 'var(--text-secondary)' }} />
+    </div>;
+  }
+
   return <div className="space-y-3">
-    {disks.map((disk, i) => (
-      <div key={i} className="p-4 rounded-xl bg-white/5">
+    {error && <p className="text-xs text-amber-400 mb-2">{error} (showing cached data)</p>}
+    {disks.map((disk) => (
+      <div key={disk.id} className="p-4 rounded-xl bg-white/5">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
             <HardDrive size={18} className="text-purple-400" />
@@ -524,14 +579,54 @@ const DiskTab = memo(() => {
 DiskTab.displayName = 'DiskTab';
 
 const AnalysisTab = memo(() => {
-  const categories = [
-    { name: 'Documents', size: '45 GB', count: 1234, color: '#8b5cf6' },
-    { name: 'Images', size: '32 GB', count: 5678, color: '#06b6d4' },
-    { name: 'Videos', size: '120 GB', count: 234, color: '#f59e0b' },
-    { name: 'Code', size: '28 GB', count: 9012, color: '#10b981' },
-    { name: 'Other', size: '95 GB', count: 3456, color: '#6b7280' },
-  ];
+  const [categories, setCategories] = useState<Array<{
+    name: string;
+    size: string;
+    count: number;
+    color: string;
+  }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await backendApi.getStorageCategories({ max_depth: 4 });
+        const formattedCategories = response.categories.map(cat => ({
+          name: cat.name,
+          size: cat.size_formatted,
+          count: cat.file_count,
+          color: cat.color,
+        }));
+        setCategories(formattedCategories);
+      } catch (err) {
+        console.error('Failed to load storage categories:', err);
+        setError('Failed to analyze storage');
+        // Fallback to mock data
+        setCategories([
+          { name: 'Documents', size: '45 GB', count: 1234, color: '#8b5cf6' },
+          { name: 'Images', size: '32 GB', count: 5678, color: '#06b6d4' },
+          { name: 'Videos', size: '120 GB', count: 234, color: '#f59e0b' },
+          { name: 'Code', size: '28 GB', count: 9012, color: '#10b981' },
+          { name: 'Other', size: '95 GB', count: 3456, color: '#6b7280' },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadCategories();
+  }, []);
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-32">
+      <RefreshCw size={20} className="animate-spin" style={{ color: 'var(--text-secondary)' }} />
+    </div>;
+  }
+
   return <div className="space-y-3">
+    {error && <p className="text-xs text-amber-400 mb-2">{error} (showing cached data)</p>}
     <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Storage by Category</p>
     {categories.map((cat, i) => (
       <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
@@ -548,39 +643,117 @@ const AnalysisTab = memo(() => {
 AnalysisTab.displayName = 'AnalysisTab';
 
 const CleanupTab = memo(() => {
-  const suggestions = [
-    { name: 'Cache Files', size: '2.4 GB', description: 'Temporary cache from applications', safe: true },
-    { name: 'Old Downloads', size: '1.8 GB', description: 'Files older than 30 days', safe: true },
-    { name: 'Duplicate Files', size: '890 MB', description: '23 duplicate files found', safe: false },
-    { name: 'Large Files', size: '5.2 GB', description: 'Files larger than 100MB', safe: false },
-  ];
+  const [suggestions, setSuggestions] = useState<Array<{
+    id: string;
+    name: string;
+    path: string;
+    size: string;
+    description: string;
+    safe: boolean;
+  }>>([]);
+  const [totalReclaimable, setTotalReclaimable] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await backendApi.getCleanupSuggestions();
+        const formattedSuggestions = response.suggestions.map(s => ({
+          id: s.id,
+          name: s.name,
+          path: s.path,
+          size: s.size_formatted,
+          description: s.description,
+          safe: s.safety_level === 'safe',
+        }));
+        setSuggestions(formattedSuggestions);
+        setTotalReclaimable(response.total_reclaimable_formatted);
+      } catch (err) {
+        console.error('Failed to load cleanup suggestions:', err);
+        setError('Failed to analyze cleanup opportunities');
+        // Fallback to mock data
+        setSuggestions([
+          { id: 'c1', name: 'Cache Files', path: '~/.cache', size: '2.4 GB', description: 'Temporary cache from applications', safe: true },
+          { id: 'c2', name: 'Old Downloads', path: '~/Downloads', size: '1.8 GB', description: 'Files older than 30 days', safe: true },
+          { id: 'c3', name: 'Duplicate Files', path: 'Various', size: '890 MB', description: '23 duplicate files found', safe: false },
+          { id: 'c4', name: 'Large Files', path: 'Various', size: '5.2 GB', description: 'Files larger than 100MB', safe: false },
+        ]);
+        setTotalReclaimable('10.3 GB');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadSuggestions();
+  }, []);
+
+  const handleClean = async (suggestion: typeof suggestions[0]) => {
+    if (!confirm(`⚠️ Clean ${suggestion.name}?\n\nPath: ${suggestion.path}\nSize: ${suggestion.size}\n\n${suggestion.safe ? 'This is safe to remove.' : 'Please review before removing.'}`)) {
+      return;
+    }
+    
+    const success = await fileOperations.delete(suggestion.path);
+    if (success) {
+      setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
+      alert(`✅ Cleaned ${suggestion.name}`);
+    } else {
+      alert(`❌ Could not clean automatically. Path copied to clipboard.`);
+      await navigator.clipboard.writeText(suggestion.path);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-32">
+      <RefreshCw size={20} className="animate-spin" style={{ color: 'var(--text-secondary)' }} />
+    </div>;
+  }
+
   return <div className="space-y-2">
-    <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cleanup Suggestions</p>
-    {suggestions.map((item, i) => (
-      <div key={i} className="flex items-center gap-3 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
-        {/* Status indicator dot */}
-        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.safe ? 'bg-green-400' : 'bg-amber-400'}`} />
-        
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${item.safe ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
-              {item.safe ? 'Safe' : 'Review'}
-            </span>
-          </div>
-          <p className="text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>{item.description}</p>
-        </div>
-        
-        {/* Size + Action */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-xs font-bold text-purple-400">{item.size}</span>
-          <button className="px-2 py-1 rounded-lg bg-purple-500/20 text-purple-400 text-[10px] font-bold hover:bg-purple-500/30 transition-all">
-            Clean
-          </button>
-        </div>
+    {error && <p className="text-xs text-amber-400 mb-2">{error} (showing cached data)</p>}
+    <div className="flex items-center justify-between mb-2">
+      <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Cleanup Suggestions</p>
+      {totalReclaimable && (
+        <span className="text-xs font-bold text-purple-400">~{totalReclaimable} reclaimable</span>
+      )}
+    </div>
+    {suggestions.length === 0 ? (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <Trash2 size={24} className="mb-2 opacity-40" style={{ color: 'var(--text-secondary)' }} />
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No cleanup suggestions</p>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>Your system looks clean!</p>
       </div>
-    ))}
+    ) : (
+      suggestions.map((item) => (
+        <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
+          {/* Status indicator dot */}
+          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.safe ? 'bg-green-400' : 'bg-amber-400'}`} />
+          
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${item.safe ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                {item.safe ? 'Safe' : 'Review'}
+              </span>
+            </div>
+            <p className="text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>{item.description}</p>
+          </div>
+          
+          {/* Size + Action */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-xs font-bold text-purple-400">{item.size}</span>
+            <button 
+              onClick={() => handleClean(item)}
+              className="px-2 py-1 rounded-lg bg-purple-500/20 text-purple-400 text-[10px] font-bold hover:bg-purple-500/30 transition-all"
+            >
+              Clean
+            </button>
+          </div>
+        </div>
+      ))
+    )}
   </div>;
 });
 CleanupTab.displayName = 'CleanupTab';

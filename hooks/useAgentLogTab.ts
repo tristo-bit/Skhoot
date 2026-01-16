@@ -9,6 +9,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { agentService, AgentSessionOptions } from '../services/agentService';
+import { terminalService } from '../services/terminalService';
+import { terminalContextStore } from '../services/agentTools/terminalTools';
 
 export interface AgentLogTabState {
   /** Whether agent mode is enabled */
@@ -47,6 +49,8 @@ export interface UseAgentLogTabReturn extends AgentLogTabState {
   closeAgentSession: () => Promise<void>;
   /** Get the session ID for the current conversation */
   getSessionId: () => string | null;
+  /** Get the terminal session ID for the current conversation */
+  getTerminalSessionId: () => string | null;
 }
 
 /**
@@ -85,6 +89,9 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
   // Track sessions per conversation
   const sessionMapRef = useRef<Map<string, string>>(new Map());
   
+  // Track terminal sessions per conversation
+  const terminalSessionMapRef = useRef<Map<string, string>>(new Map());
+  
   // Track if we've auto-enabled
   const hasAutoEnabled = useRef(false);
 
@@ -109,12 +116,39 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
     
     try {
       let sessionId = sessionMapRef.current.get(convId);
+      let terminalSessionId = terminalSessionMapRef.current.get(convId);
       
       if (!sessionId || !agentService.hasSession(sessionId)) {
         sessionId = generateSessionId(convId);
         console.log('[useAgentLogTab] Creating new session:', sessionId);
         await agentService.createSession(sessionId, defaultOptions);
         sessionMapRef.current.set(convId, sessionId);
+        
+        // Create a dedicated terminal session for this conversation
+        console.log('[useAgentLogTab] Creating terminal session for conversation');
+        terminalSessionId = await terminalService.createSession('shell');
+        terminalSessionMapRef.current.set(convId, terminalSessionId);
+        
+        // Register the terminal as AI-created
+        terminalContextStore.register(terminalSessionId, {
+          sessionId,
+          createdBy: 'ai',
+          workspaceRoot: undefined,
+        });
+        
+        // Emit event to show terminal in panel (but don't auto-open panel)
+        window.dispatchEvent(new CustomEvent('ai-terminal-created', {
+          detail: {
+            sessionId: terminalSessionId,
+            type: 'shell',
+            createdBy: 'ai',
+            agentSessionId: sessionId,
+            autoOpen: false, // Don't auto-open for conversation terminals
+          }
+        }));
+        
+        console.log('[useAgentLogTab] Terminal session created:', terminalSessionId);
+        
         onSessionCreated?.(sessionId);
       }
 
@@ -196,8 +230,15 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
     try {
       await agentService.closeSession(sessionId);
       
-      // Remove from session map
+      // Close the terminal session too
       const convId = conversationId || 'default';
+      const terminalSessionId = terminalSessionMapRef.current.get(convId);
+      if (terminalSessionId) {
+        await terminalService.closeSession(terminalSessionId);
+        terminalSessionMapRef.current.delete(convId);
+      }
+      
+      // Remove from session map
       sessionMapRef.current.delete(convId);
       
       setState(prev => ({
@@ -218,6 +259,12 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
   const getSessionId = useCallback(() => {
     return state.agentSessionId;
   }, [state.agentSessionId]);
+
+  // Get terminal session ID for current conversation
+  const getTerminalSessionId = useCallback(() => {
+    const convId = conversationId || 'default';
+    return terminalSessionMapRef.current.get(convId) || null;
+  }, [conversationId]);
 
   // Handle conversation change - restore session if exists
   useEffect(() => {
@@ -253,6 +300,16 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
         }
       });
       sessionMapRef.current.clear();
+      
+      // Close all terminal sessions
+      terminalSessionMapRef.current.forEach(async (terminalSessionId) => {
+        try {
+          await terminalService.closeSession(terminalSessionId);
+        } catch (error) {
+          console.error('[useAgentLogTab] Failed to cleanup terminal session:', terminalSessionId, error);
+        }
+      });
+      terminalSessionMapRef.current.clear();
     };
   }, []);
 
@@ -263,6 +320,7 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
     toggleAgentMode,
     closeAgentSession,
     getSessionId,
+    getTerminalSessionId,
   };
 }
 
