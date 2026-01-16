@@ -1,5 +1,19 @@
 # Development Log
 
+### Unified AI Terminal System - UI Polish ✅
+- **Status**: Implemented
+- **Changes**: 
+  - MiniTerminalView now uses Tailwind classes for dark/light mode instead of hardcoded cyan colors
+  - "Open Agent Log" button now toggles to AI Terminal view (read-only)
+  - Commented out old AgentLogTab - replaced by AI Terminal functionality
+
+**UI Updates**:
+1. **MiniTerminalView** — Uses `bg-background-secondary`, `text-text-primary`, `text-accent`, `border-glass-border` for proper theming
+2. **TerminalView Bot Button** — Now toggles between user terminal and AI terminal (instead of agent log)
+3. **AI Terminal Header** — Uses `bg-accent/10` and `text-accent` for consistent theming
+
+---
+
 ### Unified AI Terminal System ✅
 - **Status**: Implemented
 - **Issue**: MiniTerminalView showed "Waiting for output..." because it mounted after events were emitted

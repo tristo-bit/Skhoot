@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Maximize2 } from 'lucide-react';
+import { Terminal, ChevronDown, ChevronUp } from 'lucide-react';
 import { aiTerminalOutputStore } from '../terminal/TerminalView';
 
 interface MiniTerminalViewProps {
@@ -22,6 +22,7 @@ export const MiniTerminalView: React.FC<MiniTerminalViewProps> = ({
   maxLines = 5,
 }) => {
   const [output, setOutput] = useState<string[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
 
   // Subscribe to AI terminal output store
@@ -64,64 +65,39 @@ export const MiniTerminalView: React.FC<MiniTerminalViewProps> = ({
     }
   }, [output]);
 
-  const handleExpandToTerminal = () => {
-    // Dispatch event to open terminal panel and focus this session
-    window.dispatchEvent(new CustomEvent('focus-terminal-session', {
-      detail: { sessionId }
-    }));
-  };
-
-  // Get the last N lines
-  const displayOutput = output.slice(-maxLines);
+  // Get lines to display based on expanded state
+  const displayOutput = isExpanded ? output : output.slice(-maxLines);
+  const hasMoreLines = output.length > maxLines;
 
   return (
     <div 
-      className="mt-2 rounded-lg overflow-hidden border"
-      style={{
-        borderColor: 'rgba(6, 182, 212, 0.3)',
-        background: 'rgba(0, 0, 0, 0.3)',
-      }}
+      className="mt-2 rounded-lg overflow-hidden border border-glass-border bg-background-secondary dark:bg-background-tertiary"
     >
       {/* Header */}
       <div 
-        className="flex items-center justify-between px-3 py-2 border-b"
-        style={{
-          borderColor: 'rgba(6, 182, 212, 0.2)',
-          background: 'rgba(6, 182, 212, 0.1)',
-        }}
+        className="flex items-center gap-2 px-3 py-2 border-b border-glass-border bg-background-tertiary dark:bg-background-secondary"
       >
-        <div className="flex items-center gap-2">
-          <Terminal size={14} className="text-cyan-400" />
-          <span className="text-xs font-medium text-cyan-300">AI Terminal</span>
-          {command && (
-            <code className="text-xs text-cyan-400/70 font-mono truncate max-w-[200px]">
-              $ {command}
-            </code>
-          )}
-        </div>
-        <button
-          onClick={handleExpandToTerminal}
-          className="p-1 rounded hover:bg-cyan-500/20 transition-colors"
-          title="Open in Terminal Panel"
-        >
-          <Maximize2 size={14} className="text-cyan-400" />
-        </button>
+        <Terminal size={14} className="text-accent" />
+        <span className="text-xs font-medium text-text-primary">AI Terminal</span>
+        {command && (
+          <code className="text-xs text-text-secondary font-mono truncate max-w-[200px]">
+            $ {command}
+          </code>
+        )}
       </div>
 
       {/* Output */}
       <div
         ref={terminalRef}
-        className="p-3 font-mono text-xs overflow-y-auto"
+        className="p-3 font-mono text-xs overflow-y-auto text-text-primary"
         style={{
-          maxHeight: `${maxLines * 1.5}rem`,
-          color: 'var(--text-primary)',
+          maxHeight: isExpanded ? '400px' : `${maxLines * 1.5}rem`,
           scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(6, 182, 212, 0.3) transparent',
         }}
       >
         {displayOutput.length === 0 ? (
-          <div className="text-cyan-400/50 italic">
-            <span className="text-cyan-500">&gt;</span> Executing command...
+          <div className="text-text-secondary italic">
+            <span className="text-accent">&gt;</span> Executing command...
           </div>
         ) : (
           displayOutput.map((line, index) => (
@@ -132,16 +108,23 @@ export const MiniTerminalView: React.FC<MiniTerminalViewProps> = ({
         )}
       </div>
 
-      {output.length > maxLines && (
+      {/* Expand/Collapse footer */}
+      {hasMoreLines && (
         <div 
-          className="px-3 py-1 text-xs text-center border-t cursor-pointer hover:bg-cyan-500/10 transition-colors"
-          style={{
-            borderColor: 'rgba(6, 182, 212, 0.2)',
-            color: 'var(--text-secondary)',
-          }}
-          onClick={handleExpandToTerminal}
+          className="px-3 py-1.5 text-xs text-center border-t border-glass-border cursor-pointer hover:bg-accent/10 transition-colors text-text-secondary flex items-center justify-center gap-1"
+          onClick={() => setIsExpanded(!isExpanded)}
         >
-          +{output.length - maxLines} more lines • Click to expand
+          {isExpanded ? (
+            <>
+              <ChevronUp size={14} />
+              <span>Show less</span>
+            </>
+          ) : (
+            <>
+              <ChevronDown size={14} />
+              <span>+{output.length - maxLines} more lines • Click to expand</span>
+            </>
+          )}
         </div>
       )}
     </div>

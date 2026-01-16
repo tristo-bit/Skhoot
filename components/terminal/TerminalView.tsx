@@ -3,7 +3,8 @@ import { Terminal, X, Plus, Copy, Trash2, GripHorizontal, Bot } from 'lucide-rea
 import { terminalService } from '../../services/terminalService';
 import { agentService } from '../../services/agentService';
 import { terminalContextStore } from '../../services/agentTools/terminalTools';
-import { AgentLogTab } from './AgentLogTab';
+// COMMENTED OUT: Old AgentLogTab - replaced by AI Terminal view
+// import { AgentLogTab } from './AgentLogTab';
 
 interface TerminalTab {
   id: string;
@@ -396,27 +397,30 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
     }
   }, []);
 
-  // Toggle agent log visibility - acts as show/hide switch (session keeps running)
-  const handleToggleAgentLog = useCallback(async () => {
-    const agentLogTab = tabs.find(t => t.type === 'agent-log');
+  // Toggle AI terminal visibility - shows the AI-created terminal (read-only view)
+  const handleToggleAITerminal = useCallback(() => {
+    const aiTab = tabs.find(t => t.createdBy === 'ai' && t.type !== 'agent-log');
+    if (!aiTab) {
+      console.log('[TerminalView] No AI terminal exists yet');
+      return;
+    }
     
-    if (agentLogTab) {
-      // Agent log exists
-      if (activeTabId === agentLogTab.id) {
-        // Currently viewing agent log - switch back to first shell tab (hide agent log)
-        const shellTab = tabs.find(t => t.type !== 'agent-log');
-        if (shellTab) {
-          setActiveTabId(shellTab.id);
-        }
+    const currentTab = tabs.find(t => t.id === activeTabId);
+    const isCurrentlyViewingAI = currentTab?.createdBy === 'ai' && currentTab?.type !== 'agent-log';
+    
+    if (isCurrentlyViewingAI) {
+      // Currently viewing AI terminal - switch back to first user shell tab
+      const userShellTab = tabs.find(t => t.createdBy !== 'ai' && t.type !== 'agent-log');
+      if (userShellTab) {
+        setActiveTabId(userShellTab.id);
       } else {
-        // Not viewing agent log - switch to it (show agent log)
-        setActiveTabId(agentLogTab.id);
+        console.log('[TerminalView] No user terminal to switch to');
       }
     } else {
-      // No agent log exists - create one
-      await handleCreateTab('agent-log');
+      // Not viewing AI terminal - switch to it
+      setActiveTabId(aiTab.id);
     }
-  }, [tabs, activeTabId, handleCreateTab]);
+  }, [tabs, activeTabId]);
 
   // Create initial shell tab when component mounts - ALWAYS create shell first
   useEffect(() => {
@@ -430,6 +434,7 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
     }
   }, [isOpen, tabs.length, handleCreateTab]);
 
+  /* COMMENTED OUT: Old agent log auto-creation - replaced by AI Terminal
   // Auto-create agent log tab when autoCreateAgentLog is provided (but don't switch to it)
   const autoCreateAgentLogRef = useRef<string | null>(null);
   useEffect(() => {
@@ -475,6 +480,7 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
     
     createAgentLogTab();
   }, [autoCreateAgentLog, isOpen, tabs, onAgentLogCreated]);
+  */
 
   // Memoize computed values
   const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId), [tabs, activeTabId]);
@@ -482,6 +488,15 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
   
   // Memoize filtered tabs for rendering (exclude agent-log tabs from tab bar)
   const visibleTabs = useMemo(() => tabs.filter(tab => tab.type !== 'agent-log'), [tabs]);
+  
+  // Check if there's an AI terminal available
+  const aiTerminalTab = useMemo(() => 
+    tabs.find(t => t.createdBy === 'ai' && t.type !== 'agent-log'), 
+    [tabs]
+  );
+  
+  // Check if currently viewing AI terminal
+  const isViewingAITerminal = activeTab?.createdBy === 'ai' && activeTab?.type !== 'agent-log';
 
   if (!isOpen) return null;
 
@@ -608,15 +623,23 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
               </>
             )}
             <button
-              onClick={handleToggleAgentLog}
-              disabled={isCreatingTab}
+              onClick={handleToggleAITerminal}
+              disabled={!aiTerminalTab}
               className={`p-1.5 rounded-xl transition-all ${
-                activeTab?.type === 'agent-log' 
-                  ? 'bg-purple-500/20 text-purple-500' 
-                  : 'hover:bg-purple-500/10 hover:text-purple-500'
-              } ${isCreatingTab ? 'opacity-50 cursor-wait' : ''}`}
-              style={{ color: activeTab?.type === 'agent-log' ? undefined : 'var(--text-secondary)' }}
-              title={activeTab?.type === 'agent-log' ? 'Close Agent Log' : 'Open Agent Log'}
+                isViewingAITerminal
+                  ? 'bg-accent/20 text-accent' 
+                  : aiTerminalTab 
+                    ? 'hover:bg-accent/10 hover:text-accent'
+                    : 'opacity-40 cursor-not-allowed'
+              }`}
+              style={{ color: isViewingAITerminal ? undefined : 'var(--text-secondary)' }}
+              title={
+                !aiTerminalTab 
+                  ? 'No AI Terminal (AI hasn\'t used terminal yet)' 
+                  : isViewingAITerminal 
+                    ? 'Back to User Terminal' 
+                    : 'View AI Terminal'
+              }
             >
               <Bot size={16} />
             </button>
@@ -634,22 +657,22 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
         {/* Terminal Output */}
         <div className="overflow-hidden" style={{ height: 'calc(100% - 48px)' }}>
           {activeTab ? (
+            /* COMMENTED OUT: Old AgentLogTab - replaced by AI Terminal view
             activeTab.type === 'agent-log' ? (
               <AgentLogTab 
                 sessionId={activeTab.sessionId} 
                 isActive={activeTabId === activeTab.id}
               />
-            ) : (
+            ) : */
+            (
               <div className="h-full flex flex-col">
                 {/* Terminal Header with Workspace Root */}
                 {(activeTab.workspaceRoot || activeTab.createdBy === 'ai') && (
                   <div 
-                    className="px-4 py-2 border-b flex items-center justify-between"
-                    style={{
-                      borderColor: 'rgba(139, 92, 246, 0.2)',
-                      color: 'var(--text-secondary)',
-                      background: activeTab.createdBy === 'ai' ? 'rgba(6, 182, 212, 0.1)' : 'rgba(139, 92, 246, 0.05)',
-                    }}
+                    className={`px-4 py-2 border-b flex items-center justify-between border-glass-border ${
+                      activeTab.createdBy === 'ai' ? 'bg-accent/10' : 'bg-background-secondary'
+                    }`}
+                    style={{ color: 'var(--text-secondary)' }}
                   >
                     <div className="flex items-center gap-2">
                       <Terminal size={14} />
@@ -660,7 +683,7 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
                       )}
                     </div>
                     {activeTab.createdBy === 'ai' && (
-                      <div className="flex items-center gap-2 text-xs text-cyan-400">
+                      <div className="flex items-center gap-2 text-xs text-accent">
                         <Bot size={12} />
                         <span>AI Terminal (Read-only)</span>
                       </div>

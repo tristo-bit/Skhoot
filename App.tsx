@@ -162,15 +162,24 @@ const AppContent: React.FC = () => {
       }
     };
 
+    // Listen for open-terminal-panel event (from MiniTerminalView expand)
+    const handleOpenTerminalPanel = () => {
+      setIsTerminalOpen(true);
+      setIsFileExplorerOpen(false);
+      setIsWorkflowsOpen(false);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('open-api-config', handleOpenApiConfig);
     window.addEventListener('open-ai-settings', handleOpenAISettings);
     window.addEventListener('ai-terminal-created', handleAITerminalCreated);
+    window.addEventListener('open-terminal-panel', handleOpenTerminalPanel);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('open-api-config', handleOpenApiConfig);
       window.removeEventListener('open-ai-settings', handleOpenAISettings);
       window.removeEventListener('ai-terminal-created', handleAITerminalCreated);
+      window.removeEventListener('open-terminal-panel', handleOpenTerminalPanel);
     };
   }, []);
 
