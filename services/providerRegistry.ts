@@ -26,6 +26,8 @@ export interface ModelCapabilities {
   streaming: boolean;
   /** Supports vision/image input */
   vision: boolean;
+  /** Supports OCR (Optical Character Recognition) */
+  ocr: boolean;
   /** Supports JSON mode output */
   jsonMode: boolean;
   /** Context window size in tokens */
@@ -70,6 +72,7 @@ const DEFAULT_CAPABILITIES: ModelCapabilities = {
   toolCalling: false,
   streaming: true,
   vision: false,
+  ocr: false,
   jsonMode: false,
   contextWindow: 4096,
   maxOutputTokens: 4096,
@@ -89,37 +92,37 @@ const OPENAI_MODELS: ModelInfo[] = [
   {
     id: 'gpt-4o',
     name: 'GPT-4o',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, contextWindow: 128000, maxOutputTokens: 16384 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, ocr: true, contextWindow: 128000, maxOutputTokens: 16384 },
     description: 'Most capable model, multimodal with vision',
   },
   {
     id: 'gpt-4o-mini',
     name: 'GPT-4o Mini',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, contextWindow: 128000, maxOutputTokens: 16384 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, ocr: true, contextWindow: 128000, maxOutputTokens: 16384 },
     description: 'Fast and affordable, great for most tasks',
   },
   {
     id: 'gpt-4-turbo',
     name: 'GPT-4 Turbo',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, contextWindow: 128000, maxOutputTokens: 4096 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, ocr: true, contextWindow: 128000, maxOutputTokens: 4096 },
     description: 'Previous flagship with vision',
   },
   {
     id: 'gpt-3.5-turbo',
     name: 'GPT-3.5 Turbo',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, contextWindow: 16385, maxOutputTokens: 4096 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, ocr: false, contextWindow: 16385, maxOutputTokens: 4096 },
     description: 'Fast and cost-effective',
   },
   {
     id: 'o1-preview',
     name: 'O1 Preview',
-    capabilities: { ...DEFAULT_CAPABILITIES, contextWindow: 128000, maxOutputTokens: 32768 },
+    capabilities: { ...DEFAULT_CAPABILITIES, ocr: false, contextWindow: 128000, maxOutputTokens: 32768 },
     description: 'Reasoning model (no tool calling)',
   },
   {
     id: 'o1-mini',
     name: 'O1 Mini',
-    capabilities: { ...DEFAULT_CAPABILITIES, contextWindow: 128000, maxOutputTokens: 65536 },
+    capabilities: { ...DEFAULT_CAPABILITIES, ocr: false, contextWindow: 128000, maxOutputTokens: 65536 },
     description: 'Fast reasoning model (no tool calling)',
   },
 ];
@@ -128,19 +131,19 @@ const ANTHROPIC_MODELS: ModelInfo[] = [
   {
     id: 'claude-3-5-sonnet-20241022',
     name: 'Claude 3.5 Sonnet',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, contextWindow: 200000, maxOutputTokens: 8192 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, ocr: true, contextWindow: 200000, maxOutputTokens: 8192 },
     description: 'Best balance of intelligence and speed',
   },
   {
     id: 'claude-3-opus-20240229',
     name: 'Claude 3 Opus',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, contextWindow: 200000, maxOutputTokens: 4096 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, ocr: true, contextWindow: 200000, maxOutputTokens: 4096 },
     description: 'Most powerful for complex tasks',
   },
   {
     id: 'claude-3-haiku-20240307',
     name: 'Claude 3 Haiku',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, contextWindow: 200000, maxOutputTokens: 4096 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, ocr: true, contextWindow: 200000, maxOutputTokens: 4096 },
     description: 'Fastest and most compact',
   },
 ];
@@ -149,19 +152,19 @@ const GOOGLE_MODELS: ModelInfo[] = [
   {
     id: 'gemini-2.0-flash',
     name: 'Gemini 2.0 Flash',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, contextWindow: 1000000, maxOutputTokens: 8192 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, ocr: true, contextWindow: 1000000, maxOutputTokens: 8192 },
     description: 'Latest and fastest Gemini model',
   },
   {
     id: 'gemini-1.5-pro',
     name: 'Gemini 1.5 Pro',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, contextWindow: 2000000, maxOutputTokens: 8192 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, ocr: true, contextWindow: 2000000, maxOutputTokens: 8192 },
     description: 'Largest context window available',
   },
   {
     id: 'gemini-1.5-flash',
     name: 'Gemini 1.5 Flash',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, contextWindow: 1000000, maxOutputTokens: 8192 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, ocr: true, contextWindow: 1000000, maxOutputTokens: 8192 },
     description: 'Fast and efficient',
   },
 ];
@@ -171,25 +174,25 @@ const LOCAL_MODELS: ModelInfo[] = [
   {
     id: 'llama3.1',
     name: 'Llama 3.1',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, contextWindow: 128000, maxOutputTokens: 4096 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, ocr: false, contextWindow: 128000, maxOutputTokens: 4096 },
     description: 'Meta Llama 3.1 with tool calling',
   },
   {
     id: 'llama3.2',
     name: 'Llama 3.2',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, contextWindow: 128000, maxOutputTokens: 4096 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, ocr: true, contextWindow: 128000, maxOutputTokens: 4096 },
     description: 'Meta Llama 3.2 with vision',
   },
   {
     id: 'mistral',
     name: 'Mistral',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, contextWindow: 32000, maxOutputTokens: 4096 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, ocr: false, contextWindow: 32000, maxOutputTokens: 4096 },
     description: 'Mistral AI model',
   },
   {
     id: 'mixtral',
     name: 'Mixtral',
-    capabilities: { ...TOOL_CALLING_CAPABILITIES, contextWindow: 32000, maxOutputTokens: 4096 },
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, ocr: false, contextWindow: 32000, maxOutputTokens: 4096 },
     description: 'Mixtral MoE model',
   },
   {

@@ -73,6 +73,13 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 **Bring Your Own API Key**: No vendor lock-in, complete freedom to choose your AI provider.
 
 - **Supported Providers**: OpenAI (GPT-4, GPT-3.5), Anthropic (Claude), Google AI (Gemini), Custom Endpoints
+- **Model Capabilities**: Automatic detection of model features including:
+  - **Tool Calling**: Function/tool execution support for agent mode
+  - **Vision**: Image input and analysis capabilities
+  - **OCR**: Optical Character Recognition for text extraction from images
+  - **Streaming**: Real-time response streaming
+  - **JSON Mode**: Structured output formatting
+  - **Context Window**: Token limits (4K to 2M tokens depending on model)
 - **Secure Storage**: AES-256-GCM encryption with platform-specific keychain integration
   - **Linux**: libsecret (GNOME Keyring, KWallet)
   - **macOS**: Keychain Services
@@ -899,6 +906,29 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 
 
 ## 📝 Recent Updates
+
+<details>
+<summary><strong>Provider Registry OCR Support</strong></summary>
+
+**New Model Capability**: OCR (Optical Character Recognition) support added to provider registry for vision-capable models.
+
+- **OCR Capability Detection**: New `ocr` field in `ModelCapabilities` interface tracks which models support text extraction from images
+- **Vision-Enabled Models with OCR**:
+  - **OpenAI**: GPT-4o, GPT-4o Mini, GPT-4 Turbo (all vision models)
+  - **Anthropic**: Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Haiku
+  - **Google AI**: Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini 1.5 Flash
+  - **Local Models**: Llama 3.2 (vision variant)
+- **Automatic Capability Inference**: Provider registry intelligently detects OCR support based on model names and vision capabilities
+- **Developer API**: Access OCR capability via `providerRegistry.getModelInfo(provider, model).capabilities.ocr`
+- **Use Cases**: 
+  - Extract text from screenshots, documents, and images
+  - Analyze code in images or diagrams
+  - Process scanned documents and handwritten notes
+  - Read text from photos and visual content
+
+**Technical Details**: OCR support is automatically enabled for all models with vision capabilities, allowing seamless text extraction from images alongside visual analysis.
+
+</details>
 
 <details>
 <summary><strong>Agent Mode Integration (Phase 3 Complete)</strong></summary>
