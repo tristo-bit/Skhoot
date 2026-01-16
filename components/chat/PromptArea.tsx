@@ -10,6 +10,7 @@ import { SendButton } from './SendButton';
 import { AddFileButton } from './AddFileButton';
 import { FileChip, MultiFileChip } from './FileChip';
 import { FileAttachmentModal, AttachedFile } from './FileAttachmentModal';
+import { TokenDisplay } from './TokenDisplay';
 
 // Icon mapping for quick actions - memoized outside component to prevent recreation
 const QUICK_ACTION_ICONS: Record<string, (props: { size: number }) => React.ReactNode> = {
@@ -379,6 +380,9 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
               />
             </div>
           </div>
+          
+          {/* Token Display - shows usage stats */}
+          <TokenDisplay className="flex-shrink-0 mr-2" />
           
           {/* Action Buttons */}
           <div

@@ -178,7 +178,7 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
   - Save with Ctrl+Enter or Cancel with Escape
   - Visual feedback with save/cancel buttons
 - **Vision & Image Analysis**: Multi-modal AI support for image understanding in both Normal and Agent modes
-  - Attach images to messages for visual analysis
+  - Attach images to messages for visual analysis and OCR
   - Automatic base64 encoding for all AI providers
   - Support for common formats: JPG, PNG, GIF, BMP, WebP
   - Works with OpenAI GPT-4 Vision, Google Gemini Vision, and Claude 3 Vision
@@ -206,6 +206,28 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 - **Resize Handles**: Eight-directional window resizing (North, South, East, West, and corners)
 - **Cross-Platform**: Consistent behavior across Windows, macOS, and Linux
 - **Graceful Fallback**: Seamless operation in web environments without Tauri APIs
+
+</details>
+
+<details>
+<summary><strong>🔌 Backend Status Monitoring</strong></summary>
+
+- **Real-Time Backend Health Checks**: Automatic monitoring of backend service availability
+  - **Health Endpoint**: Polls `http://localhost:3001/api/v1/health` every 30 seconds
+  - **Smart Display**: Only shows indicator when backend is offline or checking (no clutter when online)
+  - **Visual Feedback**: Color-coded status indicators with icons
+    - **Checking**: Yellow pulsing alert icon with "Checking backend status..." message
+    - **Offline**: Red warning with "Backend Offline" message and helpful instructions
+    - **Online**: No indicator shown (silent success for clean UI)
+- **User-Friendly Error Handling**:
+  - Clear error message explaining impact: "Vision/OCR won't work"
+  - Actionable instructions with inline code snippet: `cd backend && cargo run`
+  - Manual retry button to recheck status without waiting for auto-refresh
+- **Timeout Protection**: 2-second timeout prevents hanging on unresponsive backend
+- **Automatic Recovery**: Continuously monitors and updates status as backend comes online/offline
+- **Component Integration**: Can be placed anywhere in the UI with optional `className` prop for custom styling
+
+**Why This Matters**: Users immediately know when backend-dependent features (vision/OCR, file search, agent tools) won't work, with clear guidance on how to fix it.
 
 </details>
 
@@ -394,6 +416,7 @@ skhoot/
 │   │   └── ...
 │   ├── chat/            # Chat interface components
 │   │   ├── ChatInterface.tsx    # Main chat with agent mode toggle
+│   │   ├── TokenDisplay.tsx     # Real-time token usage display (NEW)
 │   │   └── ...
 │   ├── shared/          # Reusable UI components
 │   ├── library/         # Reusable hooks and utilities
@@ -403,6 +426,7 @@ skhoot/
 │   ├── agentService.ts         # Agent session management (NEW)
 │   ├── agentChatService.ts     # AI integration with tool calling (NEW)
 │   ├── apiKeyService.ts        # Secure API key management
+│   ├── tokenTrackingService.ts # Token usage tracking (NEW)
 │   ├── diskService.ts          # System disk information
 │   ├── notificationService.ts  # Native desktop notifications
 │   ├── audioService.ts         # Audio management
@@ -645,9 +669,109 @@ console.log('Tool results:', result.toolResults);
 // Vision support automatically enabled for compatible models (GPT-4o, Gemini 2.0 Flash, Claude 3.5 Sonnet)
 ```
 
+**Token Tracking Service API:**
+```typescript
+import { tokenTrackingService, TokenTrackingService } from './services/tokenTrackingService';
+import type { TokenUsage, TokenRecord, TimePeriod, ConversationTokenEvent } from './services/tokenTrackingService';
+
+// Set the current model and provider
+tokenTrackingService.setCurrentModel('openai', 'gpt-4o');
+
+// Start a new conversation (resets conversation token counter)
+tokenTrackingService.startNewConversation('conv-123');
+
+// Subscribe to conversation token updates (for PromptArea display)
+const unsubscribe = tokenTrackingService.subscribeToConversation((event: ConversationTokenEvent) => {
+  console.log('Model:', event.model);
+  console.log('Provider:', event.provider);
+  console.log('Conversation tokens:', event.conversationTokens);
+  console.log('Last request tokens:', event.lastRequestTokens);
+});
+
+// Subscribe to history updates (for AI Settings panel)
+const unsubscribeHistory = tokenTrackingService.subscribeToHistory(() => {
+  console.log('Token history updated');
+});
+
+// Record token usage from API response
+tokenTrackingService.recordUsage(150, 75, 'gpt-4o', 'openai');
+
+// Record with text fallback estimation (when API doesn't return token counts)
+tokenTrackingService.recordUsage(0, 0, 'gpt-4o', 'openai', userMessage, aiResponse);
+
+// Estimate tokens from text (~0.25 tokens per character)
+const estimatedTokens = tokenTrackingService.estimateTokens('Hello, how are you?');
+
+// Get conversation tokens (current conversation only)
+const convTokens = tokenTrackingService.getConversationTokens();
+const lastRequest = tokenTrackingService.getLastRequestTokens();
+
+// Get usage filtered by time period
+type TimePeriod = 'hour' | 'day' | 'week' | 'month' | 'all';
+const usage = tokenTrackingService.getUsageByPeriod('day');
+console.log('Input tokens:', usage.inputTokens);
+console.log('Output tokens:', usage.outputTokens);
+console.log('Total tokens:', usage.totalTokens);
+console.log('Cost:', usage.cost);
+console.log('Record count:', usage.recordCount);
+
+// Get full history records
+const history: TokenRecord[] = tokenTrackingService.getHistory();
+
+// Clear all history
+tokenTrackingService.clearHistory();
+
+// Format token counts with K/M suffix (static method)
+const formatted = TokenTrackingService.formatTokens(1500000); // "1.5M"
+const formatted2 = TokenTrackingService.formatTokens(2500); // "2.5K"
+
+// Format cost for display (static method)
+const costStr = TokenTrackingService.formatCost(0.0025); // "0.0025"
+
+// Unsubscribe when done
+unsubscribe();
+unsubscribeHistory();
+```
+
+**Token Tracking Features:**
+- **Conversation Tracking**: Track tokens within the current conversation separately from historical data
+- **Historical Data**: Full usage history with timestamps for period-based filtering (hour/day/week/month/all)
+- **Multi-Provider Support**: Track usage across OpenAI, Google Gemini, and Anthropic
+- **Token Estimation**: Automatic fallback estimation from text when APIs don't return usage (~0.25 tokens per char)
+- **Dual Subscriptions**: Separate listeners for conversation updates and history changes
+- **Persistent Storage**: Automatically saves last 1000 records to localStorage
+- **Cost Calculation**: Estimated costs based on current model pricing (per 1M tokens)
+- **Formatting Utilities**: Human-readable token counts (K/M suffix) and cost formatting
+- **Model Pricing**: Built-in pricing for popular models (GPT-4o, Gemini, Claude, etc.)
+
+**TokenDisplay Component:**
+
+A compact UI component that displays real-time token usage in the format: `[Tokens: model-name] input/output`
+
+```typescript
+import { TokenDisplay } from './components/chat/TokenDisplay';
+
+// Basic usage - renders token stats for last request
+<TokenDisplay />
+
+// With custom styling
+<TokenDisplay className="my-custom-class" />
+```
+
+Features:
+- **Last Request Focus**: Shows tokens from the most recent API request (not cumulative session total)
+- **Compact Format**: Shows `[Tokens: model] input/output` (e.g., `[Tokens: 4o-mini] 1.2K/3.5K`)
+- **Smart Model Names**: Shortens common model names (gpt-4o-mini → 4o-mini, gemini-2.0-flash → gem-2.0, claude-3-5-sonnet → sonnet)
+- **Auto-Formatting**: Displays tokens as K (thousands) or M (millions) for readability
+- **Animation**: Subtle scale animation on token updates
+- **Tooltip**: Hover for detailed breakdown including last request counts, session totals, and estimated cost
+- **Auto-Hide**: Only renders when there's actual token usage to display
+- **Real-time Updates**: Subscribes to tokenTrackingService for live updates
+
 **Vision-Capable Models for Agent Mode:**
 - **OpenAI**: `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`, `gpt-4-vision-preview`
 - **Google**: `gemini-2.0-flash`, `gemini-1.5-pro`, `gemini-1.5-flash`
+- **Anthropic**: `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`, `claude-3-haiku-20240307`
 - **Anthropic**: `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`, `claude-3-haiku-20240307`
 
 **Available Agent Tools:**
@@ -987,33 +1111,82 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 ## 📝 Recent Updates
 
 <details>
+<summary><strong>Backend Status Monitoring Component</strong></summary>
+
+**New UI Component**: Real-time backend health monitoring with automatic status checks and user-friendly error guidance.
+
+- **BackendStatusIndicator Component**: Displays backend connection status with smart visibility (`components/ui/BackendStatusIndicator.tsx`)
+  - **Automatic Health Checks**: Polls backend health endpoint every 30 seconds
+  - **Smart Display Logic**: Only shows when backend is offline or checking (silent when online for clean UI)
+  - **Visual Status States**:
+    - **Checking**: Yellow pulsing alert icon with "Checking backend status..." message
+    - **Offline**: Red warning banner with clear error message and actionable instructions
+    - **Online**: No indicator shown (silent success)
+  - **User-Friendly Error Handling**:
+    - Clear impact explanation: "Vision/OCR won't work"
+    - Inline code snippet with fix instructions: `cd backend && cargo run`
+    - Manual retry button for immediate status recheck
+  - **Timeout Protection**: 2-second timeout prevents hanging on unresponsive backend
+  - **Responsive Design**: Glassmorphic styling consistent with design system
+  - **Flexible Integration**: Optional `className` prop for custom positioning
+
+**Usage Example**:
+```tsx
+import { BackendStatusIndicator } from './components/ui/BackendStatusIndicator';
+
+// Place anywhere in your UI
+<BackendStatusIndicator className="mb-4" />
+
+// Component automatically:
+// - Checks backend health on mount
+// - Polls every 30 seconds
+// - Shows/hides based on status
+// - Provides retry functionality
+```
+
+**Technical Implementation**:
+- React functional component with hooks (`useState`, `useEffect`)
+- Fetch API with `AbortSignal.timeout(2000)` for request timeout
+- Health endpoint: `http://localhost:3001/api/v1/health`
+- Automatic cleanup with `clearInterval` on unmount
+- Lucide React icons: `AlertCircle`, `CheckCircle`, `XCircle`
+
+**Why This Matters**: Users immediately know when backend-dependent features (vision/OCR, file search, agent tools) won't work, with clear guidance on how to fix it. No more confusion about why features aren't working.
+
+</details>
+
+<details>
 <summary><strong>Vision & Image Analysis Support</strong></summary>
 
-**New Multi-Modal AI Capability**: Skhoot now supports image attachments for visual analysis with all major AI providers in both Normal Mode and Agent Mode.
+**Multi-Modal AI Capability**: Skhoot supports image attachments for visual analysis with all major AI providers in both Normal Mode and Agent Mode. The vision system is fully operational with proper image passing, provider-specific formatting, and enhanced system prompts that prevent "I cannot process images" responses.
 
-- **Message Type Enhancement**: Both `AIMessage` and `AgentChatMessage` interfaces now support image attachments
-  - New `images` field: `Array<{ fileName: string; base64: string; mimeType: string }>`
-  - Enables passing multiple images per message to both AI chat and agent mode
+- **Message Type Enhancement**: Both `AIMessage` and `AgentChatMessage` interfaces support image attachments
+  - `images` field: `Array<{ fileName: string; base64: string; mimeType: string }>`
+  - Multiple images per message supported
   - Automatic MIME type detection for proper API formatting
   - Seamless integration with conversation history and message editing
-  - **Full Agent Mode Support**: Images are properly passed through the agent chat service for vision-capable models
+  - **Full Agent Mode Support**: Images properly passed through agent chat service for vision-capable models
     - Vision capabilities automatically added to agent system prompt for supported models
     - Images included in tool calling context for enhanced agent decision-making
     - Works seamlessly with all agent tools (shell, file operations, search, etc.)
     - Provider-specific image formatting handled automatically (OpenAI, Google, Anthropic)
+    - History converters preserve images across conversation turns
 - **Multi-Provider Vision Support**: 
-  - **OpenAI**: GPT-4o, GPT-4o Mini, GPT-4 Turbo with vision capabilities
+  - **OpenAI**: GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-4 Vision Preview
     - Uses `image_url` content type with base64 data URLs
     - High-detail mode enabled for better OCR and analysis
     - Supports multiple images in a single message
+    - Works in both Normal and Agent modes
   - **Google Gemini**: Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini 1.5 Flash
     - Uses `inlineData` format with MIME type and base64 data
     - Native multi-modal support for text + images
     - Optimized for visual understanding and OCR
+    - Works in both Normal and Agent modes
   - **Anthropic Claude**: Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Haiku
     - Uses `image` content type with base64 source
     - Proper media type specification for each image format
     - Advanced vision capabilities for document analysis
+    - Works in both Normal and Agent modes
   - **Custom Endpoints**: OpenAI-compatible vision API support
     - Falls back to standard format for maximum compatibility
     - Automatic detection of vision capability support
@@ -1024,19 +1197,24 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
   - BMP: `image/bmp`
   - WebP: `image/webp`
 - **Use Cases**:
-  - Extract text from screenshots and documents (OCR) in both normal and agent modes
+  - Extract text from screenshots and documents (OCR) in both Normal and Agent modes
   - Analyze code in images or diagrams with agent tool integration
   - Understand visual content and provide descriptions
   - Process scanned documents and handwritten notes
   - Identify objects, scenes, and patterns in photos
   - Compare multiple images side-by-side
-  - **Agent Mode**: Combine vision analysis with file operations, shell commands, and search tools
+  - **Agent Mode**: Combine vision analysis with file operations, shell commands, and search tools for powerful workflows
 - **Developer API**: 
-  - Pass images via `chat()` method's optional `images` parameter (both `aiService` and `agentChatService`)
+  - Pass images via `chat()` method's optional `images` parameter in both `aiService` and `agentChatService`
   - Automatic conversion to provider-specific formats
   - Status updates: "Analyzing X image(s) with [Provider]..."
   - **Agent Mode**: Images passed via `AgentChatOptions.images` parameter in `executeWithTools()`
   - **Dual Loading Strategy**: Desktop app uses Tauri's native file API for optimal performance, web version uses backend endpoint
+  - **Vision System Prompt**: Vision-capable models automatically receive enhanced system instructions
+    - Automatic detection of vision support based on model name
+    - Clear instructions: "You CAN see and analyze images", "You have OCR capabilities"
+    - Prevents "I cannot process images" responses from vision-capable models
+    - Works across all providers (OpenAI, Google, Anthropic)
 - **Technical Implementation**:
   - **Desktop (Tauri)**: Direct file system access via `@tauri-apps/plugin-fs` `readBinaryFile` API
   - **Web Fallback**: Backend `/api/v1/files/image` endpoint when Tauri unavailable
@@ -1050,16 +1228,10 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
     - Provider-specific image formatting (OpenAI `image_url`, Google `inlineData`, Anthropic `image` source)
     - History converters preserve images across conversation turns
     - Status updates: "Analyzing X image(s) with [Provider]..."
-- **Technical Implementation**:
   - Base64 encoding handled automatically by backend
   - Provider-specific message formatting in `aiService.ts` and `agentChatService.ts`
   - History preservation with image data across conversation turns
   - Proper error handling for unsupported formats or API failures
-  - **Agent System Prompt Enhancement**: Vision-capable models receive enhanced system instructions
-    - Automatic detection of vision support based on model name
-    - Clear instructions: "You CAN see and analyze images", "You have OCR capabilities"
-    - Prevents "I cannot process images" responses from vision-capable models
-    - Works across all providers (OpenAI, Google, Anthropic)
 
 **Example Usage**:
 ```typescript

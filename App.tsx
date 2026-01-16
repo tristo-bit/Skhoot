@@ -18,6 +18,7 @@ import { initScaleManager, destroyScaleManager } from './services/scaleManager';
 import { initUIConfig } from './services/uiConfig';
 import { demoModeService } from './services/demoMode';
 import { nativeNotifications } from './services/nativeNotifications';
+import { tokenTrackingService } from './services/tokenTrackingService';
 import { Chat, Message, User } from './types';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { SettingsProvider } from './src/contexts/SettingsContext';
@@ -164,12 +165,16 @@ const AppContent: React.FC = () => {
     pendingChatIdRef.current = null;
     setCurrentChatId(null);
     setIsSidebarOpen(false);
+    // Reset conversation token counter
+    tokenTrackingService.resetConversation();
   }, []);
 
   const handleSelectChat = useCallback((chatId: string) => {
     pendingChatIdRef.current = null;
     setCurrentChatId(chatId);
     setIsSidebarOpen(false);
+    // Reset conversation token counter for new conversation
+    tokenTrackingService.resetConversation();
   }, []);
 
   const handleDeleteChat = useCallback((chatId: string) => {

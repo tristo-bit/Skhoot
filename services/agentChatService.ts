@@ -10,6 +10,7 @@ import { apiKeyService } from './apiKeyService';
 import { providerRegistry, APIFormat, ModelCapabilities } from './providerRegistry';
 import { agentService, AgentToolCall, ToolResult } from './agentService';
 import { activityLogger } from './activityLogger';
+import { tokenTrackingService } from './tokenTrackingService';
 
 // ============================================================================
 // Types
@@ -550,6 +551,25 @@ class AgentChatService {
 
     const data = await response.json();
     const assistantMessage = data.choices?.[0]?.message;
+    const responseText = assistantMessage?.content || '';
+
+    // Track token usage
+    tokenTrackingService.setCurrentModel(provider, model);
+    if (data.usage) {
+      tokenTrackingService.recordUsage(
+        data.usage.prompt_tokens || 0,
+        data.usage.completion_tokens || 0,
+        model,
+        provider
+      );
+    } else {
+      // Fallback: estimate from text
+      tokenTrackingService.recordUsage(
+        0, 0, model, provider,
+        message, // input text for estimation
+        responseText // output text for estimation
+      );
+    }
 
     // Parse tool calls
     const toolCalls = assistantMessage?.tool_calls?.map((tc: any) => ({
@@ -637,6 +657,25 @@ class AgentChatService {
     }
 
     const data = await response.json();
+    const textContent = data.content?.find((c: any) => c.type === 'text')?.text || '';
+
+    // Track token usage
+    tokenTrackingService.setCurrentModel(provider, model);
+    if (data.usage) {
+      tokenTrackingService.recordUsage(
+        data.usage.input_tokens || 0,
+        data.usage.output_tokens || 0,
+        model,
+        provider
+      );
+    } else {
+      // Fallback: estimate from text
+      tokenTrackingService.recordUsage(
+        0, 0, model, provider,
+        message, // input text for estimation
+        textContent // output text for estimation
+      );
+    }
 
     // Parse tool use
     const toolUse = data.content?.find((c: any) => c.type === 'tool_use');
@@ -649,8 +688,6 @@ class AgentChatService {
         arguments: toolUse.input,
       }];
     }
-
-    const textContent = data.content?.find((c: any) => c.type === 'text')?.text || '';
 
     return {
       content: textContent,
@@ -726,6 +763,25 @@ class AgentChatService {
 
     const data = await response.json();
     const content = data.candidates?.[0]?.content;
+    const textContent = content?.parts?.find((p: any) => p.text)?.text || '';
+
+    // Track token usage
+    tokenTrackingService.setCurrentModel(provider, model);
+    if (data.usageMetadata) {
+      tokenTrackingService.recordUsage(
+        data.usageMetadata.promptTokenCount || 0,
+        data.usageMetadata.candidatesTokenCount || 0,
+        model,
+        provider
+      );
+    } else {
+      // Fallback: estimate from text
+      tokenTrackingService.recordUsage(
+        0, 0, model, provider,
+        message, // input text for estimation
+        textContent // output text for estimation
+      );
+    }
 
     // Parse function calls
     const functionCall = content?.parts?.find((p: any) => p.functionCall);
@@ -738,8 +794,6 @@ class AgentChatService {
         arguments: functionCall.functionCall.args,
       }];
     }
-
-    const textContent = content?.parts?.find((p: any) => p.text)?.text || '';
 
     return {
       content: textContent,

@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Bot, Key, Activity, Zap, BarChart3, Settings2 } from 'lucide-react';
+import { Bot, Key, Activity, Zap, BarChart3, Settings2, Clock, Calendar, CalendarDays } from 'lucide-react';
 import { BackButton, SaveButton, ConnectionButton, IconButton } from '../buttonFormat';
 import { apiKeyService, PROVIDERS, type ProviderInfo } from '../../services/apiKeyService';
 import { providerRegistry } from '../../services/providerRegistry';
+import { tokenTrackingService, TimePeriod } from '../../services/tokenTrackingService';
 
 interface AISettingsPanelProps {
   onBack: () => void;
@@ -44,13 +45,36 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
     return saved ? parseInt(saved) : 4096;
   });
 
-  // Token usage (mock data for now)
-  const [tokenUsage] = useState({
-    period: 'January 2026',
-    inputTokens: 125430,
-    outputTokens: 89210,
-    totalCost: 2.34,
+  // Token usage with time period filter
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('month');
+  const [tokenUsage, setTokenUsage] = useState<{
+    inputTokens: number;
+    outputTokens: number;
+    totalCost: number;
+  }>({
+    inputTokens: 0,
+    outputTokens: 0,
+    totalCost: 0,
   });
+
+  // Update token usage when period changes or new data arrives
+  const updateTokenUsage = useCallback(() => {
+    const data = tokenTrackingService.getHistoricalUsage(selectedPeriod);
+    setTokenUsage({
+      inputTokens: data.inputTokens,
+      outputTokens: data.outputTokens,
+      totalCost: data.cost,
+    });
+  }, [selectedPeriod]);
+
+  // Subscribe to token tracking updates
+  useEffect(() => {
+    updateTokenUsage();
+    const unsubscribe = tokenTrackingService.subscribe(() => {
+      updateTokenUsage();
+    });
+    return unsubscribe;
+  }, [updateTokenUsage]);
 
   // Load API key and saved model for selected provider
   useEffect(() => {
@@ -426,23 +450,61 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
       <div className="space-y-3">
         <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
           <BarChart3 size={16} className="text-cyan-500" />
-          Usage This Month
+          Token Usage
         </label>
+        
+        {/* Period Filter */}
+        <div className="flex gap-1 p-1 rounded-xl glass-subtle">
+          {[
+            { id: 'hour' as TimePeriod, label: 'Hour', icon: Clock },
+            { id: 'day' as TimePeriod, label: 'Day', icon: Calendar },
+            { id: 'week' as TimePeriod, label: 'Week', icon: CalendarDays },
+            { id: 'month' as TimePeriod, label: 'Month', icon: CalendarDays },
+            { id: 'all' as TimePeriod, label: 'All', icon: BarChart3 },
+          ].map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setSelectedPeriod(id)}
+              className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium font-jakarta transition-all ${
+                selectedPeriod === id
+                  ? 'bg-cyan-500/20 text-cyan-500'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+              }`}
+            >
+              <Icon size={12} />
+              {label}
+            </button>
+          ))}
+        </div>
         
         <div className="p-4 rounded-xl glass-subtle space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-text-secondary font-jakarta">{tokenUsage.period}</span>
-            <span className="text-sm font-bold font-jakarta text-emerald-500">${tokenUsage.totalCost.toFixed(2)}</span>
+            <span className="text-xs text-text-secondary font-jakarta">
+              {selectedPeriod === 'hour' && 'Last Hour'}
+              {selectedPeriod === 'day' && 'Last 24 Hours'}
+              {selectedPeriod === 'week' && 'Last 7 Days'}
+              {selectedPeriod === 'month' && 'Last 30 Days'}
+              {selectedPeriod === 'all' && 'All Time'}
+            </span>
+            <span className="text-sm font-bold font-jakarta text-emerald-500">
+              {tokenUsage.totalCost < 0.01 
+                ? `$${tokenUsage.totalCost.toFixed(4)}` 
+                : `$${tokenUsage.totalCost.toFixed(2)}`}
+            </span>
           </div>
           
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-lg bg-blue-500/10">
               <p className="text-xs text-text-secondary font-jakarta">Input Tokens</p>
-              <p className="text-lg font-bold font-jakarta text-blue-500">{tokenUsage.inputTokens.toLocaleString()}</p>
+              <p className="text-lg font-bold font-jakarta text-blue-500">
+                {formatTokenDisplay(tokenUsage.inputTokens)}
+              </p>
             </div>
             <div className="p-3 rounded-lg bg-purple-500/10">
               <p className="text-xs text-text-secondary font-jakarta">Output Tokens</p>
-              <p className="text-lg font-bold font-jakarta text-purple-500">{tokenUsage.outputTokens.toLocaleString()}</p>
+              <p className="text-lg font-bold font-jakarta text-purple-500">
+                {formatTokenDisplay(tokenUsage.outputTokens)}
+              </p>
             </div>
           </div>
           
@@ -454,5 +516,16 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
     </div>
   );
 };
+
+// Format tokens with K/M suffix
+function formatTokenDisplay(tokens: number): string {
+  if (tokens >= 1_000_000) {
+    return `${(tokens / 1_000_000).toFixed(1)}M`;
+  }
+  if (tokens >= 1_000) {
+    return `${(tokens / 1_000).toFixed(1)}K`;
+  }
+  return tokens.toLocaleString();
+}
 
 export default AISettingsPanel;

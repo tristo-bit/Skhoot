@@ -8,6 +8,7 @@
 import { apiKeyService } from './apiKeyService';
 import { backendApi } from './backendApi';
 import { activityLogger } from './activityLogger';
+import { tokenTrackingService } from './tokenTrackingService';
 
 // Provider types
 export type AIProvider = 'openai' | 'google' | 'anthropic' | 'custom';
@@ -747,6 +748,32 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
 
     const data = await response.json();
     const assistantMessage = data.choices?.[0]?.message;
+    const responseText = assistantMessage?.content || '';
+    
+    console.log('[aiService] OpenAI response:', {
+      hasUsage: !!data.usage,
+      usage: data.usage,
+      responseLength: responseText.length
+    });
+    
+    // Track token usage
+    tokenTrackingService.setCurrentModel('openai', model);
+    if (data.usage) {
+      tokenTrackingService.recordUsage(
+        data.usage.prompt_tokens || 0,
+        data.usage.completion_tokens || 0,
+        model,
+        'openai'
+      );
+    } else {
+      // Fallback: estimate from text
+      console.log('[aiService] No usage from OpenAI, estimating tokens');
+      tokenTrackingService.recordUsage(
+        0, 0, model, 'openai',
+        message, // input text for estimation
+        responseText // output text for estimation
+      );
+    }
     
     // Check for tool calls
     if (assistantMessage?.tool_calls && assistantMessage.tool_calls.length > 0) {
@@ -953,11 +980,33 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
       hasCandidates: !!data.candidates,
       candidatesCount: data.candidates?.length || 0,
       firstCandidateContent: data.candidates?.[0]?.content ? 'present' : 'missing',
-      firstCandidateParts: data.candidates?.[0]?.content?.parts?.length || 0
+      firstCandidateParts: data.candidates?.[0]?.content?.parts?.length || 0,
+      hasUsageMetadata: !!data.usageMetadata,
+      usageMetadata: data.usageMetadata
     });
     
     const candidate = data.candidates?.[0];
     const content = candidate?.content;
+    const responseText = content?.parts?.find((p: any) => p.text)?.text || '';
+    
+    // Track token usage (Gemini returns usageMetadata)
+    tokenTrackingService.setCurrentModel('google', model);
+    if (data.usageMetadata) {
+      tokenTrackingService.recordUsage(
+        data.usageMetadata.promptTokenCount || 0,
+        data.usageMetadata.candidatesTokenCount || 0,
+        model,
+        'google'
+      );
+    } else {
+      // Fallback: estimate from text
+      console.log('[aiService] No usageMetadata from Gemini, estimating tokens');
+      tokenTrackingService.recordUsage(
+        0, 0, model, 'google',
+        message, // input text for estimation
+        responseText // output text for estimation
+      );
+    }
     
     // Check for function calls
     const functionCall = content?.parts?.find((p: any) => p.functionCall);
@@ -1094,7 +1143,32 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
     }
 
     const data = await response.json();
+    const responseText = data.content?.find((c: any) => c.type === 'text')?.text || '';
     
+    console.log('[aiService] Anthropic response:', {
+      hasUsage: !!data.usage,
+      usage: data.usage,
+      responseLength: responseText.length
+    });
+    
+    // Track token usage (Anthropic returns usage object)
+    tokenTrackingService.setCurrentModel('anthropic', model);
+    if (data.usage) {
+      tokenTrackingService.recordUsage(
+        data.usage.input_tokens || 0,
+        data.usage.output_tokens || 0,
+        model,
+        'anthropic'
+      );
+    } else {
+      // Fallback: estimate from text
+      console.log('[aiService] No usage from Anthropic, estimating tokens');
+      tokenTrackingService.recordUsage(
+        0, 0, model, 'anthropic',
+        message, // input text for estimation
+        responseText // output text for estimation
+      );
+    }
     // Check for tool use
     const toolUse = data.content?.find((c: any) => c.type === 'tool_use');
     if (toolUse) {

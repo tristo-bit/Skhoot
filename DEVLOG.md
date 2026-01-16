@@ -2,6 +2,80 @@
 
 ## January 16, 2026
 
+### Token Tracking System - Complete Redesign ✅
+- **Requirement**: Separate conversation tokens from historical usage
+
+**New Architecture**:
+1. **PromptArea (Conversation)**: Shows tokens spent in current conversation only
+   - Format: `[Model-Name] Token spend: X`
+   - Resets to 0 on "New Chat" or when selecting another conversation
+   - Hidden until first message is sent
+   - Supports K/M formatting for large numbers
+
+2. **AI Settings (Historical)**: Shows usage with time period filters
+   - Filters: Hour, Day, Week, Month, All
+   - Shows Input/Output tokens separately
+   - Shows estimated cost
+   - Data persisted in localStorage (last 1000 records)
+
+**Files Modified**:
+- `services/tokenTrackingService.ts` - Complete rewrite with dual tracking
+- `components/chat/TokenDisplay.tsx` - Shows conversation tokens only
+- `components/settings/AISettingsPanel.tsx` - Added period filter UI
+- `App.tsx` - Reset conversation tokens on new/select chat
+
+**Key Changes**:
+- `tokenTrackingService.resetConversation()` - Called on new chat
+- `tokenTrackingService.getHistoricalUsage(period)` - For AI Settings
+- `tokenTrackingService.getConversationTokens()` - For PromptArea
+- Historical data stored in `skhoot_token_history` localStorage key
+
+---
+
+### Token Tracking - Fixed Display to Show Last Request ✅
+- **Issue**: Token display showed cumulative session totals (3.2K/156) which was confusing
+- **Root Cause**: `TokenDisplay` was showing `sessionTotal` instead of `currentUsage`
+- **Fix**: Changed to display tokens from the **last request** only
+
+**Changes to `components/chat/TokenDisplay.tsx`**:
+- Now shows `currentUsage` (last request) instead of `sessionTotal`
+- Tooltip shows both: "Last: X in / Y out | Session: total | Cost: $X"
+- Removed condition that hid display when total was 0
+
+**User Experience**:
+- `[Tokens: gem-2.0] 245/312` = last request used 245 input, 312 output tokens
+- Hover for session totals and cost
+- More intuitive: see cost of each individual request
+
+**To reset old data**: `localStorage.removeItem('skhoot_token_stats')` in console
+
+---
+
+### Token Tracking System - Code Cleanup & Verification ✅
+- **Context**: Continuing work on unified token tracking system
+- **Changes**:
+  - Cleaned up `TokenDisplay.tsx`: Removed unused variables and simplified code
+  - Added debug logging to track token updates in real-time
+  - Verified integration in `aiService.ts` and `agentChatService.ts`
+  - Both AI Settings panel and PromptArea now use the same `tokenTrackingService`
+
+**Token Tracking Architecture**:
+- `tokenTrackingService.ts`: Core service with estimation fallback
+- `TokenDisplay.tsx`: Compact display `[Tokens: model] input/output`
+- `AISettingsPanel.tsx`: Full usage stats with cost breakdown
+- Integration in all AI providers (OpenAI, Google, Anthropic)
+
+**How to Test**:
+1. Open browser console (F12)
+2. Send a message to the AI
+3. Look for logs: `[TokenTracking] Recorded:` and `[TokenDisplay] Received update:`
+4. Token display should update in PromptArea
+5. AI Settings should show cumulative usage
+
+**Note**: If values seem incorrect, clear localStorage key `skhoot_token_stats` to reset
+
+---
+
 ### Vision API Debug & Fix - Enhanced Logging and Detection ✅
 - **Issue**: Vision API was implemented but AI still responded "I cannot process images" despite complete implementation
 - **User Report**: After initial Vision API integration, testing revealed images weren't being processed correctly
@@ -6197,5 +6271,308 @@ npm run dev
 - `test-vision-diagnostic.ps1` - Automated diagnostic script
 
 **Status**: Diagnostic tools ready, user can now troubleshoot effectively
+
+---
+
+### Token Tracking System - Real-time Usage Display ✅
+- **Feature**: Added real-time token tracking and display for all AI providers
+- **User Request**: Display token usage in the prompt area with format `[Tokens: model-name] input/output`
+- **Solution**: Created a complete token tracking service with UI component
+
+**Implementation Details**:
+
+1. **services/tokenTrackingService.ts** - Core Token Tracking Service:
+   - Tracks token usage per model and provider
+   - Calculates estimated costs based on current pricing (January 2026)
+   - Persists session stats to localStorage
+   - Supports subscription pattern for real-time updates
+   - Formats token counts (K, M suffixes)
+   - Formats costs ($0.0001 to $99.99)
+   
+   **Token Pricing Included**:
+   - OpenAI: gpt-4o ($2.50/$10), gpt-4o-mini ($0.15/$0.60), gpt-4-turbo ($10/$30)
+   - Google: gemini-2.0-flash ($0.075/$0.30), gemini-1.5-pro ($1.25/$5)
+   - Anthropic: claude-3-5-sonnet ($3/$15), claude-3-opus ($15/$75), claude-3-haiku ($0.25/$1.25)
+
+2. **components/chat/TokenDisplay.tsx** - UI Component:
+   - Compact display: `[Tokens: model-name] input/output`
+   - Auto-updates on each API response
+   - Animation on token update (subtle scale effect)
+   - Tooltip shows detailed breakdown (input, output, cost)
+   - Model name shortening (gpt-4o-mini → 4o-mini, claude-3-5-sonnet → sonnet)
+   - Hidden when no tokens recorded yet
+   - Small font (10px) to not distract
+
+3. **services/aiService.ts** - Token Recording Integration:
+   - Added `tokenTrackingService` import
+   - **OpenAI**: Records `data.usage.prompt_tokens` and `completion_tokens`
+   - **Google Gemini**: Records `data.usageMetadata.promptTokenCount` and `candidatesTokenCount`
+   - **Anthropic**: Records `data.usage.input_tokens` and `output_tokens`
+   - Sets current model before recording
+
+4. **services/agentChatService.ts** - Agent Mode Token Recording:
+   - Added `tokenTrackingService` import
+   - **OpenAI format**: Records from `data.usage`
+   - **Google format**: Records from `data.usageMetadata`
+   - **Anthropic format**: Records from `data.usage`
+   - Works with all providers in agent mode
+
+5. **components/chat/PromptArea.tsx** - UI Integration:
+   - Added `TokenDisplay` import
+   - Positioned between text input and action buttons
+   - Compact display that doesn't interfere with input
+
+**Display Format**:
+```
+[Tokens: 4o-mini] 1.2K/0.8K
+```
+
+**Tooltip on Hover**:
+```
+Input: 1,234 | Output: 856 | Cost: $0.0012
+```
+
+**Features**:
+- ✅ Real-time updates after each API call
+- ✅ Session totals (accumulates across messages)
+- ✅ Per-model tracking (switch models, stats preserved)
+- ✅ Cost estimation based on current pricing
+- ✅ Persistent storage (survives page refresh)
+- ✅ Animation on update
+- ✅ Compact display (10px font)
+- ✅ Works in both Normal and Agent modes
+- ✅ All providers supported (OpenAI, Google, Anthropic, Custom)
+
+**Token Recording Flow**:
+```
+User sends message
+    ↓
+AI Service calls provider API
+    ↓
+Response includes usage data
+    ↓
+tokenTrackingService.recordUsage(input, output, model, provider)
+    ↓
+Stats updated + saved to localStorage
+    ↓
+TokenDisplay component receives update via subscription
+    ↓
+UI updates with animation
+```
+
+**API Response Formats**:
+
+**OpenAI**:
+```json
+{
+  "usage": {
+    "prompt_tokens": 1234,
+    "completion_tokens": 856,
+    "total_tokens": 2090
+  }
+}
+```
+
+**Google Gemini**:
+```json
+{
+  "usageMetadata": {
+    "promptTokenCount": 1234,
+    "candidatesTokenCount": 856,
+    "totalTokenCount": 2090
+  }
+}
+```
+
+**Anthropic**:
+```json
+{
+  "usage": {
+    "input_tokens": 1234,
+    "output_tokens": 856
+  }
+}
+```
+
+**Model Name Shortening**:
+- `gpt-4o-mini` → `4o-mini`
+- `gpt-4o` → `4o`
+- `gemini-2.0-flash` → `gem-2.0`
+- `gemini-1.5-pro` → `gem-1.5p`
+- `claude-3-5-sonnet-20241022` → `sonnet`
+- `claude-3-opus-20240229` → `opus`
+- `claude-3-haiku-20240307` → `haiku`
+
+**Files Created**:
+1. `services/tokenTrackingService.ts` - Core tracking service
+2. `components/chat/TokenDisplay.tsx` - UI component
+
+**Files Modified**:
+1. `services/aiService.ts` - Added token recording
+2. `services/agentChatService.ts` - Added token recording
+3. `components/chat/PromptArea.tsx` - Added TokenDisplay component
+
+**Build Status**: ✅ No TypeScript diagnostics
+
+**User Experience**:
+- Token display appears after first API call
+- Updates in real-time with each message
+- Shows session totals (not just last message)
+- Hover for detailed breakdown
+- Persists across page refreshes
+- Resets on new session (or manual reset)
+
+**Future Enhancements**:
+- Add reset button
+- Add cost alerts/limits
+- Add usage history/graphs
+- Add export functionality
+- Add per-conversation tracking
+
+---
+
+### Token Tracking System - Unified Service & Bug Fixes ✅
+- **Issue**: Token tracking wasn't working - AI Settings showed mock data, PromptArea showed incorrect values
+- **User Report**: "3.2K/156 c'est bizarre" - values were inverted or incorrect
+- **Root Cause**: 
+  1. AI Settings panel used hardcoded mock data instead of real tracking service
+  2. APIs don't always return usage metadata (especially Gemini)
+  3. No fallback estimation when API doesn't return token counts
+
+**Solution**: Unified token tracking service with fallback estimation
+
+**Changes Applied**:
+
+1. **services/tokenTrackingService.ts** - Enhanced with Estimation:
+   - Added `estimateTokens(text)` method for fallback
+   - Uses ~0.25 tokens per character (rough estimate)
+   - Updated `recordUsage()` to accept optional `inputText` and `outputText` for estimation
+   - If API returns 0 tokens but text is provided, estimates from text length
+   - Logs when estimation is used vs actual API data
+
+2. **components/settings/AISettingsPanel.tsx** - Connected to Real Service:
+   - Removed hardcoded mock data
+   - Added `tokenTrackingService` import
+   - Added `useEffect` to subscribe to token updates
+   - Uses `tokenTrackingService.getTotalUsage()` for real data
+   - Updates in real-time when tokens are recorded
+
+3. **services/aiService.ts** - Enhanced Token Recording:
+   - **OpenAI**: Added logging, fallback estimation with message/response text
+   - **Google Gemini**: Added `usageMetadata` logging, fallback estimation
+   - **Anthropic**: Added logging, fallback estimation
+   - All providers now always record tokens (real or estimated)
+
+4. **services/agentChatService.ts** - Enhanced Token Recording:
+   - **OpenAI format**: Added fallback estimation
+   - **Anthropic format**: Added fallback estimation
+   - **Google format**: Added fallback estimation
+   - All agent mode providers now always record tokens
+
+**Token Recording Flow**:
+```
+API Response received
+    ↓
+Check for usage data (usage, usageMetadata)
+    ↓
+If usage data exists:
+    → Record actual tokens
+If no usage data:
+    → Estimate from input/output text
+    → Record estimated tokens
+    ↓
+Update session totals
+    ↓
+Notify all subscribers (AI Settings, PromptArea)
+    ↓
+Save to localStorage
+```
+
+**Estimation Formula**:
+```typescript
+// ~4 characters per token for English text
+const TOKENS_PER_CHAR = 0.25;
+estimatedTokens = Math.ceil(text.length * TOKENS_PER_CHAR);
+```
+
+**Display Format**:
+- **PromptArea**: `[Tokens: gem-2.0] 1.2K/0.8K` (input/output)
+- **AI Settings**: Full breakdown with Input Tokens, Output Tokens, Cost
+
+**Unified Service Benefits**:
+- ✅ Single source of truth for token data
+- ✅ Both UI components show same data
+- ✅ Real-time updates across all views
+- ✅ Fallback estimation when API doesn't return usage
+- ✅ Persistent storage (survives refresh)
+- ✅ Per-model tracking
+
+**API Usage Data Formats**:
+
+**OpenAI** (usually returns usage):
+```json
+{
+  "usage": {
+    "prompt_tokens": 1234,
+    "completion_tokens": 856
+  }
+}
+```
+
+**Google Gemini** (sometimes returns usageMetadata):
+```json
+{
+  "usageMetadata": {
+    "promptTokenCount": 1234,
+    "candidatesTokenCount": 856
+  }
+}
+```
+
+**Anthropic** (usually returns usage):
+```json
+{
+  "usage": {
+    "input_tokens": 1234,
+    "output_tokens": 856
+  }
+}
+```
+
+**Console Logging Added**:
+```
+[aiService] Gemini response: { hasUsageMetadata: true, usageMetadata: {...} }
+[TokenTracking] Recorded: 1234 in + 856 out = 2090 tokens ($0.0012) for gemini-2.0-flash
+```
+
+Or when estimating:
+```
+[aiService] No usageMetadata from Gemini, estimating tokens
+[TokenTracking] Estimated input tokens from text: 450
+[TokenTracking] Estimated output tokens from text: 320
+[TokenTracking] Recorded: 450 in + 320 out = 770 tokens ($0.0003) for gemini-2.0-flash
+```
+
+**Files Modified**:
+1. `services/tokenTrackingService.ts` - Added estimation, updated recordUsage signature
+2. `services/aiService.ts` - Added fallback estimation for all providers
+3. `services/agentChatService.ts` - Added fallback estimation for all providers
+4. `components/settings/AISettingsPanel.tsx` - Connected to real tracking service
+
+**Build Status**: ✅ No TypeScript diagnostics
+
+**Testing**:
+1. Send a message in Normal Mode
+2. Check console for `[TokenTracking] Recorded:` log
+3. Verify PromptArea shows `[Tokens: model] input/output`
+4. Open AI Settings → Usage This Month should show same totals
+5. Send another message → both should update
+
+**Future Improvements**:
+- Add token usage graphs/charts
+- Add daily/weekly/monthly breakdowns
+- Add cost alerts/limits
+- Add export functionality
+- Improve estimation accuracy with tiktoken library
 
 ---
