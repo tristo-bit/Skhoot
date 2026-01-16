@@ -1,5 +1,27 @@
 # Development Log
 
+## January 16, 2026
+
+### App Icons Updated - skhoot-logo-dark-purple.png ✅
+- **Task**: Replace all app icons with new `skhoot-logo-dark-purple.png` logo
+- **Source**: `public/skhoot-logo-dark-purple.png`
+- **Target**: `src-tauri/icons/`
+
+**Generated Icons**:
+- `icon.ico` - Windows taskbar (7 sizes: 16, 24, 32, 48, 64, 128, 256)
+- `icon.png` - 512x512 main icon
+- `32x32.png`, `128x128.png`, `128x128@2x.png` - Standard sizes
+- All `Square*.png` - Windows Store logos (30, 44, 71, 89, 107, 142, 150, 284, 310)
+- `StoreLogo.png` - 50x50
+
+**Scripts Created**:
+- `scripts/generate-icons.cjs` - Generates all PNG sizes
+- `scripts/generate-ico.cjs` - Generates multi-size ICO file
+
+**To Apply**: Rebuild with `npm run tauri build` or `npm run tauri dev`
+
+---
+
 ### Unified AI Terminal System - UI Polish ✅
 - **Status**: Implemented
 - **Changes**: 
