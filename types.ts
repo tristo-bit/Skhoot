@@ -12,6 +12,8 @@ export interface Message {
   toolResults?: AgentToolResultData[];
   // Attached files for context
   attachedFiles?: { fileName: string; filePath: string }[];
+  // Images for vision API
+  images?: Array<{ fileName: string; base64: string; mimeType: string }>;
 }
 
 // Agent tool call data for messages

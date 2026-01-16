@@ -39,6 +39,37 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 ## ✨ Features
 
 <details>
+<summary><strong>⚡ Workflow Automation Panel</strong></summary>
+
+**Streamline Repetitive Tasks**: Create and manage multi-step AI prompt workflows for automated task execution.
+
+- **Workflow Management**: Create, edit, and organize reusable prompt chains
+  - **Three-Tab Interface**: 
+    - **Workflows Tab**: Browse and manage all saved workflows
+    - **Running Tab**: Monitor currently executing workflows in real-time
+    - **History Tab**: Review past workflow executions and results
+  - **Editable Prompt Chains**: Build workflows with multiple sequential steps
+  - **Workflow Metadata**: Track run count, last execution time, and status
+- **Quick Actions Integration**: Access workflows via the Workflows quick action button (Workflow icon) in chat interface
+- **Floating Panel Design**: Terminal-style glassmorphic panel that floats above the chat prompt area
+- **Workflow Operations**:
+  - **Create**: Add new workflows with custom names and descriptions
+  - **Run**: Execute workflows with one-click play button
+  - **Edit**: Modify workflow steps and prompts inline
+  - **Delete**: Remove workflows with confirmation
+  - **Status Tracking**: Visual indicators for idle, running, completed, and failed states
+- **Pre-Built Templates**: Includes example workflows:
+  - **Code Review**: Automated code analysis, security checks, and performance suggestions
+  - **Documentation Generator**: Extract signatures, generate JSDoc, create README sections
+  - **Test Generator**: Identify testable functions and generate comprehensive test cases
+- **Performance Optimized**: React memo and useCallback for efficient rendering
+- **Keyboard Shortcuts**: Quick access and navigation within the panel
+
+**Why This Matters**: Automate repetitive AI interactions. Save time by reusing proven prompt sequences. Build consistent workflows for code review, documentation, testing, and more.
+
+</details>
+
+<details>
 <summary><strong>🤖 CLI Agent Mode with Visual Tool Execution</strong></summary>
 
 **The Core Innovation**: Unlike terminal-only CLI agents, Skhoot renders agent tool outputs with rich, interactive UI components.
@@ -146,6 +177,15 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
   - Click edit to modify message content in-place
   - Save with Ctrl+Enter or Cancel with Escape
   - Visual feedback with save/cancel buttons
+- **Vision & Image Analysis**: Multi-modal AI support for image understanding in both Normal and Agent modes
+  - Attach images to messages for visual analysis
+  - Automatic base64 encoding for all AI providers
+  - Support for common formats: JPG, PNG, GIF, BMP, WebP
+  - Works with OpenAI GPT-4 Vision, Google Gemini Vision, and Claude 3 Vision
+  - High-detail image processing for better OCR and analysis
+  - Multiple images per message supported
+  - **Agent Mode Support**: Full vision capabilities in agent mode with tool calling
+  - **Optimized Loading**: Desktop app uses native Tauri file API for faster image loading, web version uses backend endpoint
 - **Rich Responses**: Support for file lists, disk usage charts, and cleanup suggestions
 - **Interactive File Paths**: Click on file paths in search results to open the containing folder
 - **Markdown Support**: Full markdown rendering in responses
@@ -343,6 +383,11 @@ skhoot/
 │   │   ├── CommandOutput.tsx    # Command output with ANSI colors (NEW)
 │   │   ├── FileOperation.tsx    # File operation display (NEW)
 │   │   └── ...
+│   ├── panels/          # Floating panel components
+│   │   ├── FileExplorerPanel.tsx # File explorer with search and disk analysis
+│   │   ├── WorkflowsPanel.tsx    # Workflow automation management (NEW)
+│   │   ├── SettingsPanel.tsx     # Application settings
+│   │   └── AISettingsModal.tsx   # AI configuration modal
 │   ├── terminal/        # Terminal and agent log UI
 │   │   ├── TerminalPanel.tsx
 │   │   ├── AgentLogTab.tsx      # Agent monitoring interface (NEW)
@@ -546,22 +591,45 @@ await agentService.cancelAction(sessionId);
 **Agent Chat Service API:**
 ```typescript
 import { agentChatService } from './services/agentChatService';
-import type { AgentMessage, AgentToolCallData, AgentToolResultData } from './services/agentChatService';
+import type { AgentChatMessage, AgentToolCallData, AgentToolResultData } from './services/agentChatService';
 
 // Execute agent with tool calling support
 const result = await agentChatService.executeWithTools(
   'Find all TODO comments in the codebase',
+  conversationHistory,
   {
+    sessionId: 'session-123',
     provider: 'openai',
     model: 'gpt-4',
-    apiKey: 'sk-...',
-    conversationHistory: previousMessages,
-    sessionId: 'session-123',
     onToolStart: (toolCall: AgentToolCallData) => {
       console.log(`Executing ${toolCall.name}...`);
     },
     onToolComplete: (result: AgentToolResultData) => {
       console.log(`Tool ${result.success ? 'succeeded' : 'failed'}`);
+    },
+    onStatusUpdate: (status: string) => {
+      console.log(`Status: ${status}`);
+    }
+  }
+);
+
+// Execute agent with vision/image analysis support
+const visionResult = await agentChatService.executeWithTools(
+  'What do you see in this screenshot? Extract any text.',
+  conversationHistory,
+  {
+    sessionId: 'session-123',
+    provider: 'openai',
+    model: 'gpt-4o', // Vision-capable model
+    images: [
+      { 
+        fileName: 'screenshot.png', 
+        base64: 'iVBORw0KGgoAAAANSUhEUgAA...', 
+        mimeType: 'image/png' 
+      }
+    ],
+    onStatusUpdate: (status: string) => {
+      console.log(`Status: ${status}`);
     }
   }
 );
@@ -570,11 +638,17 @@ console.log('Agent response:', result.content);
 console.log('Tool calls made:', result.toolCalls);
 console.log('Tool results:', result.toolResults);
 
-// Supported providers: 'openai', 'google', 'anthropic'
+// Supported providers: 'openai', 'google', 'anthropic', or any custom provider
 // Each provider has its own tool calling format automatically handled
 // Tool execution loop runs up to 10 iterations
 // History is automatically converted to provider-specific format
+// Vision support automatically enabled for compatible models (GPT-4o, Gemini 2.0 Flash, Claude 3.5 Sonnet)
 ```
+
+**Vision-Capable Models for Agent Mode:**
+- **OpenAI**: `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`, `gpt-4-vision-preview`
+- **Google**: `gemini-2.0-flash`, `gemini-1.5-pro`, `gemini-1.5-flash`
+- **Anthropic**: `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`, `claude-3-haiku-20240307`
 
 **Available Agent Tools:**
 - `shell`: Execute terminal commands with working directory support
@@ -913,6 +987,107 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 ## 📝 Recent Updates
 
 <details>
+<summary><strong>Vision & Image Analysis Support</strong></summary>
+
+**New Multi-Modal AI Capability**: Skhoot now supports image attachments for visual analysis with all major AI providers in both Normal Mode and Agent Mode.
+
+- **Message Type Enhancement**: Both `AIMessage` and `AgentChatMessage` interfaces now support image attachments
+  - New `images` field: `Array<{ fileName: string; base64: string; mimeType: string }>`
+  - Enables passing multiple images per message to both AI chat and agent mode
+  - Automatic MIME type detection for proper API formatting
+  - Seamless integration with conversation history and message editing
+  - **Full Agent Mode Support**: Images are properly passed through the agent chat service for vision-capable models
+    - Vision capabilities automatically added to agent system prompt for supported models
+    - Images included in tool calling context for enhanced agent decision-making
+    - Works seamlessly with all agent tools (shell, file operations, search, etc.)
+    - Provider-specific image formatting handled automatically (OpenAI, Google, Anthropic)
+- **Multi-Provider Vision Support**: 
+  - **OpenAI**: GPT-4o, GPT-4o Mini, GPT-4 Turbo with vision capabilities
+    - Uses `image_url` content type with base64 data URLs
+    - High-detail mode enabled for better OCR and analysis
+    - Supports multiple images in a single message
+  - **Google Gemini**: Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini 1.5 Flash
+    - Uses `inlineData` format with MIME type and base64 data
+    - Native multi-modal support for text + images
+    - Optimized for visual understanding and OCR
+  - **Anthropic Claude**: Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Haiku
+    - Uses `image` content type with base64 source
+    - Proper media type specification for each image format
+    - Advanced vision capabilities for document analysis
+  - **Custom Endpoints**: OpenAI-compatible vision API support
+    - Falls back to standard format for maximum compatibility
+    - Automatic detection of vision capability support
+- **Image Format Support**: 
+  - JPG/JPEG: `image/jpeg`
+  - PNG: `image/png`
+  - GIF: `image/gif`
+  - BMP: `image/bmp`
+  - WebP: `image/webp`
+- **Use Cases**:
+  - Extract text from screenshots and documents (OCR) in both normal and agent modes
+  - Analyze code in images or diagrams with agent tool integration
+  - Understand visual content and provide descriptions
+  - Process scanned documents and handwritten notes
+  - Identify objects, scenes, and patterns in photos
+  - Compare multiple images side-by-side
+  - **Agent Mode**: Combine vision analysis with file operations, shell commands, and search tools
+- **Developer API**: 
+  - Pass images via `chat()` method's optional `images` parameter (both `aiService` and `agentChatService`)
+  - Automatic conversion to provider-specific formats
+  - Status updates: "Analyzing X image(s) with [Provider]..."
+  - **Agent Mode**: Images passed via `AgentChatOptions.images` parameter in `executeWithTools()`
+  - **Dual Loading Strategy**: Desktop app uses Tauri's native file API for optimal performance, web version uses backend endpoint
+- **Technical Implementation**:
+  - **Desktop (Tauri)**: Direct file system access via `@tauri-apps/plugin-fs` `readBinaryFile` API
+  - **Web Fallback**: Backend `/api/v1/files/image` endpoint when Tauri unavailable
+  - Automatic environment detection with `window.__TAURI__` check
+  - Efficient Uint8Array to base64 conversion for minimal memory overhead
+  - Graceful error handling with informative fallback messages
+  - Seamless integration with existing conversation history
+  - **Agent Mode Integration**: 
+    - Images passed via `AgentChatOptions.images` parameter
+    - Vision capabilities automatically added to agent system prompt for supported models
+    - Provider-specific image formatting (OpenAI `image_url`, Google `inlineData`, Anthropic `image` source)
+    - History converters preserve images across conversation turns
+    - Status updates: "Analyzing X image(s) with [Provider]..."
+- **Technical Implementation**:
+  - Base64 encoding handled automatically by backend
+  - Provider-specific message formatting in `aiService.ts` and `agentChatService.ts`
+  - History preservation with image data across conversation turns
+  - Proper error handling for unsupported formats or API failures
+  - **Agent System Prompt Enhancement**: Vision-capable models receive enhanced system instructions
+    - Automatic detection of vision support based on model name
+    - Clear instructions: "You CAN see and analyze images", "You have OCR capabilities"
+    - Prevents "I cannot process images" responses from vision-capable models
+    - Works across all providers (OpenAI, Google, Anthropic)
+
+**Example Usage**:
+```typescript
+// Normal Mode - Vision API
+const response = await aiService.chat(
+  'What does this image show?',
+  conversationHistory,
+  onStatusUpdate,
+  [{ fileName: 'screenshot.png', base64: '...', mimeType: 'image/png' }]
+);
+
+// Agent Mode - Vision with Tool Calling
+const agentResponse = await agentChatService.executeWithTools(
+  'Analyze this screenshot and extract any code you see',
+  conversationHistory,
+  {
+    sessionId: 'session-123',
+    provider: 'openai',
+    model: 'gpt-4o',
+    images: [{ fileName: 'code.png', base64: '...', mimeType: 'image/png' }],
+    onStatusUpdate: (status) => console.log(status)
+  }
+);
+```
+
+</details>
+
+<details>
 <summary><strong>Message Editing Feature</strong></summary>
 
 **New User Experience Enhancement**: Users can now edit their sent messages directly in the chat interface.
@@ -1128,11 +1303,33 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
   - File contents are read from backend via `/api/v1/files/read` endpoint
   - Complete file contents appended to edited message for AI context
   - Structured format with clear file boundaries: `--- File: filename (path) ---`
+- **Smart Binary File Handling**: 
+  - **Automatic Detection**: Intelligently identifies binary files (images, PDFs, archives, executables) by file extension
+  - **Skip Binary Content**: Binary files are not read as text, preventing encoding errors and corrupted data
+  - **Clear Notifications**: Users receive informative messages like `[Note: image.png is a binary file (image/PDF/archive) and cannot be read as text]`
+  - **Supported Binary Types**: 
+    - Images: jpg, jpeg, png, gif, bmp, webp, ico
+    - Documents: pdf
+    - Archives: zip, rar, 7z, tar, gz
+    - Executables: exe, dll, so, dylib
+  - **Text File Processing**: Only text-based files (code, documents, configs) have their contents loaded for AI context
+- **Image Attachment Support**: 
+  - **Vision API Integration**: Image files are automatically converted to base64 format for vision-capable AI models
+  - **Multi-Format Support**: Handles all common image formats (jpg, jpeg, png, gif, bmp, webp)
+  - **Dual Loading Strategy**: 
+    - **Desktop (Tauri)**: Uses native `@tauri-apps/plugin-fs` `readBinaryFile` API for direct file system access
+    - **Web Fallback**: Falls back to backend `/api/v1/files/image` endpoint when Tauri is unavailable
+    - Automatic environment detection ensures optimal performance in both contexts
+  - **MIME Type Detection**: Proper MIME type assignment for each image format
+  - **Efficient Encoding**: Direct Uint8Array to base64 conversion for minimal overhead
+  - **Structured Data**: Returns `{ fileName, base64, mimeType }` for each image
+  - **Error Handling**: Graceful fallback with informative notes if image loading fails
+  - **Prepared for Vision Models**: Base64 image data ready for OpenAI GPT-4 Vision, Google Gemini Vision, Claude 3 Vision, etc.
 - **Seamless Regeneration**: 
   - Edited messages trigger conversation regeneration from that point
   - File attachments are preserved and their contents reloaded automatically
   - AI receives both the edited message text and all attached file contents
-  - Works with multiple file attachments simultaneously
+  - Works with multiple file attachments simultaneously (text + images)
 - **Error Handling**: 
   - Graceful handling of missing or unreadable files
   - Clear error messages in file content placeholders
@@ -1141,11 +1338,16 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
   - No manual re-attachment needed when editing messages
   - File context automatically maintained across edits
   - Consistent behavior with initial message sending
+  - Binary files listed but not processed, avoiding errors
+  - Images prepared for vision AI analysis
 - **Technical Implementation**: 
   - Processes `editedMessage.attachedFiles` array before regeneration
+  - Helper functions `isImageFile()`, `isBinaryFile()`, and `getMimeType()` for type detection
   - Appends file header with list of attached filenames
-  - Includes full file contents in structured format
+  - Includes full file contents in structured format for text files only
+  - Converts images to base64 with proper MIME types for vision APIs
   - Updates search type based on edited content
+  - Returns structured data: `{ fileContents, attachedFileNames, imageFiles }`
 
 </details>
 
