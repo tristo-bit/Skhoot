@@ -150,13 +150,37 @@ const AppContent: React.FC = () => {
       setIsAISettingsOpen(true);
     };
 
+    // Listen for AI-created terminals to auto-open terminal panel
+    const handleAITerminalCreated = (event: CustomEvent) => {
+      const { autoOpen = true } = event.detail;
+      
+      // Only auto-open if explicitly requested (default true for backwards compatibility)
+      if (autoOpen) {
+        setIsTerminalOpen(true);
+        // Close other panels when opening terminal
+        setIsFileExplorerOpen(false);
+        setIsWorkflowsOpen(false);
+      }
+    };
+
+    // Listen for open-terminal-panel event (from MiniTerminalView expand)
+    const handleOpenTerminalPanel = () => {
+      setIsTerminalOpen(true);
+      setIsFileExplorerOpen(false);
+      setIsWorkflowsOpen(false);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('open-api-config', handleOpenApiConfig);
     window.addEventListener('open-ai-settings', handleOpenAISettings);
+    window.addEventListener('ai-terminal-created', handleAITerminalCreated);
+    window.addEventListener('open-terminal-panel', handleOpenTerminalPanel);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('open-api-config', handleOpenApiConfig);
       window.removeEventListener('open-ai-settings', handleOpenAISettings);
+      window.removeEventListener('ai-terminal-created', handleAITerminalCreated);
+      window.removeEventListener('open-terminal-panel', handleOpenTerminalPanel);
     };
   }, []);
 

@@ -566,9 +566,9 @@ YOUR CAPABILITIES:
 - Assisting with various tasks${visionCapabilities}
 
 IMPORTANT - AGENT MODE:
-- For system commands, terminal operations, or questions about the computer (disk space, processes, system info), tell the user to enable Agent Mode
-- Say: "I can help with that! Please enable Agent Mode (click the CPU icon or press Ctrl+Shift+A) to let me run system commands."
-- Agent Mode gives you access to shell commands, file operations, and more
+- Agent Mode is enabled by default, giving you access to shell commands, file operations, and more
+- For system commands, terminal operations, or questions about the computer (disk space, processes, system info), use the available shell tools directly
+- If tools are not available, the user may need to run the app in Tauri mode (npm run tauri dev)
 
 FILE SEARCH RULES:
 1. When users ask to find, locate, or search for FILES by name, use the findFile function

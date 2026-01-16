@@ -245,6 +245,18 @@ class TerminalService {
    */
   async readFromSession(sessionId: string): Promise<TerminalOutput[]> {
     try {
+      // Use HTTP backend if available
+      if (await this.checkHttpBackend()) {
+        const output = await terminalHttpService.read(sessionId);
+        // Convert string array to TerminalOutput format
+        return output.map(content => ({
+          output_type: 'stdout' as const,
+          content,
+          timestamp: Date.now(),
+        }));
+      }
+      
+      // Fall back to Tauri IPC
       const outputs = await invoke<TerminalOutput[]>('read_from_terminal', {
         sessionId,
       });

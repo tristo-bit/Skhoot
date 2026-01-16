@@ -48,9 +48,12 @@ pub fn terminal_routes() -> Router<TerminalManager> {
     Router::new()
         .route("/sessions", post(create_session))
         .route("/sessions", get(list_sessions))
+        .route("/sessions/stats", get(get_session_stats))
         .route("/sessions/:id", delete(close_session))
         .route("/sessions/:id/write", post(write_to_session))
         .route("/sessions/:id/read", get(read_from_session))
+        .route("/sessions/:id/hibernate", post(hibernate_session))
+        .route("/sessions/:id/restore", post(restore_session))
 }
 
 /// Create a new terminal session
@@ -123,6 +126,41 @@ async fn read_from_session(
         Ok(output) => Ok(Json(ReadResponse { output })),
         Err(e) => Err((
             StatusCode::NOT_FOUND,
+            Json(ErrorResponse { error: e }),
+        )),
+    }
+}
+
+/// Get session statistics
+async fn get_session_stats(
+    State(manager): State<TerminalManager>,
+) -> Json<super::manager::SessionStats> {
+    Json(manager.get_stats().await)
+}
+
+/// Hibernate a session
+async fn hibernate_session(
+    State(manager): State<TerminalManager>,
+    Path(session_id): Path<String>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    match manager.hibernate_session(&session_id).await {
+        Ok(()) => Ok(StatusCode::OK),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse { error: e }),
+        )),
+    }
+}
+
+/// Restore a hibernated session
+async fn restore_session(
+    State(manager): State<TerminalManager>,
+    Path(session_id): Path<String>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    match manager.restore_session(&session_id).await {
+        Ok(()) => Ok(StatusCode::OK),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse { error: e }),
         )),
     }

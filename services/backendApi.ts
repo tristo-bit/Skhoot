@@ -99,6 +99,77 @@ export interface SearchSuggestionResponse {
   confidence: number;
 }
 
+// ============================================================================
+// Disk Management Types
+// ============================================================================
+
+export interface DiskInfoResponse {
+  disks: DiskInfoItem[];
+}
+
+export interface DiskInfoItem {
+  id: string;
+  name: string;
+  mount_point: string;
+  total_bytes: number;
+  used_bytes: number;
+  free_bytes: number;
+  usage_percentage: number;
+  disk_type: string; // "internal", "external", "network"
+}
+
+export interface DiskAnalysisResponse {
+  total_size: number;
+  total_size_formatted: string;
+  file_count: number;
+  dir_count: number;
+  top_consumers: SpaceConsumer[];
+  analysis_time_ms: number;
+}
+
+export interface SpaceConsumer {
+  path: string;
+  name: string;
+  size: number;
+  size_formatted: string;
+  percentage: number;
+  is_directory: boolean;
+}
+
+export interface CleanupSuggestionsResponse {
+  suggestions: CleanupSuggestion[];
+  total_reclaimable: number;
+  total_reclaimable_formatted: string;
+}
+
+export interface CleanupSuggestion {
+  id: string;
+  name: string;
+  path: string;
+  size: number;
+  size_formatted: string;
+  category: string;
+  safety_level: string; // "safe", "review", "risky"
+  description: string;
+  consequence: string;
+  last_accessed?: string;
+}
+
+export interface StorageCategoriesResponse {
+  categories: StorageCategory[];
+  total_size: number;
+  total_size_formatted: string;
+}
+
+export interface StorageCategory {
+  name: string;
+  size: number;
+  size_formatted: string;
+  file_count: number;
+  percentage: number;
+  color: string;
+}
+
 export const backendApi = {
   async health(): Promise<HealthResponse> {
     const response = await fetch(`${BACKEND_URL}/health`);
@@ -282,5 +353,69 @@ export const backendApi = {
     if (!response.ok) {
       throw new Error(`Failed to cancel search: ${response.statusText}`);
     }
+  },
+
+  // ============================================================================
+  // Disk Management APIs
+  // ============================================================================
+
+  /**
+   * Get system disk information (all mounted drives)
+   */
+  async getDiskInfo(): Promise<DiskInfoResponse> {
+    const response = await fetch(`${BACKEND_URL}/api/v1/disk/info`);
+    if (!response.ok) {
+      throw new Error(`Failed to get disk info: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
+  /**
+   * Analyze disk usage for a path
+   */
+  async analyzeDisk(options?: {
+    path?: string;
+    max_depth?: number;
+    top_n?: number;
+  }): Promise<DiskAnalysisResponse> {
+    const params = new URLSearchParams();
+    if (options?.path) params.append('path', options.path);
+    if (options?.max_depth) params.append('max_depth', options.max_depth.toString());
+    if (options?.top_n) params.append('top_n', options.top_n.toString());
+    
+    const response = await fetch(`${BACKEND_URL}/api/v1/disk/analyze?${params}`);
+    if (!response.ok) {
+      throw new Error(`Failed to analyze disk: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
+  /**
+   * Get cleanup suggestions
+   */
+  async getCleanupSuggestions(): Promise<CleanupSuggestionsResponse> {
+    const response = await fetch(`${BACKEND_URL}/api/v1/disk/cleanup-suggestions`);
+    if (!response.ok) {
+      throw new Error(`Failed to get cleanup suggestions: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
+  /**
+   * Get storage breakdown by category
+   */
+  async getStorageCategories(options?: {
+    path?: string;
+    max_depth?: number;
+  }): Promise<StorageCategoriesResponse> {
+    const params = new URLSearchParams();
+    if (options?.path) params.append('path', options.path);
+    if (options?.max_depth) params.append('max_depth', options.max_depth.toString());
+    
+    const response = await fetch(`${BACKEND_URL}/api/v1/disk/categories?${params}`);
+    if (!response.ok) {
+      throw new Error(`Failed to get storage categories: ${response.statusText}`);
+    }
+    return response.json();
   },
 };

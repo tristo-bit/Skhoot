@@ -49,7 +49,7 @@ export const openFile = async (filePath: string): Promise<boolean> => {
   
   // Try Tauri shell plugin
   try {
-    const { open } = await import('@tauri-apps/plugin-shell');
+    const { open } = await import(/* @vite-ignore */ '@tauri-apps/plugin-shell');
     await open(filePath);
     return true;
   } catch {}
@@ -78,7 +78,7 @@ export const openFolder = async (filePath: string): Promise<boolean> => {
   
   // Try Tauri shell plugin
   try {
-    const { Command } = await import('@tauri-apps/plugin-shell');
+    const { Command } = await import(/* @vite-ignore */ '@tauri-apps/plugin-shell');
     const userAgent = navigator.userAgent.toLowerCase();
     
     if (userAgent.includes('win')) {

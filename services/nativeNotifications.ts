@@ -5,7 +5,7 @@ let isPermissionGranted: any, requestPermission: any, sendNotification: any;
 const initTauriNotifications = async () => {
   try {
     console.log('[Notifications] Attempting to load Tauri notification plugin...');
-    const plugin = await import('@tauri-apps/plugin-notification');
+    const plugin = await import(/* @vite-ignore */ '@tauri-apps/plugin-notification');
     console.log('[Notifications] Plugin imported successfully:', plugin);
     
     isPermissionGranted = plugin.isPermissionGranted;

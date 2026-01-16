@@ -27,6 +27,12 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { 
+  terminalToolDefinitions, 
+  executeTerminalTool, 
+  cleanupAITerminals,
+  type ToolResult 
+} from './agentTools/terminalTools';
 
 // ============================================================================
 // Types & Interfaces
@@ -79,7 +85,7 @@ export interface AgentMessage {
  */
 export interface AgentToolCall {
   id: string;
-  name: 'shell' | 'read_file' | 'write_file' | 'list_directory' | 'search_files';
+  name: 'shell' | 'read_file' | 'write_file' | 'list_directory' | 'search_files' | 'create_terminal' | 'execute_command' | 'read_output' | 'list_terminals' | 'inspect_terminal';
   arguments: Record<string, any>;
 }
 
@@ -195,6 +201,9 @@ class AgentService {
       // Set up Tauri event listeners for this session
       await this.setupEventListeners(sessionId);
 
+      // Register terminal tools for this session
+      await this.registerTerminalTools(sessionId);
+
       console.log('[AgentService] Session created:', status);
       return status;
     } catch (error) {
@@ -214,6 +223,9 @@ class AgentService {
     console.log('[AgentService] Closing session:', sessionId);
 
     try {
+      // Clean up AI-created terminals
+      await cleanupAITerminals(sessionId);
+
       // Remove Tauri event listeners
       await this.removeEventListeners(sessionId);
 
@@ -394,6 +406,41 @@ class AgentService {
     console.log('[AgentService] Executing tool:', request.toolName, 'for session:', sessionId);
 
     try {
+      // Check if this is a terminal tool
+      const terminalTools = ['create_terminal', 'execute_command', 'read_output', 'list_terminals', 'inspect_terminal'];
+      if (terminalTools.includes(request.toolName)) {
+        // Execute terminal tool locally
+        const result = await executeTerminalTool(request.toolName, request.arguments, sessionId);
+        
+        // Emit tool events
+        this.emit('tool_start', { 
+          sessionId, 
+          toolCall: { 
+            id: request.toolCallId, 
+            name: request.toolName as any, 
+            arguments: request.arguments 
+          } 
+        });
+        
+        this.emit('tool_complete', { 
+          sessionId, 
+          toolResult: {
+            toolCallId: request.toolCallId,
+            success: result.success,
+            output: result.error || JSON.stringify(result.data),
+            error: result.error,
+          }
+        });
+
+        return {
+          toolCallId: request.toolCallId,
+          success: result.success,
+          output: result.error || JSON.stringify(result.data),
+          error: result.error,
+        };
+      }
+
+      // Otherwise, use backend tool execution
       const result = await invoke<any>('execute_agent_tool', {
         sessionId,
         request: {
@@ -569,6 +616,31 @@ class AgentService {
     if (unlisteners) {
       unlisteners.forEach(unlisten => unlisten());
       this.tauriListeners.delete(sessionId);
+    }
+  }
+
+  // ==========================================================================
+  // Terminal Tools Integration
+  // ==========================================================================
+
+  /**
+   * Register terminal tools for an agent session
+   * 
+   * @private
+   */
+  private async registerTerminalTools(sessionId: string): Promise<void> {
+    try {
+      console.log('[AgentService] Registering terminal tools for session:', sessionId);
+      
+      // Terminal tools are handled locally in executeTool method
+      // This method is a placeholder for future backend integration
+      // where we might need to register tool definitions with the backend
+      
+      // For now, we just log that terminal tools are available
+      console.log('[AgentService] Terminal tools available:', terminalToolDefinitions.map(t => t.name));
+    } catch (error) {
+      console.error('[AgentService] Failed to register terminal tools:', error);
+      // Don't throw - terminal tools are optional enhancement
     }
   }
 

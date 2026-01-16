@@ -1,6 +1,6 @@
 //! Terminal Session - Individual PTY session management
 
-use portable_pty::{native_pty_system, CommandBuilder, PtySize, MasterPty, Child};
+use portable_pty::{native_pty_system, CommandBuilder, PtySize, Child};
 use std::io::{Read, Write};
 use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
