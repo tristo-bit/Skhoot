@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from '
 import { Terminal, X, Plus, Copy, Trash2, GripHorizontal, Bot } from 'lucide-react';
 import { terminalService } from '../../services/terminalService';
 import { agentService } from '../../services/agentService';
+import { terminalContextStore } from '../../services/agentTools/terminalTools';
 import { AgentLogTab } from './AgentLogTab';
 
 interface TerminalTab {
@@ -9,6 +10,8 @@ interface TerminalTab {
   title: string;
   type: 'shell' | 'codex' | 'skhoot-log' | 'agent-log';
   sessionId: string;
+  createdBy?: 'user' | 'ai';
+  workspaceRoot?: string;
 }
 
 interface TerminalViewProps {
@@ -42,6 +45,12 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
   const [terminalOutputs, setTerminalOutputs] = useState<Map<string, string[]>>(new Map());
   const isCreatingInitialTab = useRef(false);
   const [isCreatingTab, setIsCreatingTab] = useState(false);
+  const tabsRef = useRef<TerminalTab[]>([]);
+  
+  // Keep tabsRef in sync with tabs
+  useEffect(() => {
+    tabsRef.current = tabs;
+  }, [tabs]);
   
   // Resizable height state
   const [height, setHeight] = useState(() => {
@@ -86,10 +95,53 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
     };
   }, []);
 
+  // Handle AI-created terminals
+  useEffect(() => {
+    const handleAITerminalCreated = (event: CustomEvent) => {
+      const { sessionId, type, createdBy, workspaceRoot } = event.detail;
+      
+      // Check if tab already exists
+      const existingTab = tabs.find(t => t.sessionId === sessionId);
+      if (existingTab) {
+        return;
+      }
+
+      // Create new tab for AI-created terminal
+      const newTab: TerminalTab = {
+        id: `tab-${Date.now()}-${sessionId}`,
+        title: 'Shell',
+        type,
+        sessionId,
+        createdBy,
+        workspaceRoot,
+      };
+
+      setTabs(prev => [...prev, newTab]);
+      setActiveTabId(newTab.id);
+    };
+
+    const handleFocusTerminalSession = (event: CustomEvent) => {
+      const { sessionId } = event.detail;
+      
+      // Find the tab with this session ID
+      const tab = tabs.find(t => t.sessionId === sessionId);
+      if (tab) {
+        setActiveTabId(tab.id);
+      }
+    };
+
+    window.addEventListener('ai-terminal-created', handleAITerminalCreated as EventListener);
+    window.addEventListener('focus-terminal-session', handleFocusTerminalSession as EventListener);
+    return () => {
+      window.removeEventListener('ai-terminal-created', handleAITerminalCreated as EventListener);
+      window.removeEventListener('focus-terminal-session', handleFocusTerminalSession as EventListener);
+    };
+  }, [tabs]);
+
   // Cleanup sessions on unmount
   useEffect(() => {
     return () => {
-      tabs.forEach(tab => {
+      tabsRef.current.forEach(tab => {
         if (tab.type === 'agent-log') {
           agentService.closeSession(tab.sessionId).catch(console.error);
         } else {
@@ -97,7 +149,8 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
         }
       });
     };
-  }, [tabs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run cleanup on unmount, not when tabs change
 
   // Expose send command function
   useEffect(() => {
@@ -174,6 +227,9 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
       
       clearTimeout(timeoutId);
       
+      // Check if this terminal was created by AI
+      const context = terminalContextStore.get(sessionId);
+      
       const titles: Record<string, string> = {
         'shell': 'Shell',
         'codex': 'Codex',
@@ -186,6 +242,8 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
         title: titles[type] || 'Terminal',
         type,
         sessionId,
+        createdBy: context?.createdBy || 'user',
+        workspaceRoot: context?.workspaceRoot,
       };
       
       setTabs(prev => [...prev, newTab]);
@@ -400,6 +458,15 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
               >
                 <Terminal size={14} />
                 <span className="font-medium font-jakarta">{tab.title}</span>
+                {tab.createdBy === 'ai' && (
+                  <div 
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/30"
+                    title="Created by AI Agent"
+                  >
+                    <Bot size={10} className="text-cyan-400" />
+                    <span className="text-xs text-cyan-400 font-medium">AI</span>
+                  </div>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -477,28 +544,54 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
                 isActive={activeTabId === activeTab.id}
               />
             ) : (
-              <div 
-                ref={(el) => {
-                  if (el) terminalRefs.current.set(activeTab.sessionId, el);
-                }}
-                className="h-full overflow-y-auto p-4 font-mono text-sm"
-                style={{ 
-                  scrollbarWidth: 'thin',
-                  scrollbarColor: 'rgba(139, 92, 246, 0.3) transparent',
-                  color: 'var(--text-primary)',
-                }}
-              >
-                {activeOutput.length === 0 ? (
-                  <div style={{ color: 'var(--text-secondary)' }}>
-                    <span className="text-purple-500">&gt;</span> waiting for your input
+              <div className="h-full flex flex-col">
+                {/* Terminal Header with Workspace Root */}
+                {activeTab.workspaceRoot && (
+                  <div 
+                    className="px-4 py-2 border-b flex items-center gap-2"
+                    style={{
+                      borderColor: 'rgba(139, 92, 246, 0.2)',
+                      color: 'var(--text-secondary)',
+                      background: 'rgba(139, 92, 246, 0.05)',
+                    }}
+                  >
+                    <Terminal size={14} />
+                    <span className="text-xs font-mono">
+                      Workspace: {activeTab.workspaceRoot}
+                    </span>
+                    {activeTab.createdBy === 'ai' && (
+                      <div className="flex items-center gap-1 text-xs text-cyan-400">
+                        <Bot size={12} />
+                        <span>AI Controlled</span>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  activeOutput.map((line, index) => (
-                    <div key={index} className="whitespace-pre-wrap break-words leading-relaxed">
-                      {line}
-                    </div>
-                  ))
                 )}
+                
+                {/* Terminal Output Area */}
+                <div 
+                  ref={(el) => {
+                    if (el) terminalRefs.current.set(activeTab.sessionId, el);
+                  }}
+                  className="flex-1 overflow-y-auto p-4 font-mono text-sm"
+                  style={{ 
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: 'rgba(139, 92, 246, 0.3) transparent',
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  {activeOutput.length === 0 ? (
+                    <div style={{ color: 'var(--text-secondary)' }}>
+                      <span className="text-purple-500">&gt;</span> waiting for your input
+                    </div>
+                  ) : (
+                    activeOutput.map((line, index) => (
+                      <div key={index} className="whitespace-pre-wrap break-words leading-relaxed">
+                        {line}
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )
           ) : (

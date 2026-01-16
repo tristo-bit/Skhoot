@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../buttonFormat';
 import { MarkdownRenderer, FileCard, type FileCardFile } from '../ui';
+import { MiniTerminalView } from './MiniTerminalView';
 import { useSettings } from '../../src/contexts/SettingsContext';
 
 // ============================================================================
@@ -35,7 +36,7 @@ import { useSettings } from '../../src/contexts/SettingsContext';
 
 export interface AgentToolCall {
   id: string;
-  name: 'shell' | 'read_file' | 'write_file' | 'list_directory' | 'search_files';
+  name: 'shell' | 'read_file' | 'write_file' | 'list_directory' | 'search_files' | 'execute_command';
   arguments: Record<string, any>;
 }
 
@@ -266,6 +267,7 @@ const ToolIcon: React.FC<{ toolName: string; size?: number }> = ({ toolName, siz
 const getToolDisplayName = (toolName: string): string => {
   const names: Record<string, string> = {
     shell: 'Shell Command',
+    execute_command: 'Execute Command',
     read_file: 'Read File',
     write_file: 'Write File',
     list_directory: 'List Directory',
@@ -558,6 +560,27 @@ export const AgentAction = memo<AgentActionProps>(({
                 </pre>
               )}
             </div>
+          ) : (toolCall.name === 'shell' || toolCall.name === 'execute_command') && result.success ? (
+            <MiniTerminalView
+              sessionId={(() => {
+                // Try to get sessionId from arguments first
+                if (toolCall.arguments.sessionId) return toolCall.arguments.sessionId;
+                
+                // Try to parse from result output (JSON format)
+                try {
+                  const parsed = JSON.parse(result.output);
+                  if (parsed.sessionId) return parsed.sessionId;
+                } catch {
+                  // Not JSON, try regex
+                  const match = result.output.match(/sessionId['":\s]+([a-f0-9-]+)/i);
+                  if (match) return match[1];
+                }
+                
+                return '';
+              })()}
+              command={toolCall.arguments.command}
+              maxLines={5}
+            />
           ) : (
             <pre className={`text-[11px] font-mono p-3 rounded-xl border border-glass-border overflow-x-auto max-h-[250px] ${
               result.success 

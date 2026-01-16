@@ -53,6 +53,61 @@ export interface AgentChatOptions {
 
 const AGENT_TOOLS = [
   {
+    name: 'create_terminal',
+    description: 'Create a new terminal session for executing commands. Returns a session ID that can be used to execute commands and read output. Use this when you need to run multiple commands in the same terminal context or maintain state across commands.',
+    parameters: {
+      type: 'object',
+      properties: {
+        workspaceRoot: { type: 'string', description: 'Optional workspace root directory for the terminal session. Commands will execute relative to this directory.' },
+        type: { type: 'string', description: "Type of terminal to create: 'shell' (default) or 'codex'" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'execute_command',
+    description: 'Execute a command in a specific terminal session. The command will be sent to the terminal and executed asynchronously. Use read_output to get the results.',
+    parameters: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: 'The session ID of the terminal to execute the command in (from create_terminal)' },
+        command: { type: 'string', description: 'The command to execute (newline will be automatically appended)' },
+      },
+      required: ['sessionId', 'command'],
+    },
+  },
+  {
+    name: 'read_output',
+    description: 'Read output from a terminal session. Returns all output since the last read, including stdout and stderr.',
+    parameters: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: 'The session ID of the terminal to read from' },
+      },
+      required: ['sessionId'],
+    },
+  },
+  {
+    name: 'list_terminals',
+    description: 'List all active terminal sessions with their current states. Useful for discovering available terminals.',
+    parameters: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'inspect_terminal',
+    description: 'Get detailed state information about a specific terminal session, including command history and current output.',
+    parameters: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: 'The session ID of the terminal to inspect' },
+      },
+      required: ['sessionId'],
+    },
+  },
+  {
     name: 'shell',
     description: 'Execute a shell command and return its output. Use for running terminal commands, scripts, or system operations.',
     parameters: {

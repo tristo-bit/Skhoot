@@ -1,5 +1,173 @@
 # Development Log
 
+## January 16, 2026
+
+### Terminal Session ID Extraction & Stale Reference Fixes ✅
+- **Bug Fix**: Mini terminal view now correctly extracts sessionId from tool results
+- **Bug Fix**: Stale terminal session references are detected and handled gracefully
+- **Issue**: Chat was messy with "session not found" errors and empty mini terminal views
+
+**Problems Identified**:
+1. **SessionId Extraction Failure**: Mini terminal view couldn't extract sessionId when AI used `execute_command` without explicit sessionId parameter
+2. **Stale Terminal References**: `create_terminal` would return sessionId of a closed terminal, causing "session not found" errors
+3. **Empty Output**: Mini terminal view showed "Waiting for output..." but never received data due to wrong sessionId
+
+**Fixes Applied**:
+
+1. **Improved SessionId Extraction** (`AgentAction.tsx`):
+   ```typescript
+   // Multi-strategy extraction:
+   // 1. Try toolCall.arguments.sessionId
+   // 2. Parse JSON from result.output
+   // 3. Fallback to regex matching
+   ```
+   - Handles cases where sessionId is in result instead of arguments
+   - Robust parsing with multiple fallback strategies
+
+2. **Stale Terminal Detection** (`terminalTools.ts`):
+   ```typescript
+   // Before returning existing terminal, verify it still exists
+   const session = terminalService.getSession(existingTerminal);
+   if (!session) {
+     // Terminal was closed, remove from context and create new one
+     terminalContextStore.remove(existingTerminal);
+   }
+   ```
+   - Validates terminal still exists before returning it
+   - Automatically cleans up stale references
+   - Creates new terminal if old one was closed
+
+**Result**:
+- ✅ Mini terminal view receives correct sessionId
+- ✅ No more "session not found" errors
+- ✅ Terminal output displays correctly in chat
+- ✅ Graceful handling of closed/stale terminals
+
+**Files Modified**:
+- `components/conversations/AgentAction.tsx` - Improved sessionId extraction
+- `services/agentTools/terminalTools.ts` - Added stale terminal detection
+
+---
+
+### Conversation-Scoped Terminal Sessions + Mini Terminal View in Chat ✅
+- **Feature**: Each conversation now gets its own dedicated terminal session
+- **Feature**: Terminal commands display live output in chat with mini terminal view
+- **Feature**: AI automatically reuses conversation terminal instead of creating new ones
+- **UX**: Terminal panel doesn't auto-open for conversation terminals (only for explicit create_terminal calls)
+- **UX**: Terminal tabs show only AI badge icon, not "Shell (AI)" text for cleaner look
+
+**What Changed**:
+
+1. **Auto-Created Terminal Per Conversation**:
+   - When agent mode is enabled, a terminal session is automatically created
+   - Terminal is registered as AI-created and tracked with the agent session
+   - Terminal appears in Terminal Panel with AI badge
+   - Terminal persists for the entire conversation lifecycle
+
+2. **Smart Terminal Reuse**:
+   - `execute_command` tool now automatically uses conversation's terminal if no sessionId provided
+   - `create_terminal` tool checks for existing terminal and reuses it
+   - Prevents terminal proliferation - one terminal per conversation
+   - Terminal context store tracks agent session → terminal session mapping
+
+3. **Mini Terminal View in Chat**:
+   - New `MiniTerminalView` component shows last 5 lines of terminal output
+   - Displays inline in chat when AI executes commands
+   - Shows command being executed in header
+   - "Expand" button opens full Terminal Panel and focuses the session
+   - Real-time output streaming from terminal service
+   - Auto-scrolls to show latest output
+
+4. **Terminal Session Management**:
+   - `useAgentLogTab` hook now creates and manages terminal sessions
+   - Terminal sessions closed when conversation/agent session closes
+   - Terminal session ID accessible via `getTerminalSessionId()`
+   - Proper cleanup on unmount
+
+**Files Modified**:
+- `hooks/useAgentLogTab.ts` - Create terminal on agent session creation, track terminal sessions
+- `services/agentTools/terminalTools.ts` - Smart terminal reuse, agent session → terminal mapping
+- `components/conversations/MiniTerminalView.tsx` - NEW: Mini terminal view component
+- `components/conversations/AgentAction.tsx` - Integrate mini terminal for execute_command/shell tools
+- `components/terminal/TerminalView.tsx` - Handle focus-terminal-session event
+
+**User Experience**:
+- AI starts conversation → terminal automatically created (panel stays closed)
+- AI runs command → mini terminal shows output in chat
+- User clicks expand → full terminal panel opens with complete history
+- One terminal per conversation = cleaner, more organized
+- Terminal output visible without leaving chat
+- Terminal panel only opens when explicitly needed (user clicks expand or AI explicitly creates terminal)
+- Clean terminal tabs with just AI badge icon
+
+---
+
+### AI Terminal Display Feature + Critical Session Cleanup Bug Fix ✅
+- **Feature**: AI-created terminals now automatically display in Terminal Panel with visual indicators
+- **Critical Bug Fixed**: Terminal sessions were being closed immediately after creation due to incorrect useEffect dependency
+
+**The Problem**:
+1. AI would create terminal sessions successfully
+2. Sessions would immediately disappear (session not found errors)
+3. `list_terminals` would return empty array even though sessions were just created
+4. Terminal output from AI commands was never displayed
+
+**Root Cause**:
+Both `TerminalView.tsx` and `TerminalPanel.tsx` had cleanup useEffect with `[tabs]` dependency:
+```typescript
+useEffect(() => {
+  return () => {
+    tabs.forEach(tab => terminalService.closeSession(tab.sessionId));
+  };
+}, [tabs]); // ❌ BUG: Cleanup runs every time tabs changes!
+```
+
+This meant:
+- AI creates terminal → tab added to `tabs` array
+- `tabs` array changes → useEffect cleanup runs
+- Cleanup closes ALL sessions including the one just created
+- Result: Session exists for milliseconds then disappears
+
+**Fix Applied**:
+1. Added `tabsRef` to track current tabs without triggering effects
+2. Changed cleanup to only run on unmount (empty dependency array)
+3. Cleanup now uses `tabsRef.current` to access latest tabs at unmount time
+
+```typescript
+const tabsRef = useRef<TerminalTab[]>([]);
+
+useEffect(() => {
+  tabsRef.current = tabs;
+}, [tabs]);
+
+useEffect(() => {
+  return () => {
+    tabsRef.current.forEach(tab => terminalService.closeSession(tab.sessionId));
+  };
+}, []); // ✅ Only runs on unmount
+```
+
+**AI Terminal Display Feature**:
+1. **Event-Based Communication**: When AI creates terminal via `create_terminal` tool, emits `ai-terminal-created` event
+2. **Auto-Display**: Terminal components listen for event and automatically create tabs
+3. **Auto-Open Panel**: App.tsx opens Terminal Panel when AI creates terminal
+4. **Visual Indicators**:
+   - AI badge (cyan) on terminal tabs
+   - Workspace root displayed in terminal header
+   - "AI Controlled" label for clarity
+
+**Files Modified**:
+- `services/agentTools/terminalTools.ts` - Emit `ai-terminal-created` event
+- `components/terminal/TerminalView.tsx` - Listen for AI terminals, show badges, fix cleanup bug
+- `components/terminal/TerminalPanel.tsx` - Listen for AI terminals, show badges, fix cleanup bug
+- `App.tsx` - Auto-open terminal panel on AI terminal creation
+- `.kiro/specs/skhoot-v0.1.5/tasks.md` - Marked task 1.9 complete
+- `documentation/ai-terminal-display.md` - Comprehensive feature documentation
+
+**Testing**: Property-based tests in `terminalTools.test.ts` validate AI terminal tracking
+
+---
+
 ## January 14, 2026
 
 ### GitHub Release Workflow - Fixed Extra Files Leak ✅
