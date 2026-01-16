@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Plus, X, MessageSquare, LogIn, LogOut } from 'lucide-react';
 import { Chat, User } from '../../types';
@@ -25,21 +25,28 @@ SkhootLogo.displayName = 'SkhootLogo';
 
 const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onDeleteChat, chats, currentChatId, user, onSignIn, onSignOut, isOpen }) => {
   const { showBranding } = useTheme();
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  
+  // Find the app-shell container for portal rendering
+  useEffect(() => {
+    const appShell = document.querySelector('.app-shell');
+    if (appShell) {
+      setPortalContainer(appShell as HTMLElement);
+    }
+  }, []);
   
   const sidebar = (
     <div 
       data-sidebar
-      className={`fixed top-0 left-0 bottom-0 z-50 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+      className={`absolute top-0 left-0 bottom-0 z-50 transition-transform duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
       style={{ 
         width: '16rem',
-        borderRadius: 'var(--app-radius)',
       }}
     >
       <div 
-        className="w-full h-full border-r border-black/5 flex flex-col relative glass" 
-        style={{ borderRadius: 'var(--app-radius) 0 0 var(--app-radius)' }}
+        className="w-full h-full border-r border-black/5 flex flex-col relative glass"
       >
       
       {/* Sidebar Header */}
@@ -103,8 +110,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onD
     </div>
   );
 
-  // Render via portal to escape parent stacking context
-  return createPortal(sidebar, document.body);
+  // Render inside app-shell to respect its overflow:hidden and border-radius
+  if (!portalContainer) return null;
+  return createPortal(sidebar, portalContainer);
 };
 
 interface ChatItemProps {
