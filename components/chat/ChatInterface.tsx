@@ -856,7 +856,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       try {
         // Check if we're in Tauri environment
         if (typeof window !== 'undefined' && (window as any).__TAURI__) {
-          const { readBinaryFile } = await import('@tauri-apps/plugin-fs');
+          const { readBinaryFile } = await import(/* @vite-ignore */ '@tauri-apps/plugin-fs');
           console.log(`[ChatInterface] Reading file with Tauri: ${filePath}`);
           const contents = await readBinaryFile(filePath);
           return contents;

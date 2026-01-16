@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { agentService, AgentSessionOptions } from '../services/agentService';
 import { terminalService } from '../services/terminalService';
 import { terminalContextStore } from '../services/agentTools/terminalTools';
+import { isTauriApp } from '../services/tauriDetection';
 
 export interface AgentLogTabState {
   /** Whether agent mode is enabled */
@@ -94,6 +95,9 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
   
   // Track if we've auto-enabled
   const hasAutoEnabled = useRef(false);
+  
+  // Ref to hold the latest enableAgentMode function
+  const enableAgentModeRef = useRef<(() => Promise<void>) | null>(null);
 
   // Generate session ID for a conversation
   const generateSessionId = useCallback((convId: string) => {
@@ -102,6 +106,17 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
 
   // Enable agent mode - defined early so it can be used in useEffect
   const enableAgentMode = useCallback(async () => {
+    // Check if we're in Tauri mode - agent features require Tauri
+    if (!isTauriApp()) {
+      console.log('[useAgentLogTab] Not in Tauri mode, agent features unavailable');
+      setState(prev => ({
+        ...prev,
+        isCreatingSession: false,
+        error: 'Agent mode requires the Tauri desktop app. Run "npm run tauri dev" to use agent features.',
+      }));
+      return;
+    }
+    
     // Check current state to avoid duplicate creation
     const currentState = stateRef.current;
     if (currentState.isCreatingSession || currentState.isAgentMode) {
@@ -176,33 +191,51 @@ export function useAgentLogTab(options: UseAgentLogTabOptions): UseAgentLogTabRe
     }
   }, [conversationId, defaultOptions, generateSessionId, onAgentModeChange, onSessionCreated]);
 
-  // Auto-enable agent mode on first mount if it's the default
+  // Keep ref updated with latest enableAgentMode
   useEffect(() => {
-    if (!hasAutoEnabled.current && getDefaultAgentMode()) {
-      hasAutoEnabled.current = true;
-      console.log('[useAgentLogTab] Auto-enabling agent mode on mount');
+    enableAgentModeRef.current = enableAgentMode;
+  }, [enableAgentMode]);
+
+  // Auto-enable agent mode on first mount if it's the default (only in Tauri mode)
+  useEffect(() => {
+    // Use a small delay to ensure Tauri globals are initialized
+    const checkAndEnable = async () => {
+      // Wait a tick for Tauri to initialize
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Retry logic for session creation (backend might not be ready immediately)
-      const attemptEnable = async (retries = 3, delay = 500) => {
-        for (let i = 0; i < retries; i++) {
+      // Skip auto-enable in web mode - agent features require Tauri
+      if (!isTauriApp()) {
+        console.log('[useAgentLogTab] Skipping auto-enable in web mode');
+        return;
+      }
+      
+      if (!hasAutoEnabled.current && getDefaultAgentMode()) {
+        hasAutoEnabled.current = true;
+        console.log('[useAgentLogTab] Auto-enabling agent mode on mount');
+        
+        // Retry logic for session creation (backend might not be ready immediately)
+        for (let i = 0; i < 3; i++) {
           try {
-            await new Promise(resolve => setTimeout(resolve, delay));
-            await enableAgentMode();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            // Use ref to get latest enableAgentMode function
+            if (enableAgentModeRef.current) {
+              await enableAgentModeRef.current();
+            }
             console.log('[useAgentLogTab] Agent mode enabled successfully');
             return;
           } catch (error) {
-            console.warn(`[useAgentLogTab] Enable attempt ${i + 1}/${retries} failed:`, error);
-            if (i < retries - 1) {
-              await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+            console.warn(`[useAgentLogTab] Enable attempt ${i + 1}/3 failed:`, error);
+            if (i < 2) {
+              await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
             }
           }
         }
         console.error('[useAgentLogTab] Failed to auto-enable agent mode after retries');
-      };
-      
-      attemptEnable();
-    }
-  }, [enableAgentMode, getDefaultAgentMode]);
+      }
+    };
+    
+    checkAndEnable();
+  }, []); // Empty deps - only run once on mount
 
   // Disable agent mode (keeps log visible for reference)
   const disableAgentMode = useCallback(async () => {

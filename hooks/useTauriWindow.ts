@@ -7,7 +7,7 @@ export const useTauriWindow = () => {
   // Handle window close
   const handleClose = useCallback(async () => {
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps/api/window');
       await getCurrentWindow().close();
     } catch {
       window.close();
@@ -17,7 +17,7 @@ export const useTauriWindow = () => {
   // Handle window minimize
   const handleMinimize = useCallback(async () => {
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps/api/window');
       await getCurrentWindow().minimize();
     } catch {
       // noop - not in Tauri environment (web version)
@@ -27,7 +27,7 @@ export const useTauriWindow = () => {
   // Start window drag
   const startWindowDrag = useCallback(async () => {
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps/api/window');
       await getCurrentWindow().startDragging();
     } catch {
       // noop - not in Tauri environment
@@ -52,7 +52,7 @@ export const useTauriWindow = () => {
   // Handle resize
   const handleResizeStart = useCallback(async (direction: ResizeDirection) => {
     try {
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps/api/window');
       await getCurrentWindow().startResizeDragging(direction);
     } catch {
       // noop - not in Tauri environment
@@ -66,7 +66,7 @@ export const useTauriWindow = () => {
 
     (async () => {
       try {
-        const { getCurrentWindow, currentMonitor } = await import('@tauri-apps/api/window');
+        const { getCurrentWindow, currentMonitor } = await import(/* @vite-ignore */ '@tauri-apps/api/window');
         const win = getCurrentWindow();
 
         const updateRadius = async () => {

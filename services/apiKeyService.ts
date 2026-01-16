@@ -78,7 +78,7 @@ class APIKeyService {
     // Wait for invoke to be loaded
     if (!this.tauriInvoke) {
       try {
-        const module = await import('@tauri-apps/api/core');
+        const module = await import(/* @vite-ignore */ '@tauri-apps/api/core');
         this.tauriInvoke = module.invoke;
         return true;
       } catch {

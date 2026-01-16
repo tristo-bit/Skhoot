@@ -10,7 +10,13 @@
  * @returns true if running in Tauri, false if running in browser
  */
 export function isTauriApp(): boolean {
-  return typeof window !== 'undefined' && !!(window as any).__TAURI__;
+  if (typeof window === 'undefined') return false;
+  // Tauri v1 uses __TAURI__, Tauri v2 uses __TAURI_INTERNALS__
+  const hasTauriV1 = !!(window as any).__TAURI__;
+  const hasTauriV2 = !!(window as any).__TAURI_INTERNALS__;
+  const result = hasTauriV1 || hasTauriV2;
+  console.log('[TauriDetection] isTauriApp check:', { hasTauriV1, hasTauriV2, result });
+  return result;
 }
 
 /**
