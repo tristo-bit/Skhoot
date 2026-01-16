@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Message } from '../../types';
 import { MarkdownRenderer } from '../ui';
 import { FileList } from './FileList';
@@ -8,7 +8,7 @@ import { CleanupList } from './CleanupList';
 import { AgentAction } from './AgentAction';
 import { MiniTerminalView } from './MiniTerminalView';
 import { Button } from '../buttonFormat';
-import { ArrowRight, FileText, Paperclip } from 'lucide-react';
+import { ArrowRight, FileText, Paperclip, Edit2, Check, X } from 'lucide-react';
 
 // Check if message is the "No AI provider configured" warning
 const isApiConfigWarning = (content: string): boolean => {
@@ -20,9 +20,15 @@ const handleGoToApiConfig = () => {
   window.dispatchEvent(new CustomEvent('open-api-config'));
 };
 
-export const MessageBubble = memo<{ message: Message }>(({ message }) => {
+export const MessageBubble = memo<{ 
+  message: Message;
+  onEdit?: (messageId: string, newContent: string) => void;
+  onRegenerateFrom?: (messageId: string, newContent: string) => void;
+}>(({ message, onEdit, onRegenerateFrom }) => {
   const isUser = message.role === 'user';
   const showApiConfigButton = !isUser && isApiConfigWarning(message.content);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(message.content);
   
   if (!isUser) {
     // AI message - no bubble, markdown rendered with theme colors
@@ -232,38 +238,160 @@ export const MessageBubble = memo<{ message: Message }>(({ message }) => {
   // User message - embossed bubble
   return (
     <div 
-      className="flex justify-end animate-in fade-in slide-in-from-bottom-2 duration-300 contain-content"
+      className="flex justify-end animate-in fade-in slide-in-from-bottom-2 duration-300 contain-content group"
       data-message-id={message.id}
     >
       <div 
-        className="max-w-[90%] p-4 rounded-3xl rounded-tr-none border-glass-border glass-subtle"
+        className="max-w-[90%] p-4 rounded-3xl rounded-tr-none border-glass-border glass-subtle relative"
         style={{
           boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.1)',
         }}
       >
+        {/* Edit button - shows on hover */}
+        {!isEditing && onEdit && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="absolute top-2 right-2 p-1.5 rounded-lg glass-subtle hover:glass-elevated opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Edit message"
+          >
+            <Edit2 size={12} className="text-text-secondary" />
+          </button>
+        )}
+
         {/* Attached Files Indicator */}
         {message.attachedFiles && message.attachedFiles.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-glass-border">
-            <div className="flex items-center gap-1 text-emerald-500 text-[10px] font-medium">
+            <div className="flex items-center gap-1 text-text-secondary text-[10px] font-medium">
               <Paperclip size={10} />
               <span>{message.attachedFiles.length} file{message.attachedFiles.length !== 1 ? 's' : ''} attached:</span>
             </div>
-            {message.attachedFiles.map((file) => (
-              <div
-                key={file.fileName}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-medium"
-                title={file.filePath}
-              >
-                <FileText size={10} />
-                <span className="truncate max-w-[80px]">{file.fileName}</span>
-              </div>
-            ))}
+            {message.attachedFiles.map((file) => {
+              // Get file type info for color
+              const getFileExtension = (fileName: string): string => {
+                const parts = fileName.split('.');
+                return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+              };
+              
+              const getFileColor = (fileName: string): string => {
+                const ext = getFileExtension(fileName);
+                
+                // Images - violet
+                if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico'].includes(ext)) {
+                  return '#c0b7c9';
+                }
+                // Videos - pink
+                if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm'].includes(ext)) {
+                  return '#ec4899';
+                }
+                // Audio - blue
+                if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac'].includes(ext)) {
+                  return '#3b82f6';
+                }
+                // Code - cyan
+                if (['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c', 'h', 'css', 'html', 'json', 'xml', 'yaml', 'yml', 'sh', 'bash'].includes(ext)) {
+                  return '#06b6d4';
+                }
+                // Archives - orange
+                if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2'].includes(ext)) {
+                  return '#f97316';
+                }
+                // Documents - emerald (default)
+                return '#10b981';
+              };
+              
+              const fileColor = getFileColor(file.fileName);
+              
+              return (
+                <div
+                  key={file.fileName}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                  style={{
+                    backgroundColor: `${fileColor}20`,
+                    color: fileColor,
+                  }}
+                  title={file.filePath}
+                >
+                  <FileText size={10} />
+                  <span className="truncate max-w-[80px]">{file.fileName}</span>
+                </div>
+              );
+            })}
           </div>
         )}
         
-        <p className="text-[13px] leading-relaxed font-semibold font-jakarta text-text-primary">
-          {message.content}
-        </p>
+        {/* Message content - editable or display */}
+        {isEditing ? (
+          <div className="space-y-2">
+            <textarea
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              className="w-full p-2 rounded-lg glass-subtle text-[13px] leading-relaxed font-semibold font-jakarta text-text-primary resize-none focus:outline-none focus:ring-2"
+              style={{ borderColor: '#c0b7c9' }}
+              rows={3}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.ctrlKey) {
+                  e.preventDefault();
+                  if (onEdit && editedContent.trim()) {
+                    onEdit(message.id, editedContent.trim());
+                    setIsEditing(false);
+                    // Trigger regeneration from this point with new content
+                    if (onRegenerateFrom) {
+                      onRegenerateFrom(message.id, editedContent.trim());
+                    }
+                  }
+                } else if (e.key === 'Escape') {
+                  setEditedContent(message.content);
+                  setIsEditing(false);
+                }
+              }}
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setEditedContent(message.content);
+                  setIsEditing(false);
+                }}
+                className="px-3 py-1.5 rounded-lg glass-subtle hover:glass-elevated text-[11px] font-medium text-text-secondary transition-colors flex items-center gap-1"
+              >
+                <X size={12} />
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (onEdit && editedContent.trim()) {
+                    onEdit(message.id, editedContent.trim());
+                    setIsEditing(false);
+                    // Trigger regeneration from this point with new content
+                    if (onRegenerateFrom) {
+                      onRegenerateFrom(message.id, editedContent.trim());
+                    }
+                  }
+                }}
+                disabled={!editedContent.trim() || editedContent === message.content}
+                className="px-3 py-1.5 rounded-lg text-white text-[11px] font-medium transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#c0b7c9' }}
+                onMouseEnter={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.backgroundColor = '#b0a7b9';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!e.currentTarget.disabled) {
+                    e.currentTarget.style.backgroundColor = '#c0b7c9';
+                  }
+                }}
+              >
+                <Check size={12} />
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-[13px] leading-relaxed font-semibold font-jakarta text-text-primary">
+            {message.content}
+          </p>
+        )}
       </div>
     </div>
   );

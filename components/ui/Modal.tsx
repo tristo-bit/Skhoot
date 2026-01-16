@@ -32,14 +32,22 @@ export const Modal: React.FC<ModalProps> = ({
   showClose = true,
   closeAriaLabel = 'Close',
 }) => {
+  // Prevent default drag behavior on the modal to allow drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   const modal = (
     <div
       className={`modal-overlay fixed inset-0 z-50 flex items-center justify-center ${overlayClassName}`}
       onClick={onClose}
+      onDragOver={handleDragOver}
     >
       <div
         className={`modal-panel glass-elevated animate-in zoom-in-95 duration-300 flex flex-col ${panelClassName}`}
         onClick={(e) => e.stopPropagation()}
+        onDragOver={handleDragOver}
       >
         {(title || headerContent || showClose) && (
           <div className={`modal-header flex items-center justify-between ${headerClassName}`}>

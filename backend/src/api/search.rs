@@ -31,6 +31,7 @@ pub fn search_routes() -> Router<crate::AppState> {
         .route("/files/properties", post(show_file_properties))
         .route("/files/open-with", post(open_with_dialog))
         .route("/files/read", get(read_file_content))
+        .route("/files/image", get(read_image_file))
 }
 
 #[allow(dead_code)]
@@ -950,6 +951,65 @@ pub async fn read_file_content(
         Err(e) => {
             tracing::error!("Failed to read file {:?}: {}", absolute_path, e);
             Err(AppError::Internal(format!("Failed to read file: {}", e)))
+        }
+    }
+}
+
+/// Read image file as binary data
+pub async fn read_image_file(
+    Query(params): Query<HashMap<String, String>>,
+) -> Result<axum::response::Response, AppError> {
+    use axum::response::IntoResponse;
+    use axum::http::header;
+    
+    let path_str = params.get("path")
+        .ok_or_else(|| AppError::BadRequest("Missing 'path' parameter".to_string()))?;
+    
+    let path = PathBuf::from(path_str);
+    
+    let absolute_path = if path.is_absolute() {
+        path
+    } else {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+            .join(&path)
+    };
+    
+    tracing::info!("Reading image file: {:?}", absolute_path);
+    
+    // Check if file exists
+    if !absolute_path.exists() {
+        return Err(AppError::NotFound(format!("File not found: {}", absolute_path.display())));
+    }
+    
+    // Check if it's a file (not a directory)
+    if !absolute_path.is_file() {
+        return Err(AppError::BadRequest(format!("Path is not a file: {}", absolute_path.display())));
+    }
+    
+    // Determine MIME type from extension
+    let mime_type = match absolute_path.extension().and_then(|e| e.to_str()) {
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("png") => "image/png",
+        Some("gif") => "image/gif",
+        Some("bmp") => "image/bmp",
+        Some("webp") => "image/webp",
+        Some("svg") => "image/svg+xml",
+        Some("ico") => "image/x-icon",
+        _ => "application/octet-stream",
+    };
+    
+    // Read file as binary
+    match tokio::fs::read(&absolute_path).await {
+        Ok(bytes) => {
+            Ok((
+                [(header::CONTENT_TYPE, mime_type)],
+                bytes
+            ).into_response())
+        }
+        Err(e) => {
+            tracing::error!("Failed to read image file {:?}: {}", absolute_path, e);
+            Err(AppError::Internal(format!("Failed to read image file: {}", e)))
         }
     }
 }

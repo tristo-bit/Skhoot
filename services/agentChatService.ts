@@ -23,6 +23,7 @@ export interface AgentChatMessage {
   toolCalls?: AgentToolCall[];
   toolCallId?: string;
   toolResults?: ToolResult[];
+  images?: Array<{ fileName: string; base64: string; mimeType: string }>;
 }
 
 export interface AgentChatResponse {
@@ -42,6 +43,7 @@ export interface AgentChatOptions {
   maxTokens?: number;
   /** Custom endpoint URL (for custom providers) */
   customEndpoint?: string;
+  images?: Array<{ fileName: string; base64: string; mimeType: string }>;
   onToolStart?: (toolCall: AgentToolCall) => void;
   onToolComplete?: (result: ToolResult) => void;
   onStatusUpdate?: (status: string) => void;
@@ -241,6 +243,25 @@ function getAgentSystemPrompt(provider: string, model: string, workingDirectory:
     ? `\nModel capabilities: ${capabilities.toolCalling ? 'Tool calling ✓' : 'No tool calling'}, Context: ${capabilities.contextWindow} tokens`
     : '';
 
+  // Check if model supports vision
+  const visionModels = [
+    'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4-vision-preview',
+    'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash',
+    'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'
+  ];
+  
+  const supportsVision = visionModels.some(vm => model.toLowerCase().includes(vm.toLowerCase()));
+  
+  const visionCapabilities = supportsVision ? `
+
+VISION CAPABILITIES:
+- You CAN see and analyze images that users attach to their messages
+- You have OCR capabilities to read text from images (screenshots, documents, signs, etc.)
+- You can describe what's in images, identify objects, people, and scenes
+- You can answer questions about image content
+- When users attach images, analyze them and respond based on what you see
+- NEVER say you cannot see images - you have full vision capabilities` : '';
+
   return `You are Skhoot Agent, an AI coding and system assistant running in the Skhoot application. You are expected to be precise, safe, and helpful.
 
 IDENTITY:
@@ -253,7 +274,7 @@ CAPABILITIES:
 - Read file contents using 'read_file' (any file on the system)
 - Write/modify files using 'write_file' (create, edit, or append to files)
 - List directory contents using 'list_directory' (explore the filesystem)
-- Search for files using 'search_files' (find files by name or content)
+- Search for files using 'search_files' (find files by name or content)${visionCapabilities}
 
 WORKING DIRECTORY: ${workingDirectory}
 
@@ -535,7 +556,24 @@ class AgentChatService {
       ...this.convertHistoryToOpenAI(history),
     ];
 
-    if (message) {
+    // Add current message with images if provided
+    if (options.images && options.images.length > 0) {
+      console.log('[AgentChatService] Adding images to message:', options.images.length, 'images');
+      messages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: message },
+          ...options.images.map(img => ({
+            type: 'image_url',
+            image_url: {
+              url: `data:${img.mimeType};base64,${img.base64}`,
+              detail: 'high'
+            }
+          }))
+        ]
+      });
+      options.onStatusUpdate?.(`Analyzing ${options.images.length} image(s) with ${provider}...`);
+    } else if (message) {
       messages.push({ role: 'user', content: message });
     }
 
@@ -608,7 +646,24 @@ class AgentChatService {
     const workingDirectory = (await agentService.getConfig(options.sessionId))?.workingDirectory || '.';
     
     const messages = this.convertHistoryToAnthropic(history);
-    if (message) {
+    
+    // Add current message with images if provided
+    if (options.images && options.images.length > 0) {
+      console.log('[AgentChatService] Adding images to message:', options.images.length, 'images');
+      const content: any[] = [{ type: 'text', text: message }];
+      options.images.forEach(img => {
+        content.push({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: img.mimeType,
+            data: img.base64
+          }
+        });
+      });
+      messages.push({ role: 'user', content });
+      options.onStatusUpdate?.(`Analyzing ${options.images.length} image(s) with ${provider}...`);
+    } else if (message) {
       messages.push({ role: 'user', content: message });
     }
 
@@ -683,9 +738,22 @@ class AgentChatService {
     const workingDirectory = (await agentService.getConfig(options.sessionId))?.workingDirectory || '.';
     
     const contents = this.convertHistoryToGemini(history);
-    if (message) {
-      contents.push({ role: 'user', parts: [{ text: message }] });
+    
+    // Add current message with images if provided
+    const currentParts: any[] = [{ text: message }];
+    if (options.images && options.images.length > 0) {
+      console.log('[AgentChatService] Adding images to message:', options.images.length, 'images');
+      options.images.forEach(img => {
+        currentParts.push({
+          inlineData: {
+            mimeType: img.mimeType,
+            data: img.base64
+          }
+        });
+      });
+      options.onStatusUpdate?.(`Analyzing ${options.images.length} image(s) with ${provider}...`);
     }
+    contents.push({ role: 'user', parts: currentParts });
 
     const body: any = {
       contents,
@@ -751,7 +819,24 @@ class AgentChatService {
 
     for (const msg of history) {
       if (msg.role === 'user') {
-        messages.push({ role: 'user', content: msg.content });
+        if (msg.images && msg.images.length > 0) {
+          // User message with images
+          messages.push({
+            role: 'user',
+            content: [
+              { type: 'text', text: msg.content },
+              ...msg.images.map(img => ({
+                type: 'image_url',
+                image_url: {
+                  url: `data:${img.mimeType};base64,${img.base64}`,
+                  detail: 'high'
+                }
+              }))
+            ]
+          });
+        } else {
+          messages.push({ role: 'user', content: msg.content });
+        }
       } else if (msg.role === 'assistant') {
         const assistantMsg: any = { role: 'assistant', content: msg.content };
         if (msg.toolCalls) {
@@ -779,7 +864,19 @@ class AgentChatService {
 
     for (const msg of history) {
       if (msg.role === 'user') {
-        contents.push({ role: 'user', parts: [{ text: msg.content }] });
+        const parts: any[] = [{ text: msg.content }];
+        if (msg.images && msg.images.length > 0) {
+          // Add images as inline data
+          msg.images.forEach(img => {
+            parts.push({
+              inlineData: {
+                mimeType: img.mimeType,
+                data: img.base64
+              }
+            });
+          });
+        }
+        contents.push({ role: 'user', parts });
       } else if (msg.role === 'assistant') {
         const parts: any[] = [];
         if (msg.content) {
@@ -807,7 +904,23 @@ class AgentChatService {
 
     for (const msg of history) {
       if (msg.role === 'user') {
-        messages.push({ role: 'user', content: msg.content });
+        if (msg.images && msg.images.length > 0) {
+          // User message with images
+          const content: any[] = [{ type: 'text', text: msg.content }];
+          msg.images.forEach(img => {
+            content.push({
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: img.mimeType,
+                data: img.base64
+              }
+            });
+          });
+          messages.push({ role: 'user', content });
+        } else {
+          messages.push({ role: 'user', content: msg.content });
+        }
       } else if (msg.role === 'assistant') {
         const content: any[] = [];
         if (msg.content) {

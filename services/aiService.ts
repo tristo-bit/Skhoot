@@ -15,6 +15,11 @@ export type AIProvider = 'openai' | 'google' | 'anthropic' | 'custom';
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  images?: Array<{
+    fileName: string;
+    base64: string;
+    mimeType: string;
+  }>;
 }
 
 export interface AIResponse {
@@ -516,6 +521,32 @@ class AIService {
    * Get the system prompt for Skhoot with file search capabilities
    */
   private getSystemPrompt(provider: AIProvider, model: string): string {
+    // Check if model supports vision - use exact model name matching
+    const visionModels = [
+      'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4-vision-preview', 
+      'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash',
+      'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'
+    ];
+    
+    // Check if the model name contains any of the vision model identifiers
+    const supportsVision = visionModels.some(vm => model.toLowerCase().includes(vm.toLowerCase()));
+    
+    console.log('[aiService] Vision support check:', {
+      model,
+      supportsVision,
+      matchedModel: visionModels.find(vm => model.toLowerCase().includes(vm.toLowerCase()))
+    });
+    
+    const visionCapabilities = supportsVision ? `
+
+VISION CAPABILITIES:
+- You CAN see and analyze images that users attach to their messages
+- You have OCR capabilities to read text from images (screenshots, documents, signs, etc.)
+- You can describe what's in images, identify objects, people, and scenes
+- You can answer questions about image content
+- When users attach images, analyze them and respond based on what you see
+- NEVER say you cannot see images - you have full vision capabilities` : '';
+    
     return `You are Skhoot, a helpful desktop assistant.
 
 CRITICAL IDENTITY RULES (NEVER IGNORE):
@@ -529,7 +560,9 @@ YOUR CAPABILITIES:
 - Finding files on the user's computer using the findFile function
 - Searching inside file contents using the searchContent function
 - Answering questions and providing helpful information
-- Assisting with various tasks
+- Assisting with various tasks${visionCapabilities}
+- Answering questions and providing helpful information
+- Assisting with various tasks${visionCapabilities}
 
 IMPORTANT - AGENT MODE:
 - For system commands, terminal operations, or questions about the computer (disk space, processes, system info), tell the user to enable Agent Mode
@@ -556,7 +589,8 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
   async chat(
     message: string,
     history: AIMessage[] = [],
-    onStatusUpdate?: (status: string) => void
+    onStatusUpdate?: (status: string) => void,
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>
   ): Promise<AIResponse> {
     const provider = await this.getActiveProvider();
     
@@ -575,13 +609,13 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
       
       switch (provider) {
         case 'openai':
-          return await this.chatWithOpenAI(apiKey, message, history, onStatusUpdate);
+          return await this.chatWithOpenAI(apiKey, message, history, onStatusUpdate, images);
         case 'google':
-          return await this.chatWithGoogle(apiKey, message, history, onStatusUpdate);
+          return await this.chatWithGoogle(apiKey, message, history, onStatusUpdate, images);
         case 'anthropic':
-          return await this.chatWithAnthropic(apiKey, message, history, onStatusUpdate);
+          return await this.chatWithAnthropic(apiKey, message, history, onStatusUpdate, images);
         case 'custom':
-          return await this.chatWithCustom(apiKey, message, history, onStatusUpdate);
+          return await this.chatWithCustom(apiKey, message, history, onStatusUpdate, images);
         default:
           throw new Error(`Unknown provider: ${provider}`);
       }
@@ -596,26 +630,100 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
   }
 
   /**
-   * Chat with OpenAI (with function calling)
+   * Chat with OpenAI (with function calling and vision support)
    */
   private async chatWithOpenAI(
     apiKey: string,
     message: string,
     history: AIMessage[],
-    onStatusUpdate?: (status: string) => void
+    onStatusUpdate?: (status: string) => void,
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>
   ): Promise<AIResponse> {
     onStatusUpdate?.('Connecting to OpenAI...');
+    
+    console.log('[aiService] chatWithOpenAI called with:', {
+      messageLength: message.length,
+      historyLength: history.length,
+      imagesCount: images?.length || 0,
+      historyWithImages: history.filter(m => m.images && m.images.length > 0).length
+    });
     
     const savedModel = await apiKeyService.loadModel('openai');
     const model = savedModel || this.config.customModel || PROVIDER_CONFIGS.openai.defaultModel;
     
-    const messages = [
+    // Build messages with vision support
+    const messages: any[] = [
       { role: 'system', content: this.getSystemPrompt('openai', model) },
-      ...history.map(m => ({ role: m.role, content: m.content })),
-      { role: 'user', content: message },
+      ...history.map(m => {
+        if (m.images && m.images.length > 0) {
+          // Message with images - use vision format
+          return {
+            role: m.role,
+            content: [
+              { type: 'text', text: m.content },
+              ...m.images.map(img => ({
+                type: 'image_url',
+                image_url: {
+                  url: `data:${img.mimeType};base64,${img.base64}`
+                }
+              }))
+            ]
+          };
+        }
+        return { role: m.role, content: m.content };
+      })
     ];
+    
+    // Add current message with images if provided
+    if (images && images.length > 0) {
+      console.log('[aiService] Adding images to message:', images.length, 'images');
+      console.log('[aiService] First image info:', {
+        fileName: images[0].fileName,
+        mimeType: images[0].mimeType,
+        base64Length: images[0].base64.length
+      });
+      
+      // Check if model supports vision
+      const visionModels = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4-vision-preview'];
+      if (!visionModels.includes(model)) {
+        console.warn(`[aiService] Model ${model} may not support vision. Recommended models: ${visionModels.join(', ')}`);
+      }
+      
+      messages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: message },
+          ...images.map(img => ({
+            type: 'image_url',
+            image_url: {
+              url: `data:${img.mimeType};base64,${img.base64}`,
+              detail: 'high' // Use high detail for better OCR
+            }
+          }))
+        ]
+      });
+      onStatusUpdate?.(`Analyzing ${images.length} image(s) with GPT-4 Vision...`);
+    } else {
+      console.log('[aiService] No images provided, sending text only');
+      messages.push({ role: 'user', content: message });
+    }
 
     // First call with tools
+    console.log('[aiService] Sending request to OpenAI with:', {
+      model,
+      messagesCount: messages.length,
+      lastMessageType: typeof messages[messages.length - 1].content,
+      lastMessageHasImages: Array.isArray(messages[messages.length - 1].content),
+      requestBody: JSON.stringify({
+        model,
+        messages: messages.map(m => ({
+          role: m.role,
+          contentType: typeof m.content,
+          contentLength: Array.isArray(m.content) ? m.content.length : m.content?.length || 0
+        }))
+      })
+    });
+    
     const response = await fetch(`${PROVIDER_CONFIGS.openai.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -699,27 +807,73 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
 
 
   /**
-   * Chat with Google Gemini (with function calling)
+   * Chat with Google Gemini (with function calling and vision support)
    */
   private async chatWithGoogle(
     apiKey: string,
     message: string,
     history: AIMessage[],
-    onStatusUpdate?: (status: string) => void
+    onStatusUpdate?: (status: string) => void,
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>
   ): Promise<AIResponse> {
     onStatusUpdate?.('Connecting to Google Gemini...');
+    
+    console.log('[aiService] chatWithGoogle called with:', {
+      messageLength: message.length,
+      historyLength: history.length,
+      imagesCount: images?.length || 0,
+      historyWithImages: history.filter(m => m.images && m.images.length > 0).length
+    });
     
     const savedModel = await apiKeyService.loadModel('google');
     const model = savedModel || this.config.customModel || PROVIDER_CONFIGS.google.defaultModel;
     
-    // Convert history to Gemini format
-    const contents = [
-      ...history.map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
-      })),
-      { role: 'user', parts: [{ text: message }] },
+    console.log('[aiService] Using Gemini model:', model);
+    
+    // Convert history to Gemini format with vision support
+    const contents: any[] = [
+      ...history.map(m => {
+        const parts: any[] = [{ text: m.content }];
+        if (m.images && m.images.length > 0) {
+          console.log(`[aiService] Adding ${m.images.length} images from history message`);
+          // Add images as inline data
+          m.images.forEach(img => {
+            parts.push({
+              inlineData: {
+                mimeType: img.mimeType,
+                data: img.base64
+              }
+            });
+          });
+        }
+        return {
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts
+        };
+      })
     ];
+    
+    // Add current message with images if provided
+    const currentParts: any[] = [{ text: message }];
+    if (images && images.length > 0) {
+      console.log('[aiService] Adding images to current message:', images.length, 'images');
+      console.log('[aiService] First image info:', {
+        fileName: images[0].fileName,
+        mimeType: images[0].mimeType,
+        base64Length: images[0].base64.length
+      });
+      
+      images.forEach(img => {
+        currentParts.push({
+          inlineData: {
+            mimeType: img.mimeType,
+            data: img.base64
+          }
+        });
+      });
+      onStatusUpdate?.(`Analyzing ${images.length} image(s) with Gemini Vision...`);
+    }
+    contents.push({ role: 'user', parts: currentParts });
 
     // Gemini tool format
     const tools = [{
@@ -753,29 +907,55 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
       ]
     }];
 
+    const systemPrompt = this.getSystemPrompt('google', model);
+    console.log('[aiService] System prompt includes vision:', systemPrompt.includes('VISION CAPABILITIES'));
+    console.log('[aiService] System prompt length:', systemPrompt.length);
+    
+    const requestBody = {
+      contents,
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      tools,
+      generationConfig: {
+        temperature: this.config.temperature ?? 0.7,
+        maxOutputTokens: this.config.maxTokens ?? 4096,
+      },
+    };
+    
+    console.log('[aiService] Sending request to Gemini:', {
+      model,
+      contentsCount: contents.length,
+      lastContentParts: contents[contents.length - 1].parts.length,
+      hasImages: contents[contents.length - 1].parts.some((p: any) => p.inlineData),
+      systemInstructionLength: systemPrompt.length
+    });
+    
     const response = await fetch(
       `${PROVIDER_CONFIGS.google.baseUrl}/models/${model}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: { parts: [{ text: this.getSystemPrompt('google', model) }] },
-          tools,
-          generationConfig: {
-            temperature: this.config.temperature ?? 0.7,
-            maxOutputTokens: this.config.maxTokens ?? 4096,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
+      console.error('[aiService] Gemini API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error
+      });
       throw new Error(error.error?.message || `Google API error: ${response.status}`);
     }
 
     const data = await response.json();
+    console.log('[aiService] Gemini response:', {
+      hasCandidates: !!data.candidates,
+      candidatesCount: data.candidates?.length || 0,
+      firstCandidateContent: data.candidates?.[0]?.content ? 'present' : 'missing',
+      firstCandidateParts: data.candidates?.[0]?.content?.parts?.length || 0
+    });
+    
     const candidate = data.candidates?.[0];
     const content = candidate?.content;
     
@@ -836,23 +1016,60 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
   }
 
   /**
-   * Chat with Anthropic Claude (with tool use)
+   * Chat with Anthropic Claude (with tool use and vision support)
    */
   private async chatWithAnthropic(
     apiKey: string,
     message: string,
     history: AIMessage[],
-    onStatusUpdate?: (status: string) => void
+    onStatusUpdate?: (status: string) => void,
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>
   ): Promise<AIResponse> {
     onStatusUpdate?.('Connecting to Anthropic Claude...');
     
     const savedModel = await apiKeyService.loadModel('anthropic');
     const model = savedModel || this.config.customModel || PROVIDER_CONFIGS.anthropic.defaultModel;
     
-    const messages = [
-      ...history.map(m => ({ role: m.role, content: m.content })),
-      { role: 'user', content: message },
+    // Build messages with vision support
+    const messages: any[] = [
+      ...history.map(m => {
+        if (m.images && m.images.length > 0) {
+          // Message with images - use vision format
+          const content: any[] = [{ type: 'text', text: m.content }];
+          m.images.forEach(img => {
+            content.push({
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: img.mimeType,
+                data: img.base64
+              }
+            });
+          });
+          return { role: m.role, content };
+        }
+        return { role: m.role, content: m.content };
+      })
     ];
+    
+    // Add current message with images if provided
+    if (images && images.length > 0) {
+      const content: any[] = [{ type: 'text', text: message }];
+      images.forEach(img => {
+        content.push({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: img.mimeType,
+            data: img.base64
+          }
+        });
+      });
+      messages.push({ role: 'user', content });
+      onStatusUpdate?.(`Analyzing ${images.length} image(s) with Claude Vision...`);
+    } else {
+      messages.push({ role: 'user', content: message });
+    }
 
     const response = await fetch(`${PROVIDER_CONFIGS.anthropic.baseUrl}/messages`, {
       method: 'POST',
@@ -938,13 +1155,14 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
 
 
   /**
-   * Chat with Custom endpoint (OpenAI-compatible with tools)
+   * Chat with Custom endpoint (OpenAI-compatible with tools and vision)
    */
   private async chatWithCustom(
     apiKey: string,
     message: string,
     history: AIMessage[],
-    onStatusUpdate?: (status: string) => void
+    onStatusUpdate?: (status: string) => void,
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>
   ): Promise<AIResponse> {
     const endpoint = this.config.customEndpoint;
     
@@ -957,11 +1175,46 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
     const savedModel = await apiKeyService.loadModel('custom');
     const model = savedModel || this.config.customModel || 'default';
     
-    const messages = [
+    // Build messages with vision support (OpenAI format)
+    const messages: any[] = [
       { role: 'system', content: this.getSystemPrompt('custom', model) },
-      ...history.map(m => ({ role: m.role, content: m.content })),
-      { role: 'user', content: message },
+      ...history.map(m => {
+        if (m.images && m.images.length > 0) {
+          return {
+            role: m.role,
+            content: [
+              { type: 'text', text: m.content },
+              ...m.images.map(img => ({
+                type: 'image_url',
+                image_url: {
+                  url: `data:${img.mimeType};base64,${img.base64}`
+                }
+              }))
+            ]
+          };
+        }
+        return { role: m.role, content: m.content };
+      })
     ];
+    
+    // Add current message with images if provided
+    if (images && images.length > 0) {
+      messages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: message },
+          ...images.map(img => ({
+            type: 'image_url',
+            image_url: {
+              url: `data:${img.mimeType};base64,${img.base64}`
+            }
+          }))
+        ]
+      });
+      onStatusUpdate?.(`Analyzing ${images.length} image(s)...`);
+    } else {
+      messages.push({ role: 'user', content: message });
+    }
 
     // Try with tools first, fallback to simple chat if not supported
     try {

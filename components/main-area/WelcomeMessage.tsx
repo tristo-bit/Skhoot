@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import { ACTION_PROMPTS, ACTION_ACTIVE_COLORS } from '../../src/constants';
-import { TypewriterText } from '../ui';
+import { SplittingText } from '../ui';
 import { LogoBackground } from './LogoBackground';
 
 interface WelcomeMessageProps {
@@ -54,7 +54,7 @@ export const WelcomeMessage = memo<WelcomeMessageProps>(({
           color: textColor || 'var(--text-primary)',
         }}
       >
-        <TypewriterText text={displayText} key={displayText} />
+        <SplittingText text={displayText} key={displayText} type="chars" />
       </h2>
     </div>
   );

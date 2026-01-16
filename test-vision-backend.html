@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Vision Backend</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        h1 {
+            color: #00d4ff;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #00d4ff;
+        }
+        button {
+            background: #00d4ff;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover {
+            background: #00b8e6;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        .result {
+            background: #1a1a1a;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success {
+            border-left: 4px solid #00ff88;
+        }
+        .error {
+            border-left: 4px solid #ff4444;
+        }
+        img {
+            max-width: 100%;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Test Vision Backend</h1>
+    
+    <div class="test-section">
+        <h2>1. Test Backend Health</h2>
+        <button onclick="testBackendHealth()">Tester Backend</button>
+        <div id="health-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test Image Endpoint</h2>
+        <p>Sélectionne une image sur ton ordinateur:</p>
+        <input type="file" id="imageFile" accept="image/*">
+        <button onclick="testImageEndpoint()">Tester Chargement Image</button>
+        <div id="image-result" class="result"></div>
+        <div id="image-preview"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Test Base64 Conversion</h2>
+        <button onclick="testBase64Conversion()">Tester Conversion Base64</button>
+        <div id="base64-result" class="result"></div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'http://localhost:3001';
+
+        async function testBackendHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.textContent = '⏳ Test en cours...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/health`);
+                const data = await response.json();
+                
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ Backend OK!\n\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Erreur: ${error.message}\n\nLe backend n'est peut-être pas démarré sur le port 3001.`;
+            }
+        }
+
+        async function testImageEndpoint() {
+            const fileInput = document.getElementById('imageFile');
+            const resultDiv = document.getElementById('image-result');
+            const previewDiv = document.getElementById('image-preview');
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Veuillez sélectionner une image';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            resultDiv.textContent = `⏳ Chargement de ${file.name}...`;
+            resultDiv.className = 'result';
+
+            try {
+                // Simulate what ChatInterface does
+                const filePath = file.name; // In real app, this would be the full path
+                
+                // Test 1: Try to load via backend (will fail with just filename, but shows the flow)
+                resultDiv.textContent += `\n\n📝 Note: Dans l'app réelle, on utiliserait le chemin complet du fichier.`;
+                resultDiv.textContent += `\n   Ici on va simuler avec le fichier local.`;
+                
+                // Test 2: Convert to base64 locally (simulating what should happen)
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const result = reader.result;
+                    const base64Data = result.split(',')[1];
+                    
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Image chargée avec succès!\n\n`;
+                    resultDiv.textContent += `Nom: ${file.name}\n`;
+                    resultDiv.textContent += `Type: ${file.type}\n`;
+                    resultDiv.textContent += `Taille: ${file.size} bytes\n`;
+                    resultDiv.textContent += `Base64 length: ${base64Data.length} chars\n\n`;
+                    resultDiv.textContent += `Format pour Gemini:\n`;
+                    resultDiv.textContent += JSON.stringify({
+                        fileName: file.name,
+                        mimeType: file.type,
+                        base64: base64Data.substring(0, 50) + '...'
+                    }, null, 2);
+
+                    // Show preview
+                    previewDiv.innerHTML = `<img src="${result}" alt="Preview">`;
+                };
+                reader.readAsDataURL(file);
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Erreur: ${error.message}`;
+            }
+        }
+
+        async function testBase64Conversion() {
+            const fileInput = document.getElementById('imageFile');
+            const resultDiv = document.getElementById('base64-result');
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Veuillez d\'abord sélectionner une image dans le test 2';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            resultDiv.textContent = '⏳ Conversion en cours...';
+            resultDiv.className = 'result';
+
+            try {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const result = reader.result;
+                    const base64Data = result.split(',')[1];
+                    
+                    // Simulate Gemini API payload
+                    const geminiPayload = {
+                        contents: [
+                            {
+                                role: 'user',
+                                parts: [
+                                    { text: 'Décris cette image' },
+                                    {
+                                        inlineData: {
+                                            mimeType: file.type,
+                                            data: base64Data.substring(0, 100) + '...' // Truncated for display
+                                        }
+                                    }
+                                ]
+                            }
+                        ],
+                        systemInstruction: {
+                            parts: [{ text: 'You are Skhoot... VISION CAPABILITIES: You CAN see images...' }]
+                        }
+                    };
+
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Conversion réussie!\n\n`;
+                    resultDiv.textContent += `Payload Gemini (tronqué):\n\n`;
+                    resultDiv.textContent += JSON.stringify(geminiPayload, null, 2);
+                    resultDiv.textContent += `\n\n📊 Stats:\n`;
+                    resultDiv.textContent += `- Base64 complet: ${base64Data.length} caractères\n`;
+                    resultDiv.textContent += `- Taille estimée: ${Math.round(base64Data.length * 0.75)} bytes\n`;
+                    resultDiv.textContent += `- Format: ${file.type}\n`;
+                };
+                reader.readAsDataURL(file);
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Erreur: ${error.message}`;
+            }
+        }
+
+        // Auto-test backend on load
+        window.addEventListener('load', () => {
+            setTimeout(testBackendHealth, 500);
+        });
+    </script>
+</body>
+</html>

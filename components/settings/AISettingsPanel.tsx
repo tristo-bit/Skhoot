@@ -336,6 +336,9 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
               {modelCapabilities.vision && (
                 <span className="px-2 py-1 text-xs rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400">👁️ Vision</span>
               )}
+              {modelCapabilities.ocr && (
+                <span className="px-2 py-1 text-xs rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-400">📄 OCR</span>
+              )}
               {modelCapabilities.streaming && (
                 <span className="px-2 py-1 text-xs rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-400">⚡ Stream</span>
               )}

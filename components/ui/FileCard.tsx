@@ -329,8 +329,8 @@ export const FileCard = memo<FileCardProps>(({
           <div className="w-10 h-10 rounded-lg glass-subtle flex items-center justify-center">
             <FileIcon isFolder={isFolder} isArchive={isArchive} size={18} />
           </div>
-          <div className="flex items-center gap-1">
-            <p className="text-[11px] font-bold truncate text-text-primary font-jakarta" title={file.name}>
+          <div className="flex items-center gap-1 w-full">
+            <p className="text-[11px] font-bold truncate text-text-primary font-jakarta w-full" title={file.name}>
               {file.name}
             </p>
             {isFolder && onNavigate && (

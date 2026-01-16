@@ -530,38 +530,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     // Process attached files - load their contents to send to AI
     let processedMessage = messageText;
+    let imageFiles: Array<{ fileName: string; base64: string; mimeType: string }> = [];
     const fileRefMap = (window as any).__chatFileReferences as Map<string, string> | undefined;
     
+    console.log('[ChatInterface] File references:', fileRefMap ? Array.from(fileRefMap.entries()) : 'none');
+    
     if (fileRefMap && fileRefMap.size > 0) {
-      const fileContents: string[] = [];
-      const attachedFileNames: string[] = [];
+      const files = Array.from(fileRefMap.entries()).map(([fileName, filePath]) => ({ fileName, filePath }));
+      console.log('[ChatInterface] Processing files:', files);
+      const result = await processAttachedFiles(files);
+      imageFiles = result.imageFiles;
+      console.log('[ChatInterface] Image files processed:', imageFiles.length, 'images');
       
-      // Load content for ALL attached files (not just @mentions)
-      for (const [fileName, filePath] of fileRefMap.entries()) {
-        try {
-          // Read file content from backend
-          const response = await fetch(`http://localhost:3001/api/v1/files/read?path=${encodeURIComponent(filePath)}`);
-          if (response.ok) {
-            const data = await response.json();
-            const content = data.content || '';
-            fileContents.push(`\n\n--- File: ${fileName} (${filePath}) ---\n${content}\n--- End of ${fileName} ---`);
-            attachedFileNames.push(fileName);
-            console.log(`[ChatInterface] Loaded file content for ${fileName}`);
-          } else {
-            console.warn(`[ChatInterface] Failed to read file: ${filePath}`);
-            fileContents.push(`\n\n[Note: Could not read file ${fileName} at ${filePath}]`);
-          }
-        } catch (error) {
-          console.error(`[ChatInterface] Error reading file ${filePath}:`, error);
-          fileContents.push(`\n\n[Note: Error reading file ${fileName}]`);
-        }
-      }
-      
-      // Append file contents to the message for AI processing
-      if (fileContents.length > 0) {
-        // Add a context header so AI knows files are attached
-        const fileHeader = `\n\n[Attached files: ${attachedFileNames.join(', ')}]`;
-        processedMessage = messageText + fileHeader + fileContents.join('');
+      // Build message with file contents
+      if (result.fileContents.length > 0 || result.imageFiles.length > 0) {
+        const fileHeader = `\n\n[Attached files: ${result.attachedFileNames.join(', ')}]`;
+        processedMessage = messageText + fileHeader + result.fileContents.join('');
+        
+        // Remove the note about images since we now support vision
+        // Images will be sent to the AI for analysis
       }
     }
 
@@ -577,6 +564,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       type: 'text',
       timestamp: new Date(),
       attachedFiles: attachedFilesForMessage,
+      images: imageFiles.length > 0 ? imageFiles : undefined, // Store images for history
     };
 
     setMessages(prev => [...prev, userMsg]);
@@ -629,6 +617,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           content: m.content,
           toolCalls: m.toolCalls,
           toolResults: m.toolResults,
+          images: m.images, // Pass images from message history
         }));
 
         // Track tool calls for this message
@@ -640,6 +629,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           agentHistory,
           {
             sessionId: currentSessionId,
+            images: imageFiles, // Pass current images for vision API
             onToolStart: (toolCall) => {
               toolCalls.push(toolCall);
               setSearchStatus(`Executing ${toolCall.name}...`);
@@ -691,11 +681,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         );
       } else {
         // Normal mode: send to AI service
-        // Convert history to AIMessage format
+        // Convert history to AIMessage format with images
         const history: AIMessage[] = messages.map(m => ({
           role: m.role as 'user' | 'assistant',
-          content: m.content
+          content: m.content,
+          images: m.images // Include images from message history
         }));
+
+        console.log('[ChatInterface] Sending to AI:', {
+          messageLength: processedMessage.length,
+          imageCount: imageFiles.length,
+          historyLength: history.length,
+          historyWithImages: history.filter(m => m.images && m.images.length > 0).length
+        });
 
         const result = await aiService.chat(processedMessage, history, (status) => { // Use processed message with file contents
           setSearchStatus(status);
@@ -703,7 +701,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
             setSearchType(prev => prev || 'files');
           }
-        });
+        }, imageFiles); // Pass images for vision API
         setSearchType(null);
         setSearchStatus('');
         
@@ -819,6 +817,396 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [handleSend]);
 
+  // Helper function to process attached files (text and images)
+  const processAttachedFiles = useCallback(async (files: Array<{ fileName: string; filePath: string }>) => {
+    const fileContents: string[] = [];
+    const attachedFileNames: string[] = [];
+    const imageFiles: Array<{ fileName: string; base64: string; mimeType: string }> = [];
+    
+    // Helper to check if file is an image
+    const isImageFile = (fileName: string): boolean => {
+      const ext = fileName.split('.').pop()?.toLowerCase() || '';
+      const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext);
+      console.log(`[ChatInterface] Checking if "${fileName}" is image: ext="${ext}", isImage=${isImage}`);
+      return isImage;
+    };
+    
+    // Helper to get MIME type
+    const getMimeType = (fileName: string): string => {
+      const ext = fileName.split('.').pop()?.toLowerCase() || '';
+      const mimeTypes: Record<string, string> = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'gif': 'image/gif',
+        'bmp': 'image/bmp',
+        'webp': 'image/webp'
+      };
+      return mimeTypes[ext] || 'application/octet-stream';
+    };
+    
+    // Helper to check if file is binary (non-text)
+    const isBinaryFile = (fileName: string): boolean => {
+      const ext = fileName.split('.').pop()?.toLowerCase() || '';
+      return ['pdf', 'zip', 'rar', '7z', 'tar', 'gz', 'exe', 'dll', 'so', 'dylib'].includes(ext);
+    };
+    
+    // Helper to read file using Tauri API
+    const readFileWithTauri = async (filePath: string): Promise<Uint8Array | null> => {
+      try {
+        // Check if we're in Tauri environment
+        if (typeof window !== 'undefined' && (window as any).__TAURI__) {
+          const { readBinaryFile } = await import('@tauri-apps/plugin-fs');
+          console.log(`[ChatInterface] Reading file with Tauri: ${filePath}`);
+          const contents = await readBinaryFile(filePath);
+          return contents;
+        }
+        return null;
+      } catch (error) {
+        console.error(`[ChatInterface] Tauri file read failed:`, error);
+        return null;
+      }
+    };
+    
+    // Helper to convert Uint8Array to base64
+    const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
+      let binary = '';
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    };
+    
+    for (const file of files) {
+      if (isImageFile(file.fileName)) {
+        // Handle image files - try Tauri first, then backend
+        try {
+          console.log(`[ChatInterface] Loading image: ${file.fileName} from ${file.filePath}`);
+          
+          // Try Tauri API first (works in desktop app)
+          const tauriBytes = await readFileWithTauri(file.filePath);
+          
+          if (tauriBytes) {
+            // Successfully read with Tauri
+            const base64 = uint8ArrayToBase64(tauriBytes);
+            console.log(`[ChatInterface] ✅ Loaded image via Tauri: ${file.fileName}, base64 length: ${base64.length}`);
+            
+            imageFiles.push({
+              fileName: file.fileName,
+              base64,
+              mimeType: getMimeType(file.fileName)
+            });
+            attachedFileNames.push(file.fileName);
+          } else {
+            // Fallback to backend API (for web version or if Tauri fails)
+            console.log(`[ChatInterface] Falling back to backend API for: ${file.fileName}`);
+            const response = await fetch(`http://localhost:3001/api/v1/files/image?path=${encodeURIComponent(file.filePath)}`);
+            console.log(`[ChatInterface] Image fetch response:`, { 
+              ok: response.ok, 
+              status: response.status, 
+              statusText: response.statusText,
+              contentType: response.headers.get('content-type')
+            });
+            
+            if (response.ok) {
+              const blob = await response.blob();
+              console.log(`[ChatInterface] Image blob size: ${blob.size} bytes, type: ${blob.type}`);
+              
+              const base64 = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const result = reader.result as string;
+                  // Extract base64 data (remove data:image/...;base64, prefix)
+                  const base64Data = result.split(',')[1] || result;
+                  console.log(`[ChatInterface] Base64 length: ${base64Data.length} chars`);
+                  resolve(base64Data);
+                };
+                reader.readAsDataURL(blob);
+              });
+              
+              imageFiles.push({
+                fileName: file.fileName,
+                base64,
+                mimeType: getMimeType(file.fileName)
+              });
+              attachedFileNames.push(file.fileName);
+              console.log(`[ChatInterface] ✅ Successfully loaded image file: ${file.fileName}`);
+            } else {
+              const errorText = await response.text();
+              console.error(`[ChatInterface] ❌ Failed to read image: ${file.filePath}`, {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorText
+              });
+              fileContents.push(`\n\n[Note: Could not read image ${file.fileName} - ${response.statusText}]`);
+            }
+          }
+        } catch (error) {
+          console.error(`[ChatInterface] ❌ Error reading image ${file.filePath}:`, error);
+          fileContents.push(`\n\n[Note: Error reading image ${file.fileName}: ${error instanceof Error ? error.message : 'Unknown error'}]`);
+        }
+      } else if (isBinaryFile(file.fileName)) {
+        // Skip other binary files
+        console.log(`[ChatInterface] Skipping binary file: ${file.fileName}`);
+        attachedFileNames.push(file.fileName);
+        fileContents.push(`\n\n[Note: ${file.fileName} is a binary file and cannot be read as text]`);
+      } else {
+        // Handle text files
+        try {
+          console.log(`[ChatInterface] Loading text file: ${file.fileName} from ${file.filePath}`);
+          const response = await fetch(`http://localhost:3001/api/v1/files/read?path=${encodeURIComponent(file.filePath)}`);
+          if (response.ok) {
+            const data = await response.json();
+            const content = data.content || '';
+            fileContents.push(`\n\n--- File: ${file.fileName} (${file.filePath}) ---\n${content}\n--- End of ${file.fileName} ---`);
+            attachedFileNames.push(file.fileName);
+            console.log(`[ChatInterface] ✅ Successfully loaded text file: ${file.fileName}`);
+          } else {
+            const errorText = await response.text();
+            console.error(`[ChatInterface] ❌ Failed to read file: ${file.filePath}`, {
+              status: response.status,
+              statusText: response.statusText,
+              error: errorText
+            });
+            fileContents.push(`\n\n[Note: Could not read file ${file.fileName} - ${response.statusText}]`);
+          }
+        } catch (error) {
+          console.error(`[ChatInterface] ❌ Error reading file ${file.filePath}:`, error);
+          fileContents.push(`\n\n[Note: Error reading file ${file.fileName}: ${error instanceof Error ? error.message : 'Unknown error'}]`);
+        }
+      }
+    }
+    
+    return { fileContents, attachedFileNames, imageFiles };
+  }, []);
+
+  const handleEditMessage = useCallback((messageId: string, newContent: string) => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId ? { ...msg, content: newContent } : msg
+    ));
+  }, []);
+
+  const handleRegenerateFromMessage = useCallback(async (messageId: string, newContent: string) => {
+    // First, update the message with new content
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId ? { ...msg, content: newContent } : msg
+    ));
+
+    // Wait a tick for state to update
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Find the index of the edited message
+    const messageIndex = messages.findIndex(msg => msg.id === messageId);
+    if (messageIndex === -1) return;
+
+    // Remove all messages after the edited one (including AI responses)
+    const messagesUpToEdit = messages.slice(0, messageIndex + 1);
+    
+    // Update the edited message content in the sliced array
+    const editedMessage = { ...messagesUpToEdit[messageIndex], content: newContent };
+    messagesUpToEdit[messageIndex] = editedMessage;
+    
+    setMessages(messagesUpToEdit);
+
+    if (editedMessage.role !== 'user') return;
+
+    // Process attached files from the original message
+    let processedMessage = newContent;
+    let imageFiles: Array<{ fileName: string; base64: string; mimeType: string }> = [];
+    
+    if (editedMessage.attachedFiles && editedMessage.attachedFiles.length > 0) {
+      const result = await processAttachedFiles(editedMessage.attachedFiles);
+      imageFiles = result.imageFiles;
+      
+      // Build message with file contents
+      if (result.fileContents.length > 0 || result.imageFiles.length > 0) {
+        const fileHeader = `\n\n[Attached files: ${result.attachedFileNames.join(', ')}]`;
+        processedMessage = newContent + fileHeader + result.fileContents.join('');
+        
+        // Remove the note about images since we now support vision
+        // Images will be sent to the AI for analysis
+      }
+    }
+
+    // Prepare to regenerate the conversation from this point
+    setIsLoading(true);
+    setSearchType(getSearchType(newContent));
+
+    try {
+      // Get conversation history up to (but not including) the edited message
+      const history: AIMessage[] = messagesUpToEdit.slice(0, messageIndex).map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        images: m.images // Include images from message history
+      }));
+
+      // Route based on agent mode
+      if (isAgentMode) {
+        // Agent mode
+        let currentSessionId = agentSessionId;
+        
+        if (!currentSessionId && isAgentLoading) {
+          setSearchStatus('Waiting for agent session...');
+          for (let i = 0; i < 30; i++) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const sessionId = getSessionId();
+            if (sessionId) {
+              currentSessionId = sessionId;
+              break;
+            }
+          }
+        }
+        
+        if (!currentSessionId) {
+          throw new Error('Agent session not ready. Please wait a moment and try again.');
+        }
+        
+        setSearchStatus('Connecting to agent...');
+        
+        const agentHistory = messagesUpToEdit.slice(0, messageIndex).map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          toolCalls: m.toolCalls,
+          toolResults: m.toolResults,
+          images: m.images, // Pass images from message history
+        }));
+
+        const toolCalls: AgentToolCallData[] = [];
+        const toolResults: AgentToolResultData[] = [];
+
+        const result = await agentChatService.executeWithTools(
+          processedMessage, // Use processed message with file contents
+          agentHistory,
+          {
+            sessionId: currentSessionId,
+            images: imageFiles, // Pass current images for vision API
+            onToolStart: (toolCall) => {
+              toolCalls.push(toolCall);
+              setSearchStatus(`Executing ${toolCall.name}...`);
+            },
+            onToolComplete: (result) => {
+              toolResults.push(result);
+              setSearchStatus(result.success ? 'Tool completed' : 'Tool failed');
+            },
+            onStatusUpdate: (status) => {
+              setSearchStatus(status);
+            },
+          }
+        );
+
+        setSearchType(null);
+        setSearchStatus('');
+
+        const assistantMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant' as const,
+          content: result.content || 'Task completed.',
+          type: toolCalls.length > 0 ? 'agent_action' : 'text',
+          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+          toolResults: toolResults.length > 0 ? toolResults : undefined,
+          timestamp: new Date()
+        };
+
+        setMessages(prev => [...prev, assistantMsg]);
+
+        activityLogger.log(
+          'Agent',
+          newContent.slice(0, 50) + (newContent.length > 50 ? '...' : ''),
+          `Regenerated with ${toolCalls.length} tool calls`,
+          'success'
+        );
+
+        await nativeNotifications.success(
+          'Agent Response',
+          toolCalls.length > 0 
+            ? `Executed ${toolCalls.length} tool(s)` 
+            : 'Agent has responded',
+          {
+            tag: 'agent-response',
+            data: { messageId: assistantMsg.id, toolCount: toolCalls.length }
+          }
+        );
+      } else {
+        // Normal mode
+        const result = await aiService.chat(processedMessage, history, (status) => { // Use processed message with file contents
+          setSearchStatus(status);
+          if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
+            setSearchType(prev => prev || 'files');
+          }
+        }, imageFiles); // Pass images for vision API
+        
+        setSearchType(null);
+        setSearchStatus('');
+        
+        const assistantMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant' as const,
+          content: (result.text || 'I received your message.').trim(),
+          type: (result.type as Message['type']) || 'text',
+          data: result.data || undefined,
+          searchInfo: result.searchInfo || undefined,
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, assistantMsg]);
+        
+        await nativeNotifications.success(
+          'Response Received',
+          'AI assistant has responded to your edited message',
+          {
+            tag: 'chat-response',
+            data: { messageId: assistantMsg.id, type: result.type }
+          }
+        );
+        
+        if (result.type === 'text') {
+          activityLogger.log(
+            'AI Chat',
+            newContent.slice(0, 50) + (newContent.length > 50 ? '...' : ''),
+            'Regenerated response',
+            'success'
+          );
+        }
+      }
+    } catch (error) {
+      setSearchType(null);
+      setSearchStatus('');
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      await nativeNotifications.error(
+        'Connection Failed',
+        `Unable to reach ${isAgentMode ? 'agent' : 'AI'} service: ${errorMessage}`,
+        {
+          tag: 'chat-error',
+          data: { error: errorMessage, retry: true }
+        }
+      );
+      
+      activityLogger.log(
+        isAgentMode ? 'Agent' : 'AI Chat',
+        newContent.slice(0, 50) + (newContent.length > 50 ? '...' : ''),
+        'Error: ' + errorMessage.slice(0, 30),
+        'error'
+      );
+      
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `Sorry, I encountered an error: ${errorMessage}. ${isAgentMode ? 'Check the Agent Log for details.' : 'Please check your API key configuration.'}`,
+        type: 'text',
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [messages, isAgentMode, agentSessionId, isAgentLoading, getSessionId, getSearchType]);
+
   return (
     <div className="flex flex-col h-full w-full overflow-hidden relative">
       <MainArea
@@ -843,6 +1231,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onSendQueuedNow={handleSendQueuedNow}
         onDiscardQueued={handleDiscardQueued}
         onEditQueued={handleEditQueued}
+        onEditMessage={handleEditMessage}
+        onRegenerateFromMessage={handleRegenerateFromMessage}
       />
       
       {/* Terminal View - floats above PromptArea */}
