@@ -141,6 +141,11 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 
 - **Conversational AI**: Powered by Google Gemini for natural interactions
 - **Chat History**: Save and manage multiple conversation threads
+- **Message Editing**: Edit sent messages with inline editing interface
+  - Hover over user messages to reveal edit button
+  - Click edit to modify message content in-place
+  - Save with Ctrl+Enter or Cancel with Escape
+  - Visual feedback with save/cancel buttons
 - **Rich Responses**: Support for file lists, disk usage charts, and cleanup suggestions
 - **Interactive File Paths**: Click on file paths in search results to open the containing folder
 - **Markdown Support**: Full markdown rendering in responses
@@ -908,6 +913,38 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 ## 📝 Recent Updates
 
 <details>
+<summary><strong>Message Editing Feature</strong></summary>
+
+**New User Experience Enhancement**: Users can now edit their sent messages directly in the chat interface.
+
+- **Inline Editing Interface**: Edit messages without leaving the conversation flow
+  - Hover over any user message to reveal the edit button (pencil icon)
+  - Click to enter edit mode with a textarea for content modification
+  - Visual feedback with glassmorphic styling matching the design system
+- **Keyboard Shortcuts**: 
+  - **Ctrl+Enter**: Save edited message
+  - **Escape**: Cancel editing and revert to original content
+- **Action Buttons**: Clear save/cancel buttons with icons for intuitive interaction
+  - Save button disabled when content is unchanged or empty
+  - Cancel button restores original message content
+- **State Management**: 
+  - Local state tracks editing mode and edited content
+  - Original message preserved until save is confirmed
+  - Smooth transitions between display and edit modes
+- **Accessibility**: 
+  - Proper focus management when entering edit mode
+  - Keyboard navigation support
+  - Visual indicators for edit state
+- **Integration**: 
+  - `onEdit` callback prop passes `(messageId, newContent)` to parent component
+  - Compatible with existing message bubble styling and animations
+  - Works seamlessly with file attachments and other message features
+
+**Technical Implementation**: Added `useState` for edit state management, new icons (`Edit2`, `Check`, `X`), and conditional rendering for edit/display modes in `MessageBubble.tsx`.
+
+</details>
+
+<details>
 <summary><strong>Provider Registry OCR Support</strong></summary>
 
 **New Model Capability**: OCR (Optical Character Recognition) support added to provider registry for vision-capable models.
@@ -1079,6 +1116,36 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
   - Works seamlessly with agent's tool calling capabilities
 - **Consistent Behavior**: File references now work identically in both normal AI mode and agent mode
 - **Technical Details**: Changed from `messageText` to `processedMessage` in `agentChatService.executeWithTools()` call
+
+</details>
+
+<details>
+<summary><strong>Message Editing with File Attachments</strong></summary>
+
+- **Enhanced Message Editing**: When editing messages with attached files, the file contents are now automatically reloaded and included in the regenerated conversation
+- **File Content Preservation**: 
+  - All attached files from the original message are processed when editing
+  - File contents are read from backend via `/api/v1/files/read` endpoint
+  - Complete file contents appended to edited message for AI context
+  - Structured format with clear file boundaries: `--- File: filename (path) ---`
+- **Seamless Regeneration**: 
+  - Edited messages trigger conversation regeneration from that point
+  - File attachments are preserved and their contents reloaded automatically
+  - AI receives both the edited message text and all attached file contents
+  - Works with multiple file attachments simultaneously
+- **Error Handling**: 
+  - Graceful handling of missing or unreadable files
+  - Clear error messages in file content placeholders
+  - Console logging for debugging file loading issues
+- **User Experience**: 
+  - No manual re-attachment needed when editing messages
+  - File context automatically maintained across edits
+  - Consistent behavior with initial message sending
+- **Technical Implementation**: 
+  - Processes `editedMessage.attachedFiles` array before regeneration
+  - Appends file header with list of attached filenames
+  - Includes full file contents in structured format
+  - Updates search type based on edited content
 
 </details>
 

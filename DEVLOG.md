@@ -1,5 +1,105 @@
 # Development Log
 
+## January 16, 2026
+
+### Message Editing Feature - Complete Implementation with Regeneration ✅
+- **Feature**: Users can now edit their sent messages and regenerate the conversation from that point
+- **User Request**: Add ability to edit sent messages and restart conversation from edited message to correct errors
+- **Solution**: Implemented inline message editing with conversation regeneration capability including attached files support
+
+**Implementation Details**:
+
+1. **MessageBubble.tsx** - UI Component:
+   - Added edit button that appears on hover for user messages only
+   - Edit button uses `Edit2` icon from lucide-react
+   - Inline editing with textarea when edit mode is active
+   - Save/Cancel buttons with custom styling
+   - **Save button color**: Violet `#c0b7c9` (matching image file color scheme)
+   - **Textarea border**: Violet `#c0b7c9` on focus
+   - Keyboard shortcuts: `Ctrl+Enter` to save, `Escape` to cancel
+   - Edit button hidden when in edit mode
+   - State management: `isEditing` and `editedContent` local state
+   - Textarea auto-focuses when entering edit mode
+   - Save button disabled if content unchanged or empty
+   - **Regeneration trigger**: Calls `onRegenerateFrom` callback after saving with new content
+
+2. **MainArea.tsx** - Props Integration:
+   - Added `onEditMessage` callback prop to interface
+   - Added `onRegenerateFromMessage` callback prop for conversation restart
+   - Passes both callbacks through to MessageBubble component
+   - Properly typed: `(messageId: string, newContent: string) => void` and `(messageId: string, newContent: string) => void`
+
+3. **ChatInterface.tsx** - State Management & Regeneration Logic:
+   - Implemented `handleEditMessage` callback wrapped in `useCallback`
+   - Updates messages array by mapping and replacing edited message
+   - **New**: `handleRegenerateFromMessage` function that:
+     - Receives the new content as parameter (fixes state timing issue)
+     - Finds the edited message in conversation history
+     - Removes all messages after the edited one (clears AI responses)
+     - Keeps conversation history up to the edited message
+     - **Processes attached files**: Reads file contents from original message's `attachedFiles` array
+     - Appends file contents to the message for AI processing (same as initial send)
+     - Regenerates AI response from that point with new content AND file contents
+     - Supports both normal AI mode and agent mode
+     - Handles file attachments and search types
+     - Includes proper error handling and notifications
+   - Preserves all message properties (timestamp, attachments, etc.)
+   - Passes both callbacks down through MainArea to MessageBubble
+
+**User Experience**:
+- ✅ Hover over sent message to reveal edit button
+- ✅ Click edit button to enter edit mode
+- ✅ Modify text in textarea with violet border
+- ✅ Save with violet button or `Ctrl+Enter`
+- ✅ **Conversation automatically regenerates from edited message**
+- ✅ **Attached files are preserved and included in regeneration**
+- ✅ All messages after the edit are removed and replaced with new AI response
+- ✅ Cancel with button or `Escape`
+- ✅ Only user messages are editable (AI messages cannot be edited)
+- ✅ Edited content persists and triggers new AI response
+
+**Technical Features**:
+- Clean callback chain: MessageBubble → MainArea → ChatInterface
+- Proper TypeScript typing throughout
+- useCallback for performance optimization
+- Local state management for edit mode
+- Keyboard shortcuts for power users
+- Disabled state for invalid edits
+- **Conversation history management**: Slices messages array at edit point
+- **File attachment preservation**: Reads and includes original attached files
+- **File content processing**: Same logic as initial send (reads from backend API)
+- **Dual mode support**: Works with both AI service and agent service
+- **Status updates**: Shows loading states during regeneration
+- **Notifications**: Success/error notifications for regeneration
+
+**Bug Fixes**:
+- ✅ Fixed state timing issue: New content now passed as parameter instead of reading from state
+- ✅ Fixed attached files not being included: Now processes `attachedFiles` array from original message
+- ✅ Message content properly updated before regeneration
+
+**Color Scheme**:
+- Save button: `#c0b7c9` (violet - matches image file type color)
+- Save button hover: `#b0a7b9` (darker violet)
+- Textarea focus border: `#c0b7c9` (violet)
+
+**Build Status**: ✅ No TypeScript diagnostics
+
+**Use Case**:
+When a user makes a typo or wants to rephrase their question, they can:
+1. Edit their message (with attached files preserved)
+2. Save the changes
+3. The conversation automatically continues from that point with the corrected message
+4. All attached files are re-processed and included in the new AI request
+5. All subsequent messages are regenerated based on the edit
+
+This is particularly useful for:
+- Fixing typos that led to misunderstandings
+- Rephrasing questions for better clarity
+- Correcting errors in prompts with attached documents
+- Exploring alternative conversation paths while keeping file context
+
+---
+
 ## January 14, 2026
 
 ### GitHub Release Workflow - Fixed Extra Files Leak ✅

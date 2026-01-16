@@ -28,6 +28,8 @@ interface MainAreaProps {
   onSendQueuedNow?: () => void;
   onDiscardQueued?: () => void;
   onEditQueued?: (newText: string) => void;
+  onEditMessage?: (messageId: string, newContent: string) => void;
+  onRegenerateFromMessage?: (messageId: string, newContent: string) => void;
 }
 
 /**
@@ -56,6 +58,8 @@ export const MainArea = memo(forwardRef<HTMLDivElement, MainAreaProps>(({
   onSendQueuedNow,
   onDiscardQueued,
   onEditQueued,
+  onEditMessage,
+  onRegenerateFromMessage,
 }, ref) => {
   const hasMessages = messages.length > 0;
   const showEmptyState = isEmptyStateVisible && !hasMessages && !isLoading && !hasPendingVoiceMessage && !isRecording;
@@ -152,7 +156,12 @@ export const MainArea = memo(forwardRef<HTMLDivElement, MainAreaProps>(({
           
           {/* Messages */}
           {messages.map(msg => (
-            <MessageBubble key={msg.id} message={msg} />
+            <MessageBubble 
+              key={msg.id} 
+              message={msg} 
+              onEdit={onEditMessage}
+              onRegenerateFrom={onRegenerateFromMessage}
+            />
           ))}
         
           {/* Voice Message */}

@@ -819,6 +819,247 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [handleSend]);
 
+  const handleEditMessage = useCallback((messageId: string, newContent: string) => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId ? { ...msg, content: newContent } : msg
+    ));
+  }, []);
+
+  const handleRegenerateFromMessage = useCallback(async (messageId: string, newContent: string) => {
+    // First, update the message with new content
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId ? { ...msg, content: newContent } : msg
+    ));
+
+    // Wait a tick for state to update
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Find the index of the edited message
+    const messageIndex = messages.findIndex(msg => msg.id === messageId);
+    if (messageIndex === -1) return;
+
+    // Remove all messages after the edited one (including AI responses)
+    const messagesUpToEdit = messages.slice(0, messageIndex + 1);
+    
+    // Update the edited message content in the sliced array
+    const editedMessage = { ...messagesUpToEdit[messageIndex], content: newContent };
+    messagesUpToEdit[messageIndex] = editedMessage;
+    
+    setMessages(messagesUpToEdit);
+
+    if (editedMessage.role !== 'user') return;
+
+    // Process attached files from the original message
+    let processedMessage = newContent;
+    
+    if (editedMessage.attachedFiles && editedMessage.attachedFiles.length > 0) {
+      const fileContents: string[] = [];
+      const attachedFileNames: string[] = [];
+      
+      // Load content for ALL attached files
+      for (const file of editedMessage.attachedFiles) {
+        try {
+          // Read file content from backend
+          const response = await fetch(`http://localhost:3001/api/v1/files/read?path=${encodeURIComponent(file.filePath)}`);
+          if (response.ok) {
+            const data = await response.json();
+            const content = data.content || '';
+            fileContents.push(`\n\n--- File: ${file.fileName} (${file.filePath}) ---\n${content}\n--- End of ${file.fileName} ---`);
+            attachedFileNames.push(file.fileName);
+            console.log(`[ChatInterface] Loaded file content for ${file.fileName}`);
+          } else {
+            console.warn(`[ChatInterface] Failed to read file: ${file.filePath}`);
+            fileContents.push(`\n\n[Note: Could not read file ${file.fileName} at ${file.filePath}]`);
+          }
+        } catch (error) {
+          console.error(`[ChatInterface] Error reading file ${file.filePath}:`, error);
+          fileContents.push(`\n\n[Note: Error reading file ${file.fileName}]`);
+        }
+      }
+      
+      // Append file contents to the message for AI processing
+      if (fileContents.length > 0) {
+        // Add a context header so AI knows files are attached
+        const fileHeader = `\n\n[Attached files: ${attachedFileNames.join(', ')}]`;
+        processedMessage = newContent + fileHeader + fileContents.join('');
+      }
+    }
+
+    // Prepare to regenerate the conversation from this point
+    setIsLoading(true);
+    setSearchType(getSearchType(newContent));
+
+    try {
+      // Get conversation history up to (but not including) the edited message
+      const history: AIMessage[] = messagesUpToEdit.slice(0, messageIndex).map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content
+      }));
+
+      // Route based on agent mode
+      if (isAgentMode) {
+        // Agent mode
+        let currentSessionId = agentSessionId;
+        
+        if (!currentSessionId && isAgentLoading) {
+          setSearchStatus('Waiting for agent session...');
+          for (let i = 0; i < 30; i++) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const sessionId = getSessionId();
+            if (sessionId) {
+              currentSessionId = sessionId;
+              break;
+            }
+          }
+        }
+        
+        if (!currentSessionId) {
+          throw new Error('Agent session not ready. Please wait a moment and try again.');
+        }
+        
+        setSearchStatus('Connecting to agent...');
+        
+        const agentHistory = messagesUpToEdit.slice(0, messageIndex).map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          toolCalls: m.toolCalls,
+          toolResults: m.toolResults,
+        }));
+
+        const toolCalls: AgentToolCallData[] = [];
+        const toolResults: AgentToolResultData[] = [];
+
+        const result = await agentChatService.executeWithTools(
+          processedMessage, // Use processed message with file contents
+          agentHistory,
+          {
+            sessionId: currentSessionId,
+            onToolStart: (toolCall) => {
+              toolCalls.push(toolCall);
+              setSearchStatus(`Executing ${toolCall.name}...`);
+            },
+            onToolComplete: (result) => {
+              toolResults.push(result);
+              setSearchStatus(result.success ? 'Tool completed' : 'Tool failed');
+            },
+            onStatusUpdate: (status) => {
+              setSearchStatus(status);
+            },
+          }
+        );
+
+        setSearchType(null);
+        setSearchStatus('');
+
+        const assistantMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant' as const,
+          content: result.content || 'Task completed.',
+          type: toolCalls.length > 0 ? 'agent_action' : 'text',
+          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+          toolResults: toolResults.length > 0 ? toolResults : undefined,
+          timestamp: new Date()
+        };
+
+        setMessages(prev => [...prev, assistantMsg]);
+
+        activityLogger.log(
+          'Agent',
+          newContent.slice(0, 50) + (newContent.length > 50 ? '...' : ''),
+          `Regenerated with ${toolCalls.length} tool calls`,
+          'success'
+        );
+
+        await nativeNotifications.success(
+          'Agent Response',
+          toolCalls.length > 0 
+            ? `Executed ${toolCalls.length} tool(s)` 
+            : 'Agent has responded',
+          {
+            tag: 'agent-response',
+            data: { messageId: assistantMsg.id, toolCount: toolCalls.length }
+          }
+        );
+      } else {
+        // Normal mode
+        const result = await aiService.chat(processedMessage, history, (status) => { // Use processed message with file contents
+          setSearchStatus(status);
+          if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
+            setSearchType(prev => prev || 'files');
+          }
+        });
+        
+        setSearchType(null);
+        setSearchStatus('');
+        
+        const assistantMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant' as const,
+          content: (result.text || 'I received your message.').trim(),
+          type: (result.type as Message['type']) || 'text',
+          data: result.data || undefined,
+          searchInfo: result.searchInfo || undefined,
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, assistantMsg]);
+        
+        await nativeNotifications.success(
+          'Response Received',
+          'AI assistant has responded to your edited message',
+          {
+            tag: 'chat-response',
+            data: { messageId: assistantMsg.id, type: result.type }
+          }
+        );
+        
+        if (result.type === 'text') {
+          activityLogger.log(
+            'AI Chat',
+            newContent.slice(0, 50) + (newContent.length > 50 ? '...' : ''),
+            'Regenerated response',
+            'success'
+          );
+        }
+      }
+    } catch (error) {
+      setSearchType(null);
+      setSearchStatus('');
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      await nativeNotifications.error(
+        'Connection Failed',
+        `Unable to reach ${isAgentMode ? 'agent' : 'AI'} service: ${errorMessage}`,
+        {
+          tag: 'chat-error',
+          data: { error: errorMessage, retry: true }
+        }
+      );
+      
+      activityLogger.log(
+        isAgentMode ? 'Agent' : 'AI Chat',
+        newContent.slice(0, 50) + (newContent.length > 50 ? '...' : ''),
+        'Error: ' + errorMessage.slice(0, 30),
+        'error'
+      );
+      
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `Sorry, I encountered an error: ${errorMessage}. ${isAgentMode ? 'Check the Agent Log for details.' : 'Please check your API key configuration.'}`,
+        type: 'text',
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [messages, isAgentMode, agentSessionId, isAgentLoading, getSessionId, getSearchType]);
+
   return (
     <div className="flex flex-col h-full w-full overflow-hidden relative">
       <MainArea
@@ -843,6 +1084,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onSendQueuedNow={handleSendQueuedNow}
         onDiscardQueued={handleDiscardQueued}
         onEditQueued={handleEditQueued}
+        onEditMessage={handleEditMessage}
+        onRegenerateFromMessage={handleRegenerateFromMessage}
       />
       
       {/* Terminal View - floats above PromptArea */}
