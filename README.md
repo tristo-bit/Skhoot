@@ -761,13 +761,72 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 ## 📝 Recent Updates
 
 <details>
+<summary><strong>File Attachment Modal Improvements</strong></summary>
+
+- **Unified File Management Interface**: Streamlined modal with improved user experience
+  - **Combined Files Tab**: Merged "Attached" and "Drop Files" tabs into single "Files" tab for simpler workflow
+  - **Click-to-Browse**: Click anywhere in the drop zone to open native file picker dialog
+  - **Multi-File Selection**: Select multiple files at once via file picker or drag & drop
+  - **Smart Drop Zone**: 
+    - Shows upload icon and instructions when empty
+    - Displays attached files list when populated
+    - Visual drop hint appears when dragging files over existing attachments
+    - Click on files doesn't trigger file picker (event propagation stopped)
+  - **Enhanced Drag & Drop**: Extended drop zone coverage across entire tab content area for easier file dropping
+    - Drag events handled on both inner drop zone and outer tab content container
+    - Consistent drag state management across all drop-enabled areas
+    - Improved user experience with larger drop target area
+  - **Tauri Native File Drop Support**: Desktop app now supports native file drop events via Tauri API
+    - Listens for `tauri://drag-drop` events when modal is open on Files tab for file drops
+    - Listens for `tauri://drag` events to detect drag hover state and show visual feedback
+    - Automatically extracts full file paths from Tauri event payload
+    - Seamless integration with existing drag & drop functionality
+    - Proper cleanup of both event listeners on component unmount
+    - Works alongside browser-based drag & drop for maximum compatibility
+    - Visual drag state updates when files are dragged over the window
+  - **Full Path Support**: Automatically extracts full file paths in Electron/Tauri environments
+  - **File Input Reset**: Same file can be selected multiple times (input value cleared after selection)
+  - **Improved Visual Feedback**: 
+    - Emerald green theme for active states and attached files
+    - Hover effects on drop zone border
+    - Dynamic messaging based on drag state
+  - **Two-Tab Layout**: Simplified to "Files" and "Search Files" tabs only
+  - **Better UX**: Reduced cognitive load by eliminating redundant tab and combining related functionality
+  - **Rich File Type Visualization**: Intelligent file type detection with color-coded icons and labels
+    - **Images** (jpg, png, gif, svg, webp, etc.): Pink theme with Image icon
+    - **Videos** (mp4, avi, mov, mkv, etc.): Pink theme with Video icon
+    - **Audio** (mp3, wav, ogg, flac, etc.): Blue theme with Music icon
+    - **Code Files** (js, ts, py, java, css, html, json, etc.): Cyan theme with FileCode icon
+    - **Archives** (zip, rar, 7z, tar, gz, etc.): Orange theme with FileArchive icon
+    - **Documents** (default): Emerald theme with FileText icon
+    - Each file type has distinct background color, border color, text color, and icon for instant visual recognition
+    - Improves file management workflow with at-a-glance file type identification
+
+</details>
+
+<details>
 <summary><strong>File Reference Chips in Chat Input</strong></summary>
 
 - **Visual File References**: File references now display as interactive chips above the chat input
-  - Purple-styled chips with `@filename` format for clear visual identification
-  - File icon and truncated filename (max 120px) with full path on hover
+  - **Color-Coded File Types**: Intelligent file type detection with distinct color themes for instant visual recognition
+    - **Images** (jpg, png, gif, svg, webp, etc.): Pink theme with appropriate icon
+    - **Videos** (mp4, avi, mov, mkv, etc.): Pink theme with video icon
+    - **Audio** (mp3, wav, ogg, flac, etc.): Blue theme with music icon
+    - **Code Files** (js, ts, py, java, css, html, json, etc.): Cyan theme with code icon
+    - **Archives** (zip, rar, 7z, tar, gz, etc.): Orange theme with archive icon
+    - **Documents** (default): Emerald theme with document icon
+  - **Image Preview Thumbnails**: Image files display inline 16x16px thumbnails in file chips
+    - Automatic Tauri `convertFileSrc` API integration for secure local file access
+    - Graceful fallback to file type icon if image fails to load
+    - Supports all common image formats (jpg, jpeg, png, gif, bmp, svg, webp, ico)
+    - Rounded corners with object-cover for consistent appearance
+    - Works seamlessly in both desktop (Tauri) and web environments
+  - Dynamic file type icons from `getFileTypeInfo` utility for accurate representation
+  - `@filename` format for clear visual identification
+  - Truncated filename (max 100px) with full path on hover
   - Individual remove buttons (X) to delete specific references
   - Smooth fade-in/zoom animations when chips appear
+  - Theme-aware hover effects with semi-transparent backgrounds
 - **Event-Driven Architecture**: 
   - `add-file-reference` custom event for adding files from File Explorer
   - `chat-message-sent` event automatically clears all file references after sending

@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { Search, FileText, Folder, X, Upload, Trash2, File } from 'lucide-react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Search, FileText, Folder, X, Upload, Trash2, File, Image, FileCode, FileArchive, Music, Video } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { IconButton } from '../buttonFormat';
 import { backendApi } from '../../services/backendApi';
+import { listen } from '@tauri-apps/api/event';
 
 export interface AttachedFile {
   fileName: string;
@@ -36,6 +37,81 @@ function getFileExtension(fileName: string): string {
   return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
 }
 
+// Get file type info (icon, color, label)
+export function getFileTypeInfo(fileName: string) {
+  const ext = getFileExtension(fileName);
+  
+  // Images
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico'].includes(ext)) {
+    return {
+      icon: Image,
+      color: '#c0b7c9',
+      bgColor: 'bg-[#c0b7c9]/20',
+      borderColor: 'border-[#c0b7c9]/30',
+      textColor: 'text-[#c0b7c9]',
+      label: 'Image'
+    };
+  }
+  
+  // Videos
+  if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm'].includes(ext)) {
+    return {
+      icon: Video,
+      color: 'pink',
+      bgColor: 'bg-pink-500/20',
+      borderColor: 'border-pink-500/30',
+      textColor: 'text-pink-500',
+      label: 'Video'
+    };
+  }
+  
+  // Audio
+  if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac'].includes(ext)) {
+    return {
+      icon: Music,
+      color: 'blue',
+      bgColor: 'bg-blue-500/20',
+      borderColor: 'border-blue-500/30',
+      textColor: 'text-blue-500',
+      label: 'Audio'
+    };
+  }
+  
+  // Code files
+  if (['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'c', 'h', 'css', 'html', 'json', 'xml', 'yaml', 'yml', 'sh', 'bash'].includes(ext)) {
+    return {
+      icon: FileCode,
+      color: 'cyan',
+      bgColor: 'bg-cyan-500/20',
+      borderColor: 'border-cyan-500/30',
+      textColor: 'text-cyan-500',
+      label: 'Code'
+    };
+  }
+  
+  // Archives
+  if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2'].includes(ext)) {
+    return {
+      icon: FileArchive,
+      color: 'orange',
+      bgColor: 'bg-orange-500/20',
+      borderColor: 'border-orange-500/30',
+      textColor: 'text-orange-500',
+      label: 'Archive'
+    };
+  }
+  
+  // Documents (default)
+  return {
+    icon: FileText,
+    color: 'emerald',
+    bgColor: 'bg-emerald-500/20',
+    borderColor: 'border-emerald-500/30',
+    textColor: 'text-emerald-500',
+    label: 'Document'
+  };
+}
+
 export const FileAttachmentModal: React.FC<FileAttachmentModalProps> = ({
   isOpen,
   onClose,
@@ -48,8 +124,9 @@ export const FileAttachmentModal: React.FC<FileAttachmentModalProps> = ({
   const [searchResults, setSearchResults] = useState<AttachedFile[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [activeTab, setActiveTab] = useState<'attached' | 'search' | 'drop'>('attached');
+  const [activeTab, setActiveTab] = useState<'files' | 'search'>('files');
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Search for files
   const handleSearch = useCallback(async () => {
@@ -98,12 +175,22 @@ export const FileAttachmentModal: React.FC<FileAttachmentModalProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
+    console.log('[FileAttachment] Drag over detected');
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+    console.log('[FileAttachment] Drag enter detected');
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    // Simple approach: just set to false, dragEnter will set it back to true
     setIsDragging(false);
+    console.log('[FileAttachment] Drag leave detected');
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -111,23 +198,115 @@ export const FileAttachmentModal: React.FC<FileAttachmentModalProps> = ({
     e.stopPropagation();
     setIsDragging(false);
 
+    console.log('[FileAttachment] Drop detected!', e.dataTransfer.files);
+    
     const files = Array.from(e.dataTransfer.files);
+    console.log('[FileAttachment] Files to add:', files.length);
+    
     files.forEach(file => {
-      // For dropped files, we use the file name and a placeholder path
-      // In a real implementation, you'd upload the file or get its actual path
+      // Get the full path if available (works in Electron/Tauri)
+      const filePath = (file as any).path || file.name;
+      console.log('[FileAttachment] Adding file:', file.name, 'path:', filePath);
       onAddFile({
         fileName: file.name,
-        filePath: file.name, // Placeholder - would need actual path handling
+        filePath: filePath,
         size: file.size,
         type: getFileExtension(file.name),
       });
     });
   }, [onAddFile]);
 
+  // Handle file input change (when user selects files via explorer)
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(file => {
+      // Get the full path if available (works in Electron/Tauri)
+      const filePath = (file as any).path || file.name;
+      onAddFile({
+        fileName: file.name,
+        filePath: filePath,
+        size: file.size,
+        type: getFileExtension(file.name),
+      });
+    });
+    // Reset input so same file can be selected again
+    if (e.target) {
+      e.target.value = '';
+    }
+  }, [onAddFile]);
+
+  // Handle click to open file explorer
+  const handleZoneClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
   // Check if file is already attached
   const isFileAttached = (fileName: string) => {
     return attachedFiles.some(f => f.fileName === fileName);
   };
+
+  // Listen for Tauri file drop events
+  useEffect(() => {
+    console.log('[FileAttachment] useEffect triggered', { isOpen, activeTab });
+    
+    if (!isOpen || activeTab !== 'files') {
+      console.log('[FileAttachment] Skipping listener setup - modal closed or wrong tab');
+      return;
+    }
+
+    let unlistenDrop: (() => void) | undefined;
+    let unlistenHover: (() => void) | undefined;
+
+    const setupListener = async () => {
+      try {
+        console.log('[FileAttachment] Setting up Tauri listeners...');
+        
+        // Listen for file drop
+        unlistenDrop = await listen<string[]>('tauri://drag-drop', (event) => {
+          console.log('[FileAttachment] ✅ Tauri drag-drop detected!', event.payload);
+          
+          event.payload.forEach(filePath => {
+            const pathParts = filePath.split(/[/\\]/);
+            const fileName = pathParts[pathParts.length - 1];
+            
+            console.log('[FileAttachment] Adding file from Tauri:', fileName, filePath);
+            
+            onAddFile({
+              fileName,
+              filePath,
+              size: undefined,
+              type: getFileExtension(fileName),
+            });
+          });
+          
+          setIsDragging(false);
+        });
+        
+        // Listen for drag hover
+        unlistenHover = await listen('tauri://drag', () => {
+          console.log('[FileAttachment] ✅ Tauri drag hover detected');
+          setIsDragging(true);
+        });
+        
+        console.log('[FileAttachment] ✅ Tauri file drop listeners setup successfully');
+      } catch (error) {
+        console.error('[FileAttachment] ❌ Failed to setup Tauri listeners:', error);
+      }
+    };
+
+    setupListener();
+
+    return () => {
+      console.log('[FileAttachment] Cleaning up listeners...');
+      if (unlistenDrop) {
+        unlistenDrop();
+      }
+      if (unlistenHover) {
+        unlistenHover();
+      }
+      console.log('[FileAttachment] ✅ Tauri file drop listeners cleaned up');
+    };
+  }, [isOpen, activeTab, onAddFile]);
 
   if (!isOpen) return null;
 
@@ -165,14 +344,14 @@ export const FileAttachmentModal: React.FC<FileAttachmentModalProps> = ({
       {/* Tabs */}
       <div className="flex border-b border-glass-border">
         <button
-          onClick={() => setActiveTab('attached')}
+          onClick={() => setActiveTab('files')}
           className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'attached'
+            activeTab === 'files'
               ? 'text-emerald-500 border-b-2 border-emerald-500'
               : 'text-text-secondary hover:text-text-primary'
           }`}
         >
-          Attached ({attachedFiles.length})
+          Files ({attachedFiles.length})
         </button>
         <button
           onClick={() => setActiveTab('search')}
@@ -184,58 +363,103 @@ export const FileAttachmentModal: React.FC<FileAttachmentModalProps> = ({
         >
           Search Files
         </button>
-        <button
-          onClick={() => setActiveTab('drop')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'drop'
-              ? 'text-emerald-500 border-b-2 border-emerald-500'
-              : 'text-text-secondary hover:text-text-primary'
-          }`}
-        >
-          Drop Files
-        </button>
       </div>
 
       {/* Tab Content */}
-      <div className="p-4 min-h-[300px] max-h-[400px] overflow-y-auto">
-        {/* Attached Files Tab */}
-        {activeTab === 'attached' && (
-          <div className="space-y-2">
-            {attachedFiles.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
-                <FileText size={48} className="opacity-30 mb-4" />
-                <p className="text-sm font-medium">No files attached</p>
-                <p className="text-xs mt-1">Search or drop files to attach them</p>
-              </div>
-            ) : (
-              attachedFiles.map((file) => (
-                <div
-                  key={file.fileName}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                    <FileText size={20} className="text-emerald-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-text-primary truncate">
-                      {file.fileName}
-                    </p>
-                    <p className="text-xs text-text-secondary truncate">
-                      {file.filePath}
-                      {file.size && ` • ${formatFileSize(file.size)}`}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => onRemoveFile(file.fileName)}
-                    className="p-2 rounded-lg hover:bg-red-500/20 text-text-secondary hover:text-red-500 transition-colors"
-                    title="Remove file"
-                  >
-                    <X size={16} />
-                  </button>
+      <div 
+        className="p-4 min-h-[300px] max-h-[400px] overflow-y-auto"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* Files Tab - Combined Attached + Drop Zone */}
+        {activeTab === 'files' && (
+          <>
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileInputChange}
+              className="hidden"
+              accept="*/*"
+            />
+            
+            <div
+              ref={dropZoneRef}
+              data-tauri-drag-region="false"
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={handleZoneClick}
+              className={`space-y-2 rounded-2xl border-2 border-dashed p-4 transition-colors cursor-pointer ${
+                isDragging
+                  ? 'border-emerald-500 bg-emerald-500/10'
+                  : 'border-glass-border hover:border-emerald-500/30'
+              }`}
+            >
+              {attachedFiles.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
+                  <Upload size={48} className={`mb-4 ${isDragging ? 'text-emerald-500' : 'opacity-30'}`} />
+                  <p className={`text-sm font-medium ${isDragging ? 'text-emerald-500' : ''}`}>
+                    {isDragging ? 'Drop files here' : 'No files attached'}
+                  </p>
+                  <p className="text-xs mt-1">
+                    {isDragging ? 'Release to attach' : 'Click to browse or drag & drop files here'}
+                  </p>
                 </div>
-              ))
-            )}
-          </div>
+              ) : (
+                <>
+                  {/* Drop hint when dragging over files */}
+                  {isDragging && (
+                    <div className="flex items-center justify-center py-4 mb-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
+                      <Upload size={20} className="text-emerald-500 mr-2" />
+                      <p className="text-sm font-medium text-emerald-500">Drop to add more files</p>
+                    </div>
+                  )}
+                  
+                  {/* Attached Files List */}
+                  {attachedFiles.map((file) => {
+                    const fileInfo = getFileTypeInfo(file.fileName);
+                    const FileIcon = fileInfo.icon;
+                    
+                    return (
+                      <div
+                        key={file.fileName}
+                        className={`flex items-center gap-3 p-3 rounded-xl ${fileInfo.bgColor} border ${fileInfo.borderColor}`}
+                        onClick={(e) => e.stopPropagation()} // Prevent zone click when clicking on file
+                      >
+                        <div className={`w-10 h-10 rounded-lg ${fileInfo.bgColor} flex items-center justify-center`}>
+                          <FileIcon size={20} className={fileInfo.textColor} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-text-primary truncate">
+                            {file.fileName}
+                          </p>
+                          <p className="text-xs text-text-secondary truncate">
+                            {file.filePath}
+                            {file.size && ` • ${formatFileSize(file.size)}`}
+                          </p>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveFile(file.fileName);
+                          }}
+                          className="p-2 rounded-lg hover:bg-red-500/20 text-text-secondary hover:text-red-500 transition-colors"
+                          title="Remove file"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          </>
         )}
 
         {/* Search Tab */}
@@ -309,29 +533,6 @@ export const FileAttachmentModal: React.FC<FileAttachmentModalProps> = ({
                 );
               })}
             </div>
-          </div>
-        )}
-
-        {/* Drop Zone Tab */}
-        {activeTab === 'drop' && (
-          <div
-            ref={dropZoneRef}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`flex flex-col items-center justify-center h-[280px] rounded-2xl border-2 border-dashed transition-colors ${
-              isDragging
-                ? 'border-emerald-500 bg-emerald-500/10'
-                : 'border-glass-border hover:border-emerald-500/50'
-            }`}
-          >
-            <Upload size={48} className={`mb-4 ${isDragging ? 'text-emerald-500' : 'text-text-secondary opacity-50'}`} />
-            <p className={`text-sm font-medium ${isDragging ? 'text-emerald-500' : 'text-text-secondary'}`}>
-              {isDragging ? 'Drop files here' : 'Drag and drop files here'}
-            </p>
-            <p className="text-xs text-text-secondary mt-2">
-              Files will be attached to your message
-            </p>
           </div>
         )}
       </div>

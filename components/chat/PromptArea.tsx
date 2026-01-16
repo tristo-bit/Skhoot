@@ -313,6 +313,7 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
                 <MultiFileChip
                   fileCount={fileReferences.length}
                   onClick={handleAddFileClick}
+                  attachedFiles={fileReferences}
                 />
               )}
             </div>
