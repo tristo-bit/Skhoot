@@ -17,6 +17,7 @@ import {
   Bot,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   CheckCircle2,
   XCircle,
   Clock,
@@ -326,7 +327,7 @@ export const AgentAction = memo<AgentActionProps>(({
 }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [showRawOutput, setShowRawOutput] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [localLayout, setLocalLayout] = useState<'list' | 'grid' | null>(null);
   
   // Get layout preference from settings
@@ -485,21 +486,26 @@ export const AgentAction = memo<AgentActionProps>(({
             <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
               {result.success ? 'Output' : 'Error'}
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {hasFileUI && (
                 <>
+                  {/* Grid/List toggle with label */}
                   <button
                     onClick={toggleLayout}
                     className="flex items-center gap-1 text-[10px] font-bold text-text-secondary hover:text-accent transition-colors"
                     title={effectiveLayout === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
                   >
-                    {effectiveLayout === 'grid' ? <List size={12} /> : <Grid size={12} />}
+                    {effectiveLayout === 'grid' ? <Grid size={12} /> : <List size={12} />}
+                    <span>{effectiveLayout === 'grid' ? 'Grid view' : 'List view'}</span>
                   </button>
+                  
+                  {/* Collapse/Expand toggle */}
                   <button
-                    onClick={() => setShowRawOutput(!showRawOutput)}
-                    className="text-[10px] font-bold text-text-secondary hover:text-accent transition-colors"
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    className="flex items-center gap-1 text-[10px] font-bold text-text-secondary hover:text-accent transition-colors"
                   >
-                    {showRawOutput ? 'Show UI' : 'Show Raw'}
+                    {isCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                    <span>{isCollapsed ? 'Expand' : 'Collapse'}</span>
                   </button>
                 </>
               )}
@@ -513,8 +519,15 @@ export const AgentAction = memo<AgentActionProps>(({
             </div>
           </div>
           
-          {/* File UI for list_directory and search_files */}
-          {hasFileUI && !showRawOutput ? (
+          {/* File UI for list_directory and search_files - collapsible */}
+          {hasFileUI && isCollapsed ? (
+            // Collapsed state - show summary
+            <div className="p-2 rounded-xl border border-glass-border bg-black/5 dark:bg-white/5">
+              <p className="text-[11px] text-text-secondary">
+                {parsedFiles?.length || 0} {(parsedFiles?.length || 0) === 1 ? 'file' : 'files'} found
+              </p>
+            </div>
+          ) : hasFileUI ? (
             effectiveLayout === 'grid' ? (
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[350px] overflow-y-auto custom-scrollbar">
                 {parsedFiles.map((file, index) => (
