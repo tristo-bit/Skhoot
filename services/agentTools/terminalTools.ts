@@ -95,7 +95,7 @@ export interface TerminalState {
 export const terminalToolDefinitions: ToolDefinition[] = [
   {
     name: 'create_terminal',
-    description: 'Create a new terminal session for executing commands. Returns a session ID that can be used to execute commands and read output.',
+    description: 'Create a new terminal session for executing commands. Returns a session ID that can be used to execute commands and read output. NOTE: You already have a persistent terminal for this conversation - only create a new one if you need a separate environment. Your terminal persists across messages, so you can run multiple commands and maintain state.',
     parameters: {
       type: 'object',
       properties: {
@@ -115,25 +115,25 @@ export const terminalToolDefinitions: ToolDefinition[] = [
   },
   {
     name: 'execute_command',
-    description: 'Execute a command in a specific terminal session. The command will be sent to the terminal and executed asynchronously.',
+    description: 'Execute a command in your terminal session. The command runs in your persistent AI terminal that the user can also see. Output is automatically displayed - no need to call read_output or describe what happened. Just execute and move on. Your terminal maintains state across commands (environment variables, current directory, etc.).',
     parameters: {
       type: 'object',
       properties: {
         sessionId: {
           type: 'string',
-          description: 'The session ID of the terminal to execute the command in',
+          description: 'The session ID of the terminal (optional - uses your conversation terminal if not provided)',
         },
         command: {
           type: 'string',
           description: 'The command to execute (will automatically append newline)',
         },
       },
-      required: ['sessionId', 'command'],
+      required: ['command'],
     },
   },
   {
     name: 'read_output',
-    description: 'Read output from a terminal session. Returns all output since the last read, including stdout and stderr.',
+    description: 'Read output from a terminal session. Returns all output since the last read. NOTE: This is rarely needed - output is automatically visible in the terminal panel. Only use this if you need to programmatically process the output (e.g., parse JSON, check for errors). For simple commands like ls, cd, etc., just execute and trust the output is visible.',
     parameters: {
       type: 'object',
       properties: {
@@ -391,12 +391,24 @@ export async function handleExecuteCommand(
     // Execute command
     await terminalService.writeToSession(sessionId, commandWithNewline);
 
+    // Emit the command to the UI so it shows in the terminal
+    window.dispatchEvent(new CustomEvent('terminal-data', {
+      detail: {
+        sessionId,
+        data: `$ ${command}\n`,
+        type: 'input',
+      }
+    }));
+
+    // Give the command a moment to start executing
+    await new Promise(resolve => setTimeout(resolve, 150));
+
     return {
       success: true,
       data: {
         sessionId,
         command: command.trim(),
-        message: 'Command sent successfully. Use read_output to get results.',
+        message: 'Command executed successfully. Output is visible in the terminal panel.',
       },
       metadata: {
         timestamp: Date.now(),
@@ -479,13 +491,14 @@ export async function handleReadOutput(
       success: true,
       data: {
         sessionId,
-        output: combinedOutput,
+        output: combinedOutput || '(No new output - output is visible in terminal panel)',
         outputs: formattedOutput,
         status: session.isActive ? 'running' : 'completed',
       },
       metadata: {
         outputCount: outputs.length,
         timestamp: Date.now(),
+        note: outputs.length === 0 ? 'Output is automatically displayed in the terminal panel. No need to keep checking.' : undefined,
       },
     };
   } catch (error) {

@@ -2,12 +2,13 @@
  * MiniTerminalView Component
  * 
  * Displays a compact terminal view in the chat when AI executes commands.
- * Shows the last few lines of terminal output with ability to expand to full terminal.
+ * Mirrors the output from TerminalView's AI terminal via the shared aiTerminalOutputStore.
+ * This ensures both views show the same data without timing issues.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Maximize2 } from 'lucide-react';
-import { terminalService } from '../../services/terminalService';
+import { aiTerminalOutputStore } from '../terminal/TerminalView';
 
 interface MiniTerminalViewProps {
   sessionId: string;
@@ -23,26 +24,38 @@ export const MiniTerminalView: React.FC<MiniTerminalViewProps> = ({
   const [output, setOutput] = useState<string[]>([]);
   const terminalRef = useRef<HTMLDivElement>(null);
 
-  // Listen for terminal output
+  // Subscribe to AI terminal output store
   useEffect(() => {
-    const handleTerminalData = (event: CustomEvent) => {
-      const { sessionId: eventSessionId, data } = event.detail;
-      
-      if (eventSessionId === sessionId) {
-        setOutput(prev => {
-          const newOutput = [...prev, data];
-          // Keep only the last maxLines * 2 to avoid memory issues
-          return newOutput.slice(-maxLines * 2);
-        });
-      }
-    };
-
-    window.addEventListener('terminal-data', handleTerminalData as EventListener);
+    if (!sessionId) {
+      console.log('[MiniTerminalView] No sessionId provided');
+      return;
+    }
     
-    return () => {
-      window.removeEventListener('terminal-data', handleTerminalData as EventListener);
-    };
-  }, [sessionId, maxLines]);
+    console.log('[MiniTerminalView] Subscribing to AI terminal output for session:', sessionId);
+    
+    // Subscribe to the shared store - this will immediately receive current state
+    const unsubscribe = aiTerminalOutputStore.subscribe((newOutput, storeSessionId) => {
+      console.log('[MiniTerminalView] Received output update:', { 
+        storeSessionId, 
+        sessionId, 
+        outputLength: newOutput.length 
+      });
+      
+      // Only update if this is our session
+      if (storeSessionId === sessionId) {
+        setOutput(newOutput);
+      }
+    });
+    
+    // Also check if there's already output in the store for this session
+    const existingOutput = aiTerminalOutputStore.getOutput(sessionId);
+    if (existingOutput.length > 0) {
+      console.log('[MiniTerminalView] Found existing output:', existingOutput.length, 'lines');
+      setOutput(existingOutput);
+    }
+    
+    return unsubscribe;
+  }, [sessionId]);
 
   // Auto-scroll to bottom when new output arrives
   useEffect(() => {
@@ -65,7 +78,7 @@ export const MiniTerminalView: React.FC<MiniTerminalViewProps> = ({
     <div 
       className="mt-2 rounded-lg overflow-hidden border"
       style={{
-        borderColor: 'rgba(139, 92, 246, 0.2)',
+        borderColor: 'rgba(6, 182, 212, 0.3)',
         background: 'rgba(0, 0, 0, 0.3)',
       }}
     >
@@ -73,25 +86,25 @@ export const MiniTerminalView: React.FC<MiniTerminalViewProps> = ({
       <div 
         className="flex items-center justify-between px-3 py-2 border-b"
         style={{
-          borderColor: 'rgba(139, 92, 246, 0.2)',
-          background: 'rgba(139, 92, 246, 0.1)',
+          borderColor: 'rgba(6, 182, 212, 0.2)',
+          background: 'rgba(6, 182, 212, 0.1)',
         }}
       >
         <div className="flex items-center gap-2">
-          <Terminal size={14} className="text-purple-400" />
-          <span className="text-xs font-medium text-purple-300">Terminal Output</span>
+          <Terminal size={14} className="text-cyan-400" />
+          <span className="text-xs font-medium text-cyan-300">AI Terminal</span>
           {command && (
-            <span className="text-xs text-text-secondary font-mono">
+            <code className="text-xs text-cyan-400/70 font-mono truncate max-w-[200px]">
               $ {command}
-            </span>
+            </code>
           )}
         </div>
         <button
           onClick={handleExpandToTerminal}
-          className="p-1 rounded hover:bg-purple-500/20 transition-colors"
+          className="p-1 rounded hover:bg-cyan-500/20 transition-colors"
           title="Open in Terminal Panel"
         >
-          <Maximize2 size={14} className="text-purple-400" />
+          <Maximize2 size={14} className="text-cyan-400" />
         </button>
       </div>
 
@@ -103,12 +116,12 @@ export const MiniTerminalView: React.FC<MiniTerminalViewProps> = ({
           maxHeight: `${maxLines * 1.5}rem`,
           color: 'var(--text-primary)',
           scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(139, 92, 246, 0.3) transparent',
+          scrollbarColor: 'rgba(6, 182, 212, 0.3) transparent',
         }}
       >
         {displayOutput.length === 0 ? (
-          <div className="text-text-secondary italic">
-            Waiting for output...
+          <div className="text-cyan-400/50 italic">
+            <span className="text-cyan-500">&gt;</span> Executing command...
           </div>
         ) : (
           displayOutput.map((line, index) => (
@@ -121,9 +134,9 @@ export const MiniTerminalView: React.FC<MiniTerminalViewProps> = ({
 
       {output.length > maxLines && (
         <div 
-          className="px-3 py-1 text-xs text-center border-t cursor-pointer hover:bg-purple-500/10 transition-colors"
+          className="px-3 py-1 text-xs text-center border-t cursor-pointer hover:bg-cyan-500/10 transition-colors"
           style={{
-            borderColor: 'rgba(139, 92, 246, 0.2)',
+            borderColor: 'rgba(6, 182, 212, 0.2)',
             color: 'var(--text-secondary)',
           }}
           onClick={handleExpandToTerminal}

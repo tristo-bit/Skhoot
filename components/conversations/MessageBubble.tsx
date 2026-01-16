@@ -6,6 +6,7 @@ import { MessageList } from './MessageList';
 import { DiskUsage } from './DiskUsage';
 import { CleanupList } from './CleanupList';
 import { AgentAction } from './AgentAction';
+import { MiniTerminalView } from './MiniTerminalView';
 import { Button } from '../buttonFormat';
 import { ArrowRight, FileText, Paperclip } from 'lucide-react';
 
@@ -70,30 +71,159 @@ export const MessageBubble = memo<{ message: Message }>(({ message }) => {
           )}
 
           {/* Agent Actions - Tool Calls */}
-          {message.type === 'agent_action' && message.toolCalls && message.toolCalls.map((toolCall, index) => {
-            const result = message.toolResults?.find(r => r.toolCallId === toolCall.id);
-            return (
-              <AgentAction
-                key={toolCall.id || index}
-                toolCall={toolCall}
-                result={result}
-                isExecuting={!result}
-              />
+          {message.type === 'agent_action' && message.toolCalls && (() => {
+            // Group terminal commands together, show other tools separately
+            const terminalCalls = message.toolCalls.filter(tc => 
+              ['create_terminal', 'execute_command'].includes(tc.name)
             );
-          })}
+            const otherCalls = message.toolCalls.filter(tc => 
+              !['create_terminal', 'execute_command', 'read_output', 'list_terminals', 'inspect_terminal'].includes(tc.name)
+            );
+            
+            return (
+              <>
+                {/* Show single MiniTerminalView for all terminal commands */}
+                {terminalCalls.length > 0 && (() => {
+                  console.log('[MessageBubble] Processing terminal calls:', terminalCalls);
+                  
+                  // Get the last execute_command to extract sessionId
+                  const lastExecute = [...terminalCalls].reverse().find(tc => tc.name === 'execute_command');
+                  if (!lastExecute) {
+                    console.log('[MessageBubble] No execute_command found');
+                    return null;
+                  }
+                  
+                  console.log('[MessageBubble] Last execute:', lastExecute);
+                  
+                  const result = message.toolResults?.find(r => r.toolCallId === lastExecute.id);
+                  console.log('[MessageBubble] Found result:', result);
+                  
+                  if (!result || !result.output) {
+                    console.log('[MessageBubble] No result or output');
+                    return null;
+                  }
+                  
+                  // Extract sessionId
+                  let sessionId = '';
+                  try {
+                    const parsed = JSON.parse(result.output);
+                    console.log('[MessageBubble] Parsed output:', parsed);
+                    sessionId = parsed.data?.sessionId || parsed.sessionId || '';
+                  } catch (e) {
+                    console.error('[MessageBubble] Failed to parse terminal result:', e);
+                    const match = result.output.match(/sessionId['":\s]+([a-f0-9-]+)/i);
+                    sessionId = match ? match[1] : '';
+                  }
+                  
+                  console.log('[MessageBubble] Extracted sessionId:', sessionId);
+                  
+                  if (!sessionId) {
+                    console.warn('[MessageBubble] No sessionId found in terminal result');
+                    return null;
+                  }
+                  
+                  // Get all commands
+                  const commands = terminalCalls
+                    .filter(tc => tc.name === 'execute_command')
+                    .map(tc => tc.arguments?.command)
+                    .filter(Boolean);
+                  
+                  console.log('[MessageBubble] Commands:', commands);
+                  
+                  return (
+                    <MiniTerminalView
+                      key={`terminal-${sessionId}`}
+                      sessionId={sessionId}
+                      command={commands.join(' && ')}
+                      maxLines={10}
+                    />
+                  );
+                })()}
+                
+                {/* Show other tool calls with their UI */}
+                {otherCalls.map((toolCall, index) => {
+                  const result = message.toolResults?.find(r => r.toolCallId === toolCall.id);
+                  return (
+                    <AgentAction
+                      key={toolCall.id || index}
+                      toolCall={toolCall}
+                      result={result}
+                      isExecuting={!result}
+                    />
+                  );
+                })}
+              </>
+            );
+          })()}
 
           {/* Inline tool calls in regular messages */}
-          {message.toolCalls && message.type !== 'agent_action' && message.toolCalls.map((toolCall, index) => {
-            const result = message.toolResults?.find(r => r.toolCallId === toolCall.id);
-            return (
-              <AgentAction
-                key={toolCall.id || index}
-                toolCall={toolCall}
-                result={result}
-                isExecuting={!result}
-              />
+          {message.toolCalls && message.type !== 'agent_action' && (() => {
+            // Group terminal commands together, show other tools separately
+            const terminalCalls = message.toolCalls.filter(tc => 
+              ['create_terminal', 'execute_command'].includes(tc.name)
             );
-          })}
+            const otherCalls = message.toolCalls.filter(tc => 
+              !['create_terminal', 'execute_command', 'read_output', 'list_terminals', 'inspect_terminal'].includes(tc.name)
+            );
+            
+            return (
+              <>
+                {/* Show single MiniTerminalView for all terminal commands */}
+                {terminalCalls.length > 0 && (() => {
+                  // Get the last execute_command to extract sessionId
+                  const lastExecute = [...terminalCalls].reverse().find(tc => tc.name === 'execute_command');
+                  if (!lastExecute) return null;
+                  
+                  const result = message.toolResults?.find(r => r.toolCallId === lastExecute.id);
+                  if (!result || !result.output) return null;
+                  
+                  // Extract sessionId
+                  let sessionId = '';
+                  try {
+                    const parsed = JSON.parse(result.output);
+                    sessionId = parsed.data?.sessionId || parsed.sessionId || '';
+                  } catch (e) {
+                    console.error('[MessageBubble] Failed to parse terminal result:', e);
+                    const match = result.output.match(/sessionId['":\s]+([a-f0-9-]+)/i);
+                    sessionId = match ? match[1] : '';
+                  }
+                  
+                  if (!sessionId) {
+                    console.warn('[MessageBubble] No sessionId found in terminal result');
+                    return null;
+                  }
+                  
+                  // Get all commands
+                  const commands = terminalCalls
+                    .filter(tc => tc.name === 'execute_command')
+                    .map(tc => tc.arguments?.command)
+                    .filter(Boolean);
+                  
+                  return (
+                    <MiniTerminalView
+                      key={`terminal-inline-${sessionId}`}
+                      sessionId={sessionId}
+                      command={commands.join(' && ')}
+                      maxLines={10}
+                    />
+                  );
+                })()}
+                
+                {/* Show other tool calls with their UI */}
+                {otherCalls.map((toolCall, index) => {
+                  const result = message.toolResults?.find(r => r.toolCallId === toolCall.id);
+                  return (
+                    <AgentAction
+                      key={toolCall.id || index}
+                      toolCall={toolCall}
+                      result={result}
+                      isExecuting={!result}
+                    />
+                  );
+                })}
+              </>
+            );
+          })()}
         </div>
       </div>
     );

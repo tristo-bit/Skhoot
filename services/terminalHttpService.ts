@@ -24,6 +24,8 @@ export interface CreateSessionRequest {
 
 class TerminalHttpService {
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private outputBuffer: Map<string, string[]> = new Map(); // Buffer recent output per session
+  private readonly MAX_BUFFER_SIZE = 100; // Keep last 100 lines per session
   
   /**
    * Create a new terminal session
@@ -112,14 +114,34 @@ class TerminalHttpService {
       return;
     }
     
+    console.log('[TerminalHttpService] Starting polling for session:', sessionId);
+    
+    // Initialize buffer for this session
+    if (!this.outputBuffer.has(sessionId)) {
+      this.outputBuffer.set(sessionId, []);
+    }
+    
     const interval = setInterval(async () => {
       try {
         const output = await this.read(sessionId);
         if (output.length > 0) {
+          console.log('[TerminalHttpService] Received output for session:', sessionId, 'lines:', output.length);
           output.forEach(content => {
             // Strip ANSI escape codes for cleaner display
             const cleanContent = this.stripAnsi(content);
             if (cleanContent.trim()) {
+              console.log('[TerminalHttpService] Emitting terminal-data:', { sessionId, data: cleanContent.substring(0, 50) });
+              
+              // Add to buffer
+              const buffer = this.outputBuffer.get(sessionId) || [];
+              buffer.push(cleanContent);
+              // Keep only last MAX_BUFFER_SIZE lines
+              if (buffer.length > this.MAX_BUFFER_SIZE) {
+                buffer.shift();
+              }
+              this.outputBuffer.set(sessionId, buffer);
+              
+              // Emit event
               window.dispatchEvent(new CustomEvent('terminal-data', {
                 detail: { sessionId, data: cleanContent, type: 'stdout' }
               }));
@@ -127,12 +149,28 @@ class TerminalHttpService {
           });
         }
       } catch (error) {
+        console.error('[TerminalHttpService] Polling error for session:', sessionId, error);
         // Session might be closed
         this.stopPolling(sessionId);
       }
     }, intervalMs);
     
     this.pollingIntervals.set(sessionId, interval);
+  }
+  
+  /**
+   * Get buffered output for a session
+   * This allows components to retrieve output that was emitted before they mounted
+   */
+  getBufferedOutput(sessionId: string): string[] {
+    const buffer = this.outputBuffer.get(sessionId) || [];
+    console.log('[TerminalHttpService] getBufferedOutput called:', { 
+      sessionId, 
+      bufferLength: buffer.length,
+      allBufferedSessions: Array.from(this.outputBuffer.keys()),
+      firstLine: buffer[0]?.substring(0, 50)
+    });
+    return buffer;
   }
   
   /**
@@ -153,6 +191,8 @@ class TerminalHttpService {
       clearInterval(interval);
       this.pollingIntervals.delete(sessionId);
     }
+    // Clean up buffer when polling stops
+    this.outputBuffer.delete(sessionId);
   }
   
   /**

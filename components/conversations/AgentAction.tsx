@@ -563,20 +563,17 @@ export const AgentAction = memo<AgentActionProps>(({
           ) : (toolCall.name === 'shell' || toolCall.name === 'execute_command') && result.success ? (
             <MiniTerminalView
               sessionId={(() => {
-                // Try to get sessionId from arguments first
+                // Try arguments first (if AI explicitly passed it)
                 if (toolCall.arguments.sessionId) return toolCall.arguments.sessionId;
+                if (toolCall.arguments.session_id) return toolCall.arguments.session_id;
                 
-                // Try to parse from result output (JSON format)
+                // Try to get from result output (the tool returns sessionId in data)
                 try {
                   const parsed = JSON.parse(result.output);
-                  if (parsed.sessionId) return parsed.sessionId;
+                  return parsed.sessionId || parsed.session_id || '';
                 } catch {
-                  // Not JSON, try regex
-                  const match = result.output.match(/sessionId['":\s]+([a-f0-9-]+)/i);
-                  if (match) return match[1];
+                  return '';
                 }
-                
-                return '';
               })()}
               command={toolCall.arguments.command}
               maxLines={5}

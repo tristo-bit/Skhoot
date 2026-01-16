@@ -113,6 +113,18 @@ async fn main() -> anyhow::Result<()> {
     
     // Initialize terminal manager
     let terminal_manager = TerminalManager::default();
+    
+    // Spawn background task to cleanup stale sessions every 5 minutes
+    {
+        let manager = terminal_manager.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300)); // 5 minutes
+            loop {
+                interval.tick().await;
+                manager.cleanup_stale_sessions().await;
+            }
+        });
+    }
 
     let state = AppState {
         config,
@@ -135,7 +147,12 @@ async fn main() -> anyhow::Result<()> {
         .layer(
             CorsLayer::new()
                 .allow_origin(tower_http::cors::Any)
-                .allow_methods([axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::OPTIONS])
+                .allow_methods([
+                    axum::http::Method::GET,
+                    axum::http::Method::POST,
+                    axum::http::Method::DELETE,
+                    axum::http::Method::OPTIONS
+                ])
                 .allow_headers([axum::http::header::CONTENT_TYPE]),
         );
 

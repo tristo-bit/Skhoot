@@ -6,7 +6,7 @@
 mod session;
 mod manager;
 mod routes;
+mod snapshot;
 
-pub use session::{TerminalSession, SessionConfig};
 pub use manager::TerminalManager;
 pub use routes::terminal_routes;

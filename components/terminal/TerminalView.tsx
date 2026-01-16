@@ -31,6 +31,55 @@ const DEFAULT_HEIGHT = 250;
 const MIN_HEIGHT = 150;
 const MAX_HEIGHT = 600;
 
+// Global store for AI terminal output - allows MiniTerminalView to access it
+class AITerminalOutputStore {
+  private listeners: Set<(output: string[], sessionId: string) => void> = new Set();
+  private currentOutput: string[] = [];
+  private currentSessionId: string | null = null;
+
+  setOutput(sessionId: string, output: string[]) {
+    this.currentSessionId = sessionId;
+    this.currentOutput = output;
+    this.listeners.forEach(listener => listener(output, sessionId));
+  }
+
+  appendOutput(sessionId: string, line: string) {
+    if (this.currentSessionId === sessionId) {
+      this.currentOutput = [...this.currentOutput, line];
+      this.listeners.forEach(listener => listener(this.currentOutput, sessionId));
+    }
+  }
+
+  getOutput(sessionId: string): string[] {
+    if (this.currentSessionId === sessionId) {
+      return this.currentOutput;
+    }
+    return [];
+  }
+
+  getSessionId(): string | null {
+    return this.currentSessionId;
+  }
+
+  subscribe(listener: (output: string[], sessionId: string) => void): () => void {
+    this.listeners.add(listener);
+    // Immediately call with current state if available
+    if (this.currentSessionId) {
+      listener(this.currentOutput, this.currentSessionId);
+    }
+    return () => this.listeners.delete(listener);
+  }
+
+  clear(sessionId: string) {
+    if (this.currentSessionId === sessionId) {
+      this.currentOutput = [];
+      this.listeners.forEach(listener => listener([], sessionId));
+    }
+  }
+}
+
+export const aiTerminalOutputStore = new AITerminalOutputStore();
+
 export const TerminalView: React.FC<TerminalViewProps> = memo(({ 
   isOpen, 
   onClose, 
@@ -63,9 +112,40 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
   // Handle terminal output events
   useEffect(() => {
     const handleTerminalData = (event: CustomEvent) => {
-      const { sessionId, data } = event.detail;
+      const { sessionId, data, type } = event.detail;
       
-      // Filter out bash version and other startup messages
+      console.log('[TerminalView] Received terminal-data:', { sessionId, type, data: data.substring(0, 50) });
+      
+      // Check if this is an AI-created terminal
+      const isAITerminal = terminalContextStore.isAICreated(sessionId);
+      
+      // Don't filter input commands (when AI executes commands)
+      if (type === 'input') {
+        setTerminalOutputs(prev => {
+          const newMap = new Map(prev);
+          const existing = newMap.get(sessionId) || [];
+          const newOutput = [...existing, data];
+          newMap.set(sessionId, newOutput);
+          
+          // Sync to AI terminal store if this is an AI terminal
+          if (isAITerminal) {
+            aiTerminalOutputStore.setOutput(sessionId, newOutput);
+          }
+          
+          return newMap;
+        });
+        
+        // Auto-scroll to bottom
+        setTimeout(() => {
+          const ref = terminalRefs.current.get(sessionId);
+          if (ref) {
+            ref.scrollTop = ref.scrollHeight;
+          }
+        }, 10);
+        return;
+      }
+      
+      // Filter out bash version and other startup messages for output
       const filteredData = data
         .replace(/^GNU bash.*\n?/gm, '')
         .replace(/^bash-.*\$\s*/gm, '')
@@ -76,7 +156,14 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
       setTerminalOutputs(prev => {
         const newMap = new Map(prev);
         const existing = newMap.get(sessionId) || [];
-        newMap.set(sessionId, [...existing, filteredData]);
+        const newOutput = [...existing, filteredData];
+        newMap.set(sessionId, newOutput);
+        
+        // Sync to AI terminal store if this is an AI terminal
+        if (isAITerminal) {
+          aiTerminalOutputStore.setOutput(sessionId, newOutput);
+        }
+        
         return newMap;
       });
 
@@ -152,10 +239,10 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run cleanup on unmount, not when tabs change
 
-  // Expose send command function
+  // Expose send command function (but not for AI terminals)
   useEffect(() => {
     const activeTab = tabs.find(t => t.id === activeTabId);
-    if (activeTab) {
+    if (activeTab && activeTab.createdBy !== 'ai') {
       onSendCommand((command: string) => {
         // Add command to output with > prefix
         setTerminalOutputs(prev => {
@@ -165,6 +252,11 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
           return newMap;
         });
         terminalService.writeToSession(activeTab.sessionId, command + '\n').catch(console.error);
+      });
+    } else {
+      // For AI terminals, provide a no-op function
+      onSendCommand(() => {
+        console.log('[TerminalView] Input blocked - this is an AI-controlled terminal');
       });
     }
   }, [activeTabId, tabs, onSendCommand]);
@@ -298,6 +390,10 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
       newMap.set(sessionId, []);
       return newMap;
     });
+    // Also clear AI terminal store if this is an AI terminal
+    if (terminalContextStore.isAICreated(sessionId)) {
+      aiTerminalOutputStore.clear(sessionId);
+    }
   }, []);
 
   // Toggle agent log visibility - acts as show/hide switch (session keeps running)
@@ -546,23 +642,27 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
             ) : (
               <div className="h-full flex flex-col">
                 {/* Terminal Header with Workspace Root */}
-                {activeTab.workspaceRoot && (
+                {(activeTab.workspaceRoot || activeTab.createdBy === 'ai') && (
                   <div 
-                    className="px-4 py-2 border-b flex items-center gap-2"
+                    className="px-4 py-2 border-b flex items-center justify-between"
                     style={{
                       borderColor: 'rgba(139, 92, 246, 0.2)',
                       color: 'var(--text-secondary)',
-                      background: 'rgba(139, 92, 246, 0.05)',
+                      background: activeTab.createdBy === 'ai' ? 'rgba(6, 182, 212, 0.1)' : 'rgba(139, 92, 246, 0.05)',
                     }}
                   >
-                    <Terminal size={14} />
-                    <span className="text-xs font-mono">
-                      Workspace: {activeTab.workspaceRoot}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Terminal size={14} />
+                      {activeTab.workspaceRoot && (
+                        <span className="text-xs font-mono">
+                          Workspace: {activeTab.workspaceRoot}
+                        </span>
+                      )}
+                    </div>
                     {activeTab.createdBy === 'ai' && (
-                      <div className="flex items-center gap-1 text-xs text-cyan-400">
+                      <div className="flex items-center gap-2 text-xs text-cyan-400">
                         <Bot size={12} />
-                        <span>AI Controlled</span>
+                        <span>AI Terminal (Read-only)</span>
                       </div>
                     )}
                   </div>
