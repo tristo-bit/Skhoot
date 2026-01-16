@@ -15,3 +15,6 @@ export { CommandOutput } from './CommandOutput';
 export type { CommandOutputProps } from './CommandOutput';
 export { FileOperation } from './FileOperation';
 export type { FileOperationProps, FileOperationType } from './FileOperation';
+
+// Workflow components
+export { WorkflowExecution } from './WorkflowExecution';

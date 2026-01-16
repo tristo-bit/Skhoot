@@ -1,0 +1,711 @@
+/**
+ * Workflow Service
+ * 
+ * Manages workflow definitions, execution, and triggers.
+ * Provides a tree-of-decision based workflow system with support for:
+ * - Hook workflows (auto-triggered)
+ * - Process workflows (step-by-step)
+ * - Manual workflows (user-triggered)
+ */
+
+// ============================================================================
+// Types & Interfaces
+// ============================================================================
+
+export type WorkflowType = 'hook' | 'process' | 'manual';
+export type WorkflowStatus = 'idle' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+
+export interface TriggerType {
+  type: 'on_file_save' | 'on_file_create' | 'on_message' | 'on_git_commit' | 'on_error' | 'on_schedule' | 'on_ai_detection' | 'custom';
+  patterns?: string[];
+  keywords?: string[];
+  intentPatterns?: string[];
+  errorPatterns?: string[];
+  cron?: string;
+  condition?: string;
+}
+
+export interface DecisionNode {
+  id: string;
+  condition: string;
+  trueBranch?: string;
+  falseBranch?: string;
+}
+
+export interface WorkflowStep {
+  id: string;
+  name: string;
+  prompt: string;
+  order: number;
+  decision?: DecisionNode;
+  nextStep?: string;
+  outputFormat?: string;
+  requiresConfirmation?: boolean;
+  timeoutSecs?: number;
+}
+
+export interface OutputSettings {
+  folder?: string;
+  filePattern?: string;
+  formatDescription?: string;
+  appendMode?: boolean;
+  timestamped?: boolean;
+}
+
+export interface WorkflowBehavior {
+  asToolcall?: boolean;
+  autoRetry?: boolean;
+  maxRetries?: number;
+  background?: boolean;
+  notifyOnComplete?: boolean;
+  logExecution?: boolean;
+}
+
+export interface Workflow {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  workflowType: WorkflowType;
+  steps: WorkflowStep[];
+  intent?: string;
+  trigger?: TriggerType;
+  outputSettings: OutputSettings;
+  behavior: WorkflowBehavior;
+  createdAt: number;
+  updatedAt: number;
+  runCount: number;
+  lastRun?: number;
+  status: WorkflowStatus;
+  variables?: Record<string, string>;
+}
+
+export interface StepResult {
+  stepId: string;
+  success: boolean;
+  output: string;
+  error?: string;
+  durationMs: number;
+  decisionResult?: boolean;
+}
+
+export interface ExecutionContext {
+  workflowId: string;
+  executionId: string;
+  currentStepId?: string;
+  variables: Record<string, any>;
+  stepResults: Record<string, StepResult>;
+  startedAt: number;
+  completedAt?: number;
+  status: WorkflowStatus;
+}
+
+export interface CreateWorkflowRequest {
+  name: string;
+  description: string;
+  workflowType: WorkflowType;
+  category?: string;
+  steps: WorkflowStep[];
+  intent?: string;
+  trigger?: TriggerType;
+  outputSettings?: OutputSettings;
+  behavior?: WorkflowBehavior;
+}
+
+// ============================================================================
+// Default Workflows
+// ============================================================================
+
+const DEFAULT_WORKFLOWS: Workflow[] = [
+  {
+    id: 'default-steering-file',
+    name: 'Create Agent Steering File',
+    description: 'Create a structured steering file for agent behavior configuration',
+    category: 'default',
+    workflowType: 'process',
+    intent: 'create steering file, agent configuration, behavior rules',
+    steps: [
+      {
+        id: 's1',
+        name: 'Analyze Context',
+        prompt: `Analyze the current project structure to understand the context for creating a steering file.
+
+Use the available tools to:
+1. List the project directory structure to understand the codebase
+2. Look for existing configuration files or documentation
+
+Based on your analysis, describe:
+- What type of project this is
+- What behaviors and rules would be appropriate for an AI agent working on this project
+- Any coding standards or patterns you observe`,
+        order: 1,
+        nextStep: 's2',
+        outputFormat: 'markdown',
+        timeoutSecs: 60,
+      },
+      {
+        id: 's2',
+        name: 'Define Rules',
+        prompt: `Based on the project analysis, define specific rules and guidelines for the steering file.
+
+Create a YAML structure with:
+- Project context and description
+- Coding standards (language, formatting, patterns)
+- File organization rules
+- Interaction guidelines for the AI agent
+- Any project-specific conventions
+
+Format the output as valid YAML that can be used in a steering file.`,
+        order: 2,
+        nextStep: 's3',
+        outputFormat: 'yaml',
+        requiresConfirmation: true,
+        timeoutSecs: 120,
+      },
+      {
+        id: 's3',
+        name: 'Generate File',
+        prompt: `Create the steering file with the defined rules.
+
+Use the write_file tool to save the steering file to: .kiro/steering/project-rules.md
+
+The file should have:
+1. YAML frontmatter with metadata (inclusion: always)
+2. Markdown content with the rules and guidelines
+
+If you don't have write_file access, output the complete file content so the user can save it manually.`,
+        order: 3,
+        outputFormat: 'file',
+        timeoutSecs: 30,
+      },
+    ],
+    outputSettings: {
+      folder: '.kiro/steering',
+      filePattern: '{name}.md',
+      formatDescription: 'Markdown file with YAML frontmatter',
+    },
+    behavior: {
+      notifyOnComplete: true,
+      logExecution: true,
+    },
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    runCount: 0,
+    status: 'idle',
+  },
+  {
+    id: 'default-auto-workflow',
+    name: 'Create Workflow from Conversation',
+    description: 'Automatically detect and create workflows from conversation patterns',
+    category: 'default',
+    workflowType: 'hook',
+    intent: 'create workflow, automate task, save as workflow',
+    trigger: {
+      type: 'on_ai_detection',
+      intentPatterns: [
+        'create a workflow',
+        'save this as a workflow',
+        'automate this',
+        'make this repeatable',
+      ],
+    },
+    steps: [
+      {
+        id: 's1',
+        name: 'Extract Pattern',
+        prompt: `Analyze the recent conversation history and extract a repeatable workflow pattern.
+
+Identify:
+1. The main goal or task being accomplished
+2. The sequence of steps taken
+3. Any inputs or parameters needed
+4. Expected outputs or results
+
+Determine if this can be converted into a reusable workflow.
+Output your analysis as JSON with: { "isValid": boolean, "reason": string, "steps": [...] }`,
+        order: 1,
+        decision: {
+          id: 'd1',
+          condition: 'Is this a valid workflow pattern?',
+          trueBranch: 's2',
+          falseBranch: 's_invalid',
+        },
+        outputFormat: 'json',
+        timeoutSecs: 60,
+      },
+      {
+        id: 's_invalid',
+        name: 'Invalid Pattern',
+        prompt: 'Explain why this cannot be converted to a workflow and suggest alternatives.',
+        order: 2,
+        timeoutSecs: 30,
+      },
+      {
+        id: 's2',
+        name: 'Define Workflow',
+        prompt: 'Create the workflow definition with proper steps, triggers, and output settings. Ask the user for workflow name and type.',
+        order: 3,
+        nextStep: 's3',
+        outputFormat: 'json',
+        requiresConfirmation: true,
+        timeoutSecs: 120,
+      },
+      {
+        id: 's3',
+        name: 'Save Workflow',
+        prompt: 'Save the workflow using the create_workflow tool and confirm creation to the user.',
+        order: 4,
+        timeoutSecs: 30,
+      },
+    ],
+    outputSettings: {},
+    behavior: {
+      asToolcall: true,
+      notifyOnComplete: true,
+      logExecution: true,
+    },
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    runCount: 0,
+    status: 'idle',
+  },
+  {
+    id: 'default-error-search',
+    name: 'Search for Errors and Logic Enhancements',
+    description: 'Analyze codebase for errors, bugs, and potential logic improvements',
+    category: 'default',
+    workflowType: 'manual',
+    intent: 'find errors, search bugs, logic enhancement, code review',
+    steps: [
+      {
+        id: 's1',
+        name: 'Scan Codebase',
+        prompt: `Scan the codebase for potential errors and issues.
+
+Use available tools to:
+1. List the main source directories (src/, components/, services/, etc.)
+2. Search for common error patterns like TODO, FIXME, console.error
+3. Look for files with recent modifications
+
+Identify the most critical files that should be reviewed first.
+Output a list of files to analyze with their priority level.`,
+        order: 1,
+        nextStep: 's2',
+        outputFormat: 'json',
+        timeoutSecs: 180,
+      },
+      {
+        id: 's2',
+        name: 'Analyze Logic',
+        prompt: `Analyze the identified files for potential issues.
+
+Look for:
+1. Type errors or missing type annotations
+2. Unhandled edge cases
+3. Performance issues (unnecessary re-renders, memory leaks)
+4. Security vulnerabilities (unsanitized inputs, exposed secrets)
+5. Code duplication or poor patterns
+
+Categorize issues as CRITICAL, WARNING, or SUGGESTION.
+Are there any critical issues that need immediate attention?`,
+        order: 2,
+        decision: {
+          id: 'd1',
+          condition: 'Are there critical issues that need immediate attention?',
+          trueBranch: 's3_critical',
+          falseBranch: 's3_normal',
+        },
+        outputFormat: 'markdown',
+        timeoutSecs: 120,
+      },
+      {
+        id: 's3_critical',
+        name: 'Critical Issues Report',
+        prompt: `Generate a prioritized report of the CRITICAL issues found.
+
+For each critical issue:
+1. File and line location
+2. Description of the problem
+3. Potential impact (security, data loss, crashes)
+4. Suggested fix with code example
+
+Format as a clear, actionable report.`,
+        order: 3,
+        nextStep: 's4',
+        outputFormat: 'markdown',
+        requiresConfirmation: true,
+        timeoutSecs: 60,
+      },
+      {
+        id: 's3_normal',
+        name: 'Enhancement Report',
+        prompt: `Generate a report of suggested enhancements and optimizations.
+
+Organize by:
+1. Quick wins (easy fixes, high impact)
+2. Medium effort improvements
+3. Long-term refactoring suggestions
+
+Include code examples where helpful.`,
+        order: 3,
+        nextStep: 's4',
+        outputFormat: 'markdown',
+        timeoutSecs: 60,
+      },
+      {
+        id: 's4',
+        name: 'Summary',
+        prompt: 'Provide an executive summary of findings with actionable next steps.',
+        order: 4,
+        outputFormat: 'markdown',
+        timeoutSecs: 30,
+      },
+    ],
+    outputSettings: {
+      folder: 'reports',
+      filePattern: 'code-analysis-{timestamp}.md',
+      formatDescription: 'Markdown report with findings and recommendations',
+      timestamped: true,
+    },
+    behavior: {
+      notifyOnComplete: true,
+      logExecution: true,
+    },
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    runCount: 0,
+    status: 'idle',
+  },
+];
+
+// ============================================================================
+// Workflow Service Class
+// ============================================================================
+
+class WorkflowService {
+  private workflows: Map<string, Workflow> = new Map();
+  private executions: Map<string, ExecutionContext> = new Map();
+  private eventListeners: Map<string, Set<(data: any) => void>> = new Map();
+
+  constructor() {
+    this.initDefaults();
+  }
+
+  private initDefaults(): void {
+    DEFAULT_WORKFLOWS.forEach(wf => {
+      this.workflows.set(wf.id, wf);
+    });
+  }
+
+  // ==========================================================================
+  // CRUD Operations
+  // ==========================================================================
+
+  async list(): Promise<Workflow[]> {
+    return Array.from(this.workflows.values());
+  }
+
+  async listByCategory(category: string): Promise<Workflow[]> {
+    return Array.from(this.workflows.values())
+      .filter(wf => wf.category === category);
+  }
+
+  async listByType(type: WorkflowType): Promise<Workflow[]> {
+    return Array.from(this.workflows.values())
+      .filter(wf => wf.workflowType === type);
+  }
+
+  async get(id: string): Promise<Workflow | undefined> {
+    return this.workflows.get(id);
+  }
+
+  // Synchronous getter for UI components
+  getWorkflowSync(id: string): Workflow | undefined {
+    return this.workflows.get(id);
+  }
+
+  async create(request: CreateWorkflowRequest): Promise<Workflow> {
+    const now = Date.now();
+    const workflow: Workflow = {
+      id: `wf-${now}-${Math.random().toString(36).substr(2, 9)}`,
+      name: request.name,
+      description: request.description,
+      category: request.category || 'custom',
+      workflowType: request.workflowType,
+      steps: request.steps,
+      intent: request.intent,
+      trigger: request.trigger,
+      outputSettings: request.outputSettings || {},
+      behavior: request.behavior || { notifyOnComplete: true, logExecution: true },
+      createdAt: now,
+      updatedAt: now,
+      runCount: 0,
+      status: 'idle',
+    };
+
+    this.workflows.set(workflow.id, workflow);
+    this.emit('workflow_created', { workflow });
+    return workflow;
+  }
+
+  async update(id: string, updates: Partial<Workflow>): Promise<Workflow | undefined> {
+    const workflow = this.workflows.get(id);
+    if (!workflow) return undefined;
+
+    const updated: Workflow = {
+      ...workflow,
+      ...updates,
+      id: workflow.id, // Prevent ID change
+      updatedAt: Date.now(),
+    };
+
+    this.workflows.set(id, updated);
+    this.emit('workflow_updated', { workflow: updated });
+    return updated;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const deleted = this.workflows.delete(id);
+    if (deleted) {
+      this.emit('workflow_deleted', { workflowId: id });
+    }
+    return deleted;
+  }
+
+  // ==========================================================================
+  // Execution
+  // ==========================================================================
+
+  async execute(workflowId: string, variables: Record<string, any> = {}): Promise<ExecutionContext> {
+    const workflow = this.workflows.get(workflowId);
+    if (!workflow) {
+      throw new Error(`Workflow ${workflowId} not found`);
+    }
+
+    const executionId = `exec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const firstStep = workflow.steps.find(s => s.order === 1);
+
+    const context: ExecutionContext = {
+      workflowId,
+      executionId,
+      currentStepId: firstStep?.id,
+      variables,
+      stepResults: {},
+      startedAt: Date.now(),
+      status: 'running',
+    };
+
+    this.executions.set(executionId, context);
+    
+    // Update workflow status
+    await this.update(workflowId, { status: 'running' });
+    
+    this.emit('execution_started', { context, workflow });
+    
+    // Dispatch event to chat interface to start workflow execution
+    window.dispatchEvent(new CustomEvent('workflow-execute', {
+      detail: {
+        executionId,
+        workflow,
+        context,
+        currentStep: firstStep,
+      }
+    }));
+    
+    return context;
+  }
+
+  async executeStep(
+    executionId: string,
+    output: string,
+    decisionResult?: boolean
+  ): Promise<{ nextStepId?: string; completed: boolean }> {
+    const context = this.executions.get(executionId);
+    if (!context) {
+      throw new Error(`Execution ${executionId} not found`);
+    }
+
+    const workflow = this.workflows.get(context.workflowId);
+    if (!workflow) {
+      throw new Error('Workflow not found');
+    }
+
+    const currentStep = workflow.steps.find(s => s.id === context.currentStepId);
+    if (!currentStep) {
+      throw new Error('Current step not found');
+    }
+
+    // Record step result
+    const result: StepResult = {
+      stepId: currentStep.id,
+      success: true,
+      output,
+      durationMs: 0,
+      decisionResult,
+    };
+    context.stepResults[currentStep.id] = result;
+
+    // Determine next step using tree-of-decision logic
+    let nextStepId: string | undefined;
+    if (currentStep.decision) {
+      nextStepId = decisionResult 
+        ? currentStep.decision.trueBranch 
+        : currentStep.decision.falseBranch;
+    } else {
+      nextStepId = currentStep.nextStep;
+    }
+
+    context.currentStepId = nextStepId;
+
+    // Check if workflow is complete
+    const completed = !nextStepId;
+    if (completed) {
+      context.status = 'completed';
+      context.completedAt = Date.now();
+      
+      const wf = this.workflows.get(context.workflowId);
+      if (wf) {
+        await this.update(context.workflowId, {
+          status: 'idle',
+          runCount: wf.runCount + 1,
+          lastRun: Date.now(),
+        });
+      }
+      
+      this.emit('execution_completed', { context, workflow });
+      
+      // Dispatch completion event
+      window.dispatchEvent(new CustomEvent('workflow-completed', {
+        detail: { executionId, context, workflow }
+      }));
+    } else {
+      // Get next step and dispatch event
+      const nextStep = workflow.steps.find(s => s.id === nextStepId);
+      this.emit('step_completed', { context, stepResult: result, nextStepId });
+      
+      // Dispatch event to continue workflow
+      window.dispatchEvent(new CustomEvent('workflow-step-next', {
+        detail: {
+          executionId,
+          workflow,
+          context,
+          currentStep: nextStep,
+          previousResult: result,
+        }
+      }));
+    }
+
+    return { nextStepId, completed };
+  }
+
+  async cancelExecution(executionId: string): Promise<void> {
+    const context = this.executions.get(executionId);
+    if (context) {
+      context.status = 'cancelled';
+      context.completedAt = Date.now();
+      await this.update(context.workflowId, { status: 'idle' });
+      this.emit('execution_cancelled', { context });
+    }
+  }
+
+  getExecution(executionId: string): ExecutionContext | undefined {
+    return this.executions.get(executionId);
+  }
+
+  getActiveExecutions(): ExecutionContext[] {
+    return Array.from(this.executions.values())
+      .filter(e => e.status === 'running');
+  }
+
+  // ==========================================================================
+  // Trigger Management
+  // ==========================================================================
+
+  async checkMessageTriggers(message: string): Promise<Workflow[]> {
+    const messageLower = message.toLowerCase();
+    const triggered: Workflow[] = [];
+
+    for (const workflow of this.workflows.values()) {
+      if (workflow.workflowType !== 'hook' || !workflow.trigger) continue;
+
+      const trigger = workflow.trigger;
+      if (trigger.type === 'on_message' && trigger.keywords) {
+        if (trigger.keywords.some(k => messageLower.includes(k.toLowerCase()))) {
+          triggered.push(workflow);
+        }
+      } else if (trigger.type === 'on_ai_detection' && trigger.intentPatterns) {
+        if (trigger.intentPatterns.some(p => messageLower.includes(p.toLowerCase()))) {
+          triggered.push(workflow);
+        }
+      }
+    }
+
+    return triggered;
+  }
+
+  async checkFileTriggers(filePath: string, event: 'save' | 'create'): Promise<Workflow[]> {
+    const triggered: Workflow[] = [];
+
+    for (const workflow of this.workflows.values()) {
+      if (workflow.workflowType !== 'hook' || !workflow.trigger) continue;
+
+      const trigger = workflow.trigger;
+      const triggerType = event === 'save' ? 'on_file_save' : 'on_file_create';
+      
+      if (trigger.type === triggerType && trigger.patterns) {
+        if (this.matchesPatterns(filePath, trigger.patterns)) {
+          triggered.push(workflow);
+        }
+      }
+    }
+
+    return triggered;
+  }
+
+  private matchesPatterns(path: string, patterns: string[]): boolean {
+    return patterns.some(pattern => {
+      if (pattern.includes('*')) {
+        const parts = pattern.split('*');
+        if (parts.length === 2) {
+          return path.startsWith(parts[0]) && path.endsWith(parts[1]);
+        }
+        return path.includes(pattern.replace(/\*/g, ''));
+      }
+      return path.endsWith(pattern) || path.includes(pattern);
+    });
+  }
+
+  // ==========================================================================
+  // Toolcall Workflows
+  // ==========================================================================
+
+  async getToolcallWorkflows(): Promise<Workflow[]> {
+    return Array.from(this.workflows.values())
+      .filter(wf => wf.behavior.asToolcall);
+  }
+
+  // ==========================================================================
+  // Event System
+  // ==========================================================================
+
+  on(event: string, listener: (data: any) => void): () => void {
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, new Set());
+    }
+    this.eventListeners.get(event)!.add(listener);
+    return () => this.eventListeners.get(event)?.delete(listener);
+  }
+
+  private emit(event: string, data: any): void {
+    this.eventListeners.get(event)?.forEach(listener => {
+      try {
+        listener(data);
+      } catch (error) {
+        console.error('[WorkflowService] Event listener error:', error);
+      }
+    });
+  }
+}
+
+// Export singleton instance
+export const workflowService = new WorkflowService();

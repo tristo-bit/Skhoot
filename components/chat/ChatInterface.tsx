@@ -314,6 +314,44 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     };
   }, [isEmptyStateVisible]);
 
+  // Workflow execution event listener
+  useEffect(() => {
+    const handleWorkflowExecute = (event: CustomEvent) => {
+      const { executionId, workflow } = event.detail;
+      
+      // Hide empty state
+      if (isEmptyStateVisible) {
+        setIsEmptyStateExiting(true);
+        setTimeout(() => {
+          setIsEmptyStateVisible(false);
+          setIsEmptyStateExiting(false);
+        }, 100);
+      }
+      
+      // Create a workflow message
+      const workflowMsg: Message = {
+        id: `workflow-${executionId}`,
+        role: 'assistant',
+        content: `Starting workflow: ${workflow.name}`,
+        type: 'workflow',
+        workflowExecution: {
+          executionId,
+          workflowId: workflow.id,
+          workflowName: workflow.name,
+        },
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, workflowMsg]);
+    };
+
+    window.addEventListener('workflow-execute', handleWorkflowExecute as EventListener);
+    
+    return () => {
+      window.removeEventListener('workflow-execute', handleWorkflowExecute as EventListener);
+    };
+  }, [isEmptyStateVisible]);
+
   // Empty state visibility
   useEffect(() => {
     const shouldHide = hasMessages || (isRecording && hasVoiceContent);
@@ -817,6 +855,55 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [handleSend]);
 
+  // Handle workflow prompts - sends to AI and returns response
+  // Uses agent mode if available for tool access (file operations, terminal, etc.)
+  const handleWorkflowPrompt = useCallback(async (prompt: string): Promise<string> => {
+    try {
+      // If agent mode is enabled, use agent chat service for tool access
+      if (isAgentMode && agentSessionId) {
+        console.log('[ChatInterface] Workflow using agent mode for tool access');
+        
+        // Convert history to agent chat format
+        const agentHistory = messages.map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          toolCalls: m.toolCalls,
+          toolResults: m.toolResults,
+        }));
+
+        const result = await agentChatService.executeWithTools(
+          prompt,
+          agentHistory,
+          {
+            sessionId: agentSessionId,
+            onStatusUpdate: (status) => {
+              setSearchStatus(status);
+            },
+          }
+        );
+
+        return result.content || 'No response';
+      }
+      
+      // Fallback to regular AI service (no tool access)
+      console.log('[ChatInterface] Workflow using regular AI (no tool access)');
+      const history: AIMessage[] = messages.map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+
+      const result = await aiService.chat(prompt, history, (status) => {
+        setSearchStatus(status);
+      });
+
+      return result.text || 'No response';
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[ChatInterface] Workflow prompt failed:', errorMsg);
+      return `Error: ${errorMsg}`;
+    }
+  }, [messages, isAgentMode, agentSessionId]);
+
   // Helper function to process attached files (text and images)
   const processAttachedFiles = useCallback(async (files: Array<{ fileName: string; filePath: string }>) => {
     const fileContents: string[] = [];
@@ -1225,6 +1312,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         activeMode={activeMode}
         promptKey={promptKey}
         queuedMessage={queuedMessage}
+        hasAgentMode={isAgentMode && !!agentSessionId}
         onSendVoice={handleSend}
         onDiscardVoice={discardVoice}
         onEditVoice={editVoiceTranscript}
@@ -1233,6 +1321,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onEditQueued={handleEditQueued}
         onEditMessage={handleEditMessage}
         onRegenerateFromMessage={handleRegenerateFromMessage}
+        onSendPrompt={handleWorkflowPrompt}
       />
       
       {/* Terminal View - floats above PromptArea */}

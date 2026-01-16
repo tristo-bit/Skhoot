@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { Message } from '../../types';
 import { MarkdownRenderer } from '../ui';
 import { FileList } from './FileList';
@@ -7,8 +7,10 @@ import { DiskUsage } from './DiskUsage';
 import { CleanupList } from './CleanupList';
 import { AgentAction } from './AgentAction';
 import { MiniTerminalView } from './MiniTerminalView';
+import { WorkflowExecution } from './WorkflowExecution';
 import { Button } from '../buttonFormat';
 import { ArrowRight, FileText, Paperclip, Edit2, Check, X } from 'lucide-react';
+import { workflowService } from '../../services/workflowService';
 
 // Check if message is the "No AI provider configured" warning
 const isApiConfigWarning = (content: string): boolean => {
@@ -24,11 +26,29 @@ export const MessageBubble = memo<{
   message: Message;
   onEdit?: (messageId: string, newContent: string) => void;
   onRegenerateFrom?: (messageId: string, newContent: string) => void;
-}>(({ message, onEdit, onRegenerateFrom }) => {
+  onSendPrompt?: (prompt: string) => Promise<string>;
+  hasAgentMode?: boolean;
+}>(({ message, onEdit, onRegenerateFrom, onSendPrompt, hasAgentMode = false }) => {
   const isUser = message.role === 'user';
   const showApiConfigButton = !isUser && isApiConfigWarning(message.content);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
+  
+  // Handle workflow prompt sending
+  const handleWorkflowPrompt = useCallback(async (prompt: string): Promise<string> => {
+    if (onSendPrompt) {
+      return onSendPrompt(prompt);
+    }
+    // Fallback: dispatch event for ChatInterface to handle
+    return new Promise((resolve) => {
+      const handler = (e: CustomEvent) => {
+        window.removeEventListener('workflow-response' as any, handler);
+        resolve(e.detail.response);
+      };
+      window.addEventListener('workflow-response' as any, handler);
+      window.dispatchEvent(new CustomEvent('workflow-prompt', { detail: { prompt } }));
+    });
+  }, [onSendPrompt]);
   
   if (!isUser) {
     // AI message - no bubble, markdown rendered with theme colors
@@ -75,6 +95,21 @@ export const MessageBubble = memo<{
           {message.type === 'cleanup' && message.data && (
             <CleanupList items={message.data} />
           )}
+
+          {/* Workflow Execution */}
+          {message.type === 'workflow' && message.workflowExecution && (() => {
+            const workflow = workflowService.getWorkflowSync(message.workflowExecution.workflowId);
+            if (!workflow) return null;
+            
+            return (
+              <WorkflowExecution
+                executionId={message.workflowExecution.executionId}
+                workflow={workflow}
+                onSendPrompt={handleWorkflowPrompt}
+                hasAgentMode={hasAgentMode}
+              />
+            );
+          })()}
 
           {/* Agent Actions - Tool Calls */}
           {message.type === 'agent_action' && message.toolCalls && (() => {
