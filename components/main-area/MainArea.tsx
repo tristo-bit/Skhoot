@@ -22,6 +22,7 @@ interface MainAreaProps {
   activeMode: string | null;
   promptKey?: number;
   queuedMessage?: string | null;
+  hasAgentMode?: boolean;
   onSendVoice: () => void;
   onDiscardVoice: () => void;
   onEditVoice?: (newText: string) => void;
@@ -30,6 +31,7 @@ interface MainAreaProps {
   onEditQueued?: (newText: string) => void;
   onEditMessage?: (messageId: string, newContent: string) => void;
   onRegenerateFromMessage?: (messageId: string, newContent: string) => void;
+  onSendPrompt?: (prompt: string) => Promise<string>;
 }
 
 /**
@@ -52,6 +54,7 @@ export const MainArea = memo(forwardRef<HTMLDivElement, MainAreaProps>(({
   activeMode,
   promptKey = 0,
   queuedMessage,
+  hasAgentMode = false,
   onSendVoice,
   onDiscardVoice,
   onEditVoice,
@@ -60,6 +63,7 @@ export const MainArea = memo(forwardRef<HTMLDivElement, MainAreaProps>(({
   onEditQueued,
   onEditMessage,
   onRegenerateFromMessage,
+  onSendPrompt,
 }, ref) => {
   const hasMessages = messages.length > 0;
   const showEmptyState = isEmptyStateVisible && !hasMessages && !isLoading && !hasPendingVoiceMessage && !isRecording;
@@ -161,6 +165,8 @@ export const MainArea = memo(forwardRef<HTMLDivElement, MainAreaProps>(({
               message={msg} 
               onEdit={onEditMessage}
               onRegenerateFrom={onRegenerateFromMessage}
+              onSendPrompt={onSendPrompt}
+              hasAgentMode={hasAgentMode}
             />
           ))}
         

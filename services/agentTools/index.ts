@@ -5,3 +5,4 @@
  */
 
 export * from './terminalTools';
+export * from './workflowTools';

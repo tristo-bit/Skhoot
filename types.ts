@@ -3,7 +3,7 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  type: 'text' | 'file_list' | 'message_list' | 'analysis' | 'disk_usage' | 'cleanup' | 'agent_action';
+  type: 'text' | 'file_list' | 'message_list' | 'analysis' | 'disk_usage' | 'cleanup' | 'agent_action' | 'workflow';
   data?: any;
   searchInfo?: any; // Enhanced search information from backend
   timestamp: Date;
@@ -14,6 +14,12 @@ export interface Message {
   attachedFiles?: { fileName: string; filePath: string }[];
   // Images for vision API
   images?: Array<{ fileName: string; base64: string; mimeType: string }>;
+  // Workflow execution data
+  workflowExecution?: {
+    executionId: string;
+    workflowId: string;
+    workflowName: string;
+  };
 }
 
 // Agent tool call data for messages

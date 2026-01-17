@@ -9,6 +9,7 @@ pub mod terminal;
 pub mod api_key_storage;
 pub mod ai;
 pub mod error;
+pub mod workflows;
 
 // Re-export commonly used types
 pub use search_engine::{FileSearchEngine, FileSearchConfig, FileMatch};
@@ -19,3 +20,4 @@ pub use terminal::TerminalManager;
 pub use api_key_storage::KeyStorage;
 pub use ai::AIManager;
 pub use error::AppError;
+pub use workflows::{Workflow, WorkflowType, WorkflowStatus, WorkflowStep, WorkflowEngine, WorkflowStorage, TriggerManager, TriggerType, CreateWorkflowRequest, ExecuteWorkflowRequest};

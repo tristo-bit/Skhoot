@@ -102,6 +102,9 @@ export const SecondaryPanel: React.FC<SecondaryPanelProps> = ({
         paddingRight: 'var(--prompt-area-x)',
         bottom: bottomOffset,
         animation: isResizing ? 'none' : `${animationName} 0.3s cubic-bezier(0.22, 1, 0.36, 1)`,
+        willChange: 'transform',
+        backfaceVisibility: 'hidden',
+        WebkitFontSmoothing: 'antialiased',
       }}
     >
       <style>{`
@@ -118,7 +121,7 @@ export const SecondaryPanel: React.FC<SecondaryPanelProps> = ({
       `}</style>
       
       <div 
-        className="overflow-hidden backdrop-blur-sm glass-elevated"
+        className="overflow-hidden glass-elevated"
         style={{
           borderRadius: 'var(--prompt-panel-radius)',
           height: `${height}px`,
