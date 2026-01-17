@@ -3,6 +3,7 @@ import React from 'react';
 export interface BaseButtonProps {
   children: React.ReactNode;
   onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void;
+  onMouseDown?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   disabled?: boolean;
@@ -50,6 +51,7 @@ const getSizeClasses = (size: ButtonVariantProps['size'] = 'md') => {
 export const BaseButton: React.FC<BaseButtonProps> = ({
   children,
   onClick,
+  onMouseDown,
   onMouseEnter,
   onMouseLeave,
   disabled = false,
@@ -65,6 +67,7 @@ export const BaseButton: React.FC<BaseButtonProps> = ({
     <button
       type={type}
       onClick={onClick}
+      onMouseDown={onMouseDown}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       disabled={disabled}

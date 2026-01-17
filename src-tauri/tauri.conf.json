@@ -25,7 +25,19 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src http://localhost:5173 http://localhost:3001 http://127.0.0.1:* http://localhost:* tauri://localhost https://hub.docker.com https://cdn.jsdelivr.net https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com; img-src 'self' data: https://cdn.jsdelivr.net https://*.docker.com https://*.githubusercontent.com; style-src 'self' 'unsafe-inline'; media-src 'self' blob: mediastream:"
+      "csp": "default-src 'self'; connect-src http://localhost:5173 http://localhost:3001 http://127.0.0.1:* http://localhost:* tauri://localhost https://hub.docker.com https://cdn.jsdelivr.net https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com; img-src 'self' data: https://cdn.jsdelivr.net https://*.docker.com https://*.githubusercontent.com; style-src 'self' 'unsafe-inline'; media-src 'self' blob: mediastream:",
+      "capabilities": [
+        {
+          "identifier": "main-capability",
+          "windows": ["main"],
+          "permissions": [
+            "core:window:allow-toggle-maximize",
+            "core:window:allow-maximize",
+            "core:window:allow-unmaximize",
+            "core:window:allow-is-maximized"
+          ]
+        }
+      ]
     }
   },
   "plugins": {

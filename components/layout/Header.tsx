@@ -1,6 +1,6 @@
 // Header component - extracted from App.tsx for better separation of concerns
 import React, { memo } from 'react';
-import { Menu, X, Settings, User as UserIcon, FolderOpen, History, Minus } from 'lucide-react';
+import { Menu, X, Settings, User as UserIcon, FolderOpen, History, Minus, Square, Copy } from 'lucide-react';
 import { IconButton } from '../buttonFormat';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { usePreloadOnHover } from '../performance';
@@ -19,6 +19,7 @@ export interface HeaderProps {
   onOpenSettings: () => void;
   onClose: () => void;
   onMinimize: () => void;
+  onMaximize: () => void;
   onDragMouseDown: (e: React.MouseEvent) => void;
 }
 
@@ -31,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onClose,
   onMinimize,
+  onMaximize,
   onDragMouseDown,
 }) => {
   const { showBranding } = useTheme();
@@ -95,6 +97,7 @@ export const Header: React.FC<HeaderProps> = ({
         onOpenUser={onOpenUser}
         onOpenSettings={onOpenSettings}
         onMinimize={onMinimize}
+        onMaximize={onMaximize}
         onClose={onClose}
       />
     </header>
@@ -107,6 +110,7 @@ interface HeaderActionsProps {
   onOpenUser: () => void;
   onOpenSettings: () => void;
   onMinimize: () => void;
+  onMaximize: () => void;
   onClose: () => void;
 }
 
@@ -116,6 +120,7 @@ const HeaderActions: React.FC<HeaderActionsProps> = ({
   onOpenUser,
   onOpenSettings,
   onMinimize,
+  onMaximize,
   onClose,
 }) => {
   // Preload hooks for header buttons
@@ -176,8 +181,23 @@ const HeaderActions: React.FC<HeaderActionsProps> = ({
         aria-label="Minimize"
         variant="glass"
         size="md"
-        className="hover:bg-blue-500/10 hover:text-blue-500"
+        className="hover:bg-yellow-500/10 hover:text-yellow-500"
         title="Minimize to taskbar"
+      />
+      <IconButton 
+        icon={<Copy size={16} />}
+        onClick={(e) => {
+          e?.stopPropagation();
+          onMaximize();
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+        }}
+        aria-label="Maximize"
+        variant="glass"
+        size="md"
+        className="hover:bg-blue-500/10 hover:text-blue-500"
+        title="Maximize/Restore"
       />
       <IconButton 
         icon={<X size={18} />}

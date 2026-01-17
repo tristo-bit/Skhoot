@@ -199,8 +199,9 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 <details>
 <summary><strong>🖥️ Desktop Window Management</strong></summary>
 
-- **Custom Window Controls**: Native close, minimize, and resize functionality with dedicated header buttons
+- **Custom Window Controls**: Native close, minimize, maximize, and resize functionality with dedicated header buttons
 - **Minimize to Taskbar**: One-click minimize button in header for quick window management
+- **Maximize/Restore Toggle**: Double-click or button to maximize window, click again to restore to previous size
 - **Drag & Drop**: Click and drag window from any non-interactive area
 - **Adaptive Corner Radius**: Automatically adjusts window corners based on fullscreen state
 - **Resize Handles**: Eight-directional window resizing (North, South, East, West, and corners)

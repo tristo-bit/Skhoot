@@ -2,6 +2,25 @@
 
 ## January 16, 2026
 
+### Window Controls - Maximize/Restore Button Added ✅
+- **Feature**: Added maximize/restore button between minimize and close in header
+- **Icon**: Copy icon (two overlapping squares) - standard Windows maximize icon
+- **Functionality**: 
+  - Click once: Maximize window to fullscreen (windowed)
+  - Click again: Restore to previous size
+- **Implementation**:
+  - Added `handleMaximize()` in `useTauriWindow` hook
+  - Checks `isMaximized()` state and toggles between `maximize()` and `unmaximize()`
+  - Integrated in Header component between Minimize and Close buttons
+- **Bug Fix**: Added Tauri permissions in `tauri.conf.json`:
+  - `core:window:allow-toggle-maximize`
+  - `core:window:allow-maximize`
+  - `core:window:allow-unmaximize`
+  - `core:window:allow-is-maximized`
+- **Note**: Requires app restart to apply permissions
+
+---
+
 ### Sidebar Z-Index Fix ✅
 - **Issue**: Sidebar opened behind action panels (Files, Agents, Workflows, Terminal)
 - **Root Cause**: Panels use `createPortal(panel, document.body)` while sidebar was in `.app-shell`

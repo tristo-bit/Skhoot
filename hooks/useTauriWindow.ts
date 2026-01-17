@@ -24,6 +24,36 @@ export const useTauriWindow = () => {
     }
   }, []);
 
+  // Handle window maximize/restore
+  const handleMaximize = useCallback(async () => {
+    try {
+      console.log('[Window] Maximize button clicked');
+      const { getCurrentWindow } = await import(/* @vite-ignore */ '@tauri-apps/api/window');
+      const win = getCurrentWindow();
+      
+      // Try toggleMaximize first (simpler API)
+      if (typeof win.toggleMaximize === 'function') {
+        console.log('[Window] Using toggleMaximize()');
+        await win.toggleMaximize();
+      } else {
+        // Fallback to manual check
+        const isMaximized = await win.isMaximized();
+        console.log('[Window] Current maximized state:', isMaximized);
+        
+        if (isMaximized) {
+          console.log('[Window] Unmaximizing...');
+          await win.unmaximize();
+        } else {
+          console.log('[Window] Maximizing...');
+          await win.maximize();
+        }
+      }
+      console.log('[Window] Operation complete');
+    } catch (error) {
+      console.error('[Window] Maximize error:', error);
+    }
+  }, []);
+
   // Start window drag
   const startWindowDrag = useCallback(async () => {
     try {
@@ -111,6 +141,7 @@ export const useTauriWindow = () => {
   return {
     handleClose,
     handleMinimize,
+    handleMaximize,
     handleDragMouseDown,
     handleBackgroundDrag,
     handleResizeStart,
