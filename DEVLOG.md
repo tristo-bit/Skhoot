@@ -2,6 +2,18 @@
 
 ## January 16, 2026
 
+### Sidebar Z-Index Fix ✅
+- **Issue**: Sidebar opened behind action panels (Files, Agents, Workflows, Terminal)
+- **Root Cause**: Panels use `createPortal(panel, document.body)` while sidebar was in `.app-shell`
+- **Fix**: 
+  - Changed sidebar from `absolute` to `fixed` positioning
+  - Moved sidebar portal from `.app-shell` to `document.body`
+  - Increased z-index to `z-[60]` (panels have `z-50`)
+  - Added `border-radius` and `overflow: hidden` to maintain rounded corners
+- **Result**: Sidebar now appears above all action panels
+
+---
+
 ### App Icons Updated - skhoot-logo-dark-purple.png ✅
 - **Task**: Replace all app icons with new `skhoot-logo-dark-purple.png` logo
 - **Source**: `public/skhoot-logo-dark-purple.png`
