@@ -12,11 +12,17 @@
   - Added `handleMaximize()` in `useTauriWindow` hook
   - Checks `isMaximized()` state and toggles between `maximize()` and `unmaximize()`
   - Integrated in Header component between Minimize and Close buttons
-- **Bug Fix**: Added Tauri permissions in `tauri.conf.json`:
-  - `core:window:allow-toggle-maximize`
-  - `core:window:allow-maximize`
-  - `core:window:allow-unmaximize`
-  - `core:window:allow-is-maximized`
+- **Bug Fixes**: 
+  - Added Tauri permissions in `tauri.conf.json`:
+    - `core:window:allow-toggle-maximize`
+    - `core:window:allow-maximize`
+    - `core:window:allow-unmaximize`
+    - `core:window:allow-is-maximized`
+    - `core:window:allow-start-dragging` (fixed drag issue)
+    - `core:window:allow-minimize`
+    - `core:window:allow-close`
+  - Fixed drag broken by incomplete permissions whitelist
+- **UI**: Minimize button now yellow on hover (instead of blue)
 - **Note**: Requires app restart to apply permissions
 
 ---

@@ -186,13 +186,7 @@ const HeaderActions: React.FC<HeaderActionsProps> = ({
       />
       <IconButton 
         icon={<Copy size={16} />}
-        onClick={(e) => {
-          e?.stopPropagation();
-          onMaximize();
-        }}
-        onMouseDown={(e) => {
-          e.stopPropagation();
-        }}
+        onClick={onMaximize}
         aria-label="Maximize"
         variant="glass"
         size="md"
