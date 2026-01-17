@@ -5362,6 +5362,7 @@ dependencies = [
  "hex",
  "ignore",
  "keyring",
+ "lazy_static",
  "mime_guess",
  "nix 0.27.1",
  "notify",

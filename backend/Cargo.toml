@@ -60,6 +60,9 @@ keyring = "2.3"
 rand = "0.8"
 hex = "0.4"
 
+# Lazy static for global state
+lazy_static = "1.4"
+
 # Unix signal handling
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.27", features = ["signal"] }
