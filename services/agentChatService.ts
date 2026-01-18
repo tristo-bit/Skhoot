@@ -1,4 +1,4 @@
-/**
+ /**
  * Universal Agent Chat Service
  * 
  * Handles AI chat with tool calling for the CLI Agent.
@@ -8,15 +8,31 @@
 
 import { apiKeyService } from './apiKeyService';
 import { providerRegistry, APIFormat, ModelCapabilities } from './providerRegistry';
-import { agentService, AgentToolCall, ToolResult } from './agentService';
+import { agentService } from './agentService';
 import { activityLogger } from './activityLogger';
 import { tokenTrackingService } from './tokenTrackingService';
+import * as agentTools from './agentTools/agentTools';
+import * as terminalTools from './agentTools/terminalTools';
+import { backendApi } from './backendApi';
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export type AIProvider = string; // Any provider ID
+
+export interface AgentToolCall {
+  id: string;
+  name: string;
+  arguments: any;
+}
+
+export interface ToolResult {
+  toolCallId: string;
+  success: boolean;
+  output: string;
+  error?: string;
+}
 
 export interface AgentChatMessage {
   role: 'user' | 'assistant' | 'tool' | 'system';
@@ -44,6 +60,14 @@ export interface AgentChatOptions {
   maxTokens?: number;
   /** Custom endpoint URL (for custom providers) */
   customEndpoint?: string;
+  /** Workspace root directory for terminal commands and file operations */
+  workspaceRoot?: string;
+  /** Custom system prompt to override the default agent system prompt */
+  systemPrompt?: string;
+  /** List of allowed tools - if provided, only these tools will be available */
+  allowedTools?: string[];
+  /** Pre-selected tool call to execute directly (bypasses AI interpretation) */
+  directToolCall?: { name: string; arguments: Record<string, any> };
   images?: Array<{ fileName: string; base64: string; mimeType: string }>;
   onToolStart?: (toolCall: AgentToolCall) => void;
   onToolComplete?: (result: ToolResult) => void;
@@ -176,6 +200,70 @@ const AGENT_TOOLS = [
       required: ['pattern'],
     },
   },
+  {
+    name: 'web_search',
+    description: 'Search the web for current information, news, documentation, or answers to questions. Use this when you need up-to-date information that may not be in your training data. Returns search results with titles, URLs, snippets, and relevance scores.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { 
+          type: 'string', 
+          description: 'The search query. Be specific and use relevant keywords.' 
+        },
+        num_results: { 
+          type: 'number', 
+          description: 'Number of results to return (default: 5, max: 10)' 
+        },
+        search_type: {
+          type: 'string',
+          description: 'Type of search: "general" for web search, "news" for recent news, "docs" for documentation',
+          enum: ['general', 'news', 'docs'],
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'invoke_agent',
+    description: 'Invoke a specialized agent to handle a specific task. Agents are autonomous entities with specific capabilities and workflows. Use this to delegate tasks to agents that are better suited for the job.',
+    parameters: {
+      type: 'object',
+      properties: {
+        agent_id: { type: 'string', description: 'ID of the agent to invoke' },
+        message: { type: 'string', description: 'Message or task for the agent' },
+        context: { type: 'object', description: 'Additional context for the agent (optional)' },
+      },
+      required: ['agent_id', 'message'],
+    },
+  },
+  {
+    name: 'list_agents',
+    description: 'List all available agents with their capabilities and current status. Use this to discover which agents are available for delegation.',
+    parameters: {
+      type: 'object',
+      properties: {
+        state: { type: 'string', description: "Filter by state: 'on', 'off', 'sleeping', 'failing' (optional)" },
+        tags: { type: 'array', items: { type: 'string' }, description: 'Filter by tags (optional)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'create_agent',
+    description: 'Create a new agent with specified capabilities. This is a restricted tool only available to the Agent Builder agent. Regular agents cannot create other agents.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Name of the agent' },
+        description: { type: 'string', description: 'Description of what the agent does' },
+        master_prompt: { type: 'string', description: 'Master prompt defining agent behavior and personality' },
+        workflows: { type: 'array', items: { type: 'string' }, description: 'Workflow IDs the agent can execute' },
+        allowed_tools: { type: 'array', items: { type: 'string' }, description: 'Tools the agent is allowed to use' },
+        trigger: { type: 'object', description: 'Trigger configuration for automatic activation' },
+      },
+      required: ['name', 'description', 'master_prompt'],
+    },
+  },
 ];
 
 // ============================================================================
@@ -209,10 +297,19 @@ function toGeminiTools() {
       parameters: {
         type: 'OBJECT',
         properties: Object.fromEntries(
-          Object.entries(tool.parameters.properties).map(([key, value]: [string, any]) => [
-            key,
-            { type: value.type.toUpperCase(), description: value.description }
-          ])
+          Object.entries(tool.parameters.properties).map(([key, value]: [string, any]) => {
+            const prop: any = { 
+              type: value.type.toUpperCase(), 
+              description: value.description 
+            };
+            // Preserve items for array types (required by Gemini)
+            if (value.items) {
+              prop.items = {
+                type: value.items.type.toUpperCase()
+              };
+            }
+            return [key, prop];
+          })
         ),
         required: tool.parameters.required,
       },
@@ -225,21 +322,60 @@ function toOllamaTools() {
   return toOpenAITools();
 }
 
-function getToolsForFormat(format: APIFormat) {
+function getToolsForFormat(format: APIFormat, allowedTools?: string[]) {
+  let tools;
   switch (format) {
-    case 'openai': return toOpenAITools();
-    case 'anthropic': return toAnthropicTools();
-    case 'google': return toGeminiTools();
-    case 'ollama': return toOllamaTools();
-    default: return toOpenAITools();
+    case 'openai': tools = toOpenAITools(); break;
+    case 'anthropic': tools = toAnthropicTools(); break;
+    case 'google': tools = toGeminiTools(); break;
+    case 'ollama': tools = toOllamaTools(); break;
+    default: tools = toOpenAITools();
   }
+  
+  // Filter tools if allowedTools is specified
+  if (allowedTools && allowedTools.length > 0) {
+    console.log('[AgentChatService] Filtering tools. Allowed:', allowedTools);
+    if (format === 'google') {
+      // Gemini format has nested structure
+      return [{
+        function_declarations: tools[0].function_declarations.filter((tool: any) => 
+          allowedTools.includes(tool.name)
+        )
+      }];
+    } else if (format === 'openai' || format === 'ollama') {
+      // OpenAI format
+      return tools.filter((tool: any) => allowedTools.includes(tool.function.name));
+    } else if (format === 'anthropic') {
+      // Anthropic format
+      return tools.filter((tool: any) => allowedTools.includes(tool.name));
+    }
+  }
+  
+  return tools;
 }
 
 // ============================================================================
 // System Prompt
 // ============================================================================
 
-function getAgentSystemPrompt(provider: string, model: string, workingDirectory: string, capabilities?: ModelCapabilities): string {
+function getAgentSystemPrompt(provider: string, model: string, workingDirectory: string, capabilities?: ModelCapabilities, customPrompt?: string): string {
+  console.log('[AgentChatService] getAgentSystemPrompt() called');
+  console.log('[AgentChatService] System Prompt Details:', {
+    provider,
+    model,
+    workingDirectory,
+    hasCapabilities: !!capabilities,
+    toolCalling: capabilities?.toolCalling,
+    contextWindow: capabilities?.contextWindow,
+    hasCustomPrompt: !!customPrompt
+  });
+  
+  // If a custom prompt is provided, use it instead of the default
+  if (customPrompt) {
+    console.log('[AgentChatService] Using custom system prompt');
+    return customPrompt;
+  }
+  
   const capabilitiesInfo = capabilities 
     ? `\nModel capabilities: ${capabilities.toolCalling ? 'Tool calling ✓' : 'No tool calling'}, Context: ${capabilities.contextWindow} tokens`
     : '';
@@ -275,9 +411,48 @@ CAPABILITIES:
 - Read file contents using 'read_file' (any file on the system)
 - Write/modify files using 'write_file' (create, edit, or append to files)
 - List directory contents using 'list_directory' (explore the filesystem)
-- Search for files using 'search_files' (find files by name or content)${visionCapabilities}
+- Search for files using 'search_files' (find files by name or content)
+- Search the web using 'web_search' (get current information, news, documentation)
+- Create specialized agents using 'invoke_agent' and 'create_agent' tools
+- List available agents using 'list_agents' tool${visionCapabilities}
 
 WORKING DIRECTORY: ${workingDirectory}
+
+AGENT SYSTEM:
+You have access to a powerful agent system that allows you to create specialized AI agents for specific tasks.
+
+Available Agent Tools:
+1. 'list_agents' - See all available agents and their capabilities
+2. 'invoke_agent' - Delegate tasks to specialized agents
+3. 'create_agent' - Create new agents (via Agent Builder)
+
+Default Agents Available:
+- Agent Builder: Creates new agents through guided conversation
+  * Trigger: Say "create agent", "new agent", or "build agent"
+  * Process: Asks questions → Designs automation → Creates agent
+  * Example: "create an agent that reviews pull requests"
+  
+- Code Reviewer: Reviews code for bugs, security, and best practices
+  * Trigger: Say "review code", "code review", or "check for errors"
+  * Analyzes code quality, security vulnerabilities, performance issues
+  * Example: "review the authentication code"
+
+How to Create Agents:
+When a user asks you to create an agent, you can:
+1. Use the 'invoke_agent' tool to trigger the Agent Builder
+2. Or simply mention keywords like "create agent" and the Agent Builder will activate
+3. The Agent Builder will guide the user through a 3-step process:
+   - Gather requirements (what should the agent do?)
+   - Design automation (how should it work?)
+   - Create the agent (build and activate it)
+
+Agent Creation Examples:
+- "Create an agent that monitors log files for errors"
+- "Build an agent to review pull requests"
+- "Make an agent that runs tests before commits"
+- "Create a documentation agent"
+
+When users ask about agents or want to create one, be enthusiastic and explain the process!
 
 CRITICAL BEHAVIOR - ALWAYS USE TOOLS:
 - You MUST use tools to answer questions - NEVER say "I cannot" or "I don't have access"
@@ -321,8 +496,17 @@ HOW YOU WORK:
    - Provide progress updates for longer tasks
    - Show relevant output from tool executions
    - If a command fails, explain the error and suggest alternatives
+   - When you need parameters for a tool, ask the user naturally in conversation
+   - Don't wait for forms - gather information through dialogue and then execute
 
-5. Safety
+5. Tool Parameter Gathering
+   - If a user requests a tool but doesn't provide all required parameters, ASK for them naturally
+   - Example: User says "read a file" → You ask "Which file would you like me to read?"
+   - Example: User says "search files" → You ask "What pattern should I search for?"
+   - Once you have the information, immediately execute the tool
+   - Be conversational and helpful, not robotic
+
+6. Safety
    - Be careful with destructive operations (delete, format, etc.)
    - For potentially dangerous commands, explain what will happen first
    - Prefer reversible operations when possible
@@ -350,6 +534,138 @@ class AgentChatService {
   private maxToolIterations = 10;
 
   /**
+   * Execute a single tool call
+   */
+  private async executeToolCall(
+    toolCall: AgentToolCall,
+    options: AgentChatOptions
+  ): Promise<ToolResult> {
+    try {
+      let output: string;
+      let success = true;
+
+      switch (toolCall.name) {
+        // Terminal tools
+        case 'create_terminal':
+        case 'execute_command':
+        case 'read_output':
+        case 'list_terminals':
+        case 'inspect_terminal':
+          const terminalResult = await terminalTools.executeTerminalTool(
+            toolCall.name,
+            toolCall.arguments,
+            options.sessionId
+          );
+          output = terminalResult.data 
+            ? JSON.stringify(terminalResult.data, null, 2)
+            : (terminalResult.error || 'No output');
+          success = terminalResult.success;
+          break;
+
+        // File and shell tools
+        case 'shell':
+          const shellResult = await backendApi.executeShellCommand(
+            toolCall.arguments.command,
+            toolCall.arguments.workdir,
+            toolCall.arguments.timeout_ms
+          );
+          output = JSON.stringify(shellResult, null, 2);
+          success = true;
+          break;
+
+        case 'read_file':
+          const fileContent = await backendApi.readFile(
+            toolCall.arguments.path,
+            toolCall.arguments.start_line,
+            toolCall.arguments.end_line
+          );
+          output = fileContent;
+          success = true;
+          break;
+
+        case 'write_file':
+          await backendApi.writeFile(
+            toolCall.arguments.path,
+            toolCall.arguments.content,
+            toolCall.arguments.mode === 'append'
+          );
+          output = `File written successfully: ${toolCall.arguments.path}`;
+          success = true;
+          break;
+
+        case 'list_directory':
+          const dirContents = await backendApi.listDirectory(
+            toolCall.arguments.path,
+            toolCall.arguments.depth,
+            toolCall.arguments.include_hidden
+          );
+          output = JSON.stringify(dirContents, null, 2);
+          success = true;
+          break;
+
+        case 'search_files':
+          const searchResults = await backendApi.aiFileSearch(
+            toolCall.arguments.pattern,
+            {
+              search_path: toolCall.arguments.path,
+              max_results: toolCall.arguments.max_results,
+              file_types: toolCall.arguments.search_type === 'filename' ? undefined : toolCall.arguments.pattern,
+            }
+          );
+          output = JSON.stringify(searchResults, null, 2);
+          success = true;
+          break;
+
+        case 'web_search':
+          const webSearchResults = await backendApi.webSearch(
+            toolCall.arguments.query,
+            toolCall.arguments.num_results,
+            toolCall.arguments.search_type
+          );
+          output = JSON.stringify(webSearchResults, null, 2);
+          success = true;
+          break;
+
+        // Agent tools
+        case 'invoke_agent':
+          const invokeResult = await agentTools.invokeAgent(toolCall.arguments);
+          output = JSON.stringify(invokeResult, null, 2);
+          success = invokeResult.success;
+          break;
+
+        case 'list_agents':
+          const listResult = await agentTools.listAgents(toolCall.arguments);
+          output = JSON.stringify(listResult, null, 2);
+          success = listResult.success;
+          break;
+
+        case 'create_agent':
+          const createResult = await agentTools.createAgent(toolCall.arguments);
+          output = JSON.stringify(createResult, null, 2);
+          success = createResult.success;
+          break;
+
+        default:
+          output = `Unknown tool: ${toolCall.name}`;
+          success = false;
+      }
+
+      return {
+        toolCallId: toolCall.id,
+        success,
+        output,
+      };
+    } catch (error) {
+      return {
+        toolCallId: toolCall.id,
+        success: false,
+        output: '',
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
    * Send a message to the agent and get a response with tool execution
    */
   async chat(
@@ -357,6 +673,10 @@ class AgentChatService {
     history: AgentChatMessage[],
     options: AgentChatOptions
   ): Promise<AgentChatResponse> {
+    console.log('[AgentChatService] chat() called - Using agentChatService.ts');
+    console.log('[AgentChatService] Provider:', options.provider || 'auto-detect');
+    console.log('[AgentChatService] Model:', options.model || 'default');
+    console.log('[AgentChatService] Session ID:', options.sessionId);
     const provider = options.provider || await this.getActiveProvider();
     
     if (!provider) {
@@ -435,6 +755,47 @@ class AgentChatService {
     let currentHistory = [...history];
     let iterations = 0;
 
+    // Check if this is a direct tool call (user selected from dropdown)
+    if (options.directToolCall) {
+      console.log('[AgentChatService] Executing direct tool call:', options.directToolCall);
+      
+      const toolCall: AgentToolCall = {
+        id: `direct-${Date.now()}`,
+        name: options.directToolCall.name,
+        arguments: options.directToolCall.arguments,
+      };
+      
+      options.onToolStart?.(toolCall);
+      options.onStatusUpdate?.(`Executing ${toolCall.name}...`);
+      
+      try {
+        // Execute the tool
+        const result = await this.executeToolCall(toolCall, options);
+        allToolResults.push(result);
+        options.onToolComplete?.(result);
+        
+        // Return the result
+        return {
+          content: `✅ Tool executed successfully:\n\n**${toolCall.name}**\n\n${result.output}`,
+          toolResults: allToolResults,
+        };
+      } catch (error) {
+        const errorResult: ToolResult = {
+          toolCallId: toolCall.id,
+          success: false,
+          output: '',
+          error: error instanceof Error ? error.message : String(error),
+        };
+        allToolResults.push(errorResult);
+        options.onToolComplete?.(errorResult);
+        
+        return {
+          content: `❌ Tool execution failed:\n\n**${toolCall.name}**\n\nError: ${errorResult.error}`,
+          toolResults: allToolResults,
+        };
+      }
+    }
+
     // Add user message
     currentHistory.push({ role: 'user', content: message });
 
@@ -462,38 +823,16 @@ class AgentChatService {
         options.onToolStart?.(toolCall);
         options.onStatusUpdate?.(`Executing ${toolCall.name}...`);
 
-        try {
-          const result = await agentService.executeTool(options.sessionId, {
-            toolCallId: toolCall.id,
-            toolName: toolCall.name,
-            arguments: toolCall.arguments,
-          });
+        const result = await this.executeToolCall(toolCall, options);
+        allToolResults.push(result);
+        options.onToolComplete?.(result);
 
-          allToolResults.push(result);
-          options.onToolComplete?.(result);
-
-          // Add tool result to history
-          currentHistory.push({
-            role: 'tool',
-            content: result.output,
-            toolCallId: toolCall.id,
-          });
-        } catch (error) {
-          const errorResult: ToolResult = {
-            toolCallId: toolCall.id,
-            success: false,
-            output: '',
-            error: error instanceof Error ? error.message : String(error),
-          };
-          allToolResults.push(errorResult);
-          options.onToolComplete?.(errorResult);
-
-          currentHistory.push({
-            role: 'tool',
-            content: `Error: ${errorResult.error}`,
-            toolCallId: toolCall.id,
-          });
-        }
+        // Add tool result to history
+        currentHistory.push({
+          role: 'tool',
+          content: result.output || result.error || 'No output',
+          toolCallId: toolCall.id,
+        });
       }
 
       // Continue the loop to get next response
@@ -549,11 +888,15 @@ class AgentChatService {
     capabilities: ModelCapabilities | undefined,
     options: AgentChatOptions
   ): Promise<AgentChatResponse> {
-    const workingDirectory = (await agentService.getConfig(options.sessionId))?.workingDirectory || '.';
+    console.log('[AgentChatService] chatOpenAIFormat() - Using OpenAI-compatible format');
+    console.log('[AgentChatService] Provider:', provider, '| Model:', model);
+    
+    // In browser context, we don't have process.cwd(), so use a sensible default
+    const workingDirectory = options.workspaceRoot || '~/workspace';
     const providerConfig = providerRegistry.getProvider(provider);
     
     const messages = [
-      { role: 'system', content: getAgentSystemPrompt(provider, model, workingDirectory, capabilities) },
+      { role: 'system', content: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt) },
       ...this.convertHistoryToOpenAI(history),
     ];
 
@@ -593,7 +936,7 @@ class AgentChatService {
 
     // Only add tools if model supports tool calling
     if (capabilities?.toolCalling !== false) {
-      body.tools = toOpenAITools();
+      body.tools = getToolsForFormat('openai', options.allowedTools);
       body.tool_choice = 'auto';
     }
 
@@ -663,7 +1006,11 @@ class AgentChatService {
     capabilities: ModelCapabilities | undefined,
     options: AgentChatOptions
   ): Promise<AgentChatResponse> {
-    const workingDirectory = (await agentService.getConfig(options.sessionId))?.workingDirectory || '.';
+    console.log('[AgentChatService] chatAnthropicFormat() - Using Anthropic format');
+    console.log('[AgentChatService] Provider:', provider, '| Model:', model);
+    
+    // In browser context, we don't have process.cwd(), so use a sensible default
+    const workingDirectory = options.workspaceRoot || '~/workspace';
     
     const messages = this.convertHistoryToAnthropic(history);
     
@@ -695,13 +1042,13 @@ class AgentChatService {
     const body: any = {
       model,
       max_tokens: options.maxTokens ?? 4096,
-      system: getAgentSystemPrompt(provider, model, workingDirectory, capabilities),
+      system: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt),
       messages,
     };
 
     // Only add tools if model supports tool calling
     if (capabilities?.toolCalling !== false) {
-      body.tools = toAnthropicTools();
+      body.tools = getToolsForFormat('anthropic', options.allowedTools);
     }
 
     const response = await fetch(`${baseUrl}/messages`, {
@@ -772,7 +1119,12 @@ class AgentChatService {
     capabilities: ModelCapabilities | undefined,
     options: AgentChatOptions
   ): Promise<AgentChatResponse> {
-    const workingDirectory = (await agentService.getConfig(options.sessionId))?.workingDirectory || '.';
+    console.log('[AgentChatService] chatGoogleFormat() - Using Google/Gemini format');
+    console.log('[AgentChatService] Provider:', provider, '| Model:', model);
+    console.log('[AgentChatService] System prompt will be sent via systemInstruction');
+    
+    // In browser context, we don't have process.cwd(), so use a sensible default
+    const workingDirectory = options.workspaceRoot || '~/workspace';
     
     const contents = this.convertHistoryToGemini(history);
     
@@ -794,7 +1146,7 @@ class AgentChatService {
 
     const body: any = {
       contents,
-      systemInstruction: { parts: [{ text: getAgentSystemPrompt(provider, model, workingDirectory, capabilities) }] },
+      systemInstruction: { parts: [{ text: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt) }] },
       generationConfig: {
         temperature: options.temperature ?? 0.7,
         maxOutputTokens: options.maxTokens ?? 4096,
@@ -803,7 +1155,7 @@ class AgentChatService {
 
     // Only add tools if model supports tool calling
     if (capabilities?.toolCalling !== false) {
-      body.tools = toGeminiTools();
+      body.tools = getToolsForFormat('google', options.allowedTools);
     }
 
     const response = await fetch(

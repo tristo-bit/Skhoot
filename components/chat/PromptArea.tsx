@@ -11,6 +11,7 @@ import { AddFileButton } from './AddFileButton';
 import { FileChip, MultiFileChip } from './FileChip';
 import { FileAttachmentModal, AttachedFile } from './FileAttachmentModal';
 import { TokenDisplay } from './TokenDisplay';
+import { ToolCallDropdown, type ToolDefinition } from './ToolCallDropdown';
 
 // Icon mapping for quick actions - memoized outside component to prevent recreation
 const QUICK_ACTION_ICONS: Record<string, (props: { size: number }) => React.ReactNode> = {
@@ -38,6 +39,7 @@ interface PromptAreaProps {
   disabled?: boolean;
   isTerminalOpen?: boolean;
   onToggleTerminal?: () => void;
+  onToolCallSelected?: (tool: ToolDefinition) => void;
 }
 
 export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
@@ -57,6 +59,7 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
   disabled = false,
   isTerminalOpen = false,
   onToggleTerminal,
+  onToolCallSelected,
 }, ref) => {
   const { resolvedTheme } = useTheme();
   const { illumination } = useSettings();
@@ -72,6 +75,11 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
   
   // Handle terminal command sending
   const handleTerminalKeyDown = (e: React.KeyboardEvent) => {
+    // Don't handle Enter if dropdown is open (let dropdown handle it)
+    if (showToolDropdown && (e.key === 'Enter' || e.key === 'Tab')) {
+      return;
+    }
+    
     if (isTerminalOpen && e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       const command = (e.target as HTMLTextAreaElement).value;
@@ -96,6 +104,230 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
   const [showOperaNotification, setShowOperaNotification] = useState(false);
   const [fileReferences, setFileReferences] = useState<AttachedFile[]>([]);
   const [isFileModalOpen, setIsFileModalOpen] = useState(false);
+  const [showToolDropdown, setShowToolDropdown] = useState(false);
+  const [toolSearchQuery, setToolSearchQuery] = useState('');
+  
+  // Tool definitions - matches AGENT_TOOLS from agentChatService.ts
+  const availableTools: ToolDefinition[] = [
+    {
+      name: 'create_terminal',
+      description: 'Create a new terminal session for executing commands',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspaceRoot: { type: 'string', description: 'Optional workspace root directory' },
+          type: { type: 'string', description: "Type: 'shell' or 'codex'" },
+        },
+        required: [],
+      },
+    },
+    {
+      name: 'execute_command',
+      description: 'Execute a command in a terminal session',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string', description: 'Terminal session ID' },
+          command: { type: 'string', description: 'Command to execute' },
+        },
+        required: ['sessionId', 'command'],
+      },
+    },
+    {
+      name: 'read_output',
+      description: 'Read output from a terminal session',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string', description: 'Terminal session ID' },
+        },
+        required: ['sessionId'],
+      },
+    },
+    {
+      name: 'list_terminals',
+      description: 'List all active terminal sessions',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+    {
+      name: 'inspect_terminal',
+      description: 'Get detailed terminal session information',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string', description: 'Terminal session ID' },
+        },
+        required: ['sessionId'],
+      },
+    },
+    {
+      name: 'shell',
+      description: 'Execute a shell command and return output',
+      parameters: {
+        type: 'object',
+        properties: {
+          command: { type: 'string', description: 'Shell command to execute' },
+          workdir: { type: 'string', description: 'Working directory' },
+          timeout_ms: { type: 'number', description: 'Timeout in milliseconds' },
+        },
+        required: ['command'],
+      },
+    },
+    {
+      name: 'read_file',
+      description: 'Read file contents',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'File path' },
+          start_line: { type: 'number', description: 'Starting line number' },
+          end_line: { type: 'number', description: 'Ending line number' },
+        },
+        required: ['path'],
+      },
+    },
+    {
+      name: 'write_file',
+      description: 'Write content to a file',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'File path' },
+          content: { type: 'string', description: 'Content to write' },
+          mode: { type: 'string', description: "Mode: 'overwrite' or 'append'" },
+        },
+        required: ['path', 'content'],
+      },
+    },
+    {
+      name: 'list_directory',
+      description: 'List directory contents',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Directory path' },
+          depth: { type: 'number', description: 'Maximum depth' },
+          include_hidden: { type: 'boolean', description: 'Include hidden files' },
+        },
+        required: ['path'],
+      },
+    },
+    {
+      name: 'search_files',
+      description: 'Search for files by name or content',
+      parameters: {
+        type: 'object',
+        properties: {
+          pattern: { type: 'string', description: 'Search pattern' },
+          path: { type: 'string', description: 'Directory to search' },
+          search_type: { type: 'string', description: "Type: 'filename' or 'content'" },
+          max_results: { type: 'number', description: 'Maximum results' },
+        },
+        required: ['pattern'],
+      },
+    },
+    {
+      name: 'web_search',
+      description: 'Search the web for information',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' },
+          num_results: { type: 'number', description: 'Number of results (max 10)' },
+          search_type: { type: 'string', description: "Type: 'general', 'news', or 'docs'", enum: ['general', 'news', 'docs'] },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'invoke_agent',
+      description: 'Invoke a specialized agent',
+      parameters: {
+        type: 'object',
+        properties: {
+          agent_id: { type: 'string', description: 'Agent ID' },
+          message: { type: 'string', description: 'Message for the agent' },
+          context: { type: 'object', description: 'Additional context' },
+        },
+        required: ['agent_id', 'message'],
+      },
+    },
+    {
+      name: 'list_agents',
+      description: 'List available agents',
+      parameters: {
+        type: 'object',
+        properties: {
+          state: { type: 'string', description: "Filter by state: 'on', 'off', 'sleeping', 'failing'" },
+          tags: { type: 'array', items: { type: 'string' }, description: 'Filter by tags' },
+        },
+        required: [],
+      },
+    },
+    {
+      name: 'create_agent',
+      description: 'Create a new agent',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Agent name' },
+          description: { type: 'string', description: 'Agent description' },
+          master_prompt: { type: 'string', description: 'Master prompt' },
+          workflows: { type: 'array', items: { type: 'string' }, description: 'Workflow IDs' },
+          allowed_tools: { type: 'array', items: { type: 'string' }, description: 'Allowed tools' },
+          trigger: { type: 'object', description: 'Trigger configuration' },
+        },
+        required: ['name', 'description', 'master_prompt'],
+      },
+    },
+  ];
+  
+  // Detect "/" at start of input to show tool dropdown
+  useEffect(() => {
+    if (input.startsWith('/') && !isRecording && !hasPendingVoiceMessage) {
+      const query = input.slice(1); // Remove the "/"
+      
+      // Check if user typed space after a complete tool name
+      if (query.includes(' ')) {
+        const toolName = query.split(' ')[0];
+        const matchedTool = availableTools.find(t => t.name === toolName);
+        
+        if (matchedTool) {
+          // Auto-select the tool and close dropdown
+          setShowToolDropdown(false);
+          setToolSearchQuery('');
+          if (onToolCallSelected) {
+            onToolCallSelected(matchedTool);
+          }
+          // Clear the input
+          const event = new Event('input', { bubbles: true });
+          if (textAreaRef.current) {
+            textAreaRef.current.value = '';
+            textAreaRef.current.dispatchEvent(event);
+          }
+          return;
+        }
+      }
+      
+      setToolSearchQuery(query);
+      setShowToolDropdown(true);
+    } else {
+      setShowToolDropdown(false);
+      setToolSearchQuery('');
+    }
+  }, [input, isRecording, hasPendingVoiceMessage, availableTools, onToolCallSelected]);
+  
+  // Handle tool selection
+  const handleToolSelect = useCallback((tool: ToolDefinition) => {
+    setShowToolDropdown(false);
+    if (onToolCallSelected) {
+      onToolCallSelected(tool);
+    }
+  }, [onToolCallSelected]);
   
   // Listen for file reference additions from FileExplorerPanel
   useEffect(() => {
@@ -208,6 +440,16 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
         transform: 'translateY(calc(-1 * var(--prompt-panel-bottom-offset)))',
       }}
     >
+      {/* Tool Call Dropdown */}
+      {showToolDropdown && (
+        <ToolCallDropdown
+          searchQuery={toolSearchQuery}
+          onSelectTool={handleToolSelect}
+          onClose={() => setShowToolDropdown(false)}
+          tools={availableTools}
+        />
+      )}
+      
       <div 
         className="prompt-panel flex flex-col shadow-2xl pointer-events-auto glass-elevated relative overflow-hidden"
         style={{ 

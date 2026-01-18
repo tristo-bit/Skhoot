@@ -8,6 +8,7 @@ import { CleanupList } from './CleanupList';
 import { AgentAction } from './AgentAction';
 import { MiniTerminalView } from './MiniTerminalView';
 import { WorkflowExecution } from './WorkflowExecution';
+import { ToolCallDisplay } from '../chat/ToolCallDisplay';
 import { Button } from '../buttonFormat';
 import { ArrowRight, FileText, Paperclip, Edit2, Check, X } from 'lucide-react';
 import { workflowService } from '../../services/workflowService';
@@ -423,9 +424,28 @@ export const MessageBubble = memo<{
             </div>
           </div>
         ) : (
-          <p className="text-[13px] leading-relaxed font-semibold font-jakarta text-text-primary">
-            {message.content}
-          </p>
+          <>
+            {/* Show tool calls if present */}
+            {message.toolCalls && message.toolCalls.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {message.toolCalls.map((toolCall, index) => (
+                  <ToolCallDisplay
+                    key={toolCall.id || index}
+                    toolName={toolCall.name}
+                    parameters={toolCall.arguments}
+                    defaultExpanded={false}
+                  />
+                ))}
+              </div>
+            )}
+            
+            {/* Regular message content */}
+            {message.content && !message.content.startsWith('Executing tool:') && (
+              <p className="text-[13px] leading-relaxed font-semibold font-jakarta text-text-primary">
+                {message.content}
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>

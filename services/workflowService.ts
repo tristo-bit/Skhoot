@@ -376,6 +376,350 @@ Include code examples where helpful.`,
     runCount: 0,
     status: 'idle',
   },
+  // ============================================================================
+  // Agent Builder Workflows
+  // ============================================================================
+  {
+    id: 'agent-gatherer-workflow',
+    name: 'Agent Gatherer',
+    description: 'Discovers agent requirements through interactive questions',
+    category: 'agent-builder',
+    workflowType: 'process',
+    intent: 'gather agent requirements, discover needs, agent questions',
+    steps: [
+      {
+        id: 'g1',
+        name: 'Greet & Understand',
+        prompt: `You are the Agent Gatherer, the first step in creating a new agent.
+
+Your goal is to understand what the user wants the agent to do. Ask clear, focused questions:
+
+1. "What should this agent do?" - Get the main purpose
+2. "What triggers should activate it?" - Understand when it should run
+3. "What tools should it have access to?" - Determine capabilities
+
+Be conversational and helpful. One question at a time. Wait for the user's response before asking the next question.
+
+Start by greeting the user and asking the first question.`,
+        order: 1,
+        nextStep: 'g2',
+        outputFormat: 'text',
+        timeoutSecs: 300,
+      },
+      {
+        id: 'g2',
+        name: 'Gather Constraints',
+        prompt: `Now gather information about constraints and preferences:
+
+Ask these questions (one at a time, wait for responses):
+1. "Any limitations or restrictions for this agent?"
+2. "How should it handle errors?"
+3. "Should it notify you when complete?"
+4. "Any specific workflows it should use?"
+
+Be patient and clarify if the user seems unsure.`,
+        order: 2,
+        nextStep: 'g3',
+        outputFormat: 'text',
+        timeoutSecs: 300,
+      },
+      {
+        id: 'g3',
+        name: 'Create Discovery Document',
+        prompt: `Create a discovery document with all gathered information.
+
+Use the write_file tool to save to: .skhoot/agent-discovery/{timestamp}-needs.md
+
+Format the document as:
+# Agent Discovery: [Agent Name]
+
+## Purpose
+[What the agent does]
+
+## Triggers
+[When it activates]
+
+## Capabilities
+### Tools
+- [List of tools]
+
+### Workflows
+- [List of workflows]
+
+## Constraints
+[Any limitations]
+
+## Error Handling
+[How to handle errors]
+
+## Notifications
+[Notification preferences]
+
+## Additional Notes
+[Any other relevant information]
+
+After creating the file, confirm to the user and provide the file path.`,
+        order: 3,
+        outputFormat: 'file',
+        timeoutSecs: 60,
+      },
+    ],
+    outputSettings: {
+      folder: '.skhoot/agent-discovery',
+      filePattern: '{timestamp}-needs.md',
+      formatDescription: 'Markdown discovery document',
+      timestamped: true,
+    },
+    behavior: {
+      notifyOnComplete: true,
+      logExecution: true,
+    },
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    runCount: 0,
+    status: 'idle',
+  },
+  {
+    id: 'agent-designer-workflow',
+    name: 'Agent Designer',
+    description: 'Designs automation strategy from discovery document',
+    category: 'agent-builder',
+    workflowType: 'process',
+    intent: 'design agent automation, create agent strategy',
+    steps: [
+      {
+        id: 'd1',
+        name: 'Read Discovery Document',
+        prompt: `You are the Agent Designer. Your job is to design the automation strategy.
+
+First, read the discovery document that was created by the Agent Gatherer.
+Use the read_file tool to load the most recent file from .skhoot/agent-discovery/
+
+Parse the requirements and constraints carefully.`,
+        order: 1,
+        nextStep: 'd2',
+        outputFormat: 'text',
+        timeoutSecs: 60,
+      },
+      {
+        id: 'd2',
+        name: 'Design Workflows',
+        prompt: `Based on the discovery document, design the workflows this agent needs.
+
+For each workflow, define:
+1. Workflow name and purpose
+2. Steps in the workflow
+3. Tools required for each step
+4. Decision points (if any)
+5. Expected outputs
+
+Think about:
+- What sequence of actions achieves the goal?
+- What tools are needed at each step?
+- Where might the agent need to make decisions?
+- How should errors be handled?
+
+Output your workflow design in a structured format.`,
+        order: 2,
+        nextStep: 'd3',
+        outputFormat: 'markdown',
+        timeoutSecs: 180,
+      },
+      {
+        id: 'd3',
+        name: 'Create Master Prompt',
+        prompt: `Create the master prompt that defines the agent's behavior and personality.
+
+The master prompt should:
+1. Define the agent's role and purpose
+2. Specify behavior guidelines
+3. Include success criteria
+4. Define how to interact with users
+5. Specify error handling approach
+
+Make it clear, concise, and actionable. The agent will use this as its core instruction set.
+
+Example format:
+"You are [Agent Name], responsible for [purpose].
+
+Your primary goals are:
+1. [Goal 1]
+2. [Goal 2]
+
+When executing tasks:
+- [Guideline 1]
+- [Guideline 2]
+
+Success means: [Success criteria]
+
+If errors occur: [Error handling]"`,
+        order: 3,
+        nextStep: 'd4',
+        outputFormat: 'text',
+        timeoutSecs: 120,
+      },
+      {
+        id: 'd4',
+        name: 'Update Document',
+        prompt: `Update the discovery document with the automation design.
+
+Use write_file tool to append to the existing discovery document:
+
+## Automation Design
+
+### Master Prompt
+[The master prompt you created]
+
+### Workflows
+[The workflow designs]
+
+### Required Tools
+[List of all tools needed]
+
+### Implementation Notes
+[Any additional notes for the builder]
+
+Confirm the update to the user.`,
+        order: 4,
+        outputFormat: 'file',
+        requiresConfirmation: true,
+        timeoutSecs: 60,
+      },
+    ],
+    outputSettings: {
+      folder: '.skhoot/agent-discovery',
+      formatDescription: 'Updated discovery document with automation design',
+    },
+    behavior: {
+      notifyOnComplete: true,
+      logExecution: true,
+    },
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    runCount: 0,
+    status: 'idle',
+  },
+  {
+    id: 'agent-builder-workflow',
+    name: 'Agent Builder',
+    description: 'Creates agent via backend API from discovery document',
+    category: 'agent-builder',
+    workflowType: 'process',
+    intent: 'build agent, create agent from design',
+    steps: [
+      {
+        id: 'b1',
+        name: 'Read Final Document',
+        prompt: `You are the Agent Builder. Your job is to create the actual agent.
+
+Read the complete discovery document with the automation design.
+Use read_file tool to load it from .skhoot/agent-discovery/
+
+Extract all the information needed to create the agent:
+- Name
+- Description
+- Master prompt
+- Workflows
+- Tools
+- Trigger configuration`,
+        order: 1,
+        nextStep: 'b2',
+        outputFormat: 'text',
+        timeoutSecs: 60,
+      },
+      {
+        id: 'b2',
+        name: 'Validate Configuration',
+        prompt: `Validate the agent configuration before creating it.
+
+Check:
+1. Name is not empty
+2. Master prompt is clear and actionable
+3. Tool names are valid (read_file, write_file, search_files, shell, etc.)
+4. Workflow references exist (if any)
+5. Trigger configuration is valid
+
+If anything is missing or invalid, explain what needs to be fixed.
+If everything is valid, confirm you're ready to create the agent.`,
+        order: 2,
+        decision: {
+          id: 'b_decision',
+          condition: 'Is the configuration valid?',
+          trueBranch: 'b3',
+          falseBranch: 'b_invalid',
+        },
+        outputFormat: 'text',
+        timeoutSecs: 60,
+      },
+      {
+        id: 'b_invalid',
+        name: 'Report Validation Errors',
+        prompt: `The configuration has validation errors. Report them clearly to the user.
+
+Explain:
+1. What's wrong
+2. What needs to be fixed
+3. How to fix it
+
+The user will need to restart the agent creation process with corrections.`,
+        order: 3,
+        outputFormat: 'text',
+        timeoutSecs: 30,
+      },
+      {
+        id: 'b3',
+        name: 'Create Agent',
+        prompt: `Create the agent using the create_agent tool.
+
+Call create_agent with:
+{
+  "name": "[agent name]",
+  "description": "[agent description]",
+  "master_prompt": "[the master prompt]",
+  "workflows": ["workflow-id-1", "workflow-id-2"],
+  "allowed_tools": ["tool1", "tool2", "tool3"],
+  "trigger": {
+    "type": "keyword",
+    "keywords": ["trigger1", "trigger2"],
+    "autoActivate": true
+  }
+}
+
+After creation, confirm success and provide the agent ID.`,
+        order: 4,
+        nextStep: 'b4',
+        outputFormat: 'text',
+        timeoutSecs: 60,
+      },
+      {
+        id: 'b4',
+        name: 'Confirm Creation',
+        prompt: `Congratulations! The agent has been created successfully.
+
+Provide the user with:
+1. Agent ID
+2. Agent name
+3. How to use it (trigger keywords or manual invocation)
+4. Next steps (test it, modify it, etc.)
+
+Encourage them to try it out!`,
+        order: 5,
+        outputFormat: 'text',
+        timeoutSecs: 30,
+      },
+    ],
+    outputSettings: {
+      formatDescription: 'Agent creation confirmation',
+    },
+    behavior: {
+      notifyOnComplete: true,
+      logExecution: true,
+    },
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    runCount: 0,
+    status: 'idle',
+  },
 ];
 
 // ============================================================================

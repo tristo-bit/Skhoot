@@ -8,6 +8,7 @@ import { activityLogger } from '../../services/activityLogger';
 import { nativeNotifications } from '../../services/nativeNotifications';
 import { MainArea } from '../main-area';
 import { PromptArea } from './PromptArea';
+import { ToolCallInput } from './ToolCallInput';
 import { TerminalView } from '../terminal';
 import { FileExplorerPanel } from '../panels/FileExplorerPanel';
 import { WorkflowsPanel } from '../panels/WorkflowsPanel';
@@ -25,6 +26,8 @@ interface ChatInterfaceProps {
   onToggleFileExplorer?: () => void;
   isWorkflowsOpen?: boolean;
   onToggleWorkflows?: () => void;
+  isAgentsOpen?: boolean;
+  onToggleAgents?: () => void;
   /** Callback when agent mode changes */
   onAgentModeChange?: (isAgentMode: boolean) => void;
 }
@@ -40,6 +43,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onToggleFileExplorer,
   isWorkflowsOpen = false,
   onToggleWorkflows,
+  isAgentsOpen = false,
+  onToggleAgents,
   onAgentModeChange,
 }) => {
   // State
@@ -56,6 +61,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isEmptyStateVisible, setIsEmptyStateVisible] = useState(initialMessages.length === 0);
   const [isEmptyStateExiting, setIsEmptyStateExiting] = useState(false);
   const [queuedMessage, setQueuedMessage] = useState<string | null>(null);
+  const [selectedToolCall, setSelectedToolCall] = useState<any | null>(null);
   
   // Refs
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -854,6 +860,160 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       handleSend();
     }
   }, [handleSend]);
+  
+  // Handle tool call execution
+  const handleToolCallExecute = useCallback(async (toolName: string, parameters: Record<string, any>) => {
+    console.log('[ChatInterface] Executing tool:', toolName, parameters);
+    
+    // Add user message showing the tool call with metadata
+    const toolCallMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: `Executing tool: ${toolName}`,
+      type: 'text',
+      timestamp: new Date(),
+      toolCalls: [{
+        id: `tool-${Date.now()}`,
+        name: toolName as any,
+        arguments: parameters,
+      }],
+    };
+    
+    setMessages(prev => [...prev, toolCallMessage]);
+    setSelectedToolCall(null);
+    setIsLoading(true);
+    
+    // Dispatch event to notify that a message was sent
+    window.dispatchEvent(new Event('chat-message-sent'));
+    
+    try {
+      if (isAgentMode && agentSessionId) {
+        // Use agent chat service with direct tool call
+        const agentHistory = messages.map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
+        
+        const response = await agentChatService.chat(
+          `Executing tool: ${toolName}`,
+          agentHistory,
+          {
+            sessionId: agentSessionId,
+            workspaceRoot: undefined, // Let the backend determine the workspace root
+            directToolCall: {
+              name: toolName,
+              arguments: parameters,
+            },
+          }
+        );
+        
+        // Add AI response
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: response.content,
+          type: 'text',
+          timestamp: new Date()
+        }]);
+      } else {
+        // Fallback: show error that tool calls require agent mode
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: '⚠️ Tool calls require Agent Mode to be enabled. Please enable Agent Mode (Ctrl+Shift+A) to execute tools directly.',
+          type: 'text',
+          timestamp: new Date()
+        }]);
+      }
+    } catch (error) {
+      console.error('[ChatInterface] Tool execution error:', error);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `❌ Error executing tool: ${error instanceof Error ? error.message : String(error)}`,
+        type: 'text',
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [messages, isAgentMode, agentSessionId]);
+  
+  // Handle tool call selection from dropdown
+  const handleToolCallSelected = useCallback((tool: any) => {
+    console.log('[ChatInterface] Tool selected:', tool);
+    // Clear the "/" from input
+    setInput('');
+    
+    // Instead of showing a form, send a message to the AI asking it to execute the tool
+    // The AI will ask for any required parameters conversationally
+    const toolRequestMessage = `Please execute the ${tool.name} tool. If you need any parameters, ask me for them in a natural way.`;
+    
+    // Add user message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: toolRequestMessage,
+      type: 'text',
+      timestamp: new Date(),
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+    
+    // Send to AI
+    if (isAgentMode && agentSessionId) {
+      const agentHistory = [...messages, userMessage].map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+      
+      agentChatService.chat(
+        toolRequestMessage,
+        agentHistory,
+        {
+          sessionId: agentSessionId,
+          workspaceRoot: undefined,
+        }
+      ).then(response => {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: response.content,
+          type: 'text',
+          timestamp: new Date(),
+          toolCalls: response.toolCalls,
+          toolResults: response.toolResults,
+        }]);
+      }).catch(error => {
+        console.error('[ChatInterface] Error:', error);
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `❌ Error: ${error instanceof Error ? error.message : String(error)}`,
+          type: 'text',
+          timestamp: new Date(),
+        }]);
+      }).finally(() => {
+        setIsLoading(false);
+      });
+    } else {
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: '⚠️ Agent Mode is required to execute tools. Please enable Agent Mode (Ctrl+Shift+A).',
+        type: 'text',
+        timestamp: new Date(),
+      }]);
+      setIsLoading(false);
+    }
+  }, [handleToolCallExecute, messages, isAgentMode, agentSessionId]);
+  
+  // Handle tool call cancellation
+  const handleToolCallCancel = useCallback(() => {
+    setSelectedToolCall(null);
+    setInput('');
+  }, []);
 
   // Handle workflow prompts - sends to AI and returns response
   // Uses agent mode if available for tool access (file operations, terminal, etc.)
@@ -1324,6 +1484,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onSendPrompt={handleWorkflowPrompt}
       />
       
+      {/* Tool Call Input - shows when user selects a tool from dropdown */}
+      {selectedToolCall && (
+        <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-4"
+          style={{
+            transform: 'translateY(calc(-1 * var(--prompt-panel-bottom-offset) - 20vh - 20px))',
+          }}
+        >
+          <ToolCallInput
+            tool={selectedToolCall}
+            onExecute={handleToolCallExecute}
+            onCancel={handleToolCallCancel}
+          />
+        </div>
+      )}
+      
       {/* Terminal View - floats above PromptArea */}
       <TerminalView 
         isOpen={isTerminalOpen}
@@ -1371,6 +1546,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onQuickAction={handleQuickAction}
         isTerminalOpen={isTerminalOpen}
         onToggleTerminal={onToggleTerminal}
+        onToolCallSelected={handleToolCallSelected}
       />
     </div>
   );

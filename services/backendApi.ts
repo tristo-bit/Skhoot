@@ -170,6 +170,25 @@ export interface StorageCategory {
   color: string;
 }
 
+// ============================================================================
+// Web Search Types
+// ============================================================================
+
+export interface WebSearchResult {
+  title: string;
+  url: string;
+  snippet: string;
+  published_date?: string;
+  relevance_score: number;
+}
+
+export interface WebSearchResponse {
+  query: string;
+  results: WebSearchResult[];
+  total_results: number;
+  search_time_ms: number;
+}
+
 export const backendApi = {
   async health(): Promise<HealthResponse> {
     const response = await fetch(`${BACKEND_URL}/health`);
@@ -416,6 +435,155 @@ export const backendApi = {
     if (!response.ok) {
       throw new Error(`Failed to get storage categories: ${response.statusText}`);
     }
+    return response.json();
+  },
+
+  // ============================================================================
+  // File Operations APIs
+  // ============================================================================
+
+  /**
+   * Read file content
+   */
+  async readFile(path: string, startLine?: number, endLine?: number): Promise<string> {
+    const params = new URLSearchParams({ path });
+    if (startLine) params.append('start_line', startLine.toString());
+    if (endLine) params.append('end_line', endLine.toString());
+    
+    const response = await fetch(`${BACKEND_URL}/api/v1/files/read?${params}`);
+    if (!response.ok) {
+      throw new Error(`Failed to read file: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return data.content || '';
+  },
+
+  /**
+   * Write file content
+   */
+  async writeFile(path: string, content: string, append: boolean = false): Promise<void> {
+    const response = await fetch(`${BACKEND_URL}/api/v1/files/write`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, content, append }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to write file: ${response.statusText}`);
+    }
+  },
+
+  /**
+   * List directory contents
+   */
+  async listDirectory(path: string, depth?: number, includeHidden?: boolean): Promise<any> {
+    const params = new URLSearchParams({ path });
+    if (depth) params.append('depth', depth.toString());
+    if (includeHidden) params.append('include_hidden', 'true');
+    
+    const response = await fetch(`${BACKEND_URL}/api/v1/files/list?${params}`);
+    if (!response.ok) {
+      throw new Error(`Failed to list directory: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
+  /**
+   * Execute shell command
+   */
+  async executeShellCommand(command: string, workdir?: string, timeoutMs?: number): Promise<any> {
+    const response = await fetch(`${BACKEND_URL}/api/v1/shell/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        command, 
+        workdir: workdir || '.',
+        timeout_ms: timeoutMs || 30000 
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to execute shell command: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
+  // ============================================================================
+  // Agent Execution APIs
+  // ============================================================================
+
+  /**
+   * Update execution status
+   */
+  async updateExecutionStatus(
+    executionId: string, 
+    status: 'running' | 'completed' | 'failed' | 'cancelled',
+    error?: string,
+    messages?: Array<{
+      id: string;
+      agent_id: string;
+      content: string;
+      timestamp: number;
+      type: string;
+    }>
+  ): Promise<any> {
+    const response = await fetch(`${BACKEND_URL}/api/v1/executions/${executionId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, error, messages }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to update execution status: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
+  /**
+   * Get execution by ID
+   */
+  async getExecution(executionId: string): Promise<any> {
+    const response = await fetch(`${BACKEND_URL}/api/v1/executions/${executionId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to get execution: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
+  /**
+   * List all executions for an agent
+   */
+  async listAgentExecutions(agentId: string): Promise<any[]> {
+    const response = await fetch(`${BACKEND_URL}/api/v1/agents/${agentId}/executions`);
+    if (!response.ok) {
+      throw new Error(`Failed to list agent executions: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
+  // ============================================================================
+  // Web Search API
+  // ============================================================================
+
+  /**
+   * Search the web for information
+   */
+  async webSearch(
+    query: string, 
+    numResults?: number, 
+    searchType?: 'general' | 'news' | 'docs'
+  ): Promise<WebSearchResponse> {
+    const params = new URLSearchParams({ 
+      q: query,
+      num_results: (numResults || 5).toString(),
+      search_type: searchType || 'general'
+    });
+    
+    const response = await fetch(`${BACKEND_URL}/api/v1/search/web?${params}`);
+    if (!response.ok) {
+      throw new Error(`Web search failed: ${response.statusText}`);
+    }
+    
     return response.json();
   },
 };

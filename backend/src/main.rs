@@ -144,6 +144,7 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api/v1", api::search::search_routes())
         .nest("/api/v1", api::disk::disk_routes())
         .nest("/api/v1", api::agents::agent_routes())
+        .nest("/api/v1", api::web_search::web_search_routes())
         .nest("/api/v1/terminal", terminal::terminal_routes().with_state(terminal_manager))
         .with_state(state)
         .layer(
@@ -152,6 +153,7 @@ async fn main() -> anyhow::Result<()> {
                 .allow_methods([
                     axum::http::Method::GET,
                     axum::http::Method::POST,
+                    axum::http::Method::PUT,
                     axum::http::Method::DELETE,
                     axum::http::Method::OPTIONS
                 ])

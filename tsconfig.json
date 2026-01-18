@@ -31,6 +31,9 @@
     "src-tauri/target",
     "backend/target",
     "dist",
-    "documentation"
+    "documentation",
+    "third_party/**/build",
+    "**/*.make",
+    "**/*.cmake"
   ]
 }

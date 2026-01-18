@@ -6,6 +6,8 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import UserPanel from './components/settings/UserPanel';
 import FilesPanel from './components/panels/FilesPanel';
+import WorkflowsPanel from './components/panels/WorkflowsPanel';
+import AgentsPanel from './components/panels/AgentsPanel';
 import { AISettingsModal } from './components/panels/AISettingsModal';
 import { ActivityPanel } from './components/activity';
 import { FileSearchTest } from './components/search-engine';
@@ -52,6 +54,7 @@ const AppContent: React.FC = () => {
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   const [isFileExplorerOpen, setIsFileExplorerOpen] = useState(false);
   const [isWorkflowsOpen, setIsWorkflowsOpen] = useState(false);
+  const [isAgentsOpen, setIsAgentsOpen] = useState(false);
   const [isAISettingsOpen, setIsAISettingsOpen] = useState(false);
   
   // Track pending chat creation to avoid remounting during first message
@@ -291,11 +294,24 @@ const AppContent: React.FC = () => {
         // Opening workflows, close other panels
         setIsTerminalOpen(false);
         setIsFileExplorerOpen(false);
+        setIsAgentsOpen(false);
       }
       return !open;
     });
   }, []);
   const closeWorkflows = useCallback(() => setIsWorkflowsOpen(false), []);
+  const toggleAgents = useCallback(() => {
+    setIsAgentsOpen(open => {
+      if (!open) {
+        // Opening agents, close other panels
+        setIsTerminalOpen(false);
+        setIsFileExplorerOpen(false);
+        setIsWorkflowsOpen(false);
+      }
+      return !open;
+    });
+  }, []);
+  const closeAgents = useCallback(() => setIsAgentsOpen(false), []);
   const openAISettings = useCallback(() => setIsAISettingsOpen(true), []);
   const closeAISettings = useCallback(() => setIsAISettingsOpen(false), []);
 
@@ -307,20 +323,29 @@ const AppContent: React.FC = () => {
     if (mode === 'Files') {
       setIsTerminalOpen(false);
       setIsWorkflowsOpen(false);
+      setIsAgentsOpen(false);
       setIsFileExplorerOpen(true);
+    } else if (mode === 'Agents') {
+      setIsTerminalOpen(false);
+      setIsFileExplorerOpen(false);
+      setIsWorkflowsOpen(false);
+      setIsAgentsOpen(true);
     } else if (mode === 'Workflows') {
       setIsTerminalOpen(false);
       setIsFileExplorerOpen(false);
+      setIsAgentsOpen(false);
       setIsWorkflowsOpen(true);
     } else if (mode === 'Terminal') {
       setIsFileExplorerOpen(false);
       setIsWorkflowsOpen(false);
+      setIsAgentsOpen(false);
       setIsTerminalOpen(true);
     } else {
       // If mode is null, close all panels
       setIsTerminalOpen(false);
       setIsFileExplorerOpen(false);
       setIsWorkflowsOpen(false);
+      setIsAgentsOpen(false);
     }
   }, []);
 
@@ -380,6 +405,8 @@ const AppContent: React.FC = () => {
           {isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
           {isFileSearchTestOpen && <FileSearchTest onClose={closeFileSearchTest} />}
           {isAISettingsOpen && <AISettingsModal onClose={closeAISettings} />}
+          {isWorkflowsOpen && <WorkflowsPanel isOpen={isWorkflowsOpen} onClose={closeWorkflows} />}
+          {isAgentsOpen && <AgentsPanel isOpen={isAgentsOpen} onClose={closeAgents} />}
 
           {/* Auth Views */}
           {authView === 'login' && (
@@ -415,6 +442,8 @@ const AppContent: React.FC = () => {
                 onToggleFileExplorer={toggleFileExplorer}
                 isWorkflowsOpen={isWorkflowsOpen}
                 onToggleWorkflows={toggleWorkflows}
+                isAgentsOpen={isAgentsOpen}
+                onToggleAgents={toggleAgents}
               />
             </div>
           </main>

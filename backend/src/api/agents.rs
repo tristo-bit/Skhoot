@@ -26,6 +26,9 @@ pub fn agent_routes() -> Router<crate::AppState> {
         .route("/agents/:id", delete(delete_agent))
         .route("/agents/:id/execute", post(execute_agent))
         .route("/agents/:id/status", get(get_agent_status))
+        .route("/agents/:id/executions", get(list_agent_executions))
+        .route("/executions/:execution_id", get(get_execution))
+        .route("/executions/:execution_id", put(update_execution_status))
 }
 
 // ============================================================================
@@ -90,14 +93,18 @@ pub struct Agent {
     pub id: String,
     pub name: String,
     pub description: String,
+    #[serde(default)]
     pub tags: Vec<String>,
     
     // Behavior
     pub master_prompt: String,
+    #[serde(default)]
     pub workflows: Vec<String>,
     
     // Capabilities
+    #[serde(default)]
     pub allowed_tools: Vec<String>,
+    #[serde(default)]
     pub allowed_workflows: Vec<String>,
     
     // Triggers
@@ -106,6 +113,7 @@ pub struct Agent {
     
     // State
     pub state: AgentState,
+    #[serde(default)]
     pub is_default: bool,
     
     // Metadata
@@ -113,6 +121,7 @@ pub struct Agent {
     pub updated_at: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_used_at: Option<i64>,
+    #[serde(default)]
     pub usage_count: u64,
     
     // Configuration
@@ -218,6 +227,14 @@ pub struct ExecuteAgentRequest {
     pub context: HashMap<String, serde_json::Value>,
     #[allow(dead_code)] // Will be used in Phase 2
     pub message: Option<String>,
+}
+
+/// Update execution status request
+#[derive(Debug, Deserialize)]
+pub struct UpdateExecutionStatusRequest {
+    pub status: ExecutionStatus,
+    pub error: Option<String>,
+    pub messages: Option<Vec<AgentMessage>>,
 }
 
 /// Agent storage (in-memory for now, will be file-based)
@@ -339,12 +356,25 @@ impl AgentStorage {
         Ok(())
     }
     
-    #[allow(dead_code)] // Will be used in Phase 2
     pub async fn get_execution(&self, id: &str) -> Result<AgentExecution, AppError> {
         self.executions.read().await
             .get(id)
             .cloned()
             .ok_or_else(|| AppError::NotFound(format!("Execution not found: {}", id)))
+    }
+    
+    pub async fn list_agent_executions(&self, agent_id: &str) -> Result<Vec<AgentExecution>, AppError> {
+        let executions = self.executions.read().await;
+        let mut agent_executions: Vec<AgentExecution> = executions
+            .values()
+            .filter(|e| e.agent_id == agent_id)
+            .cloned()
+            .collect();
+        
+        // Sort by started_at descending (newest first)
+        agent_executions.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        
+        Ok(agent_executions)
     }
 }
 
@@ -557,19 +587,85 @@ pub async fn execute_agent(
     
     tracing::info!("Started execution: {} for agent: {}", execution.id, agent.name);
     
-    // TODO: Actually execute workflows (will be implemented in Phase 2)
+    // NOTE: Actual agent execution happens in the frontend using agentChatService
+    // The frontend will call update_execution_status when complete
+    // This allows the frontend to:
+    // - Use the agent's custom master prompt
+    // - Filter tools based on agent's allowed_tools
+    // - Stream responses directly to the UI
+    // - Handle tool execution with proper UI feedback
     
     Ok(Json(execution))
 }
 
-/// Get agent execution status
+/// Get agent execution status (deprecated - use list_agent_executions instead)
 pub async fn get_agent_status(
     State(_state): State<crate::AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Vec<AgentExecution>>, AppError> {
-    // For now, return empty array (will be implemented properly in Phase 2)
-    let _agent = STORAGE.load(&id).await?;
-    Ok(Json(Vec::new()))
+    // Redirect to list_agent_executions
+    list_agent_executions(State(_state), Path(id)).await
+}
+
+/// List all executions for an agent
+pub async fn list_agent_executions(
+    State(_state): State<crate::AppState>,
+    Path(agent_id): Path<String>,
+) -> Result<Json<Vec<AgentExecution>>, AppError> {
+    // Verify agent exists
+    let _agent = STORAGE.load(&agent_id).await?;
+    
+    // Get all executions for this agent
+    let executions = STORAGE.list_agent_executions(&agent_id).await?;
+    
+    Ok(Json(executions))
+}
+
+/// Get a specific execution by ID
+pub async fn get_execution(
+    State(_state): State<crate::AppState>,
+    Path(execution_id): Path<String>,
+) -> Result<Json<AgentExecution>, AppError> {
+    let execution = STORAGE.get_execution(&execution_id).await?;
+    Ok(Json(execution))
+}
+
+/// Update execution status
+pub async fn update_execution_status(
+    State(_state): State<crate::AppState>,
+    Path(execution_id): Path<String>,
+    Json(request): Json<UpdateExecutionStatusRequest>,
+) -> Result<Json<AgentExecution>, AppError> {
+    let mut execution = STORAGE.get_execution(&execution_id).await?;
+    
+    // Update status
+    execution.status = request.status;
+    
+    // Set completion time if status is terminal
+    if matches!(execution.status, ExecutionStatus::Completed | ExecutionStatus::Failed | ExecutionStatus::Cancelled) {
+        execution.completed_at = Some(chrono::Utc::now().timestamp());
+    }
+    
+    // Update error if provided
+    if let Some(error) = request.error {
+        execution.error = Some(error);
+    }
+    
+    // Update messages if provided
+    if let Some(messages) = request.messages {
+        execution.messages = messages;
+    }
+    
+    // Save updated execution
+    STORAGE.save_execution(&execution).await?;
+    
+    tracing::info!(
+        "Updated execution {} status to {:?}", 
+        execution_id, 
+        execution.status
+    );
+    
+    Ok(Json(execution))
 }
 
 #[cfg(test)]

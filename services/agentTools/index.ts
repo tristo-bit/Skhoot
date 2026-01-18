@@ -6,3 +6,4 @@
 
 export * from './terminalTools';
 export * from './workflowTools';
+export * from './agentTools';
