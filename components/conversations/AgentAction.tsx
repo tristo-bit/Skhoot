@@ -1,35 +1,22 @@
 /**
- * Agent Action Component
+ * Agent Action Component - Refactored with Plugin System
  * 
- * Displays agent tool calls in the conversation UI with expandable details,
- * loading states, and success/error indicators.
+ * Displays agent tool calls in the conversation UI using the plugin system.
+ * Each tool type has its own UI component registered in the ToolCallRegistry.
  * 
- * For file-related tools (list_directory, search_files), renders results
- * using the unified FileCard component for a consistent experience.
+ * This component now acts as a router that:
+ * 1. Looks up the appropriate plugin for the tool
+ * 2. Wraps it in a ToolCallContainer for consistent UI
+ * 3. Falls back to GenericToolCallUI for unknown tools
  */
 
-import React, { memo, useState, useMemo, useCallback } from 'react';
+import React, { memo, useMemo } from 'react';
 import { 
-  Terminal, 
-  FileText, 
-  FolderOpen, 
-  Search, 
-  Bot,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Copy,
-  Check,
-  Grid,
-  List
-} from 'lucide-react';
-import { Button } from '../buttonFormat';
-import { MarkdownRenderer, FileCard, type FileCardFile } from '../ui';
-import { MiniTerminalView } from './MiniTerminalView';
-import { useSettings } from '../../src/contexts/SettingsContext';
+  toolCallRegistry,
+  ToolCallContainer,
+  GenericToolCallUI,
+  ToolIcon,
+} from '../tool-calls';
 
 // ============================================================================
 // Types
@@ -37,7 +24,7 @@ import { useSettings } from '../../src/contexts/SettingsContext';
 
 export interface AgentToolCall {
   id: string;
-  name: 'shell' | 'read_file' | 'write_file' | 'list_directory' | 'search_files' | 'execute_command';
+  name: string;
   arguments: Record<string, any>;
 }
 
@@ -58,261 +45,31 @@ export interface AgentActionProps {
 }
 
 // ============================================================================
-// Output Parsing Utilities
+// Helper Functions
 // ============================================================================
 
-function parseDirectoryListing(output: string, basePath: string = ''): FileCardFile[] {
-  const files: FileCardFile[] = [];
-  const lines = output.split('\n').filter(line => line.trim());
+function getResultSummary(toolName: string, result?: AgentToolResult, parsedData?: any): string | null {
+  if (!result?.success) return null;
   
-  for (const line of lines) {
-    if (!line.trim() || line.startsWith('total ') || line.startsWith('Directory:')) {
-      continue;
-    }
-    
-    let parsed = parseUnixLsLine(line, basePath) || 
-                 parseSimpleLine(line, basePath) ||
-                 parseJsonLine(line);
-    
-    if (parsed) {
-      files.push(parsed);
-    }
+  // For file operations with parsed data
+  if (parsedData && Array.isArray(parsedData)) {
+    return `${parsedData.length} item${parsedData.length !== 1 ? 's' : ''} found`;
   }
   
-  return files;
-}
-
-function parseUnixLsLine(line: string, basePath: string): FileCardFile | null {
-  const lsRegex = /^([d\-rwxsStT@+.]+)\s+\d+\s+\S+\s+\S+\s+(\d+)\s+(\w+\s+\d+\s+[\d:]+)\s+(.+)$/;
-  const match = line.match(lsRegex);
+  // For read_file
+  if (toolName === 'read_file' && result.output) {
+    const lines = result.output.split('\n').length;
+    return `${lines} line${lines !== 1 ? 's' : ''}`;
+  }
   
-  if (match) {
-    const [, permissions, size, date, name] = match;
-    const isDirectory = permissions.startsWith('d');
-    const fullPath = basePath ? `${basePath}/${name}` : name;
-    
-    return {
-      id: fullPath,
-      name: name,
-      path: fullPath,
-      size: formatFileSize(parseInt(size, 10)),
-      category: isDirectory ? 'Folder' : detectCategory(name),
-      safeToRemove: false,
-      lastUsed: date,
-    };
+  // For shell commands
+  if ((toolName === 'shell' || toolName === 'execute_command') && result.output) {
+    const lines = result.output.split('\n').filter(l => l.trim()).length;
+    return lines > 0 ? `${lines} line${lines !== 1 ? 's' : ''}` : 'Done';
   }
   
   return null;
 }
-
-function parseSimpleLine(line: string, basePath: string): FileCardFile | null {
-  const trimmed = line.trim();
-  if (!trimmed || (trimmed.includes(':') && !trimmed.includes('/'))) {
-    return null;
-  }
-  
-  let name = trimmed;
-  let fullPath = trimmed;
-  
-  if (name.startsWith('./')) {
-    name = name.slice(2);
-  }
-  
-  const lastSlash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
-  const fileName = lastSlash >= 0 ? name.slice(lastSlash + 1) : name;
-  
-  if (basePath && !fullPath.startsWith('/') && !fullPath.startsWith('~')) {
-    fullPath = `${basePath}/${name}`;
-  }
-  
-  const isDirectory = trimmed.endsWith('/') || (!fileName.includes('.') && !trimmed.includes('.'));
-  
-  return {
-    id: fullPath,
-    name: fileName || name,
-    path: fullPath,
-    size: isDirectory ? '-' : 'Unknown',
-    category: isDirectory ? 'Folder' : detectCategory(fileName),
-    safeToRemove: false,
-    lastUsed: 'Unknown',
-  };
-}
-
-function parseJsonLine(line: string): FileCardFile | null {
-  try {
-    const data = JSON.parse(line);
-    if (data.path || data.name) {
-      return {
-        id: data.path || data.name,
-        name: data.name || data.path.split('/').pop() || data.path,
-        path: data.path || data.name,
-        size: data.size ? formatFileSize(data.size) : 'Unknown',
-        category: data.type === 'directory' ? 'Folder' : detectCategory(data.name || ''),
-        safeToRemove: false,
-        lastUsed: data.modified || 'Unknown',
-      };
-    }
-  } catch {
-    // Not JSON
-  }
-  return null;
-}
-
-function parseSearchResults(output: string): FileCardFile[] {
-  const files: FileCardFile[] = [];
-  const lines = output.split('\n').filter(line => line.trim());
-  
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    
-    const grepMatch = trimmed.match(/^(.+?):(\d+):(.*)$/);
-    if (grepMatch) {
-      const [, filePath, lineNum, snippet] = grepMatch;
-      const fileName = filePath.split('/').pop() || filePath;
-      
-      const existing = files.find(f => f.path === filePath);
-      if (!existing) {
-        const fileInfo: FileCardFile = {
-          id: filePath,
-          name: fileName,
-          path: filePath,
-          size: 'Unknown',
-          category: detectCategory(fileName),
-          safeToRemove: false,
-          lastUsed: 'Unknown',
-          snippet: `Line ${lineNum}: ${snippet.slice(0, 100)}`,
-          relevanceScore: 85,
-        };
-        files.push(fileInfo);
-      }
-      continue;
-    }
-    
-    if (trimmed.includes('/') || trimmed.includes('\\')) {
-      const fileName = trimmed.split(/[/\\]/).pop() || trimmed;
-      files.push({
-        id: trimmed,
-        name: fileName,
-        path: trimmed,
-        size: 'Unknown',
-        category: detectCategory(fileName),
-        safeToRemove: false,
-        lastUsed: 'Unknown',
-      });
-    }
-  }
-  
-  return files;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  if (isNaN(bytes)) return 'Unknown';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
-
-function detectCategory(fileName: string): string {
-  const ext = fileName.split('.').pop()?.toLowerCase() || '';
-  
-  const categories: Record<string, string[]> = {
-    'Code': ['js', 'ts', 'tsx', 'jsx', 'py', 'rs', 'go', 'java', 'cpp', 'c', 'h'],
-    'Document': ['pdf', 'doc', 'docx', 'txt', 'md', 'rtf'],
-    'Image': ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'],
-    'Config': ['json', 'yaml', 'yml', 'toml', 'xml', 'ini', 'env'],
-    'Style': ['css', 'scss', 'sass', 'less'],
-  };
-  
-  for (const [category, extensions] of Object.entries(categories)) {
-    if (extensions.includes(ext)) {
-      return category;
-    }
-  }
-  
-  return 'Other';
-}
-
-function getFileExtension(path: string): string {
-  return path.split('.').pop()?.toLowerCase() || '';
-}
-
-function isCodeFile(path: string): boolean {
-  const ext = getFileExtension(path);
-  const codeExtensions = [
-    'js', 'ts', 'tsx', 'jsx', 'py', 'rs', 'go', 'java', 'cpp', 'c', 'h', 'hpp',
-    'css', 'scss', 'sass', 'less', 'html', 'xml', 'json', 'yaml', 'yml', 'toml',
-    'sh', 'bash', 'zsh', 'fish', 'ps1', 'bat', 'cmd', 'sql', 'graphql', 'md',
-    'rb', 'php', 'swift', 'kt', 'scala', 'r', 'lua', 'vim', 'dockerfile'
-  ];
-  return codeExtensions.includes(ext);
-}
-
-// ============================================================================
-// Tool Icon Component
-// ============================================================================
-
-const ToolIcon: React.FC<{ toolName: string; size?: number }> = ({ toolName, size = 16 }) => {
-  const icons: Record<string, React.ReactNode> = {
-    shell: <Terminal size={size} />,
-    read_file: <FileText size={size} />,
-    write_file: <FileText size={size} />,
-    list_directory: <FolderOpen size={size} />,
-    search_files: <Search size={size} />,
-  };
-  return <>{icons[toolName] || <Bot size={size} />}</>;
-};
-
-const getToolDisplayName = (toolName: string): string => {
-  const names: Record<string, string> = {
-    shell: 'Shell Command',
-    execute_command: 'Execute Command',
-    read_file: 'Read File',
-    write_file: 'Write File',
-    list_directory: 'List Directory',
-    search_files: 'Search Files',
-  };
-  return names[toolName] || toolName;
-};
-
-// ============================================================================
-// Status Badge Component
-// ============================================================================
-
-const StatusBadge: React.FC<{ 
-  status: 'executing' | 'success' | 'error';
-  durationMs?: number;
-}> = ({ status, durationMs }) => {
-  const configs = {
-    executing: {
-      icon: <Clock size={12} className="animate-pulse" />,
-      text: 'Executing...',
-      className: 'bg-amber-500/20 text-amber-600 border-amber-500/30',
-    },
-    success: {
-      icon: <CheckCircle2 size={12} />,
-      text: durationMs ? `${durationMs}ms` : 'Done',
-      className: 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30',
-    },
-    error: {
-      icon: <XCircle size={12} />,
-      text: 'Failed',
-      className: 'bg-red-500/20 text-red-600 border-red-500/30',
-    },
-  };
-
-  const config = configs[status];
-
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${config.className}`}>
-      {config.icon}
-      {config.text}
-    </span>
-  );
-};
-
 
 // ============================================================================
 // Agent Action Component
@@ -325,293 +82,101 @@ export const AgentAction = memo<AgentActionProps>(({
   onCancel,
   onNavigateDirectory,
 }) => {
-  const [showDetails, setShowDetails] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [localLayout, setLocalLayout] = useState<'list' | 'grid' | null>(null);
+  // Get plugin for this tool
+  const plugin = toolCallRegistry.get(toolCall.name);
   
-  // Get layout preference from settings
-  const { searchDisplay } = useSettings();
-  
-  // Use local override if set, otherwise use settings (compact for agent, respect settings for expanded)
-  const effectiveLayout = localLayout || (searchDisplay.layout === 'grid' ? 'grid' : 'compact');
-
+  // Determine status
   const status = isExecuting ? 'executing' : result?.success ? 'success' : result ? 'error' : 'executing';
+  
+  // Get summary for the header
+  const summary = useMemo(() => {
+    if (!result) return null;
+    return getResultSummary(toolCall.name, result);
+  }, [toolCall.name, result]);
 
-  // Parse file-related tool outputs
-  const parsedFiles = useMemo(() => {
-    if (!result?.success || !result.output) return null;
+  // If plugin exists, use it
+  if (plugin) {
+    const ToolUI = plugin.component;
     
-    if (toolCall.name === 'list_directory') {
-      const basePath = toolCall.arguments.path || toolCall.arguments.directory || '.';
-      const files = parseDirectoryListing(result.output, basePath);
-      return files.length > 0 ? files : null;
+    // Use custom wrapper if provided
+    if (plugin.customWrapper) {
+      const CustomWrapper = plugin.customWrapper;
+      return (
+        <CustomWrapper
+          toolCall={toolCall}
+          result={result}
+          isExecuting={isExecuting}
+          onCancel={onCancel}
+          plugin={plugin}
+        >
+          <ToolUI
+            toolCall={toolCall}
+            result={result}
+            isExecuting={isExecuting}
+            onCancel={onCancel}
+            onNavigate={onNavigateDirectory}
+          />
+        </CustomWrapper>
+      );
     }
     
-    if (toolCall.name === 'search_files') {
-      const files = parseSearchResults(result.output);
-      return files.length > 0 ? files : null;
-    }
+    // Use default wrapper with plugin customizations
+    const animationClass = plugin.animations?.enter || 'animate-in fade-in slide-in-from-bottom-1 duration-300';
+    const cardClass = plugin.styling?.cardClassName || '';
     
-    return null;
-  }, [toolCall, result]);
-
-  const hasFileUI = parsedFiles && parsedFiles.length > 0;
-
-  const handleCopy = async () => {
-    const content = result?.output || JSON.stringify(toolCall.arguments, null, 2);
-    await navigator.clipboard.writeText(content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleNavigate = useCallback((path: string) => {
-    if (onNavigateDirectory) {
-      onNavigateDirectory(path);
-    } else {
-      // Fallback: dispatch event for agent to handle
-      const event = new CustomEvent('agent-navigate-directory', {
-        detail: { path }
-      });
-      window.dispatchEvent(event);
-    }
-  }, [onNavigateDirectory]);
-
-  const toggleLayout = useCallback(() => {
-    setLocalLayout(prev => {
-      if (prev === 'grid') return 'compact';
-      if (prev === 'compact' || prev === null) return 'grid';
-      return 'compact';
-    });
-  }, []);
-
-  const formatArguments = () => {
-    const args = toolCall.arguments;
-    switch (toolCall.name) {
-      case 'shell':
-        return args.command || args.cmd || JSON.stringify(args);
-      case 'read_file':
-      case 'write_file':
-        return args.path || args.file_path || JSON.stringify(args);
-      case 'list_directory':
-        return args.path || args.directory || '.';
-      case 'search_files':
-        return args.pattern || args.query || JSON.stringify(args);
-      default:
-        return JSON.stringify(args);
-    }
-  };
-
-  const getResultSummary = () => {
-    if (hasFileUI) {
-      return `${parsedFiles.length} item${parsedFiles.length !== 1 ? 's' : ''} found`;
-    }
-    if (toolCall.name === 'read_file' && result?.success) {
-      const lines = result.output.split('\n').length;
-      return `${lines} line${lines !== 1 ? 's' : ''}`;
-    }
-    if (toolCall.name === 'shell' && result?.success) {
-      const lines = result.output.split('\n').filter(l => l.trim()).length;
-      return lines > 0 ? `${lines} line${lines !== 1 ? 's' : ''}` : 'Done';
-    }
-    return null;
-  };
-
+    return (
+      <div className={`my-3 ${animationClass} ${cardClass}`}>
+        <ToolCallContainer
+          toolName={toolCall.name}
+          displayName={plugin.displayName}
+          icon={plugin.icon}
+          status={status}
+          durationMs={result?.durationMs}
+          arguments={toolCall.arguments}
+          summary={summary || undefined}
+          onCancel={isExecuting ? onCancel : undefined}
+          headerClassName={plugin.styling?.headerClassName}
+          contentClassName={plugin.styling?.contentClassName}
+        >
+          {isExecuting && plugin.loadingComponent ? (
+            <plugin.loadingComponent toolCall={toolCall} onCancel={onCancel} />
+          ) : (
+            <ToolUI
+              toolCall={toolCall}
+              result={result}
+              isExecuting={isExecuting}
+              onCancel={onCancel}
+              onNavigate={onNavigateDirectory}
+            />
+          )}
+        </ToolCallContainer>
+      </div>
+    );
+  }
+  
+  // Fallback to generic UI for unknown tools
   return (
     <div className="my-3 animate-in fade-in slide-in-from-bottom-1 duration-300">
-      {/* Compact Header Card */}
-      <button
-        onClick={() => setShowDetails(!showDetails)}
-        className="w-full flex items-center gap-3 p-2.5 rounded-xl border border-glass-border glass-subtle hover:glass-elevated transition-all text-left"
+      <ToolCallContainer
+        toolName={toolCall.name}
+        displayName={toolCall.name}
+        icon={ToolIcon}
+        status={status}
+        durationMs={result?.durationMs}
+        arguments={toolCall.arguments}
+        summary={summary || undefined}
+        onCancel={isExecuting ? onCancel : undefined}
       >
-        <div className="w-7 h-7 rounded-lg glass-subtle flex items-center justify-center flex-shrink-0 text-text-secondary">
-          <ToolIcon toolName={toolCall.name} size={14} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-text-primary font-jakarta">
-              {getToolDisplayName(toolCall.name)}
-            </span>
-            <StatusBadge status={status} durationMs={result?.durationMs} />
-            {getResultSummary() && (
-              <span className="text-[10px] font-medium text-accent">
-                {getResultSummary()}
-              </span>
-            )}
-          </div>
-          <p className="text-[10px] font-mono text-text-secondary truncate">
-            {formatArguments()}
-          </p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {isExecuting && onCancel && (
-            <Button
-              onClick={(e) => {
-                e?.stopPropagation();
-                onCancel();
-              }}
-              variant="danger"
-              size="xs"
-            >
-              Cancel
-            </Button>
-          )}
-          {showDetails ? (
-            <ChevronDown size={14} className="text-text-secondary" />
-          ) : (
-            <ChevronRight size={14} className="text-text-secondary" />
-          )}
-        </div>
-      </button>
-
-      {/* Expandable Details (Arguments) */}
-      {showDetails && (
-        <div className="mt-2 p-3 rounded-xl border border-glass-border glass-subtle">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
-              Arguments
-            </span>
-          </div>
-          <pre className="text-[11px] font-mono text-text-primary bg-black/10 dark:bg-white/5 p-2 rounded-lg overflow-x-auto">
-            {JSON.stringify(toolCall.arguments, null, 2)}
-          </pre>
-        </div>
-      )}
-
-      {/* Output - Always visible */}
-      {result && (
-        <div className="mt-2">
-          {/* Output header with actions */}
-          <div className="flex items-center justify-between mb-2 px-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
-              {result.success ? 'Output' : 'Error'}
-            </span>
-            <div className="flex items-center gap-3">
-              {hasFileUI && (
-                <>
-                  {/* Grid/List toggle with label */}
-                  <button
-                    onClick={toggleLayout}
-                    className="flex items-center gap-1 text-[10px] font-bold text-text-secondary hover:text-accent transition-colors"
-                    title={effectiveLayout === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
-                  >
-                    {effectiveLayout === 'grid' ? <Grid size={12} /> : <List size={12} />}
-                    <span>{effectiveLayout === 'grid' ? 'Grid view' : 'List view'}</span>
-                  </button>
-                  
-                  {/* Collapse/Expand toggle */}
-                  <button
-                    onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="flex items-center gap-1 text-[10px] font-bold text-text-secondary hover:text-accent transition-colors"
-                  >
-                    {isCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-                    <span>{isCollapsed ? 'Expand' : 'Collapse'}</span>
-                  </button>
-                </>
-              )}
-              <button
-                onClick={handleCopy}
-                className="flex items-center gap-1 text-[10px] font-bold text-accent hover:text-accent/80 transition-colors"
-              >
-                {copied ? <Check size={12} /> : <Copy size={12} />}
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-          </div>
-          
-          {/* File UI for list_directory and search_files - collapsible */}
-          {hasFileUI && isCollapsed ? (
-            // Collapsed state - show summary
-            <div className="p-2 rounded-xl border border-glass-border bg-black/5 dark:bg-white/5">
-              <p className="text-[11px] text-text-secondary">
-                {parsedFiles?.length || 0} {(parsedFiles?.length || 0) === 1 ? 'file' : 'files'} found
-              </p>
-            </div>
-          ) : hasFileUI ? (
-            effectiveLayout === 'grid' ? (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[350px] overflow-y-auto custom-scrollbar">
-                {parsedFiles.map((file, index) => (
-                  <FileCard 
-                    key={file.id || index} 
-                    file={file} 
-                    layout="grid"
-                    showRelevanceScore={toolCall.name === 'search_files'}
-                    showSnippet={false}
-                    showAddToChat={true}
-                    onNavigate={handleNavigate}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-1 max-h-[350px] overflow-y-auto custom-scrollbar">
-                {parsedFiles.map((file, index) => (
-                  <FileCard 
-                    key={file.id || index} 
-                    file={file} 
-                    layout="compact"
-                    showRelevanceScore={toolCall.name === 'search_files'}
-                    showSnippet={toolCall.name === 'search_files'}
-                    showAddToChat={true}
-                    onNavigate={handleNavigate}
-                  />
-                ))}
-              </div>
-            )
-          ) : toolCall.name === 'read_file' && result.success ? (
-            <div className="max-h-[400px] overflow-y-auto custom-scrollbar rounded-xl border border-glass-border bg-black/10 dark:bg-white/5">
-              {isCodeFile(toolCall.arguments.path || '') ? (
-                <pre className="text-[11px] font-mono text-text-primary p-3 overflow-x-auto">
-                  <code>{result.output}</code>
-                </pre>
-              ) : (toolCall.arguments.path || '').endsWith('.md') ? (
-                <div className="p-3">
-                  <MarkdownRenderer content={result.output} />
-                </div>
-              ) : (
-                <pre className="text-[11px] font-mono text-text-primary p-3 overflow-x-auto">
-                  {result.output}
-                </pre>
-              )}
-            </div>
-          ) : (toolCall.name === 'shell' || toolCall.name === 'execute_command') && result.success ? (
-            <MiniTerminalView
-              sessionId={(() => {
-                // Try arguments first (if AI explicitly passed it)
-                if (toolCall.arguments.sessionId) return toolCall.arguments.sessionId;
-                if (toolCall.arguments.session_id) return toolCall.arguments.session_id;
-                
-                // Try to get from result output (the tool returns sessionId in data)
-                try {
-                  const parsed = JSON.parse(result.output);
-                  return parsed.sessionId || parsed.session_id || '';
-                } catch {
-                  return '';
-                }
-              })()}
-              command={toolCall.arguments.command}
-              maxLines={5}
-            />
-          ) : (
-            <pre className={`text-[11px] font-mono p-3 rounded-xl border border-glass-border overflow-x-auto max-h-[250px] ${
-              result.success 
-                ? 'text-text-primary bg-black/10 dark:bg-white/5' 
-                : 'text-red-600 bg-red-500/10 border-red-500/20'
-            }`}>
-              {result.output || result.error || 'No output'}
-            </pre>
-          )}
-        </div>
-      )}
-
-      {/* Loading state */}
-      {isExecuting && !result && (
-        <div className="mt-2 p-3 rounded-xl border border-glass-border glass-subtle flex items-center gap-2 text-text-secondary">
-          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-          <span className="text-[11px] font-medium">Executing...</span>
-        </div>
-      )}
+        <GenericToolCallUI
+          toolCall={toolCall}
+          result={result}
+          isExecuting={isExecuting}
+          onCancel={onCancel}
+        />
+      </ToolCallContainer>
     </div>
   );
 });
 
 AgentAction.displayName = 'AgentAction';
+
