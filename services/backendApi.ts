@@ -180,6 +180,14 @@ export interface WebSearchResult {
   snippet: string;
   published_date?: string;
   relevance_score: number;
+  image_url?: string;
+}
+
+export interface ImageResult {
+  url: string;
+  thumbnail_url?: string;
+  title?: string;
+  source_url?: string;
 }
 
 export interface WebSearchResponse {
@@ -187,6 +195,7 @@ export interface WebSearchResponse {
   results: WebSearchResult[];
   total_results: number;
   search_time_ms: number;
+  images?: ImageResult[];
 }
 
 export const backendApi = {

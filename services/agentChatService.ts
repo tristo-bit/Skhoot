@@ -624,6 +624,11 @@ class AgentChatService {
           );
           output = JSON.stringify(webSearchResults, null, 2);
           success = true;
+          
+          // Store images for display if available
+          if (webSearchResults.images && webSearchResults.images.length > 0) {
+            (toolCall as any)._webSearchImages = webSearchResults.images;
+          }
           break;
 
         // Agent tools
@@ -750,8 +755,9 @@ class AgentChatService {
     message: string,
     history: AgentChatMessage[],
     options: AgentChatOptions
-  ): Promise<{ content: string; toolResults: ToolResult[] }> {
+  ): Promise<{ content: string; toolResults: ToolResult[]; displayImages?: Array<{ url: string; alt?: string; fileName?: string }> }> {
     const allToolResults: ToolResult[] = [];
+    const displayImages: Array<{ url: string; alt?: string; fileName?: string }> = [];
     let currentHistory = [...history];
     let iterations = 0;
 
@@ -774,10 +780,23 @@ class AgentChatService {
         allToolResults.push(result);
         options.onToolComplete?.(result);
         
+        // Collect images from web search if applicable
+        if (toolCall.name === 'web_search' && (toolCall as any)._webSearchImages) {
+          const images = (toolCall as any)._webSearchImages;
+          images.forEach((img: any) => {
+            displayImages.push({
+              url: img.thumbnail_url || img.url,
+              alt: img.title,
+              fileName: img.title
+            });
+          });
+        }
+        
         // Return the result
         return {
           content: `✅ Tool executed successfully:\n\n**${toolCall.name}**\n\n${result.output}`,
           toolResults: allToolResults,
+          displayImages: displayImages.length > 0 ? displayImages : undefined
         };
       } catch (error) {
         const errorResult: ToolResult = {
@@ -792,6 +811,7 @@ class AgentChatService {
         return {
           content: `❌ Tool execution failed:\n\n**${toolCall.name}**\n\nError: ${errorResult.error}`,
           toolResults: allToolResults,
+          displayImages: displayImages.length > 0 ? displayImages : undefined
         };
       }
     }
@@ -808,7 +828,11 @@ class AgentChatService {
 
       // If no tool calls, we're done
       if (!response.toolCalls || response.toolCalls.length === 0) {
-        return { content: response.content, toolResults: allToolResults };
+        return { 
+          content: response.content, 
+          toolResults: allToolResults,
+          displayImages: displayImages.length > 0 ? displayImages : undefined
+        };
       }
 
       // Add assistant message with tool calls to history
@@ -826,6 +850,18 @@ class AgentChatService {
         const result = await this.executeToolCall(toolCall, options);
         allToolResults.push(result);
         options.onToolComplete?.(result);
+        
+        // Collect images from web search results
+        if (toolCall.name === 'web_search' && (toolCall as any)._webSearchImages) {
+          const images = (toolCall as any)._webSearchImages;
+          images.forEach((img: any) => {
+            displayImages.push({
+              url: img.thumbnail_url || img.url,
+              alt: img.title,
+              fileName: img.title
+            });
+          });
+        }
 
         // Add tool result to history
         currentHistory.push({
@@ -842,6 +878,7 @@ class AgentChatService {
     return {
       content: 'Maximum tool iterations reached. Please try a simpler request.',
       toolResults: allToolResults,
+      displayImages: displayImages.length > 0 ? displayImages : undefined
     };
   }
 

@@ -32,6 +32,8 @@ pub struct WebSearchResult {
     pub snippet: String,
     pub published_date: Option<String>,
     pub relevance_score: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
 }
 
 /// Web search response
@@ -41,6 +43,17 @@ pub struct WebSearchResponse {
     pub results: Vec<WebSearchResult>,
     pub total_results: usize,
     pub search_time_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub images: Option<Vec<ImageResult>>,
+}
+
+/// Image search result
+#[derive(Debug, Clone, Serialize)]
+pub struct ImageResult {
+    pub url: String,
+    pub thumbnail_url: Option<String>,
+    pub title: Option<String>,
+    pub source_url: Option<String>,
 }
 
 /// Web search endpoint using lightweight HTTP scraping
@@ -79,6 +92,18 @@ pub async fn web_search(
         }
     };
     
+    // Also search for images (up to 6 for display)
+    let images = match search_duckduckgo_images(&params.q, 6).await {
+        Ok(imgs) => {
+            tracing::info!("Found {} images", imgs.len());
+            if imgs.is_empty() { None } else { Some(imgs) }
+        }
+        Err(e) => {
+            tracing::debug!("Image search failed: {}", e);
+            None
+        }
+    };
+    
     let search_time_ms = start_time.elapsed().as_millis() as u64;
     
     let response = WebSearchResponse {
@@ -86,6 +111,7 @@ pub async fn web_search(
         results: results.clone(),
         total_results: results.len(),
         search_time_ms,
+        images,
     };
     
     Ok(Json(response))
@@ -196,6 +222,7 @@ fn parse_duckduckgo_html(html: &str, num_results: usize) -> Result<Vec<WebSearch
                     snippet: snippet.unwrap_or_default(),
                     published_date: None,
                     relevance_score: 0.95 - (i as f32 * 0.05),
+                    image_url: None,
                 });
             }
         }
@@ -356,6 +383,7 @@ fn parse_searxng_results(data: &serde_json::Value, num_results: usize) -> Result
                     .as_str()
                     .map(|s| s.to_string()),
                 relevance_score: 0.95 - (i as f32 * 0.05),
+                image_url: None,
             });
         }
     }
@@ -365,4 +393,85 @@ fn parse_searxng_results(data: &serde_json::Value, num_results: usize) -> Result
     }
     
     Ok(results)
+}
+
+// ============================================================================
+// DuckDuckGo Image Search Implementation
+// ============================================================================
+
+/// Search DuckDuckGo for images
+async fn search_duckduckgo_images(query: &str, num_results: usize) -> Result<Vec<ImageResult>, AppError> {
+    let url = format!(
+        "https://duckduckgo.com/i.js?q={}&o=json&p=1&s=0&u=bing&f=,,,&l=us-en",
+        urlencoding::encode(query)
+    );
+    
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| AppError::Internal(format!("Failed to create HTTP client: {}", e)))?;
+    
+    tracing::debug!("Sending DuckDuckGo image search request for: {}", query);
+    
+    let response = client
+        .get(&url)
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header("Referer", "https://duckduckgo.com/")
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(format!("DuckDuckGo image request failed: {}", e)))?;
+    
+    if !response.status().is_success() {
+        return Err(AppError::Internal(format!(
+            "DuckDuckGo images returned status: {}",
+            response.status()
+        )));
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to parse DuckDuckGo image response: {}", e)))?;
+    
+    parse_duckduckgo_images(&data, num_results)
+}
+
+/// Parse DuckDuckGo image JSON response
+fn parse_duckduckgo_images(data: &serde_json::Value, num_results: usize) -> Result<Vec<ImageResult>, AppError> {
+    let results_array = data["results"]
+        .as_array()
+        .ok_or_else(|| AppError::Internal("No results array in DuckDuckGo image response".to_string()))?;
+    
+    let mut images = Vec::new();
+    
+    for result in results_array.iter().take(num_results) {
+        let image_url = result["image"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
+        
+        let thumbnail_url = result["thumbnail"]
+            .as_str()
+            .map(|s| s.to_string());
+        
+        let title = result["title"]
+            .as_str()
+            .map(|s| s.to_string());
+        
+        let source_url = result["url"]
+            .as_str()
+            .map(|s| s.to_string());
+        
+        // Only add if we have a valid image URL
+        if !image_url.is_empty() {
+            images.push(ImageResult {
+                url: image_url,
+                thumbnail_url,
+                title,
+                source_url,
+            });
+        }
+    }
+    
+    Ok(images)
 }

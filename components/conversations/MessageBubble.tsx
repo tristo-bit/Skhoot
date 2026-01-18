@@ -9,6 +9,7 @@ import { AgentAction } from './AgentAction';
 import { MiniTerminalView } from './MiniTerminalView';
 import { WorkflowExecution } from './WorkflowExecution';
 import { ToolCallDisplay } from '../chat/ToolCallDisplay';
+import { ImageGallery } from './ImageGallery';
 import { Button } from '../buttonFormat';
 import { ArrowRight, FileText, Paperclip, Edit2, Check, X } from 'lucide-react';
 import { workflowService } from '../../services/workflowService';
@@ -60,6 +61,13 @@ export const MessageBubble = memo<{
       >
         <div className="max-w-[95%] py-2 px-1">
           <MarkdownRenderer content={message.content} />
+          
+          {/* Display Images - AI web search or other images */}
+          {message.displayImages && message.displayImages.length > 0 && (
+            <div className="mt-3">
+              <ImageGallery images={message.displayImages} maxDisplay={6} />
+            </div>
+          )}
           
           {/* Go to API Configuration button - Embossed style */}
           {showApiConfigButton && (
@@ -352,6 +360,13 @@ export const MessageBubble = memo<{
                 </div>
               );
             })}
+          </div>
+        )}
+        
+        {/* Display Images - User attached images */}
+        {message.displayImages && message.displayImages.length > 0 && (
+          <div className="mb-3">
+            <ImageGallery images={message.displayImages} maxDisplay={6} />
           </div>
         )}
         

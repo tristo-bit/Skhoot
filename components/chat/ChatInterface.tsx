@@ -6,6 +6,7 @@ import { agentService } from '../../services/agentService';
 import { agentChatService } from '../../services/agentChatService';
 import { activityLogger } from '../../services/activityLogger';
 import { nativeNotifications } from '../../services/nativeNotifications';
+import { imageStorage } from '../../services/imageStorage';
 import { MainArea } from '../main-area';
 import { PromptArea } from './PromptArea';
 import { ToolCallInput } from './ToolCallInput';
@@ -601,6 +602,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       ? Array.from(fileRefMap.entries()).map(([fileName, filePath]) => ({ fileName, filePath }))
       : undefined;
 
+    // Convert base64 images to displayImages format for user messages
+    const displayImages = imageFiles.length > 0 
+      ? imageFiles.map(img => ({
+          url: `data:${img.mimeType};base64,${img.base64}`,
+          fileName: img.fileName,
+          alt: img.fileName
+        }))
+      : undefined;
+
+    // Store user images in image storage
+    if (displayImages && displayImages.length > 0) {
+      imageStorage.addImages(displayImages.map(img => ({
+        url: img.url,
+        fileName: img.fileName,
+        alt: img.alt,
+        source: 'user' as const,
+        messageId: Date.now().toString(),
+      })));
+    }
+
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -609,6 +630,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       timestamp: new Date(),
       attachedFiles: attachedFilesForMessage,
       images: imageFiles.length > 0 ? imageFiles : undefined, // Store images for history
+      displayImages, // Images to display in chat
     };
 
     setMessages(prev => [...prev, userMsg]);
@@ -691,6 +713,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         setSearchType(null);
         setSearchStatus('');
 
+        // Store web search images in image storage
+        if (result.displayImages && result.displayImages.length > 0) {
+          imageStorage.addImages(result.displayImages.map(img => ({
+            url: img.url,
+            fileName: img.fileName,
+            alt: img.alt,
+            source: 'web_search' as const,
+            messageId: (Date.now() + 1).toString(),
+          })));
+        }
+
         // Create assistant message with tool calls and results
         const assistantMsg: Message = {
           id: (Date.now() + 1).toString(),
@@ -699,6 +732,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           type: toolCalls.length > 0 ? 'agent_action' : 'text',
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
+          displayImages: result.displayImages, // Add images from web search
           timestamp: new Date()
         };
 
@@ -1345,6 +1379,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         setSearchType(null);
         setSearchStatus('');
 
+        // Store web search images in image storage
+        if (result.displayImages && result.displayImages.length > 0) {
+          imageStorage.addImages(result.displayImages.map(img => ({
+            url: img.url,
+            fileName: img.fileName,
+            alt: img.alt,
+            source: 'web_search' as const,
+            messageId: (Date.now() + 1).toString(),
+          })));
+        }
+
         const assistantMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant' as const,
@@ -1352,6 +1397,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           type: toolCalls.length > 0 ? 'agent_action' : 'text',
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
+          displayImages: result.displayImages, // Add images from web search
           timestamp: new Date()
         };
 

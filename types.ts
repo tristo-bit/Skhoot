@@ -12,8 +12,10 @@ export interface Message {
   toolResults?: AgentToolResultData[];
   // Attached files for context
   attachedFiles?: { fileName: string; filePath: string }[];
-  // Images for vision API
+  // Images for vision API (user-attached images as base64)
   images?: Array<{ fileName: string; base64: string; mimeType: string }>;
+  // Display images (for showing in chat - can be URLs or base64)
+  displayImages?: Array<{ url: string; alt?: string; fileName?: string }>;
   // Workflow execution data
   workflowExecution?: {
     executionId: string;

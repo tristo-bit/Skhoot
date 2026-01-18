@@ -2,6 +2,170 @@
 
 ## January 18, 2026
 
+### Images Tab in File Explorer Panel 🖼️📁
+- **Status**: ✅ Implemented
+- **Components**: `ImagesTab.tsx`, `imageStorage.ts`, `FileExplorerPanel.tsx`, `ChatInterface.tsx`
+- **Enhancement**: New Images tab in the file explorer panel to manage all chat images
+- **Impact**: Centralized image management with search, filter, and organization capabilities
+
+**Features**:
+- **Images Tab**: New tab in file explorer panel showing all images from chat
+- **Image Storage Service**: Persistent localStorage-based storage for up to 500 images
+- **Dual View Modes**: Grid (4 columns) and List views with toggle
+- **Smart Filtering**: Filter by source (User/Web Search/All) and search query
+- **Flexible Sorting**: Sort by Recent, Oldest, Name, or Source
+- **Context Menu Actions**:
+  - Add to chat (with purple highlight)
+  - View details (metadata display)
+  - Download image
+  - Delete image
+- **Full-size Modal**: Click any image to view full-size with backdrop blur
+- **Statistics Bar**: Shows total images, user uploads, and web search images
+- **Auto-tracking**: Images automatically saved when added to chat
+
+**Image Storage Service** (`services/imageStorage.ts`):
+```typescript
+interface StoredImage {
+  id: string;
+  url: string;
+  thumbnailUrl?: string;
+  fileName?: string;
+  alt?: string;
+  source: 'user' | 'web_search';
+  timestamp: number;
+  messageId?: string;
+  searchQuery?: string;
+  size?: number;
+}
+```
+
+**Key Methods**:
+- `addImage()` / `addImages()` - Store images with metadata
+- `getImages(filter, sortOrder)` - Retrieve with filtering and sorting
+- `deleteImage()` / `deleteImages()` - Remove images
+- `getStats()` - Get usage statistics
+- Max 500 images with automatic cleanup of oldest
+
+**ImagesTab Component**:
+- Grid view: 4-column responsive grid with aspect-square cards
+- List view: Compact rows with 48x48px thumbnails
+- Source badges: Purple for user, Cyan for web search
+- Hover effects with "More" button
+- Right-click context menu support
+- Filter panel with collapsible UI
+- Empty state with helpful message
+
+**Integration**:
+- `ChatInterface` automatically stores images when:
+  - User attaches images to messages
+  - AI returns web search images
+- Images stored with source tracking and timestamps
+- Linked to message IDs for potential future features
+
+**User Experience**:
+1. Open file explorer panel (Files button in header)
+2. Click "Images" tab
+3. View all images from chat history
+4. Filter by source or search by name
+5. Sort by date, name, or source
+6. Right-click or click "..." for actions
+7. Click image to view full-size
+8. Add images back to chat with one click
+
+**Benefits**:
+- ✅ Centralized image management
+- ✅ Easy re-use of images in chat
+- ✅ Persistent storage across sessions
+- ✅ Flexible organization and search
+- ✅ Quick access to image history
+- ✅ Download and delete capabilities
+- ✅ Automatic tracking (no manual work)
+
+**Files Modified**:
+- `services/imageStorage.ts` (new) - Image storage service
+- `components/panels/ImagesTab.tsx` (new) - Images tab component
+- `components/panels/FileExplorerPanel.tsx` - Added Images tab
+- `components/chat/ChatInterface.tsx` - Auto-store images
+
+### Image Display in Chat 🖼️
+- **Status**: ✅ Implemented
+- **Issue**: #34
+- **Components**: `ImageGallery.tsx`, `MessageBubble.tsx`, `ChatInterface.tsx`, `agentChatService.ts`, `web_search.rs`
+- **Enhancement**: Images now display in chat for both user-attached images and AI web search results
+- **Impact**: Rich visual experience with automatic image fetching from web searches
+
+**Features**:
+- **User-attached images**: Display above message text in a gallery format
+- **AI web search images**: Automatically fetched and displayed when AI searches the web
+- **Gallery layout**: Max 6 images concurrent display with "View More" button for additional images
+- **Full-size modal**: Click any image to view full-size with backdrop blur
+- **Error handling**: Graceful fallback for broken images
+- **Performance**: Lazy loading, thumbnail preference, responsive grid
+
+**New Component - ImageGallery**:
+```typescript
+interface ImageItem {
+  url: string;
+  alt?: string;
+  fileName?: string;
+}
+```
+- Reusable component for displaying image galleries
+- 120x120px thumbnails with hover effects
+- Zoom icon on hover
+- Full-size modal on click
+- Supports both URLs and base64 data URIs
+
+**Backend Updates**:
+- Added `search_duckduckgo_images()` function to fetch images from DuckDuckGo
+- Returns up to 6 images per search query
+- Images include thumbnail URLs for faster loading
+- New types: `ImageResult` with url, thumbnail_url, title, source_url
+- `WebSearchResponse` now includes optional `images` field
+
+**Frontend Updates**:
+- Updated `Message` type with `displayImages?: Array<{ url: string; alt?: string; fileName?: string }>`
+- `ChatInterface` converts user base64 images to displayImages format
+- `AgentChatService.executeWithTools()` collects images from web_search tool results
+- `MessageBubble` renders ImageGallery for both user and AI messages
+- User images shown above message content
+- AI images shown below message content
+
+**Type Updates**:
+```typescript
+// Message type
+displayImages?: Array<{ url: string; alt?: string; fileName?: string }>;
+
+// Backend types
+pub struct ImageResult {
+  url: String,
+  thumbnail_url: Option<String>,
+  title: Option<String>,
+  source_url: Option<String>,
+}
+```
+
+**User Experience**:
+1. User attaches images → displayed above their message
+2. AI searches web → related images appear below AI response
+3. Click any image → full-size modal view
+4. 7+ images → "View More" button to expand gallery
+
+**Benefits**:
+- ✅ Visual context for conversations
+- ✅ Automatic image discovery from web searches
+- ✅ Clean, responsive gallery layout
+- ✅ Performance optimized with lazy loading
+- ✅ Modular component for future reuse
+- ✅ Graceful error handling
+
+**Files Modified**:
+- Frontend: `ImageGallery.tsx` (new), `MessageBubble.tsx`, `ChatInterface.tsx`, `agentChatService.ts`, `backendApi.ts`, `types.ts`
+- Backend: `web_search.rs`
+- Documentation: `IMAGE_DISPLAY_FEATURE.md` (new)
+
+## January 18, 2026
+
 ### Conversational Tool Parameter Gathering 🤖
 - **Status**: Implemented
 - **Components**: `ChatInterface.tsx`, `agentChatService.ts`

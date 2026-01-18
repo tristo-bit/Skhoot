@@ -8,11 +8,12 @@ import { createPortal } from 'react-dom';
 import { 
   Search, HardDrive, BarChart3, Trash2, 
   File, Folder, Clock, RefreshCw, Grid, List, MoreHorizontal,
-  ExternalLink, Copy, Scissors, Info, Archive, FolderOpen, MessageSquarePlus
+  ExternalLink, Copy, Scissors, Info, Archive, FolderOpen, MessageSquarePlus, Image
 } from 'lucide-react';
 import { SecondaryPanel, SecondaryPanelTab } from '../ui/SecondaryPanel';
 import { backendApi } from '../../services/backendApi';
 import { fileOperations } from '../../services/fileOperations';
+import { ImagesTab } from './ImagesTab';
 
 // Helper function to format bytes
 const formatBytes = (bytes: number): string => {
@@ -214,7 +215,7 @@ const FileContextMenu: React.FC<{
   return createPortal(menu, document.body);
 };
 
-type TabId = 'recent' | 'disk' | 'analysis' | 'cleanup';
+type TabId = 'recent' | 'images' | 'disk' | 'analysis' | 'cleanup';
 
 interface FileItem {
   id: string;
@@ -248,6 +249,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
   // Memoize tabs to prevent recreation on every render
   const tabs: SecondaryPanelTab[] = useMemo(() => [
     { id: 'recent', title: 'Recent', icon: <Clock size={14} /> },
+    { id: 'images', title: 'Images', icon: <Image size={14} /> },
     { id: 'disk', title: 'Disk', icon: <HardDrive size={14} /> },
     { id: 'analysis', title: 'Analysis', icon: <BarChart3 size={14} /> },
     { id: 'cleanup', title: 'Cleanup', icon: <Trash2 size={14} /> },
@@ -322,7 +324,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
 
   const headerActions = useMemo(() => (
     <>
-      {activeTab === 'recent' && (
+      {(activeTab === 'recent' || activeTab === 'images') && (
         <button onClick={toggleViewMode}
           className="p-1.5 rounded-xl transition-all hover:bg-white/10"
           style={{ color: 'var(--text-secondary)' }} title={viewMode === 'list' ? 'Grid View' : 'List View'}>
@@ -367,6 +369,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           {activeTab === 'recent' && <RecentTab files={recentFiles} viewMode={viewMode} isLoading={isLoading} />}
+          {activeTab === 'images' && <ImagesTab viewMode={viewMode} isLoading={isLoading} />}
           {activeTab === 'disk' && <DiskTab />}
           {activeTab === 'analysis' && <AnalysisTab />}
           {activeTab === 'cleanup' && <CleanupTab />}
