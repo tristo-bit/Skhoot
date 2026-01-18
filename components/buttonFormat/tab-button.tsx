@@ -18,6 +18,7 @@ export const TabButton: React.FC<TabButtonProps> = ({
   ...props
 }) => {
   const [isClicked, setIsClicked] = useState(false);
+  const isIconOnly = !label;
 
   const handleClick = () => {
     setIsClicked(true);
@@ -34,7 +35,7 @@ export const TabButton: React.FC<TabButtonProps> = ({
     <BaseButton
       onClick={handleClick}
       className={`
-        flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl 
+        ${isIconOnly ? 'px-2' : 'flex-1'} flex items-center justify-center gap-2 py-2.5 rounded-xl 
         text-[11px] font-bold font-jakarta transition-all duration-200
         ${isActive 
           ? 'glass-subtle text-text-primary' 
@@ -51,12 +52,12 @@ export const TabButton: React.FC<TabButtonProps> = ({
         boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
         filter: 'brightness(0.8)'
       } : {}}
-      aria-label={label}
-      title={label}
+      aria-label={label || 'Tab'}
+      title={label || 'Tab'}
       {...props}
     >
       {icon && <span className="files-tab-icon">{icon}</span>}
-      <span className="files-tab-label">{label}</span>
+      {label && <span className="files-tab-label">{label}</span>}
     </BaseButton>
   );
 };

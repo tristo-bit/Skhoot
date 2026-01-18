@@ -44,3 +44,6 @@ export { WebSearchCustomWrapper } from './web-operations/WebSearchCustomWrapper'
 export { InvokeAgentUI } from './agent-operations/InvokeAgentUI';
 export { ListAgentsUI } from './agent-operations/ListAgentsUI';
 export { CreateAgentUI } from './agent-operations/CreateAgentUI';
+
+// Bookmark Operations
+export { MessageSearchUI } from './bookmark-operations/MessageSearchUI';

@@ -249,6 +249,24 @@ const AGENT_TOOLS = [
     },
   },
   {
+    name: 'message_search',
+    description: 'Search through bookmarked messages to retrieve context from previous conversations. Use this to find information from past interactions that you or the user have bookmarked. This is useful for referencing previous decisions, code snippets, or important discussions.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { 
+          type: 'string', 
+          description: 'Search query to find in bookmarked messages. Searches through message content, tags, and notes.' 
+        },
+        limit: { 
+          type: 'number', 
+          description: 'Maximum number of results to return (default: 10, max: 50)' 
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
     name: 'create_agent',
     description: 'Create a new agent with specified capabilities. This is a restricted tool only available to the Agent Builder agent. Regular agents cannot create other agents.',
     parameters: {
@@ -648,6 +666,19 @@ class AgentChatService {
           const createResult = await agentTools.createAgent(toolCall.arguments);
           output = JSON.stringify(createResult, null, 2);
           success = createResult.success;
+          break;
+
+        case 'message_search':
+          const searchQuery = toolCall.arguments.query;
+          const searchLimit = toolCall.arguments.limit || 10;
+          const { bookmarkService } = await import('../services/bookmarkService');
+          const bookmarks = await bookmarkService.search(searchQuery, searchLimit);
+          output = JSON.stringify({
+            query: searchQuery,
+            results: bookmarks,
+            total_results: bookmarks.length,
+          }, null, 2);
+          success = true;
           break;
 
         default:

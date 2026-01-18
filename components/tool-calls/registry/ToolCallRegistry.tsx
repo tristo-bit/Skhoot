@@ -14,7 +14,8 @@ import {
   Bot,
   Users,
   Workflow,
-  Code
+  Code,
+  Bookmark
 } from 'lucide-react';
 import { ToolCallPlugin, IToolCallRegistry, ToolCategory } from './types';
 
@@ -28,6 +29,7 @@ import { ShellCommandUI } from '../shell-operations/ShellCommandUI';
 import { TerminalUI } from '../shell-operations/TerminalUI';
 import { WebSearchUI } from '../web-operations/WebSearchUI';
 import { WebSearchLoadingUI } from '../web-operations/WebSearchLoadingUI';
+import { MessageSearchUI } from '../bookmark-operations/MessageSearchUI';
 import { WebSearchCustomWrapper } from '../web-operations/WebSearchCustomWrapper';
 import { InvokeAgentUI } from '../agent-operations/InvokeAgentUI';
 import { ListAgentsUI } from '../agent-operations/ListAgentsUI';
@@ -227,4 +229,15 @@ toolCallRegistry.register({
   component: CreateAgentUI,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Create a new agent with specified capabilities',
+});
+
+// Bookmark Operations
+toolCallRegistry.register({
+  toolName: 'message_search',
+  displayName: 'Message Search',
+  category: 'other',
+  icon: Bookmark,
+  component: MessageSearchUI,
+  supportedLayouts: ['compact', 'expanded'],
+  description: 'Search bookmarked messages',
 });

@@ -11,7 +11,7 @@ interface AppearancePanelProps {
 
 export const AppearancePanel: React.FC<AppearancePanelProps> = ({ onBack }) => {
   const { theme, setTheme, showBranding, setShowBranding, resolvedTheme } = useTheme();
-  const { illumination, setIllumination, resetIllumination, uiOpacity, setUiOpacity, searchDisplay, setSearchDisplay } = useSettings();
+  const { illumination, setIllumination, resetIllumination, uiOpacity, setUiOpacity, searchDisplay, setSearchDisplay, tokenDisplay, setTokenDisplay } = useSettings();
 
   const themeOptions = [
     { value: 'light', label: 'Light', description: 'Always use light theme' },
@@ -183,6 +183,30 @@ export const AppearancePanel: React.FC<AppearancePanelProps> = ({ onBack }) => {
               description="Use list for initial results, grid when showing more"
               checked={searchDisplay.gridOnlyForMore}
               onChange={(checked) => setSearchDisplay({ gridOnlyForMore: checked })}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Token Display Settings */}
+      <div className="space-y-3">
+        <SectionLabel 
+          label="Token Display" 
+          description="Customize how token usage is shown in conversations" 
+        />
+        <SettingRow
+          label="Show Token Counter"
+          description="Display token usage in conversations"
+          checked={tokenDisplay.enabled}
+          onChange={(checked) => setTokenDisplay({ enabled: checked })}
+        />
+        {tokenDisplay.enabled && (
+          <div className="pl-4 border-l-2 border-glass-border">
+            <SettingRow
+              label="Show Model Name"
+              description="Display the AI model name alongside token count"
+              checked={tokenDisplay.showModelName}
+              onChange={(checked) => setTokenDisplay({ showModelName: checked })}
             />
           </div>
         )}

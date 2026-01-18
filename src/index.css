@@ -938,3 +938,20 @@ select.select-themed:focus {
   ring: 2px;
   ring-color: var(--accent);
 }
+
+/* Bookmark highlight flash animation */
+@keyframes highlight-flash {
+  0% {
+    background-color: rgba(59, 130, 246, 0.2);
+  }
+  50% {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.highlight-flash {
+  animation: highlight-flash 2s ease-in-out;
+}

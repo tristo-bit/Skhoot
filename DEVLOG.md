@@ -2,44 +2,324 @@
 
 ## January 18, 2026
 
-### Web Search UI Redesign with Embossed Style 🎨🔍
-- **Status**: ✅ Implemented
-- **Component**: `WebSearchUI.tsx`
-- **Enhancement**: Complete redesign following Skhoot Embossed Style Guide
-- **Impact**: Modern, compact, and interactive search results with proper theming
+### Message Action Buttons - Hover-Activated Icon Buttons 🎯
+- **Status**: ✅ Implemented & Debugged
+- **Component**: `MessageBubble.tsx`
+- **Enhancement**: Added hover-activated icon buttons below messages for quick actions
+- **Impact**: Clean, minimal UI with action buttons that appear on demand
 
-**Key Features**:
-- **Embossed Glassmorphic Design**: Follows design system with floating/pressed states
-- **Collapsible Results**: Click to expand/collapse individual results
-- **Smart Image Display**: Shows page images (from `image_url`) or favicons with fallback to Globe icon
-- **Clickable Images**: Click favicon/image to open link in browser
-- **Clickable Links**: All links properly open in system browser via Tauri shell
-- **Compact Layout**: Max width 320px with efficient space usage
-- **Footer Stats**: "X found • Yms" moved to footer (right-aligned)
-- **Theme-Aware**: Uses CSS variables for light/dark mode compatibility
-- **Interactive Buttons**: Embossed shadow states on press (floating → pressed)
+**Key Changes**:
+- **Removed**: Hover-only edit button from top-right corner of user messages
+- **Removed**: Button row inside message box with borders and backgrounds
+- **Added**: Minimal icon buttons below message box, visible only on hover
+- **Design**: Ultra-minimal - icons only, no text, colors, backgrounds, or outlines
+- **Reused Functionality**: "Add to Chat" uses existing `addToChat` function from `FileCard`
+- **Fixed**: Multiple syntax and JSX structure errors
 
-**Design System Compliance**:
+**Button Layout**:
+- **User Messages**: Add to Chat | Copy | Edit | Bookmark (below message box)
+- **AI Messages**: Add to Chat | Copy | Bookmark (below message box)
+
+**Features**:
+- **Add to Chat**: Dispatches custom event to add message content to chat context
+- **Copy**: Copies message content to clipboard with visual feedback
+- **Edit**: Opens inline editor for user messages
+- **Bookmark**: Placeholder for future bookmark functionality (toggles state, logs to console)
+- **Visual Feedback**: Icons change to checkmark when action is performed (Add to Chat, Copy)
+- **Hover Activation**: Buttons fade in on message hover (`opacity-0` → `opacity-100`)
+- **Hover Effect**: Individual button opacity reduces to 60% on hover
+- **Tooltips**: Each button shows descriptive tooltip on hover
+- **Positioning**: Buttons positioned outside and below message box
+- **Conditional Display**: Button row hidden during edit mode for user messages
+
+**Design Specifications**:
 ```typescript
-// Inactive/Floating state
-boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.2)'
-
-// Active/Pressed state
-boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.15)'
+// Ultra-minimal hover-activated buttons
+<div className="opacity-0 group-hover:opacity-100 transition-opacity">
+  <button className="p-0.5 hover:opacity-60 transition-opacity" title="...">
+    <Icon size={14} className="text-text-secondary" />
+  </button>
+</div>
 ```
 
 **Layout Structure**:
-- Header: Query display
-- Body: Collapsible result cards with favicon/image
-- Footer: Stats (found count, search time)
-- Actions: Copy all results button
+```jsx
+<div className="group">                    // Outer container with group
+  <div className="flex flex-col items-end"> // Flex column for alignment
+    <div className="message-box">           // Message box
+      {/* Message content */}
+    </div>
+    <div className="opacity-0 group-hover:opacity-100"> // Buttons below
+      {/* Action buttons */}
+    </div>
+  </div>
+</div>
+```
 
-**Result Card Features**:
-- Favicon or page image (20x20px)
+- Wrapped messages in flex container with `group` class
+- Buttons positioned below message box with small margin
+- AI messages: buttons aligned left (`ml-1`)
+- User messages: buttons aligned right (`mr-1`) within `flex-col items-end`
+
+**Icons Used** (from lucide-react, 14px size):
+- `MessageSquarePlus` → `Check` - Add to Chat (with feedback)
+- `Copy` → `Check` - Copy action (with feedback)
+- `Edit2` - Edit message
+- `Bookmark` - Bookmark (filled when active)
+
+**Color Scheme**:
+- All icons: `text-text-secondary` (consistent neutral color)
+- No backgrounds, borders, or colored states
+- Bookmark fills on active state for visual distinction
+
+**Bug Fixes**:
+1. **TypeScript/Babel parsing error**: Extracted inline props type into separate `MessageBubbleProps` interface for better compatibility
+2. **JSX structure error**: Fixed unterminated JSX by properly nesting action buttons inside `flex-col` container instead of as sibling
+
+### Token Display Settings - Configurable UI 🎛️
+- **Status**: ✅ Implemented
+- **Components**: `TokenDisplay.tsx`, `AppearancePanel.tsx`, `SettingsContext.tsx`
+- **Enhancement**: Added configurable token counter display settings
+- **Impact**: Users can now customize token display visibility and model name display
+
+**Key Features**:
+- **Enable/Disable Token Counter**: Toggle to show/hide the entire token display (enabled by default)
+- **Show/Hide Model Name**: Toggle to show/hide AI model name in token display (hidden by default)
+- **Settings Location**: Settings → Appearance → Token Display
+- **Persistent Settings**: Preferences saved to localStorage
+- **Real-time Updates**: Changes apply immediately without refresh
+- **Nested Settings**: Model name toggle only visible when token counter is enabled
+- **Clean UI**: Token counter hidden until conversation starts (totalSpent > 0)
+- **Backward Compatibility**: Proper fallback for existing users with old localStorage data
+
+**Settings Structure**:
+```typescript
+interface TokenDisplaySettings {
+  enabled: boolean;        // Show/hide entire token counter (default: true)
+  showModelName: boolean;  // Show/hide model name (default: false)
+}
+```
+
+**Display Format**:
+- With model name: `[Model-Name] Token spend: X`
+- Without model name: `Token spend: X`
+
+**Behavior**:
+- Token counter only appears after sending a message (when tokens > 0)
+- Settings persist across sessions in localStorage
+- If setting is disabled, counter won't show even with active tokens
+
+### Web Search UI - Syntax Error Fix 🔧
+- **Status**: ✅ Fixed
+- **Component**: `WebSearchUI.tsx`
+- **Issue**: Duplicate code in `openUrlInBrowser` function causing syntax errors
+- **Fix**: Removed duplicate closing brace and statements
+- **Impact**: Component now compiles without errors
+
+### Web Search UI Redesign with Responsive Grid 🎨🔍
+- **Status**: ✅ Implemented & Debugged
+- **Components**: `WebSearchUI.tsx`, `WebSearchCustomWrapper.tsx`
+- **Enhancement**: Responsive grid layout with improved link handling and debugging
+- **Impact**: Modern, flexible search results with robust browser link opening
+
+**Key Features**:
+- **Responsive Grid Layout**: Fixed columns (2/3/4) that adapt to screen size
+- **Progressive Loading**: "View more" button adds one row at a time instead of showing all
+- **Aligned Card Heights**: All cards in same row have equal height with footers at bottom
+- **Robust Link Handling**: Improved URL opening with Tauri detection and fallback
+- **Debug Logging**: Console logs for troubleshooting link opening issues
+- **Matches AI Message Width**: Uses `max-w-[95%]` like AI messages for consistency
+- **Dynamic Card Count**: Number of cards per row adjusts based on available space
+- **Clickable Expandable Cards**: Click card body to expand/collapse
+- **Unified Card Design**: Both grid and list use same expandable card component
+- **Improved Spacing**: 12px padding between description and footer sections
+- **List View**: Expandable rows with full width utilization
+- **View Toggle**: Switch between grid/list modes via header buttons
+- **View More Button**: Progressively loads more rows (shows remaining count)
+- **Minimal Wrapper**: Clean display without extra chrome
+- **Fully Transparent Background**: Main container has no background, only border
+- **Semi-Transparent Cards**: Cards use `glass-subtle` for theme-aware transparency
+- **Proper Spacing**: 12px gap between grid cards, 8px between list cards
+- **Smart Image Display**: Shows page images (from `image_url`) or favicons with fallback
+- **Clickable Elements**: Favicon, chevron button, and footer links all open in browser
+- **Footer Layout**: Stats and "Copy all" button on same line (stats right-aligned)
+- **Theme-Aware**: Automatic light/dark mode via Tailwind classes
+- **Interactive Buttons**: Embossed shadow states on press (floating → pressed)
+
+**Link Handling Implementation**:
+```typescript
+// Shared helper function with Tauri v1 & v2 detection and popup blocker handling
+const openUrlInBrowser = async (url: string) => {
+  console.log('[WebSearchUI] Attempting to open URL:', url);
+  
+  // Check if we're in Tauri environment (v1 or v2)
+  const isTauri = typeof window !== 'undefined' && 
+    ('__TAURI__' in window || '__TAURI_INTERNALS__' in window);
+  
+  if (isTauri) {
+    try {
+      console.log('[WebSearchUI] Tauri detected, using shell plugin');
+      const { open } = await import('@tauri-apps/plugin-shell');
+      await open(url);
+      console.log('[WebSearchUI] Successfully opened with Tauri shell');
+      return;
+    } catch (error) {
+      console.error('[WebSearchUI] Tauri shell failed:', error);
+    }
+  } else {
+    console.log('[WebSearchUI] Not in Tauri environment');
+  }
+  
+  // Fallback to window.open
+  console.log('[WebSearchUI] Using window.open fallback');
+  const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+  
+  // Check for popup blocker
+  if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+    console.error('[WebSearchUI] Popup blocked! Please allow popups for this site.');
+    window.open(url, '_blank'); // Try without third parameter
+  } else {
+    console.log('[WebSearchUI] Successfully opened in new window');
+  }
+};
+
+// Used in both card components
+const handleOpenUrl = async (e: React.MouseEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+  await openUrlInBrowser(result.url);
+};
+
+// Applies to:
+// - Chevron right button (top right)
+// - Favicon/image (top left)
+// - Footer URL link (when expanded)
+```
+
+**Tauri Version Compatibility**:
+- **Tauri v1**: Checks for `window.__TAURI__`
+- **Tauri v2**: Checks for `window.__TAURI_INTERNALS__`
+- Both versions use the same `@tauri-apps/plugin-shell` API
+- Opens URLs in user's default system browser (Chrome, Firefox, Opera, etc.)
+
+**Troubleshooting**:
+- **Popup Blocked in Browser**: The browser's popup blocker prevents `window.open` from working
+  - Solution 1: Allow popups for the site in browser settings (look for popup blocker icon in address bar)
+  - Solution 2: Run in Tauri app with `npm run tauri dev` (bypasses popup blockers using shell plugin)
+- **Tauri v2 Detection Issue**: Fixed by checking for both `__TAURI__` (v1) and `__TAURI_INTERNALS__` (v2)
+- If running in Tauri app: Use `npm run tauri dev` to ensure Tauri environment is active
+- Check console logs to see which method is being used (Tauri shell vs window.open)
+- If neither Tauri variable is detected, check Tauri configuration
+
+**Known Issue**: When running in browser (not Tauri app), popup blockers will prevent links from opening. This is expected browser security behavior. The Tauri app version uses the shell plugin which doesn't have this limitation and opens links in the system's default browser.
+
+**Progressive Loading Behavior**:
+```typescript
+// Initial state: 1 row visible (~4 cards)
+const [visibleRows, setVisibleRows] = useState(1);
+
+// Each "View more" click adds one row
+const handleViewMore = () => {
+  if (remainingCount <= itemsPerRow) {
+    setShowAll(true);  // Show all if remaining fits in one row
+  } else {
+    setVisibleRows(prev => prev + 1);  // Add one more row
+  }
+};
+
+// Display logic
+displayedResults = results.slice(0, visibleRows * itemsPerRow);
+```
+
+**Responsive Grid Behavior**:
+```typescript
+// Fixed columns with responsive breakpoints
+grid-cols-2 sm:grid-cols-3 md:grid-cols-4
+auto-rows-fr  // Makes all cards in same row equal height
+
+// Responsive layouts:
+// Mobile (<640px): 2 columns
+// Small screens (640-768px): 3 columns
+// Medium+ screens (>768px): 4 columns
+
+// Progressive loading by rows:
+// Initial: 1 row (4 cards on desktop, 3 on tablet, 2 on mobile)
+// Click "View more": 2 rows (8, 6, 4 cards respectively)
+// Click again: 3 rows (12, 9, 6 cards respectively)
+```
+
+**Card Layout Structure**:
+```typescript
+// Grid cards use flexbox for aligned footers
+<div className="flex flex-col h-full">
+  <div className="flex items-start gap-2">
+    {/* Header: favicon, title, open button */}
+  </div>
+  {expanded && (
+    <div className="flex flex-col flex-grow">
+      <div className="flex-grow pt-3 pb-3">
+        {/* Description - grows to fill space */}
+      </div>
+      <div className="pt-2 border-t">
+        {/* Footer - always at bottom */}
+      </div>
+    </div>
+  )}
+</div>
+```
+
+**Design System Compliance**:
+```typescript
+// Card - Inactive/Floating state
+boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08), inset 0 0.5px 1px rgba(255, 255, 255, 0.15)'
+
+// Card - Active/Pressed state (expanded)
+boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.1)'
+
+// Transparency (Tailwind class on cards)
+className: 'glass-subtle'
+// Light: rgba(255, 255, 255, 0.7)
+// Dark: rgba(30, 30, 30, 0.7)
+
+// Main container: fully transparent with border only
+className: 'w-full max-w-[95%]'
+```
+
+**Layout Structure**:
+- **Container**: Full width with 95% max-width (matches AI messages)
+- **Header**: Query display + Grid/List toggle buttons
+- **Body**: 
+  - Grid: Fixed responsive columns (2/3/4 cols) with equal row heights, 12px gap
+  - List: Full-width expandable cards (8px gap)
+- **View More**: Button to progressively load more rows (shows remaining count)
+- **Footer**: "Copy all" button (left) + Stats (right): "X found • Yms"
+
+**Card Features (Both Grid & List)**:
+- Semi-transparent `glass-subtle` background
+- Favicon or page image (20x20px) - clickable to open link
 - Title and snippet preview when collapsed
 - Full snippet, URL, relevance score, date when expanded
+- **Aligned Footers**: All cards in same row have footers at same height
+- **Improved Spacing**: 12px padding between description and footer
+- **Robust Link Handling**: Tauri detection with window.open fallback and debug logging
 - Open and Copy buttons in expanded state
-- Embossed effect when expanded
+- Embossed shadow effect (floating → pressed on expand)
+- Click card body to expand/collapse
+- Click favicon/chevron/footer link to open in browser
+
+**Debugging**:
+- Console logs show which method is used (Tauri shell vs window.open)
+- Error messages logged if Tauri shell fails
+- Success confirmation when link opens successfully
+- Check browser console (F12) to troubleshoot link opening issues
+
+**Scaling Integration**:
+- Respects UI scaling settings from SettingsContext
+- Grid automatically adjusts card count based on scaled dimensions
+- Equal row heights ensure consistent appearance across all scales
+- Progressive loading adapts to actual cards per row
+- Maintains consistent spacing and proportions across all scales
+- Works seamlessly with window resizing and responsive breakpoints
 
 ---
 
@@ -11784,3 +12064,1205 @@ This plugin system represents a **significant architectural improvement**:
 The tool call plugin system is **complete, tested, and production-ready**. It provides a robust, scalable, and maintainable foundation for tool call UI that empowers designers to create unique experiences for each tool type without any limitations.
 
 **This is a game-changer for the Skhoot development workflow!** 🚀
+
+
+---
+
+### Tauri Permissions Fix - Shell & Notifications 🔧🔐
+- **Status**: ✅ Fixed
+- **Component**: `src-tauri/tauri.conf.json`
+- **Issue**: WebSearchUI links and notifications failing due to missing Tauri v2 permissions
+- **Impact**: Links now open in default browser and notifications work properly
+
+**Problem**:
+Console errors showed:
+```
+shell.open not allowed. Permissions associated with this command: shell:allow-open
+notification.notify not allowed. Permissions associated with this command: notification:allow-notify
+```
+
+The Tauri v2 configuration had the shell plugin enabled but was missing the actual permission grants in the capabilities section.
+
+**Root Cause**:
+In Tauri v2, enabling a plugin in the `plugins` section is not enough - you must explicitly grant permissions in the `app.security.capabilities` array. The configuration had:
+```json
+"plugins": {
+  "shell": {
+    "open": true
+  }
+}
+```
+But the `capabilities` section only included window management permissions.
+
+**Solution**:
+Added the following permissions to the `main-capability` in `src-tauri/tauri.conf.json`:
+```json
+"permissions": [
+  // ... existing window permissions ...
+  "shell:allow-open",
+  "notification:allow-is-permission-granted",
+  "notification:allow-request-permission",
+  "notification:allow-notify"
+]
+```
+
+**Permissions Added**:
+- `shell:allow-open` - Opens URLs in the system's default browser
+- `notification:allow-is-permission-granted` - Checks notification permission status
+- `notification:allow-request-permission` - Requests notification permissions from OS
+- `notification:allow-notify` - Sends native notifications
+
+**Impact**:
+- ✅ WebSearchUI buttons now successfully open links in browser
+- ✅ Native notifications work on app startup
+- ✅ No more permission errors in console
+- ✅ Better user experience with external link handling
+
+**Testing**:
+After restarting the Tauri app:
+1. Web search results open in default browser (Chrome, Firefox, etc.)
+2. Startup notification appears
+3. No permission errors in console
+
+**Files Modified**:
+- `src-tauri/tauri.conf.json` - Added 4 permission grants to capabilities
+
+**Related Components**:
+- `components/tool-calls/web-operations/WebSearchUI.tsx` - Uses shell.open()
+- `services/nativeNotifications.ts` - Uses notification plugin
+- `App.tsx` - Sends startup notification
+
+**Note**: This is a Tauri v2 specific requirement. In Tauri v1, plugin configuration was sufficient, but v2 requires explicit permission grants for security reasons.
+
+---
+
+## January 18, 2026
+
+### Bookmark System - Cross-Session Context Retrieval 🔖✨
+- **Status**: ✅ Implemented
+- **Components**: Frontend Service, UI Components, AI Tool Integration
+- **Enhancement**: Complete bookmark system for saving and searching messages across sessions
+- **Impact**: AI can now retrieve context from previous conversations using the `message_search` tool
+- **Storage**: localStorage (following desktop app file-based pattern)
+
+**Features Implemented**:
+
+**Storage Layer (localStorage)**:
+- ✅ File-based storage using localStorage (consistent with desktop app pattern)
+- ✅ No database dependencies - simple JSON storage
+- ✅ Max 1000 bookmarks with automatic trimming
+- ✅ Fast in-memory search and filtering
+- ✅ Persistent across sessions
+
+**Frontend Service** (`services/bookmarkService.ts`):
+- ✅ Complete bookmark CRUD operations
+- ✅ Search by content, tags, notes, or message ID
+- ✅ Update notes and tags
+- ✅ Check bookmark status
+- ✅ Find by message ID
+- ✅ Session filtering support
+- ✅ Automatic localStorage persistence
+
+**Frontend UI** (React/TypeScript):
+- ✅ **BookmarksTab** (`components/panels/bookmarks/BookmarksTab.tsx`)
+  - List view with search functionality
+  - Inline editing for tags and notes
+  - Delete functionality
+  - Session filtering support
+  - Empty state with helpful message
+- ✅ **MessageBubble Integration** (`components/conversations/MessageBubble.tsx`)
+  - Bookmark button on all messages
+  - Filled icon when bookmarked
+  - Automatic state sync with service
+  - Optimistic UI updates
+  - Check bookmark status on mount
+- ✅ **FileExplorerPanel Updates** (`components/panels/FileExplorerPanel.tsx`)
+  - Added three new tabs: Links, Memories, Bookmarks (after Images, before Disk)
+  - Bookmarks tab fully functional with grid/list view support
+  - Links and Memories tabs as placeholders for future features
+  - Accessible via Files button in prompt area
+
+**AI Tool Integration**:
+- ✅ **Tool Definition** (`services/agentChatService.ts`)
+  - Added `message_search` tool for AI to search bookmarks
+  - Parameters: query (required), limit (optional, max 50)
+  - Returns bookmarked messages with full context
+  - Direct service integration (no backend API calls)
+- ✅ **Tool UI** (`components/tool-calls/bookmark-operations/MessageSearchUI.tsx`)
+  - Displays search results in embossed glassmorphic design
+  - Expandable cards showing full message content
+  - Tags and notes display
+  - Metadata (date, role, session info)
+- ✅ **Registry** (`components/tool-calls/registry/ToolCallRegistry.tsx`)
+  - Registered `message_search` tool with Bookmark icon
+  - Supports compact and expanded layouts
+
+**Data Structure**:
+```typescript
+interface Bookmark {
+  id: string;
+  message_id: string;
+  session_id: string | null;
+  content: string;
+  role: string;
+  created_at: string;
+  tags: string | null;
+  notes: string | null;
+}
+```
+
+**User Experience**:
+1. Click bookmark icon on any message to save it
+2. Open Files panel → Bookmarks tab to view all bookmarks
+3. Search bookmarks by content, tags, or notes
+4. Add personal notes and tags to bookmarks
+5. AI can search bookmarks using `message_search` tool
+6. Delete bookmarks when no longer needed
+
+**AI Tool Usage**:
+```typescript
+// AI can now search bookmarks for context
+Tool: message_search
+Parameters: {
+  query: "authentication",
+  limit: 10
+}
+
+// Returns bookmarked messages with full context
+Result: {
+  query: "authentication",
+  results: [
+    {
+      id: "bookmark_...",
+      content: "We discussed using JWT tokens...",
+      role: "assistant",
+      tags: "auth, security",
+      notes: "Important decision about token expiry",
+      created_at: "2026-01-18T..."
+    }
+  ],
+  total_results: 5
+}
+```
+
+**Architecture Highlights**:
+- **File-based storage** following desktop app patterns (like imageStorage, chatStorage)
+- **No backend dependencies** - pure frontend implementation
+- **localStorage persistence** - simple and reliable
+- **In-memory search** - fast and efficient
+- **Component reuse** from existing panels (ImagesTab, WorkflowsPanel patterns)
+- **Consistent with tool-call architecture** (WebSearchUI patterns)
+- **Type-safe** throughout with proper error handling
+- **Optimistic UI updates** for better UX
+
+**Files Created**:
+- `services/bookmarkService.ts`
+- `components/panels/bookmarks/BookmarksTab.tsx`
+- `components/panels/bookmarks/index.ts`
+- `components/panels/bookmarks/README.md`
+- `components/tool-calls/bookmark-operations/MessageSearchUI.tsx`
+- `BOOKMARK_SYSTEM_IMPLEMENTATION.md`
+
+**Files Modified**:
+- `components/panels/FileExplorerPanel.tsx` - Added Links, Memories, Bookmarks tabs
+- `components/conversations/MessageBubble.tsx` - Implemented bookmark functionality
+- `services/agentChatService.ts` - Added message_search tool with direct service integration
+- `components/tool-calls/registry/ToolCallRegistry.tsx` - Registered MessageSearchUI
+- `components/tool-calls/index.ts` - Exported MessageSearchUI
+
+**Technical Decisions**:
+1. **localStorage over database** - Simpler, no migration issues, follows desktop app pattern
+2. **Frontend-only implementation** - No backend API needed
+3. **Service layer pattern** - Clean separation of concerns
+4. **Optimistic UI updates** - Better user experience
+5. **In-memory search** - Fast and efficient for desktop use
+6. **Tag/note system** - Flexible organization without rigid structure
+7. **Max 1000 bookmarks** - Prevents storage overflow while being generous
+
+**Benefits**:
+- ✅ AI can retrieve context from previous conversations
+- ✅ Cross-session learning and memory
+- ✅ User can organize important messages
+- ✅ Fast search through all bookmarks
+- ✅ Persistent storage across sessions
+- ✅ Clean, intuitive UI following design system
+- ✅ No database setup or migration issues
+- ✅ Works offline (desktop app)
+
+**Next Steps**:
+1. Test bookmark creation and search
+2. Test AI `message_search` tool call
+3. Consider adding session tracking
+4. Future: Collections, export/import, smart suggestions
+
+---
+
+---
+
+### Bookmark System - Cross-Session Context Retrieval 🔖
+- **Status**: ✅ Implemented
+- **Components**: Backend API, Frontend UI, AI Tool Integration
+- **Enhancement**: Complete bookmark system for saving and searching important messages
+- **Impact**: AI can now retrieve context from previous conversations across sessions
+
+**Features**:
+- **Bookmark Messages**: Click bookmark icon on any message to save it
+- **Search Bookmarks**: Full-text search through content, tags, and notes
+- **Add Notes**: Personal notes for context on bookmarked messages
+- **Tag Organization**: Tag bookmarks for easy categorization
+- **AI Context Retrieval**: AI can search bookmarks using `message_search` tool
+- **Cross-Session Learning**: Access information from previous conversations
+- **Persistent Storage**: SQLite database with indexed queries
+
+**Backend Implementation** (Rust):
+
+1. **Database Migration** (`backend/migrations/004_bookmarks.sql`):
+```sql
+CREATE TABLE bookmarks (
+    id TEXT PRIMARY KEY,
+    message_id TEXT NOT NULL UNIQUE,
+    session_id TEXT,
+    content TEXT NOT NULL,
+    role TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    tags TEXT,
+    notes TEXT
+);
+-- Indexes for performance
+CREATE INDEX idx_bookmarks_session_id ON bookmarks(session_id);
+CREATE INDEX idx_bookmarks_created_at ON bookmarks(created_at);
+CREATE INDEX idx_bookmarks_message_id ON bookmarks(message_id);
+CREATE INDEX idx_bookmarks_content ON bookmarks(content);
+```
+
+2. **REST API** (`backend/src/api/bookmarks.rs`):
+   - `GET /api/v1/bookmarks` - List all bookmarks (with optional session filter)
+   - `POST /api/v1/bookmarks` - Create new bookmark
+   - `GET /api/v1/bookmarks/:id` - Get specific bookmark
+   - `DELETE /api/v1/bookmarks/:id` - Delete bookmark
+   - `GET /api/v1/bookmarks/search` - Search bookmarks by content/tags/notes
+   - `POST /api/v1/bookmarks/:id/notes` - Update bookmark notes
+   - `POST /api/v1/bookmarks/:id/tags` - Update bookmark tags
+
+3. **Route Registration**:
+   - Added `bookmarks` module to `backend/src/api/mod.rs`
+   - Registered routes in `backend/src/main.rs`
+
+**Frontend Implementation** (React/TypeScript):
+
+1. **Service Layer** (`services/bookmarkService.ts`):
+```typescript
+interface Bookmark {
+  id: string;
+  message_id: string;
+  session_id: string | null;
+  content: string;
+  role: string;
+  created_at: string;
+  tags: string | null;
+  notes: string | null;
+}
+```
+   - Type-safe API wrapper for all bookmark operations
+   - Helper methods: `isBookmarked()`, `findByMessageId()`
+   - Clean async/await interface
+
+2. **UI Components**:
+   - **BookmarksTab** (`components/panels/bookmarks/BookmarksTab.tsx`):
+     - List view with search functionality
+     - Inline editing for tags and notes
+     - Delete functionality
+     - Session filtering support
+     - Empty state with helpful message
+   
+   - **MessageBubble Integration** (`components/conversations/MessageBubble.tsx`):
+     - Bookmark button on all messages (user and AI)
+     - Filled icon when bookmarked
+     - Automatic state sync with backend
+     - Optimistic UI updates
+     - Check bookmark status on mount
+
+3. **Files Panel Integration** (`components/panels/FilesPanel.tsx`):
+   - Added three new tabs: **Links**, **Memories**, **Bookmarks**
+   - Bookmarks tab fully functional
+   - Links and Memories tabs as placeholders for future implementation
+   - Default to Bookmarks tab
+
+**AI Tool Integration**:
+
+1. **Tool Definition** (`services/agentChatService.ts`):
+```typescript
+{
+  name: 'message_search',
+  description: 'Search through bookmarked messages to retrieve context from previous conversations',
+  parameters: {
+    query: string,  // Search query
+    limit?: number  // Max results (default: 10, max: 50)
+  }
+}
+```
+
+2. **Tool Execution**:
+   - Integrated with existing tool execution pipeline
+   - Searches through content, tags, and notes
+   - Returns structured JSON response with bookmarks
+
+3. **Tool UI** (`components/tool-calls/bookmark-operations/MessageSearchUI.tsx`):
+   - Displays search results in embossed glassmorphic design
+   - Expandable cards showing full message content
+   - Tags and notes display
+   - Metadata (date, role, session info)
+   - Copy functionality
+   - Follows Skhoot design system
+
+4. **Registry** (`components/tool-calls/registry/ToolCallRegistry.tsx`):
+   - Registered `message_search` tool with Bookmark icon
+   - Supports compact and expanded layouts
+   - Category: 'other'
+
+**User Experience**:
+
+1. **Bookmarking Messages**:
+   - Hover over any message → Click bookmark icon
+   - Icon fills to indicate bookmarked state
+   - Persists across sessions
+
+2. **Managing Bookmarks**:
+   - Open Files panel → Bookmarks tab
+   - Search bookmarks by content
+   - Click bookmark to expand/collapse
+   - Edit tags inline (comma-separated)
+   - Edit notes inline (multi-line)
+   - Delete bookmarks with trash icon
+
+3. **AI Context Retrieval**:
+   - AI: "Let me search for our previous discussion about authentication..."
+   - Tool Call: `message_search({ query: "authentication", limit: 5 })`
+   - Result: List of relevant bookmarked messages with context
+   - AI uses retrieved context to inform response
+
+**Technical Decisions**:
+
+1. **SQLite over JSON files**: Better query performance, ACID compliance, full-text search
+2. **Runtime queries over compile-time**: More flexible, easier development (no DATABASE_URL needed)
+3. **Service layer pattern**: Clean separation of concerns, reusable API wrapper
+4. **Optimistic UI updates**: Better user experience, immediate feedback
+5. **Full-text search**: Powerful search capabilities across all fields
+6. **Tag/note system**: Flexible organization without rigid structure
+
+**Architecture Highlights**:
+
+- **Backend-First Approach**: Rust API with SQLite storage
+- **Component Reuse**: Leveraged existing panel patterns (ImagesTab, WorkflowsPanel)
+- **Tool-Call Architecture**: Followed WebSearchUI patterns for consistency
+- **Type Safety**: Full TypeScript types throughout, Rust structs with proper serialization
+- **Performance**: Indexed queries, limit on results, memoized components
+
+**Files Created**:
+- `backend/migrations/004_bookmarks.sql`
+- `backend/src/api/bookmarks.rs`
+- `services/bookmarkService.ts`
+- `components/panels/bookmarks/BookmarksTab.tsx`
+- `components/panels/bookmarks/index.ts`
+- `components/panels/bookmarks/README.md`
+- `components/tool-calls/bookmark-operations/MessageSearchUI.tsx`
+- `BOOKMARK_SYSTEM_IMPLEMENTATION.md`
+
+**Files Modified**:
+- `backend/src/api/mod.rs` - Added bookmarks module
+- `backend/src/main.rs` - Registered bookmark routes
+- `components/panels/FilesPanel.tsx` - Added Links/Memories/Bookmarks tabs
+- `components/conversations/MessageBubble.tsx` - Implemented bookmark functionality
+- `services/agentChatService.ts` - Added message_search tool and execution
+- `components/tool-calls/registry/ToolCallRegistry.tsx` - Registered MessageSearchUI
+- `components/tool-calls/index.ts` - Exported MessageSearchUI
+
+**Benefits**:
+- ✅ Centralized message bookmarking
+- ✅ AI can retrieve context across sessions
+- ✅ Powerful search capabilities
+- ✅ Flexible organization with tags and notes
+- ✅ Persistent storage with SQLite
+- ✅ Clean, intuitive UI
+- ✅ Follows existing architecture patterns
+- ✅ Type-safe throughout
+
+**Next Steps**:
+1. Run database migration: `cd backend && sqlx migrate run`
+2. Build backend: `cargo build`
+3. Start backend server: `cargo run`
+4. Test bookmark functionality in UI
+5. Test AI message_search tool
+
+**Future Enhancements**:
+- Session tracking (automatically associate bookmarks with sessions)
+- Bulk operations (select and delete multiple bookmarks)
+- Export/Import (export bookmarks as JSON/Markdown)
+- Smart suggestions (AI suggests messages to bookmark)
+- Collections (group bookmarks into collections)
+- Sharing (share bookmarks between users)
+- Cloud sync (sync bookmarks across devices)
+- Analytics (track most referenced bookmarks)
+- Links tab implementation (URL bookmarking)
+- Memories tab implementation (long-term memory storage)
+
+**Documentation**:
+- Comprehensive README in `components/panels/bookmarks/README.md`
+- Implementation summary in `BOOKMARK_SYSTEM_IMPLEMENTATION.md`
+- API documentation in bookmark service comments
+- Tool usage examples in README
+
+
+
+### Database Cleanup - Migration Conflict Resolution 🗄️
+- **Status**: ✅ Resolved
+- **Issue**: Migration 2, 3, 4 were previously applied but migration files were missing
+- **Solution**: Database reset to clean state with only initial migration
+
+**Problem**:
+The database at `~/.skhoot/skhoot.db` had migrations applied from a previous bookmark implementation attempt:
+- Migration 2: bookmarks
+- Migration 3: links  
+- Migration 4: memories
+
+These migration files didn't exist in the codebase, causing the backend to fail on startup with:
+```
+Error: Migration error: migration 2 was previously applied but is missing in the resolved migrations
+```
+
+**Resolution Steps**:
+1. ✅ Removed unused backend bookmark API (`backend/src/api/bookmarks.rs`)
+2. ✅ Removed unused migration file (`backend/migrations/004_bookmarks.sql`)
+3. ✅ Cleaned up backend module references
+4. ✅ Database backup and reset:
+   ```bash
+   # Backup existing database
+   cp ~/.skhoot/skhoot.db ~/.skhoot/skhoot.db.backup
+   
+   # Delete database to start fresh
+   rm ~/.skhoot/skhoot.db
+   
+   # Backend creates fresh database with only initial migration
+   npm run backend:dev
+   ```
+
+**Impact**:
+- ✅ Backend now starts without migration errors
+- ✅ Clean database state with only `001_initial.sql`
+- ✅ File indexing data will be rebuilt automatically
+- ✅ No data loss (bookmarks now use localStorage, not database)
+
+**Files Removed**:
+- `backend/src/api/bookmarks.rs` - Unused backend API
+- `backend/migrations/004_bookmarks.sql` - Unused migration
+- Database tables: `bookmarks`, `links`, `memories` - No longer needed
+
+**Files Modified**:
+- `backend/src/api/mod.rs` - Removed bookmarks module
+- `backend/src/main.rs` - Removed bookmark routes
+- `backend/src/db.rs` - Removed pool() getter
+
+**Lesson Learned**:
+For desktop applications, prefer localStorage/file-based storage over database migrations when:
+- Data is user-specific and local
+- No complex queries needed
+- Simplicity and maintainability are priorities
+- Following existing codebase patterns
+
+---
+
+
+### Bookmark UI - Grid/List View with WebSearchUI Design Pattern 🎨
+- **Status**: ✅ Implemented
+- **Component**: `BookmarksTab.tsx`
+- **Enhancement**: Updated bookmark panel to use the same grid/list design as WebSearchUI
+- **Impact**: Consistent UI/UX across all panels with modern, responsive design
+
+**Design Updates**:
+
+**Grid/List View Toggle**:
+- ✅ Same toggle buttons as WebSearchUI (Grid3x3 / List icons)
+- ✅ Embossed button states (floating → pressed)
+- ✅ Integrated with search bar in header
+- ✅ Responsive grid: 2/3/4 columns based on screen size
+- ✅ Progressive loading with "View more" button
+
+**Card Design** (Grid & List):
+- ✅ Glassmorphic cards with embossed shadows
+- ✅ Floating state: `0 1px 3px rgba(0, 0, 0, 0.08), inset 0 0.5px 1px rgba(255, 255, 255, 0.15)`
+- ✅ Pressed state: `inset 0 1px 2px rgba(0, 0, 0, 0.1)`
+- ✅ Click to expand/collapse
+- ✅ Role icons (User/Bot) with embossed container
+- ✅ Content preview when collapsed
+- ✅ Full content when expanded
+
+**Bookmark-Specific Features**:
+- ✅ **Tags**: Inline editing with pill display (purple badges)
+- ✅ **Notes**: Inline editing with textarea
+- ✅ **Remove button**: Red text with Trash2 icon
+- ✅ **Date display**: Calendar icon with formatted date
+- ✅ **Role indicator**: User (blue) / Bot (purple) icons
+
+**Layout Structure**:
+```typescript
+// Grid View
+<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 auto-rows-fr">
+  {bookmarks.map(bookmark => (
+    <GridBookmarkCard /> // Expandable card
+  ))}
+</div>
+
+// List View
+<div className="overflow-x-hidden">
+  {bookmarks.map(bookmark => (
+    <ListBookmarkCard /> // Full-width expandable row
+  ))}
+</div>
+```
+
+**Interactive Elements**:
+- Click card body → Expand/collapse
+- Click tags/notes → Inline editing
+- Click remove → Delete bookmark
+- Blur or Enter → Save edits
+- Progressive loading → Show more rows
+
+**Visual Consistency**:
+- Same embossed shadow system as WebSearchUI
+- Same icon sizes (9-14px)
+- Same text sizes (9-11px)
+- Same spacing (gap-1, gap-2, gap-3)
+- Same color scheme (text-text-primary, text-text-secondary)
+- Same glassmorphic backgrounds
+
+**Responsive Behavior**:
+- Mobile (<640px): 2 columns
+- Tablet (640-768px): 3 columns
+- Desktop (>768px): 4 columns
+- List view: Full width on all screens
+- Progressive loading adapts to actual columns
+
+**Benefits**:
+- ✅ Consistent design language across panels
+- ✅ Familiar UX for users (same as web search)
+- ✅ Modern, clean appearance
+- ✅ Efficient use of space
+- ✅ Easy to scan and organize
+- ✅ Inline editing without modals
+- ✅ Responsive and adaptive
+
+**Files Modified**:
+- `components/panels/bookmarks/BookmarksTab.tsx` - Complete redesign with grid/list views
+
+---
+
+
+### Bookmark System - Cross-Session Context Retrieval 🔖
+- **Status**: ✅ Core Implementation Complete
+- **Components**: `BookmarksTab.tsx`, `MessageBubble.tsx`, `FilesPanel.tsx`, `bookmarkService.ts`
+- **Enhancement**: Full bookmark system with localStorage storage, navigation, and AI integration
+- **Impact**: Users can bookmark messages and navigate back to them; AI can search bookmarks across sessions
+
+**Key Features**:
+- **localStorage Storage**: File-based storage following desktop app patterns (max 1000 bookmarks)
+- **Bookmark Button**: Added to all messages with visual state sync (filled icon when bookmarked)
+- **BookmarksTab**: Grid/list view with expandable cards, inline tag/note editing
+- **Navigation**: "Go" button scrolls to bookmarked message with blue highlight animation
+- **AI Integration**: `message_search` tool allows AI to search bookmarks for context retrieval
+- **FilesPanel Integration**: Added Bookmarks tab alongside Disks/Apps/Archive
+
+**Architecture**:
+```typescript
+// Bookmark data structure
+interface Bookmark {
+  id: string;
+  message_id: string;
+  session_id: string | null;
+  content: string;
+  role: string;
+  created_at: string;
+  tags: string | null;
+  notes: string | null;
+}
+```
+
+**UI Components**:
+1. **BookmarksTab** (`components/panels/bookmarks/BookmarksTab.tsx`)
+   - Grid view (2/3/4 columns responsive) and List view
+   - View mode controlled by FilesPanel header buttons
+   - Expandable cards with inline editing for tags/notes
+   - "Go" button with MessageSquare icon to navigate to message
+   - Delete functionality with confirmation
+
+2. **MessageBubble** (`components/conversations/MessageBubble.tsx`)
+   - Bookmark button in hover-activated action buttons
+   - Visual indicator (filled icon) when message is bookmarked
+   - Optimistic UI updates with state sync
+   - `data-message-id` attribute for navigation targeting
+
+3. **FilesPanel** (`components/panels/FilesPanel.tsx`)
+   - Added "Bookmarks" tab with Bookmark icon
+   - Grid/List toggle buttons in header (only visible for Bookmarks tab)
+   - View mode state lifted to parent for centralized control
+
+**Navigation System**:
+- Uses `data-message-id` attribute on message elements
+- `navigateToMessage()` function finds and scrolls to message
+- Smooth scroll animation with center alignment
+- 2-second blue highlight flash animation (`highlight-flash` CSS class)
+- Console warning if message not found in current conversation
+
+**CSS Animation** (`src/index.css`):
+```css
+@keyframes highlight-flash {
+  0% { background-color: rgba(59, 130, 246, 0.2); }
+  50% { background-color: rgba(59, 130, 246, 0.3); }
+  100% { background-color: transparent; }
+}
+```
+
+**Service Layer** (`services/bookmarkService.ts`):
+- CRUD operations: create, list, get, delete, search
+- Helper methods: `isBookmarked()`, `findByMessageId()`
+- Update methods: `updateNotes()`, `updateTags()`
+- Search across content, tags, notes, and message IDs
+- Automatic trimming to max capacity (1000 bookmarks)
+
+**AI Tool Integration**:
+- Tool name: `message_search`
+- Parameters: query (required), limit (optional, max 50)
+- Returns: Array of matching bookmarks with full context
+- UI Display: `MessageSearchUI.tsx` with embossed glassmorphic cards
+
+**Design Patterns**:
+- Follows WebSearchUI design (embossed glassmorphic cards)
+- Consistent shadow states and transitions
+- Inline editing with click-to-edit pattern
+- Blue accent for navigation actions
+- Red accent for delete actions
+
+**State Management**:
+- View mode lifted to FilesPanel for centralized control
+- Bookmark state synced between MessageBubble and BookmarksTab
+- Optimistic UI updates with error handling
+- localStorage as single source of truth
+
+**Files Created**:
+- `services/bookmarkService.ts` - localStorage-based service
+- `components/panels/bookmarks/BookmarksTab.tsx` - Main UI component
+- `components/tool-calls/bookmark-operations/MessageSearchUI.tsx` - AI tool result display
+
+**Files Modified**:
+- `components/panels/FilesPanel.tsx` - Added Bookmarks tab and view mode control
+- `components/conversations/MessageBubble.tsx` - Added bookmark button and data-message-id
+- `services/agentChatService.ts` - Added message_search AI tool
+- `components/tool-calls/registry/ToolCallRegistry.tsx` - Registered MessageSearchUI
+- `src/index.css` - Added highlight-flash animation
+
+**Backend Cleanup**:
+- Removed database-based implementation (bookmarks.rs, migrations)
+- Pivoted to localStorage following existing patterns (imageStorage, chatStorage)
+- No backend dependencies required
+
+**Known Limitations**:
+- Navigation only works if message is in current conversation
+- No cross-conversation navigation yet
+- Session tracking not fully integrated
+- Search bar in FilesPanel header not yet implemented
+
+**Future Enhancements**:
+- [ ] Session tracking integration
+- [ ] Search bar in FilesPanel header
+- [ ] Cross-conversation navigation
+- [ ] Export/Import bookmarks
+- [ ] Bookmark collections/folders
+- [ ] Keyboard shortcuts
+- [ ] Bulk operations
+
+**Documentation**:
+- Created `BOOKMARK_SYSTEM_IMPLEMENTATION.md` with full technical details
+- Includes architecture, navigation system, and implementation notes
+
+
+### Bookmark System UI Enhancements - Improved UX 🎨
+- **Status**: ✅ Implemented
+- **Components**: `BookmarksTab.tsx`, `FilesPanel.tsx`, `TabButton.tsx`
+- **Enhancement**: Refined bookmark card layout and added expandable search functionality
+- **Impact**: Cleaner UI, better space utilization, and integrated search experience
+
+**Key Improvements**:
+
+1. **Go Button in Collapsed Cards**
+   - Added MessageSquare icon button to collapsed bookmark cards
+   - Always visible next to expand button for quick navigation
+   - No need to expand card to navigate to message
+   - Maintains consistent embossed button style
+
+2. **Single-Line Footer in Expanded Cards**
+   - Consolidated all actions into one horizontal line
+   - Layout: `Tags | Notes | Date | Go | Remove`
+   - Tags and Notes are inline-editable with text truncation
+   - Better space efficiency in both grid and list views
+   - Applied to both GridBookmarkCard and ListBookmarkCard
+
+3. **Expandable Search Bar in FilesPanel Header**
+   - Search button positioned on right side of header
+   - Expands to 192px input field when clicked
+   - **Smart Tab Behavior**: When search is expanded, tabs show icons only (no labels)
+   - View mode toggle hidden during search to save space
+   - ESC key or blur (when empty) collapses search
+   - Search query passed to BookmarksTab for real-time filtering
+
+4. **TabButton Component Enhancement**
+   - Supports icon-only mode when label is empty
+   - Automatically adjusts padding: `flex-1` for full mode, `px-2` for icon-only
+   - Maintains accessibility with proper aria-label and title
+   - Smooth transitions between modes
+
+**UI Flow**:
+```
+Normal State:
+[Disks] [Apps] [Archive] [Bookmarks]  [🔍] [Grid/List]
+
+Search Expanded:
+[💾] [🔗] [📦] [🔖]  [Search input...........] 
+```
+
+**Technical Details**:
+- Search state managed in FilesPanel parent component
+- Search query passed as prop to BookmarksTab
+- BookmarksTab uses useEffect to trigger search on query change
+- TabButton detects icon-only mode via empty label string
+- All transitions use duration-200 for consistency
+
+**Code Structure**:
+```typescript
+// FilesPanel manages search state
+const [searchExpanded, setSearchExpanded] = useState(false);
+const [searchQuery, setSearchQuery] = useState('');
+
+// Tabs show icons only when search is expanded
+<TabButton
+  label={searchExpanded ? '' : tab.label}
+  icon={tab.icon}
+  isActive={activeTab === tab.id}
+/>
+
+// Search query passed to BookmarksTab
+<BookmarksTab viewMode={viewMode} searchQuery={searchQuery} />
+```
+
+**User Experience**:
+- Click search icon → Input expands, tabs shrink to icons
+- Type query → Bookmarks filter in real-time
+- Press ESC or click away → Search collapses, tabs restore labels
+- Go button always accessible without expanding cards
+- All actions visible in one line when card is expanded
+
+**Design Consistency**:
+- Maintains embossed glassmorphic style throughout
+- Consistent shadow states for all interactive elements
+- Blue accent for navigation (Go button)
+- Red accent for destructive actions (Remove button)
+- Smooth transitions for all state changes
+
+**Files Modified**:
+- `components/panels/bookmarks/BookmarksTab.tsx` - Footer layout, Go button, search integration
+- `components/panels/FilesPanel.tsx` - Expandable search bar, icon-only tab mode
+- `components/buttonFormat/tab-button.tsx` - Icon-only mode support
+
+**Performance**:
+- Search uses existing bookmarkService.search() method
+- Debounced search via useEffect dependency
+- No unnecessary re-renders with proper memoization
+- Smooth 200ms transitions for all animations
+
+
+### Bookmark System - Grid/List Toggle Bug Fix 🐛
+- **Status**: ✅ Fixed
+- **Component**: `BookmarksTab.tsx`
+- **Issue**: Grid/List toggle buttons in FilesPanel header weren't switching the bookmark view
+- **Impact**: Users can now properly toggle between grid and list views for bookmarks
+
+**Root Cause**:
+- `BookmarksTab` component was wrapped in `React.memo()`
+- Memo was preventing re-renders when `viewMode` prop changed
+- React's shallow comparison in memo wasn't detecting the prop change properly
+- Component state wasn't updating despite parent state changing
+
+**Solution**:
+- Removed `React.memo` wrapper from `BookmarksTab` component
+- Kept `memo` import for child components (`GridBookmarkCard`, `ListBookmarkCard`)
+- Component now re-renders normally when props change
+
+**Technical Details**:
+```typescript
+// Before (broken):
+export const BookmarksTab = memo<BookmarksTabProps>(({ sessionId, viewMode, searchQuery = '' }) => {
+  // Component wasn't re-rendering when viewMode changed
+});
+
+// After (fixed):
+export const BookmarksTab = ({ sessionId, viewMode, searchQuery = '' }: BookmarksTabProps) => {
+  // Component re-renders properly on prop changes
+};
+
+// Child components still memoized for performance:
+const GridBookmarkCard = memo<BookmarkCardProps>(({ ... }) => { ... });
+const ListBookmarkCard = memo<ListBookmarkCardProps>(({ ... }) => { ... });
+```
+
+**Optimal Setup**:
+- Parent `BookmarksTab`: Not memoized → Re-renders when viewMode changes ✅
+- Child card components: Memoized → Avoid unnecessary re-renders when individual props unchanged ✅
+- This provides the best balance of reactivity and performance
+
+**Why This Works**:
+- Parent component responds immediately to prop changes
+- Child components only re-render when their specific bookmark data changes
+- Prevents unnecessary re-renders of dozens of bookmark cards
+- Grid/list toggle is instant and smooth
+
+**Verification**:
+- Grid/List toggle now works immediately
+- View switches between grid (2/3/4 columns) and list (full-width) layouts
+- No console errors or warnings
+- All diagnostics pass
+- Child components still benefit from memoization
+
+**Files Modified**:
+- `components/panels/bookmarks/BookmarksTab.tsx` - Removed memo wrapper from parent, kept for children
+
+**Lesson Learned**:
+- Don't use `React.memo` on parent components that need to respond to prop changes
+- Memoization is useful for list item components that render many times
+- Always verify that memoized components re-render when props change
+- Selective memoization (children but not parent) can be the optimal strategy
+
+
+### Bookmark System - Correct Panel Integration 🔧
+- **Status**: ✅ Fixed
+- **Components**: `FileExplorerPanel.tsx`, `FilesPanel.tsx`
+- **Issue**: Bookmark features were applied to wrong FilesPanel component
+- **Impact**: Bookmarks now properly integrated in PromptArea Files panel
+
+**Problem Identified**:
+- There are TWO different FilesPanel components in the codebase:
+  1. `components/panels/FilesPanel.tsx` - Utility panel (Disks/Apps/Archive) - opened from top bar
+  2. `components/panels/FileExplorerPanel.tsx` - File explorer (Recent/Images/Links/Memories/Bookmarks) - opened from PromptArea Files button
+- Bookmark features were mistakenly added to the wrong panel (#1 instead of #2)
+
+**Correct Integration Path**:
+```
+PromptArea → Files Button → FileExplorerPanel → Bookmarks Tab
+```
+
+**Changes Made**:
+
+1. **FileExplorerPanel.tsx** (Correct Panel):
+   - Updated BookmarksTab rendering to pass `viewMode` and `searchQuery` props
+   - View mode toggle already exists in header (Grid/List button)
+   - Search bar already exists in header
+   - These features now properly control the BookmarksTab
+
+2. **FilesPanel.tsx** (Wrong Panel):
+   - Removed bookmarks tab from tabs array
+   - Removed BookmarksTab import
+   - Removed viewMode, searchQuery state
+   - Removed search bar and view toggle code
+   - Restored to original Disks/Apps/Archive functionality
+
+**Code Changes**:
+```typescript
+// FileExplorerPanel.tsx - CORRECT
+{activeTab === 'bookmarks' && <BookmarksTab viewMode={viewMode} searchQuery={searchQuery} />}
+
+// FilesPanel.tsx - REVERTED
+// Removed all bookmark-related code
+```
+
+**Panel Comparison**:
+| Feature | FilesPanel (Utility) | FileExplorerPanel (Files) |
+|---------|---------------------|---------------------------|
+| Location | Top bar button | PromptArea Files button |
+| Purpose | System utilities | File management |
+| Tabs | Disks, Apps, Archive | Recent, Images, Links, Memories, Bookmarks |
+| Bookmarks | ❌ Not here | ✅ Correct location |
+
+**Verification**:
+- Bookmarks tab now appears in FileExplorerPanel (PromptArea → Files)
+- Grid/List toggle works correctly
+- Search functionality integrated
+- No diagnostics errors
+- FilesPanel restored to original functionality
+
+**Files Modified**:
+- `components/panels/FileExplorerPanel.tsx` - Added viewMode and searchQuery props to BookmarksTab
+- `components/panels/FilesPanel.tsx` - Removed all bookmark-related code
+
+**Lesson Learned**:
+- Always verify the correct component path before implementing features
+- Check for similarly named components in the codebase
+- Understand the UI hierarchy and navigation flow
+- Test in the actual UI location where the feature should appear
+
+
+### Bookmark System - Navigation & Search UX Improvements ✨
+- **Status**: ✅ Implemented
+- **Components**: `BookmarksTab.tsx`, `FileExplorerPanel.tsx`
+- **Enhancements**: Go button now closes panel and navigates, expandable search in header
+- **Impact**: Seamless navigation experience and cleaner UI
+
+**Issue 1: Go Button Not Working**
+- **Problem**: Go button didn't close FileExplorerPanel before scrolling
+- **Result**: Message was behind the open panel, user couldn't see it
+- **Solution**: 
+  - Dispatch custom event `close-file-explorer` when Go is clicked
+  - FileExplorerPanel listens for event and closes
+  - Wait 300ms for close animation, then scroll to message
+  - Apply highlight-flash animation for visual feedback
+
+**Issue 2: Search Bar in Wrong Location**
+- **Problem**: Search bar was in panel body, not integrated with header
+- **Requirement**: Expandable search in header with icon-only tabs when expanded
+- **Solution**:
+  - Moved search to headerActions (right side of header)
+  - Collapses to search icon button when not in use
+  - Expands to 192px input field when clicked
+  - Tabs show icons only (no labels) when search is expanded
+  - View mode toggle hidden during search to save space
+  - ESC key or blur (when empty) collapses search
+
+**Implementation Details**:
+
+1. **Navigation Flow**:
+```typescript
+// BookmarksTab.tsx
+const navigateToMessage = (messageId: string) => {
+  // 1. Close panel
+  window.dispatchEvent(new CustomEvent('close-file-explorer'));
+  
+  // 2. Wait for animation
+  setTimeout(() => {
+    // 3. Find and scroll to message
+    const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
+    messageEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // 4. Highlight message
+    messageEl?.classList.add('highlight-flash');
+  }, 300);
+};
+
+// FileExplorerPanel.tsx
+useEffect(() => {
+  const handleCloseEvent = () => onClose();
+  window.addEventListener('close-file-explorer', handleCloseEvent);
+  return () => window.removeEventListener('close-file-explorer', handleCloseEvent);
+}, [onClose]);
+```
+
+2. **Expandable Search**:
+```typescript
+// State
+const [searchExpanded, setSearchExpanded] = useState(false);
+
+// Tabs with conditional labels
+const tabs = useMemo(() => [
+  { id: 'recent', title: searchExpanded ? '' : 'Recent', icon: <Clock /> },
+  // ... other tabs
+], [searchExpanded]);
+
+// Header actions with expandable search
+{searchExpanded ? (
+  <input /* search input */ />
+) : (
+  <button onClick={() => setSearchExpanded(true)}>
+    <Search />
+  </button>
+)}
+```
+
+**UI States**:
+```
+Normal State:
+[Recent] [Images] [Links] [Memories] [Bookmarks] [Disk] [Analysis] [Cleanup]  [🔍] [Grid/List] [↻]
+
+Search Expanded:
+[🕐] [🖼️] [🔗] [🧠] [🔖] [💾] [📊] [🗑️]  [Search input...........] [↻]
+```
+
+**User Experience Flow**:
+1. User clicks bookmark "Go" button
+2. FileExplorerPanel smoothly closes (300ms animation)
+3. View scrolls to bookmarked message with smooth animation
+4. Message highlights with blue pulse for 2 seconds
+5. User can immediately see and interact with the message
+
+**Search Experience**:
+1. Click search icon → Input expands, tabs shrink to icons
+2. Type query → Real-time filtering
+3. Press Enter → Execute search
+4. Press ESC or click away → Search collapses, tabs restore labels
+
+**Design Consistency**:
+- Maintains embossed glassmorphic style
+- Smooth 200ms transitions for all state changes
+- Consistent with other expandable UI patterns
+- Search input has inset shadow when active
+- Icons remain visible for navigation even when labels hidden
+
+**Files Modified**:
+- `components/panels/bookmarks/BookmarksTab.tsx` - Added panel close event dispatch
+- `components/panels/FileExplorerPanel.tsx` - Added close event listener, expandable search, icon-only tabs
+
+**Performance**:
+- Event-based communication (no prop drilling)
+- Memoized tabs array updates only when searchExpanded changes
+- Smooth animations with CSS transitions
+- No unnecessary re-renders
+
+**Accessibility**:
+- Search input auto-focuses when expanded
+- ESC key closes search
+- Proper ARIA labels maintained
+- Keyboard navigation preserved
+
+
+### FileExplorerPanel - Search Bar Layout Refinement 🎯
+- **Status**: ✅ Improved
+- **Component**: `FileExplorerPanel.tsx`
+- **Enhancement**: Fixed search bar positioning and prevented header jitter
+- **Impact**: Smoother, more professional UI experience
+
+**Issues Fixed**:
+1. **Header Size Changing**: Header height was jumping when search expanded
+2. **Wrong Position**: Search was on right side, should be on left
+3. **Jittery Animation**: No space pre-allocation caused layout shift
+
+**Solution**:
+- **Pre-allocated Space**: Search container has fixed width that transitions smoothly
+  - Collapsed: 32px (button size)
+  - Expanded: 192px (full input)
+- **Left-Side Positioning**: Search is now first element in header
+- **Flexbox Layout**: Spacer pushes right-side buttons to the right
+- **Smooth Transition**: 200ms ease-in-out width animation
+
+**Layout Structure**:
+```typescript
+<div className="flex items-center gap-2 w-full">
+  {/* Left: Search (pre-allocated width) */}
+  <div style={{ width: searchExpanded ? '192px' : '32px', transition: 'width 200ms' }}>
+    {searchExpanded ? <input /> : <button />}
+  </div>
+  
+  {/* Center: Spacer */}
+  <div className="flex-1" />
+  
+  {/* Right: View Toggle + Refresh */}
+  <div className="flex items-center gap-1">
+    {viewToggle}
+    {refreshButton}
+  </div>
+</div>
+```
+
+**Visual States**:
+```
+Collapsed (32px search):
+[🔍]                                    [Grid/List] [↻]
+
+Expanded (192px search):
+[🔍 Search............]                 [↻]
+```
+
+**Technical Details**:
+- Width transition: `200ms ease-in-out`
+- No layout shift: Space is always reserved
+- Header height: Constant (no jumping)
+- Search expands to the right from left edge
+- Right-side buttons stay in place
+
+**User Experience**:
+- Click search icon → Smoothly expands to the right
+- Type query → No layout shifts
+- Press ESC/blur → Smoothly collapses back to icon
+- Header remains stable throughout
+
+**Files Modified**:
+- `components/panels/FileExplorerPanel.tsx` - Restructured headerActions layout
+
+
+### FileExplorerPanel - Search Bar Layout Fix (Final) ✅
+- **Status**: ✅ Fixed
+- **Component**: `FileExplorerPanel.tsx`
+- **Issue**: Wrapper div was causing header misalignment and size changes
+- **Impact**: Header now maintains perfect alignment and consistent sizing
+
+**Root Cause**:
+- Previous implementation wrapped headerActions in a `<div>` container
+- This interfered with SecondaryPanel's flex layout (`gap-2 ml-4`)
+- Caused buttons to shrink and misalign when search expanded
+- Header elements were not properly spaced
+
+**Solution**:
+- Return React fragment (`<>`) instead of wrapper div
+- Let SecondaryPanel's existing flex container handle layout
+- Use `mr-auto` on search container to push it left
+- Pre-allocated width (32px → 192px) with smooth transition
+- All buttons maintain proper spacing from parent's `gap-2`
+
+**Technical Implementation**:
+```typescript
+// Before (broken):
+const headerActions = useMemo(() => (
+  <div className="flex items-center gap-2 w-full">  // ❌ Wrapper breaks layout
+    <div>Search</div>
+    <div className="flex-1" />  // ❌ Spacer doesn't work in nested flex
+    <div>Buttons</div>
+  </div>
+));
+
+// After (fixed):
+const headerActions = useMemo(() => (
+  <>  // ✅ Fragment lets parent handle layout
+    <div className="mr-auto" style={{ width: '32px|192px' }}>Search</div>  // ✅ mr-auto pushes left
+    {viewToggle}  // ✅ Buttons flow naturally
+    {refresh}
+  </>
+));
+```
+
+**SecondaryPanel Layout**:
+```tsx
+{/* SecondaryPanel.tsx - existing layout */}
+<div className="flex items-center gap-2 ml-4">
+  {headerActions}  {/* Fragment children inserted here */}
+  <button>Close</button>
+</div>
+```
+
+**Result**:
+- Search bar on left with pre-allocated space (32px collapsed, 192px expanded)
+- View toggle and refresh buttons on right with consistent spacing
+- No wrapper div interfering with flex layout
+- Header height and alignment remain stable
+- Smooth 200ms width transition
+- All elements maintain proper sizing
+
+**Visual Layout**:
+```
+Collapsed:
+[Tabs...........................] [🔍] [Grid] [↻] [✕]
+
+Expanded:
+[Tabs...........................] [🔍 Search.......] [↻] [✕]
+```
+
+**Files Modified**:
+- `components/panels/FileExplorerPanel.tsx` - Changed headerActions to return fragment
+
+**Lesson Learned**:
+- Don't wrap headerActions in extra divs - breaks parent flex layout
+- Use fragments to return multiple elements for flex containers
+- Use `mr-auto` for left-aligned items that push others right
+- Pre-allocate space with width transitions, not flex-grow

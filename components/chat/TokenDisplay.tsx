@@ -2,19 +2,21 @@
  * TokenDisplay Component
  * 
  * Shows tokens spent in current conversation only.
- * Format: [Model-Name] Token spend: X
+ * Format: [Model-Name] Token spend: X (model name optional via settings)
  * Resets to 0 on new chat.
  * Hidden until conversation starts.
  */
 
-import React, { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { tokenTrackingService, ConversationTokens, TokenUpdateEvent } from '../../services/tokenTrackingService';
+import { useSettings } from '../../src/contexts/SettingsContext';
 
 interface TokenDisplayProps {
   className?: string;
 }
 
 export const TokenDisplay = memo<TokenDisplayProps>(({ className = '' }) => {
+  const { tokenDisplay } = useSettings();
   const [tokens, setTokens] = useState<ConversationTokens>(() => 
     tokenTrackingService.getConversationTokens()
   );
@@ -35,8 +37,8 @@ export const TokenDisplay = memo<TokenDisplayProps>(({ className = '' }) => {
     return unsubscribe;
   }, []);
   
-  // Don't show if no tokens spent yet (totalSpent === 0)
-  if (tokens.totalSpent === 0) {
+  // Don't show if disabled in settings or no tokens spent yet
+  if (!tokenDisplay.enabled || tokens.totalSpent === 0) {
     return null;
   }
   
@@ -56,16 +58,20 @@ export const TokenDisplay = memo<TokenDisplayProps>(({ className = '' }) => {
       }}
       title={`Cost: $${tokens.cost.toFixed(4)}`}
     >
-      <span style={{ opacity: 0.5 }}>[</span>
-      <span 
-        style={{ 
-          color: 'var(--color-primary, #10b981)',
-          fontWeight: 600,
-        }}
-      >
-        {modelName}
-      </span>
-      <span style={{ opacity: 0.5 }}>]</span>
+      {tokenDisplay.showModelName && (
+        <>
+          <span style={{ opacity: 0.5 }}>[</span>
+          <span 
+            style={{ 
+              color: 'var(--color-primary, #10b981)',
+              fontWeight: 600,
+            }}
+          >
+            {modelName}
+          </span>
+          <span style={{ opacity: 0.5 }}>]</span>
+        </>
+      )}
       <span style={{ color: 'var(--text-secondary, #999)' }}>Token spend:</span>
       <span 
         style={{ 
