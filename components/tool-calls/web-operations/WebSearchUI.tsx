@@ -1,11 +1,12 @@
 /**
  * Web Search UI Plugin
  * 
- * Displays web search results with titles, URLs, snippets, and relevance scores.
+ * Displays web search results with embossed glassmorphic design.
+ * Follows the Skhoot Embossed Style Guide for consistent theming.
  */
 
 import React, { memo, useState, useMemo } from 'react';
-import { Copy, Check, ExternalLink, Calendar } from 'lucide-react';
+import { Copy, Check, ExternalLink, Calendar, ChevronRight, Globe } from 'lucide-react';
 import { ToolCallUIProps } from '../registry/types';
 
 // ============================================================================
@@ -18,6 +19,7 @@ interface WebSearchResult {
   snippet: string;
   published_date?: string;
   relevance_score: number;
+  image_url?: string;
 }
 
 interface WebSearchResponse {
@@ -31,8 +33,30 @@ interface WebSearchResponse {
 // Components
 // ============================================================================
 
-const WebSearchResultCard: React.FC<{ result: WebSearchResult; index: number }> = ({ result, index }) => {
+const WebSearchResultCard: React.FC<{ result: WebSearchResult; isLast: boolean }> = ({ result, isLast }) => {
   const [copied, setCopied] = useState(false);
+  const [faviconError, setFaviconError] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  // Get favicon from Google's service
+  const faviconUrl = useMemo(() => {
+    try {
+      const url = new URL(result.url);
+      return `https://www.google.com/s2/favicons?domain=${url.hostname}&sz=64`;
+    } catch {
+      return null;
+    }
+  }, [result.url]);
+
+  // Extract hostname for display
+  const hostname = useMemo(() => {
+    try {
+      return new URL(result.url).hostname.replace('www.', '');
+    } catch {
+      return '';
+    }
+  }, [result.url]);
 
   const handleCopyUrl = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -41,66 +65,157 @@ const WebSearchResultCard: React.FC<{ result: WebSearchResult; index: number }> 
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleOpenUrl = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const { open } = await import(/* @vite-ignore */ '@tauri-apps/plugin-shell');
+      await open(result.url);
+    } catch (error) {
+      window.open(result.url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   return (
-    <div className="p-3 rounded-lg glass-subtle hover:glass-elevated transition-all group">
-      <div className="flex items-start gap-2">
-        <span className="text-[10px] font-bold text-accent bg-accent/10 px-2 py-1 rounded-full flex-shrink-0">
-          #{index + 1}
-        </span>
+    <div className={`${!isLast ? 'border-b border-dashed border-glass-border' : ''}`}>
+      <div
+        onClick={() => setExpanded(!expanded)}
+        className="py-2 flex items-start gap-2 cursor-pointer hover:bg-glass-bg/30 transition-all duration-200 rounded-sm px-1 -mx-1"
+        style={{
+          boxShadow: expanded 
+            ? 'inset 0 1px 2px rgba(0, 0, 0, 0.1)' 
+            : 'none'
+        }}
+      >
+        {/* Favicon or page image */}
+        <div 
+          className="flex-shrink-0 w-5 h-5 rounded overflow-hidden mt-0.5 cursor-pointer"
+          onClick={handleOpenUrl}
+          style={{
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08), inset 0 0.5px 1px rgba(255, 255, 255, 0.15)'
+          }}
+        >
+          {result.image_url && !imageError ? (
+            <img 
+              src={result.image_url} 
+              alt=""
+              className="w-full h-full object-cover"
+              onError={() => setImageError(true)}
+            />
+          ) : faviconUrl && !faviconError ? (
+            <div className="w-full h-full bg-glass-bg/50 flex items-center justify-center">
+              <img 
+                src={faviconUrl} 
+                alt=""
+                className="w-3.5 h-3.5 object-contain"
+                onError={() => setFaviconError(true)}
+              />
+            </div>
+          ) : (
+            <div className="w-full h-full bg-glass-bg/50 flex items-center justify-center">
+              <Globe size={10} className="text-text-secondary" />
+            </div>
+          )}
+        </div>
+
+        {/* Title and snippet */}
         <div className="flex-1 min-w-0">
-          <a 
-            href={result.url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-[12px] font-bold text-accent hover:underline flex items-center gap-1 group"
-          >
+          <p className="text-[11px] font-medium text-text-primary leading-snug">
             {result.title}
-            <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-          </a>
-          <p className="text-[10px] text-text-secondary mt-1 line-clamp-2">
+          </p>
+          {!expanded && (
+            <p className="text-[9px] text-text-secondary line-clamp-1 mt-0.5">
+              {result.snippet}
+            </p>
+          )}
+        </div>
+
+        {/* Open button */}
+        <button
+          onClick={handleOpenUrl}
+          className="flex-shrink-0 p-1 rounded transition-all duration-200 mt-0.5"
+          style={{
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04), inset 0 0.5px 1px rgba(255, 255, 255, 0.2)'
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.boxShadow = 'inset 0 1px 2px rgba(0, 0, 0, 0.15)';
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.04), inset 0 0.5px 1px rgba(255, 255, 255, 0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.04), inset 0 0.5px 1px rgba(255, 255, 255, 0.2)';
+          }}
+          title="Open in browser"
+        >
+          <ChevronRight size={12} className="text-text-secondary" />
+        </button>
+      </div>
+
+      {/* Expanded content */}
+      {expanded && (
+        <div className="pl-7 pr-1 pb-2 space-y-1.5 overflow-hidden">
+          <p className="text-[10px] text-text-secondary leading-relaxed break-words">
             {result.snippet}
           </p>
-          <div className="flex items-center gap-3 mt-2 text-[9px] text-text-secondary">
-            <span className="font-bold text-emerald-600">
-              {result.relevance_score}% match
+          <a 
+            href={result.url}
+            onClick={handleOpenUrl}
+            className="flex items-center gap-1 text-[9px] text-accent hover:underline min-w-0 cursor-pointer"
+          >
+            <Globe size={9} className="flex-shrink-0" />
+            <span className="truncate">{hostname}</span>
+          </a>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px]">
+            <span className="text-emerald-600 font-medium">
+              {Math.round(result.relevance_score * 100)}%
             </span>
             {result.published_date && (
-              <span className="flex items-center gap-1">
+              <span className="text-text-secondary flex items-center gap-1">
                 <Calendar size={9} />
                 {result.published_date}
               </span>
             )}
             <button
+              onClick={handleOpenUrl}
+              className="flex items-center gap-1 text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <ExternalLink size={9} />
+              Open
+            </button>
+            <button
               onClick={handleCopyUrl}
-              className="flex items-center gap-1 hover:text-accent transition-colors ml-auto opacity-0 group-hover:opacity-100"
+              className="flex items-center gap-1 text-text-secondary hover:text-text-primary transition-colors"
             >
               {copied ? <Check size={9} /> : <Copy size={9} />}
-              {copied ? 'Copied!' : 'Copy URL'}
+              {copied ? 'Copied' : 'Copy'}
             </button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
 
-const SearchSummary: React.FC<{ 
-  query: string; 
+const SearchHeader: React.FC<{ 
+  query: string;
+}> = ({ query }) => {
+  return (
+    <div className="flex items-center gap-2 text-[9px] text-text-secondary pb-1.5 border-b border-dashed border-glass-border">
+      <span className="font-medium truncate max-w-[180px]">"{query}"</span>
+    </div>
+  );
+};
+
+const SearchFooter: React.FC<{ 
   totalResults: number; 
   searchTime: number;
-}> = ({ query, totalResults, searchTime }) => {
+}> = ({ totalResults, searchTime }) => {
   return (
-    <div className="p-2 rounded-lg bg-accent/10 border border-accent/20">
-      <div className="flex items-center justify-between text-[10px]">
-        <span className="font-bold text-text-primary">
-          Query: <span className="font-mono text-accent">"{query}"</span>
-        </span>
-        <div className="flex items-center gap-3 text-text-secondary">
-          <span>{totalResults} results</span>
-          <span>•</span>
-          <span>{searchTime}ms</span>
-        </div>
-      </div>
+    <div className="pt-2 mt-2 border-t border-dashed border-glass-border flex items-center justify-end gap-1.5 text-[9px] text-text-secondary">
+      <span>{totalResults} found</span>
+      <span className="text-text-secondary/50">•</span>
+      <span>{searchTime}ms</span>
     </div>
   );
 };
@@ -136,46 +251,72 @@ export const WebSearchUI = memo<ToolCallUIProps>(({
   }
 
   return (
-    <div className="mt-2">
-      {/* Output header with actions */}
-      <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
-          {result.success ? 'Search Results' : 'Error'}
-        </span>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1 text-[10px] font-bold text-accent hover:text-accent/80 transition-colors"
-        >
-          {copied ? <Check size={12} /> : <Copy size={12} />}
-          {copied ? 'Copied!' : 'Copy'}
-        </button>
-      </div>
-      
+    <div className="max-w-[320px]">
       {/* Search results */}
       {result.success && searchResults ? (
-        <div className="space-y-2">
-          <SearchSummary 
-            query={searchResults.query}
-            totalResults={searchResults.total_results}
-            searchTime={searchResults.search_time_ms}
-          />
+        <div 
+          className="rounded-lg border border-dashed border-glass-border p-2 backdrop-blur-[8px]"
+          style={{
+            background: 'var(--glass-bg)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.2)'
+          }}
+        >
+          <SearchHeader query={searchResults.query} />
           
           {searchResults.results && searchResults.results.length > 0 ? (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
-              {searchResults.results.map((result, i) => (
-                <WebSearchResultCard key={i} result={result} index={i} />
+            <div className="overflow-x-hidden">
+              {searchResults.results.map((searchResult, i) => (
+                <WebSearchResultCard 
+                  key={i} 
+                  result={searchResult} 
+                  isLast={i === searchResults.results.length - 1}
+                />
               ))}
             </div>
           ) : (
-            <div className="p-4 text-center text-text-secondary text-[11px] glass-subtle rounded-lg">
-              No results found for "{searchResults.query}"
+            <div className="py-3 text-center text-text-secondary text-[10px]">
+              No results found
             </div>
           )}
+
+          <SearchFooter 
+            totalResults={searchResults.total_results}
+            searchTime={searchResults.search_time_ms}
+          />
+
+          <div className="pt-2 mt-2 border-t border-dashed border-glass-border">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 text-[9px] text-text-secondary hover:text-text-primary transition-all duration-200 rounded px-1.5 py-1"
+              style={{
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04), inset 0 0.5px 1px rgba(255, 255, 255, 0.2)'
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.boxShadow = 'inset 0 1px 2px rgba(0, 0, 0, 0.15)';
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.04), inset 0 0.5px 1px rgba(255, 255, 255, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.04), inset 0 0.5px 1px rgba(255, 255, 255, 0.2)';
+              }}
+            >
+              {copied ? <Check size={9} /> : <Copy size={9} />}
+              {copied ? 'Copied results' : 'Copy all results'}
+            </button>
+          </div>
         </div>
       ) : (
-        <pre className="text-[11px] font-mono p-3 rounded-xl border border-glass-border overflow-x-auto max-h-[250px] text-red-600 bg-red-500/10 border-red-500/20">
-          {result.output || result.error || 'No output'}
-        </pre>
+        <div 
+          className="rounded-lg border border-dashed border-red-500/30 p-2"
+          style={{
+            background: 'rgba(239, 68, 68, 0.05)'
+          }}
+        >
+          <pre className="text-[10px] font-mono overflow-x-auto max-h-[100px] text-red-600">
+            {result.output || result.error || 'No output'}
+          </pre>
+        </div>
       )}
     </div>
   );

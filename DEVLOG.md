@@ -2,6 +2,74 @@
 
 ## January 18, 2026
 
+### Web Search UI Redesign with Embossed Style 🎨🔍
+- **Status**: ✅ Implemented
+- **Component**: `WebSearchUI.tsx`
+- **Enhancement**: Complete redesign following Skhoot Embossed Style Guide
+- **Impact**: Modern, compact, and interactive search results with proper theming
+
+**Key Features**:
+- **Embossed Glassmorphic Design**: Follows design system with floating/pressed states
+- **Collapsible Results**: Click to expand/collapse individual results
+- **Smart Image Display**: Shows page images (from `image_url`) or favicons with fallback to Globe icon
+- **Clickable Images**: Click favicon/image to open link in browser
+- **Clickable Links**: All links properly open in system browser via Tauri shell
+- **Compact Layout**: Max width 320px with efficient space usage
+- **Footer Stats**: "X found • Yms" moved to footer (right-aligned)
+- **Theme-Aware**: Uses CSS variables for light/dark mode compatibility
+- **Interactive Buttons**: Embossed shadow states on press (floating → pressed)
+
+**Design System Compliance**:
+```typescript
+// Inactive/Floating state
+boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.2)'
+
+// Active/Pressed state
+boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.15)'
+```
+
+**Layout Structure**:
+- Header: Query display
+- Body: Collapsible result cards with favicon/image
+- Footer: Stats (found count, search time)
+- Actions: Copy all results button
+
+**Result Card Features**:
+- Favicon or page image (20x20px)
+- Title and snippet preview when collapsed
+- Full snippet, URL, relevance score, date when expanded
+- Open and Copy buttons in expanded state
+- Embossed effect when expanded
+
+---
+
+### Web Search Links Open in Browser 🔗🌐
+- **Status**: ✅ Implemented
+- **Component**: `WebSearchUI.tsx`
+- **Enhancement**: Web search result links now properly open in the default browser
+- **Impact**: Improved user experience when interacting with search results
+
+**Changes**:
+- Added `handleOpenUrl` function using Tauri's shell plugin (`@tauri-apps/plugin-shell`)
+- Replaced `target="_blank"` with onClick handler for proper Tauri integration
+- Added fallback to `window.open()` for non-Tauri environments
+- Links now open in system default browser instead of within the app
+
+**Technical Details**:
+```typescript
+const handleOpenUrl = async (e: React.MouseEvent) => {
+  e.preventDefault();
+  try {
+    const { open } = await import('@tauri-apps/plugin-shell');
+    await open(result.url);
+  } catch (error) {
+    window.open(result.url, '_blank', 'noopener,noreferrer');
+  }
+};
+```
+
+---
+
 ### Images Tab in File Explorer Panel 🖼️📁
 - **Status**: ✅ Implemented
 - **Components**: `ImagesTab.tsx`, `imageStorage.ts`, `FileExplorerPanel.tsx`, `ChatInterface.tsx`
