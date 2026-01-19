@@ -1,5 +1,53 @@
 # Development Log
 
+## January 19, 2026
+
+### Web Search Results Display Fix 🔍
+- **Status**: ✅ Fixed
+- **Component**: `WebSearchUI.tsx`, `MessageBubble.tsx`
+- **Issue**: Web search results were flashing briefly then disappearing from the conversation
+- **Root Cause**: React.memo shallow comparison causing unnecessary unmounts/remounts
+
+**Problem Analysis**:
+The `WebSearchUI` component was wrapped with `React.memo()` without a custom comparison function. When the parent component re-rendered (common in chat interfaces), the `result` prop was recreated with a new object reference despite containing identical data. This caused:
+1. **Flash**: Initial render with search results
+2. **Disappear**: Component unmount/remount when React detected "new" props (same data, different reference)
+
+**Solution Implemented**:
+- **Added Custom Comparison Function**: `arePropsEqual` performs deep comparison of `result` object properties
+- **Prevents Unnecessary Re-renders**: Component only updates when actual data changes, not when object reference changes
+- **Enhanced Logging**: Added comprehensive debug logs to track result parsing and rendering
+
+**Key Changes**:
+```typescript
+// Custom comparison for memo to prevent false-positive prop changes
+const arePropsEqual = (prevProps: ToolCallUIProps, nextProps: ToolCallUIProps) => {
+  if (prevProps.result === nextProps.result) return true;
+  if (!prevProps.result || !nextProps.result) return false;
+  
+  return (
+    prevProps.result.toolCallId === nextProps.result.toolCallId &&
+    prevProps.result.success === nextProps.result.success &&
+    prevProps.result.output === nextProps.result.output &&
+    prevProps.result.error === nextProps.result.error
+  );
+};
+
+export const WebSearchUI = memo<ToolCallUIProps>({ ... }, arePropsEqual);
+```
+
+**Debug Logging Added**:
+- Result parsing and validation in `WebSearchUI`
+- Tool call rendering tracking in `MessageBubble`
+- Tool call ID and result matching verification
+
+**Impact**:
+- Web search results now persist correctly in conversation
+- Improved performance by preventing unnecessary re-renders
+- Better debugging capabilities for future tool UI issues
+
+---
+
 ## January 18, 2026
 
 ### Message Action Buttons - Hover-Activated Icon Buttons 🎯

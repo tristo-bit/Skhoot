@@ -196,6 +196,11 @@ export const MessageBubble = memo<MessageBubbleProps>(({ message, onEdit, onRege
                 !['create_terminal', 'execute_command', 'read_output', 'list_terminals', 'inspect_terminal'].includes(tc.name)
               );
               
+              console.log('[MessageBubble] Agent action message:', message.id);
+              console.log('[MessageBubble] Tool calls:', message.toolCalls);
+              console.log('[MessageBubble] Tool results:', message.toolResults);
+              console.log('[MessageBubble] Other calls:', otherCalls);
+              
               return (
                 <>
                   {/* Show single MiniTerminalView for all terminal commands */}
@@ -259,6 +264,7 @@ export const MessageBubble = memo<MessageBubbleProps>(({ message, onEdit, onRege
                   {/* Show other tool calls with their UI */}
                   {otherCalls.map((toolCall, index) => {
                     const result = message.toolResults?.find(r => r.toolCallId === toolCall.id);
+                    console.log('[MessageBubble] Rendering tool call:', toolCall.name, 'ID:', toolCall.id, 'with result:', result);
                     return (
                       <AgentAction
                         key={toolCall.id || index}

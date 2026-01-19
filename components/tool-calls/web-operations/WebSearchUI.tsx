@@ -459,6 +459,20 @@ const SearchHeader: React.FC<{
 // Main Component
 // ============================================================================
 
+// Custom comparison function for memo to prevent unnecessary re-renders
+const arePropsEqual = (prevProps: ToolCallUIProps, nextProps: ToolCallUIProps) => {
+  // Compare result objects deeply
+  if (prevProps.result === nextProps.result) return true;
+  if (!prevProps.result || !nextProps.result) return false;
+  
+  return (
+    prevProps.result.toolCallId === nextProps.result.toolCallId &&
+    prevProps.result.success === nextProps.result.success &&
+    prevProps.result.output === nextProps.result.output &&
+    prevProps.result.error === nextProps.result.error
+  );
+};
+
 export const WebSearchUI = memo<ToolCallUIProps>(({ 
   result,
 }) => {
@@ -468,10 +482,17 @@ export const WebSearchUI = memo<ToolCallUIProps>(({
   const [visibleRows, setVisibleRows] = useState(1); // Track number of visible rows
 
   const searchResults = useMemo<WebSearchResponse | null>(() => {
-    if (!result?.output) return null;
+    console.log('[WebSearchUI] Parsing result:', result);
+    if (!result?.output) {
+      console.log('[WebSearchUI] No result or output');
+      return null;
+    }
     try {
-      return JSON.parse(result.output);
-    } catch {
+      const parsed = JSON.parse(result.output);
+      console.log('[WebSearchUI] Parsed search results:', parsed);
+      return parsed;
+    } catch (error) {
+      console.error('[WebSearchUI] Failed to parse result:', error);
       return null;
     }
   }, [result]);
@@ -506,7 +527,12 @@ export const WebSearchUI = memo<ToolCallUIProps>(({
     }
   };
 
+  console.log('[WebSearchUI] Rendering with result:', result);
+  console.log('[WebSearchUI] Search results:', searchResults);
+  console.log('[WebSearchUI] Displayed results count:', displayedResults.length);
+
   if (!result) {
+    console.log('[WebSearchUI] No result, returning null');
     return null;
   }
 
@@ -617,6 +643,7 @@ export const WebSearchUI = memo<ToolCallUIProps>(({
       )}
     </div>
   );
-});
+}, arePropsEqual);
 
 WebSearchUI.displayName = 'WebSearchUI';
+
