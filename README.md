@@ -177,6 +177,10 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
   - Click edit to modify message content in-place
   - Save with Ctrl+Enter or Cancel with Escape
   - Visual feedback with save/cancel buttons
+- **Message Highlighting**: Visual highlighting for bookmarked or referenced messages
+  - Purple ring effect with smooth transitions for highlighted messages
+  - Automatic scroll-to-message support via message ID anchors
+  - Seamless integration with bookmark navigation
 - **Vision & Image Analysis**: Multi-modal AI support for image understanding in both Normal and Agent modes
   - Attach images to messages for visual analysis and OCR
   - Automatic base64 encoding for all AI providers
@@ -281,7 +285,9 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 - **Volume Controls**: Independent input/output volume adjustment
 - **Sensitivity Settings**: Auto or manual microphone sensitivity configuration
 - **Privacy Controls**: Manage account settings and data export
-- **Activity Logging**: Track and review your interactions
+- **Activity Logging**: Track and review your interactions with export and clear options
+  - Click on activity logs to navigate directly to the related conversation and message
+  - Automatic message highlighting when navigating from activity logs
 - **Help Center**: Comprehensive support hub with documentation access
 
 </details>
@@ -914,6 +920,122 @@ const status = diskService.getDiskStatus(disk.percentUsed);
 - `percentUsed`: Usage percentage (0-100)
 - `fileSystem`: File system type (NTFS, ext4, APFS, etc.)
 - `isRemovable`: Whether the disk is removable media
+
+</details>
+
+<details>
+<summary><strong>Activity Logger Service API</strong></summary>
+
+```typescript
+import { activityLogger, formatRelativeTime } from './services/activityLogger';
+import type { ActivityLog, ActivityAction, ActivityStatus, ActivityFilter, SearchMetadata } from './services/activityLogger';
+
+// Log a new activity
+const log = activityLogger.log(
+  'File Search',           // action: ActivityAction
+  'config.json',           // query: string
+  'Found 5 matches',       // result: string
+  'success',               // status: ActivityStatus (optional, defaults to 'success')
+  { duration: 150 },       // metadata: Record<string, unknown> (optional)
+  {                        // searchMetadata: SearchMetadata (optional)
+    query: 'config.json',
+    fileTypes: 'json',
+    searchMode: 'hybrid',
+    executionTime: 150,
+    originalResults: 5,
+    filteredResults: 5
+  },
+  'conv-123',              // chatId: string (optional) - links to conversation
+  'msg-456'                // messageId: string (optional) - links to specific message
+);
+
+// Get all logs
+const allLogs: ActivityLog[] = activityLogger.getLogs();
+
+// Get filtered logs by category
+const searchLogs = activityLogger.getFilteredLogs('search');  // File/Content/Message Search
+const cleanupLogs = activityLogger.getFilteredLogs('cleanup'); // Cleanup operations
+const archiveLogs = activityLogger.getFilteredLogs('archive'); // Archive operations
+const chatLogs = activityLogger.getFilteredLogs('chat');       // AI Chat & Voice Input
+const allLogs = activityLogger.getFilteredLogs('all');         // All activities
+
+// Clear all logs
+activityLogger.clearLogs();
+
+// Subscribe to log updates (real-time)
+const unsubscribe = activityLogger.subscribe((logs: ActivityLog[]) => {
+  console.log('Logs updated:', logs.length);
+});
+
+// Unsubscribe when done
+unsubscribe();
+
+// Export logs as JSON
+const jsonExport = activityLogger.exportLogs();
+console.log(jsonExport); // Pretty-printed JSON string
+
+// Export logs as CSV
+const csvExport = activityLogger.exportLogsCSV();
+console.log(csvExport); // CSV with headers: ID, Timestamp, Action, Query, Result, Status
+
+// Format relative time for display
+const timeStr = formatRelativeTime(new Date()); // "Just now"
+const timeStr2 = formatRelativeTime(new Date(Date.now() - 300000)); // "5m ago"
+```
+
+**Activity Types:**
+- `'File Search'`: File search operations
+- `'Content Search'`: Content/text search within files
+- `'Message Search'`: Bookmark/message search operations
+- `'Archive'`: Archive operations
+- `'Cleanup'`: Cleanup and disk management
+- `'Disk Analysis'`: Disk usage analysis
+- `'AI Chat'`: AI chat interactions
+- `'Agent'`: Agent mode operations
+- `'Voice Input'`: Voice command input
+- `'Settings Change'`: Settings modifications
+
+**ActivityLog Interface:**
+- `id`: Unique log identifier (auto-generated)
+- `timestamp`: Date when activity occurred
+- `action`: Type of activity (ActivityAction)
+- `query`: User query or action description
+- `result`: Result or outcome description
+- `status`: 'success' | 'error' | 'pending'
+- `metadata`: Optional additional data (Record<string, unknown>)
+- `searchMetadata`: Optional search-specific metadata (SearchMetadata)
+- `chatId`: Optional conversation ID for linking to chat sessions
+- `messageId`: Optional message ID for linking to specific messages
+
+**SearchMetadata Interface:**
+- `query`: Search query string
+- `fileTypes`: File type filters (optional)
+- `searchPath`: Search directory path (optional)
+- `searchMode`: Search engine mode (optional)
+- `executionTime`: Search duration in ms (optional)
+- `originalResults`: Total results before filtering (optional)
+- `filteredResults`: Results after filtering (optional)
+- `filterReason`: Reason for filtering (optional)
+- `results`: Detailed result array with paths, scores, and inclusion status (optional)
+
+**Features:**
+- **Persistent Storage**: Automatically saves to localStorage (max 100 logs)
+- **Real-time Updates**: Subscribe to log changes with listener pattern
+- **Filtering**: Built-in category filters for different activity types
+- **Export Options**: JSON and CSV export for external analysis
+- **Conversation Linking**: Link activities to specific chat conversations and messages
+- **Search Metadata**: Rich metadata for search operations with detailed results
+- **Time Formatting**: Human-readable relative time formatting
+- **Auto-Cleanup**: Automatically trims to most recent 100 logs
+
+**UI Component:**
+The Activity Panel (`components/activity/ActivityPanel.tsx`) provides a visual interface for viewing and managing activity logs with:
+- **Filtering**: Filter by activity type (all, search, cleanup, archive, chat)
+- **Search Detail Modals**: View detailed search metadata and results
+- **Export Functionality**: Export logs as JSON or CSV
+- **Clear Logs**: Clear all logs with confirmation dialog
+- **Message Navigation**: Click on logs with conversation links to jump directly to the related message in chat
+- **Visual Feedback**: Automatic message highlighting when navigating from activity logs
 
 </details>
 

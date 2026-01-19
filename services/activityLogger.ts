@@ -41,6 +41,8 @@ export interface ActivityLog {
   status: ActivityStatus;
   metadata?: Record<string, unknown>;
   searchMetadata?: SearchMetadata;
+  chatId?: string;
+  messageId?: string;
 }
 
 export type ActivityFilter = 'all' | 'search' | 'cleanup' | 'archive' | 'chat';
@@ -99,7 +101,9 @@ export const activityLogger = {
     result: string,
     status: ActivityStatus = 'success',
     metadata?: Record<string, unknown>,
-    searchMetadata?: SearchMetadata
+    searchMetadata?: SearchMetadata,
+    chatId?: string,
+    messageId?: string
   ): ActivityLog {
     const log: ActivityLog = {
       id: generateId(),
@@ -109,7 +113,9 @@ export const activityLogger = {
       result,
       status,
       metadata,
-      searchMetadata
+      searchMetadata,
+      chatId,
+      messageId
     };
 
     logsCache = [log, ...logsCache].slice(0, MAX_LOGS);

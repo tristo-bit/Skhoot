@@ -23,6 +23,7 @@ interface MainAreaProps {
   promptKey?: number;
   queuedMessage?: string | null;
   hasAgentMode?: boolean;
+  highlightedMessageId?: string | null;
   onSendVoice: () => void;
   onDiscardVoice: () => void;
   onEditVoice?: (newText: string) => void;
@@ -55,6 +56,7 @@ export const MainArea = memo(forwardRef<HTMLDivElement, MainAreaProps>(({
   promptKey = 0,
   queuedMessage,
   hasAgentMode = false,
+  highlightedMessageId = null,
   onSendVoice,
   onDiscardVoice,
   onEditVoice,
@@ -167,6 +169,7 @@ export const MainArea = memo(forwardRef<HTMLDivElement, MainAreaProps>(({
               onRegenerateFrom={onRegenerateFromMessage}
               onSendPrompt={onSendPrompt}
               hasAgentMode={hasAgentMode}
+              isHighlighted={highlightedMessageId === msg.id}
             />
           ))}
         

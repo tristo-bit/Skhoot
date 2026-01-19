@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Download } from 'lucide-react';
 import { BackButton, CloseButton } from '../buttonFormat';
 import { useActivityLogs } from './hooks/useActivityLogs';
+import { activityLogger } from '../../services/activityLogger';
 import { 
   ActivityFilterBar, 
   ActivityLogItem, 
@@ -23,6 +24,12 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ onClose, onBack })
     exportJSON,
     isEmpty 
   } = useActivityLogs();
+
+  const handleClearLogs = () => {
+    if (confirm('Clear all activity logs? This cannot be undone.')) {
+      activityLogger.clearLogs();
+    }
+  };
 
   const panel = (
     <div 
@@ -68,14 +75,22 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ onClose, onBack })
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3">
+        <div className="px-4 py-3 flex gap-2">
           <button 
             onClick={exportJSON}
             disabled={isEmpty}
-            className="w-full py-2.5 rounded-xl text-[11px] font-bold font-jakarta text-text-secondary hover:glass-subtle transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 py-2.5 rounded-xl text-[11px] font-bold font-jakarta text-text-secondary hover:glass-subtle transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download size={14} />
             Export Activity Log
+          </button>
+          <button 
+            onClick={handleClearLogs}
+            disabled={isEmpty}
+            className="px-4 py-2.5 rounded-xl text-[11px] font-bold font-jakarta text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Clear all logs"
+          >
+            Clear
           </button>
         </div>
       </div>

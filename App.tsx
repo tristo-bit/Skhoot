@@ -173,17 +173,41 @@ const AppContent: React.FC = () => {
       setIsWorkflowsOpen(false);
     };
 
+    // Listen for navigate-to-message event (from ActivityPanel)
+    const handleNavigateToMessage = (event: CustomEvent) => {
+      const { chatId, messageId } = event.detail;
+      if (chatId && messageId) {
+        // Switch to the chat
+        setCurrentChatId(chatId);
+        // Close activity panel
+        setIsActivityOpen(false);
+        // Dispatch event to highlight message after a short delay
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('highlight-message', { detail: { messageId } }));
+        }, 300);
+      }
+    };
+
+    // Listen for close-activity-panel event
+    const handleCloseActivityPanel = () => {
+      setIsActivityOpen(false);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('open-api-config', handleOpenApiConfig);
     window.addEventListener('open-ai-settings', handleOpenAISettings);
     window.addEventListener('ai-terminal-created', handleAITerminalCreated);
     window.addEventListener('open-terminal-panel', handleOpenTerminalPanel);
+    window.addEventListener('navigate-to-message', handleNavigateToMessage as EventListener);
+    window.addEventListener('close-activity-panel', handleCloseActivityPanel);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('open-api-config', handleOpenApiConfig);
       window.removeEventListener('open-ai-settings', handleOpenAISettings);
       window.removeEventListener('ai-terminal-created', handleAITerminalCreated);
       window.removeEventListener('open-terminal-panel', handleOpenTerminalPanel);
+      window.removeEventListener('navigate-to-message', handleNavigateToMessage as EventListener);
+      window.removeEventListener('close-activity-panel', handleCloseActivityPanel);
     };
   }, []);
 

@@ -10,8 +10,6 @@ interface FilterOption {
 const FILTER_OPTIONS: FilterOption[] = [
   { id: 'all', label: 'All' },
   { id: 'search', label: 'Searches' },
-  { id: 'cleanup', label: 'Cleanup' },
-  { id: 'archive', label: 'Archive' },
   { id: 'chat', label: 'Chat' }
 ];
 
@@ -30,7 +28,7 @@ export const ActivityFilterBar: React.FC<ActivityFilterBarProps> = ({
         <button
           key={option.id}
           onClick={() => onFilterChange(option.id)}
-          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-jakarta whitespace-nowrap transition-all ${
+          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-jakarta whitespace-nowrap transition-all active:scale-95 ${
             activeFilter === option.id 
               ? 'glass-subtle text-accent' 
               : 'glass-subtle text-text-secondary hover:glass'

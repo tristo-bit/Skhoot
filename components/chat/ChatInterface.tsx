@@ -63,6 +63,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isEmptyStateExiting, setIsEmptyStateExiting] = useState(false);
   const [queuedMessage, setQueuedMessage] = useState<string | null>(null);
   const [selectedToolCall, setSelectedToolCall] = useState<any | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   
   // Refs
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -132,6 +133,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toggleAgentMode]);
+
+  // Listen for highlight-message event (from ActivityPanel navigation)
+  useEffect(() => {
+    const handleHighlightMessage = (event: CustomEvent) => {
+      const { messageId } = event.detail;
+      if (messageId) {
+        setHighlightedMessageId(messageId);
+        
+        // Scroll to the message
+        setTimeout(() => {
+          const messageElement = document.getElementById(`message-${messageId}`);
+          if (messageElement) {
+            messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+        
+        // Remove highlight after 3 seconds
+        setTimeout(() => {
+          setHighlightedMessageId(null);
+        }, 3000);
+      }
+    };
+
+    window.addEventListener('highlight-message', handleHighlightMessage as EventListener);
+    return () => {
+      window.removeEventListener('highlight-message', handleHighlightMessage as EventListener);
+    };
+  }, []);
 
   // Notify parent when messages change
   useEffect(() => {
@@ -743,7 +772,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           'Agent',
           messageText.slice(0, 50) + (messageText.length > 50 ? '...' : ''),
           `Completed with ${toolCalls.length} tool calls`,
-          'success'
+          'success',
+          undefined,
+          undefined,
+          chatId || undefined,
+          assistantMsg.id
         );
 
         // Send success notification
@@ -811,7 +844,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             'AI Chat',
             messageText.slice(0, 50) + (messageText.length > 50 ? '...' : ''),
             'Response received',
-            'success'
+            'success',
+            undefined,
+            undefined,
+            chatId || undefined,
+            assistantMsg.id
           );
         }
       }
@@ -842,7 +879,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         isAgentMode ? 'Agent' : 'AI Chat',
         messageText.slice(0, 50) + (messageText.length > 50 ? '...' : ''),
         'Error: ' + errorMessage.slice(0, 30),
-        'error'
+        'error',
+        undefined,
+        undefined,
+        chatId || undefined,
+        userMsg.id
       );
       
       setMessages(prev => [...prev, {
@@ -1407,7 +1448,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           'Agent',
           newContent.slice(0, 50) + (newContent.length > 50 ? '...' : ''),
           `Regenerated with ${toolCalls.length} tool calls`,
-          'success'
+          'success',
+          undefined,
+          undefined,
+          chatId || undefined,
+          assistantMsg.id
         );
 
         await nativeNotifications.success(
@@ -1458,7 +1503,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             'AI Chat',
             newContent.slice(0, 50) + (newContent.length > 50 ? '...' : ''),
             'Regenerated response',
-            'success'
+            'success',
+            undefined,
+            undefined,
+            chatId || undefined,
+            assistantMsg.id
           );
         }
       }
@@ -1485,7 +1534,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         isAgentMode ? 'Agent' : 'AI Chat',
         newContent.slice(0, 50) + (newContent.length > 50 ? '...' : ''),
         'Error: ' + errorMessage.slice(0, 30),
-        'error'
+        'error',
+        undefined,
+        undefined,
+        chatId || undefined,
+        messageId
       );
       
       setMessages(prev => [...prev, {
@@ -1519,6 +1572,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         promptKey={promptKey}
         queuedMessage={queuedMessage}
         hasAgentMode={isAgentMode && !!agentSessionId}
+        highlightedMessageId={highlightedMessageId}
         onSendVoice={handleSend}
         onDiscardVoice={discardVoice}
         onEditVoice={editVoiceTranscript}

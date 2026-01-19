@@ -2,6 +2,105 @@
 
 ## January 19, 2026
 
+### Activity Log - Navigate to Message Feature - Complete ✅
+- **Status**: ✅ Fully Completed
+- **Components**: `ActivityLogItem.tsx`, `activityLogger.ts`, `App.tsx`, `ChatInterface.tsx`, `MainArea.tsx`, `MessageBubble.tsx`, `ActivityPanel.tsx`
+- **Feature**: Added "Go" button to navigate to specific messages from Activity Log
+- **Impact**: Users can now jump directly to the conversation and message that generated an activity log entry
+
+**Final Implementation**:
+- "Go" button appears on ALL activity log entries (always visible)
+- Button is centered vertically for better alignment
+- Black and white color scheme (`text-text-primary`) for consistency with UI
+- Fully functional: opens conversation and highlights the message
+- Added "Clear" button to remove old logs
+
+**Changes Made**:
+- Added `chatId` and `messageId` fields to `ActivityLog` interface
+- Added "Go" text button in `ActivityLogItem` (always visible, centered, black/white)
+- Created custom events system for navigation:
+  - `navigate-to-message`: Switches to the chat and highlights the message
+  - `close-activity-panel`: Closes the Activity Log panel
+  - `highlight-message`: Triggers message highlighting in ChatInterface
+- Added message highlighting with purple ring effect (3-second duration)
+- Updated `activityLogger.log()` to accept chatId and messageId parameters
+- Modified ChatInterface to log activities with chat and message IDs for:
+  - Normal AI chat messages
+  - Agent responses
+  - Regenerated messages (both AI and Agent)
+  - Error messages
+- Added `id="message-{messageId}"` to messages for scroll targeting
+- Implemented smooth scroll to highlighted message
+- Added "Clear" button in ActivityPanel to remove old logs
+
+**User Experience**:
+1. User opens Activity Log panel
+2. Sees "Go" button on every activity entry (centered, black/white)
+3. Clicks "Go" button
+4. Activity panel closes automatically
+5. App switches to the relevant chat (if chatId exists)
+6. Message is highlighted with purple ring (if messageId exists)
+7. Page scrolls to center the message
+8. Highlight fades after 3 seconds
+
+**Technical Implementation**:
+- Event-driven architecture for loose coupling
+- Smooth animations and transitions
+- Automatic cleanup of highlight state
+- Reuses existing button styles (`active:scale-95`)
+- Centered alignment with `items-center`
+- Theme-aware colors (`text-text-primary`)
+- All NEW activity logs include chatId and messageId for full traceability
+
+**Benefits**:
+- Quick navigation to context of activities
+- Better traceability of AI actions
+- Improved debugging and review workflow
+- Seamless user experience with smooth transitions
+- Works for all message types (normal, regenerated, errors)
+- Clean, harmonious UI design
+
+---
+
+### Activity Log Panel - Added Button Click Feedback 🎯
+- **Status**: ✅ Completed
+- **Component**: `ActivityFilterBar.tsx`
+- **Change**: Added visual feedback to filter buttons when clicked
+- **Impact**: Improved user experience with tactile button response
+
+**Changes Made**:
+- Added `active:scale-95` effect to filter buttons (All, Searches, Chat)
+- Reused existing button interaction pattern from the app
+- Buttons now scale down slightly when pressed, providing visual feedback
+- Consistent with other buttons throughout the application
+
+**Benefits**:
+- Better user feedback on interaction
+- Consistent UX across the application
+- More responsive and polished feel
+
+---
+
+### Activity Log Panel - Simplified Filters 🎯
+- **Status**: ✅ Completed
+- **Component**: `ActivityFilterBar.tsx`
+- **Change**: Removed "Cleanup" and "Archive" filters from Activity Log panel
+- **Impact**: Streamlined interface with focus on core activities
+
+**Changes Made**:
+- Removed "Cleanup" filter option
+- Removed "Archive" filter option
+- Activity Log now shows only: All, Searches, and Chat
+- Cleaner, more focused activity tracking
+
+**Benefits**:
+- Simplified user interface
+- Focus on primary user actions (searches and chat)
+- Less clutter in the filter bar
+- Easier navigation between relevant activity types
+
+---
+
 ### Backup Panel Reorganization 🔄
 - **Status**: ✅ Completed
 - **Components**: `FilesPanel.tsx`, `FileExplorerPanel.tsx`, `Header.tsx`
