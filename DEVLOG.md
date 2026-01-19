@@ -2,6 +2,85 @@
 
 ## January 19, 2026
 
+### Backup Panel Reorganization 🔄
+- **Status**: ✅ Completed
+- **Components**: `FilesPanel.tsx`, `FileExplorerPanel.tsx`, `Header.tsx`
+- **Change**: Moved Links, Memories, and Bookmarks sections from File Explorer to Backup panel
+- **Impact**: Better organization with related features grouped together
+
+**Changes Made**:
+- Renamed "Connectivity and Backup" to "Backup" for simplicity
+- Added three new tabs to Backup panel: Links, Memories, Bookmarks
+- Removed Links, Memories, Bookmarks tabs from File Explorer panel
+- File Explorer now focuses on file management: Recent, Images, Disk, Analysis, Cleanup
+- Backup panel now handles data backup and sync: Links, Memories, Bookmarks, Apps, Archive
+- All new tabs use consistent styling with glass-subtle backgrounds and empty states
+- Updated aria-labels and button labels to reflect new "Backup" name
+
+**Tab Organization**:
+
+Backup Panel:
+- Links - Save and organize important URLs
+- Memories - Long-term memory storage for AI context
+- Bookmarks - Bookmarked messages and conversations
+- Apps - Connect apps to search messages
+- Archive - Archived files (indexed and searchable)
+
+File Explorer Panel:
+- Recent - Recently accessed files
+- Images - Image gallery from chat
+- Disk - Disk usage information
+- Analysis - Storage analysis by category
+- Cleanup - Cleanup suggestions
+
+**Benefits**:
+- Clearer separation of concerns
+- File Explorer focused on file operations
+- Backup panel focused on data preservation and sync
+- More intuitive navigation
+- Consistent UI styling across all tabs
+
+---
+
+### Utility Panel Renamed to "Connectivity and Backup" 🔄
+- **Status**: ✅ Completed
+- **Components**: `FilesPanel.tsx`, `Header.tsx`
+- **Change**: Renamed "Utility" panel to "Connectivity and Backup"
+- **Impact**: More descriptive name that better reflects the panel's purpose (Apps connectivity and Archive backup)
+
+**Changes Made**:
+- Updated modal title from "Utility" to "Connectivity and Backup" in `FilesPanel.tsx`
+- Updated aria-label from "Close utility" to "Close connectivity and backup"
+- Updated button aria-label in `Header.tsx` from "Utility" to "Connectivity and Backup"
+
+**Benefits**:
+- Clearer purpose and functionality indication
+- Better accessibility with descriptive labels
+- More intuitive for users to understand panel contents
+
+---
+
+### Utility Panel - Disks Section Removed 🗑️
+- **Status**: ✅ Completed
+- **Component**: `FilesPanel.tsx`
+- **Change**: Removed the "Disks" tab and section from the utility panel
+- **Impact**: Simplified utility panel now shows only "Apps" and "Archive" tabs
+
+**Changes Made**:
+- Removed "Disks" tab from the tabs array
+- Deleted the entire `DisksTab` component (Macintosh HD and External SSD displays)
+- Removed unused `HardDrive` icon import from lucide-react
+- Updated `Tab` type to only include 'apps' and 'archive'
+- Changed default active tab from 'disks' to 'apps'
+- Removed conditional rendering of DisksTab component
+
+**Benefits**:
+- Cleaner, more focused utility panel
+- Reduced component complexity
+- Faster rendering with fewer tabs
+
+---
+
 ### Web Search Results Display Fix 🔍
 - **Status**: ✅ Fixed
 - **Component**: `WebSearchUI.tsx`, `MessageBubble.tsx`

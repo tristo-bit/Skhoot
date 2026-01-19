@@ -1,5 +1,5 @@
 import React, { memo, useState } from 'react';
-import { HardDrive, Link2, Archive, Plus, Check } from 'lucide-react';
+import { Link2, Archive, Plus, Check, Brain, Bookmark } from 'lucide-react';
 import { MOCK_CONNECTED_APPS, MOCK_ARCHIVED_FILES } from '../../browser-test/demo';
 import { Modal, FileCard, type FileCardFile } from '../ui';
 import { TabButton } from '../buttonFormat';
@@ -8,15 +8,17 @@ interface FilesPanelProps {
   onClose: () => void;
 }
 
-type Tab = 'disks' | 'apps' | 'archive';
+type Tab = 'links' | 'memories' | 'bookmarks' | 'apps' | 'archive';
 
 const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState<Tab>('disks');
+  const [activeTab, setActiveTab] = useState<Tab>('links');
   const [connectedApps, setConnectedApps] = useState(MOCK_CONNECTED_APPS);
   const [archivedFiles, setArchivedFiles] = useState(MOCK_ARCHIVED_FILES);
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'disks', label: 'Disks', icon: <HardDrive size={14} /> },
+    { id: 'links', label: 'Links', icon: <Link2 size={14} /> },
+    { id: 'memories', label: 'Memories', icon: <Brain size={14} /> },
+    { id: 'bookmarks', label: 'Bookmarks', icon: <Bookmark size={14} /> },
     { id: 'apps', label: 'Apps', icon: <Link2 size={14} /> },
     { id: 'archive', label: 'Archive', icon: <Archive size={14} /> },
   ];
@@ -37,12 +39,12 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
 
   return (
     <Modal
-      title="Utility"
+      title="Backup"
       onClose={onClose}
       panelClassName="files-panel"
       headerClassName="files-panel-header"
       bodyClassName="files-panel-body"
-      closeAriaLabel="Close utility"
+      closeAriaLabel="Close backup"
     >
       <div className="files-panel-tabs px-4 py-2 flex gap-1 flex-shrink-0">
         {tabs.map(tab => (
@@ -57,7 +59,9 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
       </div>
       <div className="files-panel-content flex-1 overflow-hidden">
         <div className="h-full overflow-y-auto no-scrollbar">
-          {activeTab === 'disks' && <DisksTab />}
+          {activeTab === 'links' && <LinksTab />}
+          {activeTab === 'memories' && <MemoriesTab />}
+          {activeTab === 'bookmarks' && <BookmarksTab />}
           {activeTab === 'apps' && (
             <AppsTab apps={connectedApps} onToggle={toggleAppConnection} />
           )}
@@ -69,59 +73,6 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
     </Modal>
   );
 };
-
-const DisksTab = memo(() => {
-  const disks = [
-    { name: 'Macintosh HD', total: '500 GB', used: '320 GB', free: '180 GB', percent: 64 },
-    { name: 'External SSD', total: '1 TB', used: '450 GB', free: '550 GB', percent: 45 },
-  ];
-
-  return (
-    <div className="space-y-3">
-      {disks.map((disk, i) => (
-        <div 
-          key={i}
-          className="p-4 rounded-2xl glass-subtle border-glass-border"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center glass-subtle">
-              <HardDrive size={18} className="text-text-secondary" />
-            </div>
-            <div className="flex-1">
-              <p className="text-[13px] font-bold font-jakarta text-text-primary">{disk.name}</p>
-              <p className="text-[10px] font-medium text-text-secondary font-jakarta">
-                {disk.free} available of {disk.total}
-              </p>
-            </div>
-          </div>
-          
-          <div className="h-2 w-full rounded-full overflow-hidden" style={{ backgroundColor: 'var(--glass-border)' }}>
-            <div 
-              className="h-full rounded-full transition-all duration-500"
-              style={{ 
-                width: `${disk.percent}%`,
-                backgroundColor: disk.percent > 85 ? '#ef4444' : disk.percent > 60 ? '#f59e0b' : '#22c55e',
-              }}
-            />
-          </div>
-          <p className="text-[9px] font-bold text-text-secondary mt-1.5 font-jakarta">
-            {disk.used} used ({disk.percent}%)
-          </p>
-        </div>
-      ))}
-      
-      <button
-        className="w-full p-3 rounded-xl border border-dashed border-glass-border text-[11px] font-bold font-jakarta text-text-secondary hover:glass-subtle transition-all flex items-center justify-center gap-2"
-        aria-label="Add External Drive"
-        title="Add External Drive"
-      >
-        <Plus size={14} />
-        Add External Drive
-      </button>
-    </div>
-  );
-});
-DisksTab.displayName = 'DisksTab';
 
 interface AppsTabProps {
   apps: typeof MOCK_CONNECTED_APPS;
@@ -223,5 +174,53 @@ const ArchiveTab = memo<ArchiveTabProps>(({ files, onDelete }) => (
   </div>
 ));
 ArchiveTab.displayName = 'ArchiveTab';
+
+const LinksTab = memo(() => (
+  <div className="space-y-2">
+    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3 font-jakarta">
+      Save and organize important URLs
+    </p>
+    <div className="p-8 text-center">
+      <Link2 size={32} className="mx-auto mb-3 text-text-secondary opacity-50" />
+      <p className="text-[12px] font-semibold text-text-secondary font-jakarta">No links saved yet</p>
+      <p className="text-[10px] text-text-secondary font-jakarta mt-1">
+        Links will appear here when you save them
+      </p>
+    </div>
+  </div>
+));
+LinksTab.displayName = 'LinksTab';
+
+const MemoriesTab = memo(() => (
+  <div className="space-y-2">
+    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3 font-jakarta">
+      Long-term memory storage for AI context
+    </p>
+    <div className="p-8 text-center">
+      <Brain size={32} className="mx-auto mb-3 text-text-secondary opacity-50" />
+      <p className="text-[12px] font-semibold text-text-secondary font-jakarta">No memories stored yet</p>
+      <p className="text-[10px] text-text-secondary font-jakarta mt-1">
+        Memories will help AI remember important context
+      </p>
+    </div>
+  </div>
+));
+MemoriesTab.displayName = 'MemoriesTab';
+
+const BookmarksTab = memo(() => (
+  <div className="space-y-2">
+    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3 font-jakarta">
+      Bookmarked messages and conversations
+    </p>
+    <div className="p-8 text-center">
+      <Bookmark size={32} className="mx-auto mb-3 text-text-secondary opacity-50" />
+      <p className="text-[12px] font-semibold text-text-secondary font-jakarta">No bookmarks yet</p>
+      <p className="text-[10px] text-text-secondary font-jakarta mt-1">
+        Bookmark important messages to find them later
+      </p>
+    </div>
+  </div>
+));
+BookmarksTab.displayName = 'BookmarksTab';
 
 export default FilesPanel;

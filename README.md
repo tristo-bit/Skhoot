@@ -1112,6 +1112,32 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 ## 📝 Recent Updates
 
 <details>
+<summary><strong>File Explorer Panel Simplification</strong></summary>
+
+**UI Cleanup**: Removed placeholder tabs from FileExplorerPanel to streamline the interface and reduce clutter.
+
+- **Removed Tabs**: Links, Memories, and Bookmarks placeholder tabs removed from FileExplorerPanel
+- **Simplified Navigation**: Panel now focuses on core file management features:
+  - **Recent**: Recently accessed files with search and filtering
+  - **Images**: Image gallery with grid/list views
+  - **Disk**: Disk usage monitoring and visualization
+  - **Analysis**: Storage analysis by category
+  - **Cleanup**: Cleanup suggestions for reclaiming space
+- **Cleaner Interface**: Reduced tab count improves usability and reduces visual noise
+- **No Feature Loss**: Bookmarks functionality remains available in the separate FilesPanel component
+- **Performance**: Fewer tabs means faster rendering and lower memory footprint
+
+**Technical Changes**:
+- Removed `BookmarksTab`, `LinksTab`, and `MemoriesTab` imports and components
+- Updated `TabId` type to exclude removed tabs
+- Simplified tab array in `useMemo` hook
+- Removed unused Lucide icons: `Link2`, `Brain`, `Bookmark`
+
+**Why This Matters**: A focused file explorer with clear purpose improves user experience. Placeholder tabs that showed "coming soon" messages created confusion and cluttered the interface. Users can still access bookmarks through the dedicated FilesPanel.
+
+</details>
+
+<details>
 <summary><strong>Backend Status Monitoring Component</strong></summary>
 
 **New UI Component**: Real-time backend health monitoring with automatic status checks and user-friendly error guidance.

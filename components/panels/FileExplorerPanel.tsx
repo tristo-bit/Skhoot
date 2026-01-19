@@ -8,14 +8,12 @@ import { createPortal } from 'react-dom';
 import { 
   Search, HardDrive, BarChart3, Trash2, 
   File, Folder, Clock, RefreshCw, Grid, List, MoreHorizontal,
-  ExternalLink, Copy, Scissors, Info, Archive, FolderOpen, MessageSquarePlus, Image,
-  Link2, Brain, Bookmark
+  ExternalLink, Copy, Scissors, Info, Archive, FolderOpen, MessageSquarePlus, Image
 } from 'lucide-react';
 import { SecondaryPanel, SecondaryPanelTab } from '../ui/SecondaryPanel';
 import { backendApi } from '../../services/backendApi';
 import { fileOperations } from '../../services/fileOperations';
 import { ImagesTab } from './ImagesTab';
-import { BookmarksTab } from './bookmarks/BookmarksTab';
 
 // Helper function to format bytes
 const formatBytes = (bytes: number): string => {
@@ -217,7 +215,7 @@ const FileContextMenu: React.FC<{
   return createPortal(menu, document.body);
 };
 
-type TabId = 'recent' | 'images' | 'links' | 'memories' | 'bookmarks' | 'disk' | 'analysis' | 'cleanup';
+type TabId = 'recent' | 'images' | 'disk' | 'analysis' | 'cleanup';
 
 interface FileItem {
   id: string;
@@ -253,9 +251,6 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
   const tabs: SecondaryPanelTab[] = useMemo(() => [
     { id: 'recent', title: searchExpanded ? '' : 'Recent', icon: <Clock size={14} /> },
     { id: 'images', title: searchExpanded ? '' : 'Images', icon: <Image size={14} /> },
-    { id: 'links', title: searchExpanded ? '' : 'Links', icon: <Link2 size={14} /> },
-    { id: 'memories', title: searchExpanded ? '' : 'Memories', icon: <Brain size={14} /> },
-    { id: 'bookmarks', title: searchExpanded ? '' : 'Bookmarks', icon: <Bookmark size={14} /> },
     { id: 'disk', title: searchExpanded ? '' : 'Disk', icon: <HardDrive size={14} /> },
     { id: 'analysis', title: searchExpanded ? '' : 'Analysis', icon: <BarChart3 size={14} /> },
     { id: 'cleanup', title: searchExpanded ? '' : 'Cleanup', icon: <Trash2 size={14} /> },
@@ -380,7 +375,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
       </div>
 
       {/* Right: View Mode Toggle - only show when search is not expanded */}
-      {!searchExpanded && (activeTab === 'recent' || activeTab === 'images' || activeTab === 'bookmarks') && (
+      {!searchExpanded && (activeTab === 'recent' || activeTab === 'images') && (
         <button onClick={toggleViewMode}
           className="p-1.5 rounded-xl transition-all hover:bg-white/10"
           style={{ color: 'var(--text-secondary)' }} title={viewMode === 'list' ? 'Grid View' : 'List View'}>
@@ -414,9 +409,6 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
         <div className="flex-1 overflow-y-auto p-4">
           {activeTab === 'recent' && <RecentTab files={recentFiles} viewMode={viewMode} isLoading={isLoading} />}
           {activeTab === 'images' && <ImagesTab viewMode={viewMode} isLoading={isLoading} />}
-          {activeTab === 'links' && <LinksTab />}
-          {activeTab === 'memories' && <MemoriesTab />}
-          {activeTab === 'bookmarks' && <BookmarksTab viewMode={viewMode} searchQuery={searchQuery} />}
           {activeTab === 'disk' && <DiskTab />}
           {activeTab === 'analysis' && <AnalysisTab />}
           {activeTab === 'cleanup' && <CleanupTab />}
@@ -811,30 +803,3 @@ CleanupTab.displayName = 'CleanupTab';
 FileExplorerPanel.displayName = 'FileExplorerPanel';
 
 export default FileExplorerPanel;
-
-
-const LinksTab = memo(() => {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center py-8">
-      <Link2 size={32} className="mb-3 opacity-40" style={{ color: 'var(--text-secondary)' }} />
-      <p className="text-sm font-semibold text-text-secondary font-jakarta">Links coming soon</p>
-      <p className="text-xs text-text-secondary font-jakarta mt-1">
-        Save and organize important URLs
-      </p>
-    </div>
-  );
-});
-LinksTab.displayName = 'LinksTab';
-
-const MemoriesTab = memo(() => {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center py-8">
-      <Brain size={32} className="mb-3 opacity-40" style={{ color: 'var(--text-secondary)' }} />
-      <p className="text-sm font-semibold text-text-secondary font-jakarta">Memories coming soon</p>
-      <p className="text-xs text-text-secondary font-jakarta mt-1">
-        Long-term memory storage for AI context
-      </p>
-    </div>
-  );
-});
-MemoriesTab.displayName = 'MemoriesTab';
