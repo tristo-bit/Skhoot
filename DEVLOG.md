@@ -2,6 +2,55 @@
 
 ## January 19, 2026
 
+### Activity Log Panel - UI Alignment Fix 🎨
+- **Status**: ✅ Fixed
+- **Component**: `ActivityPanel.tsx`
+- **Change**: Fixed footer alignment and spacing
+- **Impact**: Better visual consistency and professional appearance
+
+**Changes Made**:
+- Increased footer padding from `px-4 py-3` to `px-6 py-4` (matches header)
+- Added top border `border-t border-white/5` to separate footer visually
+- Added `active:scale-95` effect to buttons for interaction feedback
+- Footer now properly aligned with header and content
+
+**Benefits**:
+- Consistent padding throughout the panel
+- Clear visual separation between sections
+- Better button interaction feedback
+- Professional, polished appearance
+
+---
+
+### Activity Log Panel - Responsive Viewport Scaling 📐
+- **Status**: ✅ Completed & Fixed
+- **Component**: `ActivityPanel.tsx`
+- **Change**: Made Activity Log panel scale with viewport like other panels
+- **Impact**: Consistent sizing across all panels, better use of screen space
+
+**Changes Made**:
+- Set width to `w-[92vw] max-w-[520px]` to match Settings and Backup panels
+- Changed height from `max-h-[85%]` to `h-[85vh]` for consistent viewport scaling
+- Added flexbox structure (`flex flex-col`) for proper content distribution
+- Made logs section use `flex-1` to fill available space
+- Added `flex-shrink-0` to header and footer to maintain their size
+- Removed fixed `max-h-[400px]` constraint on logs section
+
+**Width Specifications**:
+- Default: `92vw` with `max-w-[520px]` (matches other panels)
+- Previously was `max-w-[800px]` which was too wide
+- Now consistent with Settings, Backup, and other modal panels
+
+**Benefits**:
+- Consistent panel sizing across the application
+- Better use of available screen space
+- More logs visible at once
+- Scales properly with different viewport sizes
+- Matches the visual design of other panels (Backup, Settings, etc.)
+- Same width as all other panels in the app
+
+---
+
 ### Backup Panel - Fixed Bookmarks Display 🔖
 - **Status**: ✅ Fixed
 - **Component**: `FilesPanel.tsx`

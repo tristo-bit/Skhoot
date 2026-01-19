@@ -38,11 +38,11 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ onClose, onBack })
       onClick={onClose}
     >
       <div 
-        className="w-[90%] max-w-[420px] max-h-[85%] rounded-3xl overflow-hidden border border-black/5 animate-in zoom-in-95 duration-300 glass-elevated"
+        className="w-[92vw] max-w-[520px] h-[85vh] rounded-3xl overflow-hidden border border-black/5 animate-in zoom-in-95 duration-300 glass-elevated flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 flex items-center justify-between">
+        <div className="px-6 py-4 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <BackButton onClick={onBack || onClose} />
             <div>
@@ -58,13 +58,15 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ onClose, onBack })
         </div>
 
         {/* Filters */}
-        <ActivityFilterBar 
-          activeFilter={filter} 
-          onFilterChange={setFilter} 
-        />
+        <div className="flex-shrink-0">
+          <ActivityFilterBar 
+            activeFilter={filter} 
+            onFilterChange={setFilter} 
+          />
+        </div>
 
         {/* Logs */}
-        <div className="p-4 overflow-y-auto max-h-[400px] no-scrollbar space-y-2">
+        <div className="flex-1 p-4 overflow-y-auto no-scrollbar space-y-2">
           {isEmpty ? (
             <EmptyActivityState />
           ) : (
@@ -75,11 +77,11 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ onClose, onBack })
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 flex gap-2">
+        <div className="px-6 py-4 flex gap-2 flex-shrink-0 border-t border-white/5">
           <button 
             onClick={exportJSON}
             disabled={isEmpty}
-            className="flex-1 py-2.5 rounded-xl text-[11px] font-bold font-jakarta text-text-secondary hover:glass-subtle transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 py-2.5 rounded-xl text-[11px] font-bold font-jakarta text-text-secondary hover:glass-subtle transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
           >
             <Download size={14} />
             Export Activity Log
@@ -87,7 +89,7 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ onClose, onBack })
           <button 
             onClick={handleClearLogs}
             disabled={isEmpty}
-            className="px-4 py-2.5 rounded-xl text-[11px] font-bold font-jakarta text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2.5 rounded-xl text-[11px] font-bold font-jakarta text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
             title="Clear all logs"
           >
             Clear
