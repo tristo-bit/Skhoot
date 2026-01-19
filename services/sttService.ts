@@ -293,10 +293,12 @@ export const sttService = {
 
     // Check if we should use WebAudioRecorder fallback
     // WebKitGTK on Linux has broken MediaRecorder, so we detect and use fallback
+    // We force this on Linux because Tauri/WebKitGTK MediaRecorder is often broken or produces empty blobs
+    const isLinux = audioService.getPlatform() === 'linux';
     const isWebKitGTK = navigator.userAgent.includes('WebKit') && 
                         !navigator.userAgent.includes('Chrome') && 
                         !navigator.userAgent.includes('Safari');
-    const useWebAudioFallback = isWebKitGTK;
+    const useWebAudioFallback = isLinux || isWebKitGTK;
     
     console.log('[STT] User agent:', navigator.userAgent);
     console.log('[STT] Using WebAudio fallback:', useWebAudioFallback);
