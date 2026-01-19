@@ -58,7 +58,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
       ) : activePanel === 'Help Center' ? (
         <HelpCenterPanel onBack={handleBack} />
       ) : (
-        <>
+        <div className="space-y-3">
           {SETTINGS_ITEMS.map(item => (
             <SettingsItem 
               key={item.label}
@@ -68,7 +68,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
               onClick={() => handleSettingClick(item.label)}
             />
           ))}
-        </>
+        </div>
       )}
     </Modal>
   );

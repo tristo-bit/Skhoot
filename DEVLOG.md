@@ -2,6 +2,25 @@
 
 ## January 19, 2026
 
+### Settings Panel - Improved Spacing 📏
+- **Status**: ✅ Fixed
+- **Component**: `SettingsPanel.tsx`
+- **Change**: Added vertical spacing between settings items
+- **Impact**: Better use of vertical space, less cramped appearance
+
+**Changes Made**:
+- Wrapped settings items in a container with `space-y-3`
+- Added 12px vertical spacing between each settings item
+- Items now better distributed across available space
+
+**Benefits**:
+- Less cramped, more breathable UI
+- Better visual hierarchy
+- Improved readability
+- More professional appearance
+
+---
+
 ### Activity Log Panel - UI Alignment Fix 🎨
 - **Status**: ✅ Fixed
 - **Component**: `ActivityPanel.tsx`
