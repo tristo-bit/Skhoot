@@ -3,6 +3,7 @@ import { Link2, Archive, Plus, Check, Brain, Bookmark } from 'lucide-react';
 import { MOCK_CONNECTED_APPS, MOCK_ARCHIVED_FILES } from '../../browser-test/demo';
 import { Modal, FileCard, type FileCardFile } from '../ui';
 import { TabButton } from '../buttonFormat';
+import { BookmarksTab } from './bookmarks/BookmarksTab';
 
 interface FilesPanelProps {
   onClose: () => void;
@@ -61,7 +62,7 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
         <div className="h-full overflow-y-auto no-scrollbar">
           {activeTab === 'links' && <LinksTab />}
           {activeTab === 'memories' && <MemoriesTab />}
-          {activeTab === 'bookmarks' && <BookmarksTab />}
+          {activeTab === 'bookmarks' && <BookmarksTab viewMode="list" searchQuery="" />}
           {activeTab === 'apps' && (
             <AppsTab apps={connectedApps} onToggle={toggleAppConnection} />
           )}
@@ -206,21 +207,5 @@ const MemoriesTab = memo(() => (
   </div>
 ));
 MemoriesTab.displayName = 'MemoriesTab';
-
-const BookmarksTab = memo(() => (
-  <div className="space-y-2">
-    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3 font-jakarta">
-      Bookmarked messages and conversations
-    </p>
-    <div className="p-8 text-center">
-      <Bookmark size={32} className="mx-auto mb-3 text-text-secondary opacity-50" />
-      <p className="text-[12px] font-semibold text-text-secondary font-jakarta">No bookmarks yet</p>
-      <p className="text-[10px] text-text-secondary font-jakarta mt-1">
-        Bookmark important messages to find them later
-      </p>
-    </div>
-  </div>
-));
-BookmarksTab.displayName = 'BookmarksTab';
 
 export default FilesPanel;
