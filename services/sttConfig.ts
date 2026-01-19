@@ -1,17 +1,15 @@
 import { audioService } from './audioService';
 
-export type SttProvider = 'auto' | 'web-speech' | 'openai' | 'local';
+export type SttProvider = 'auto' | 'web-speech' | 'openai';
 
 export interface SttConfig {
   provider: SttProvider;
-  localUrl: string;
 }
 
 const STORAGE_KEY = 'skhoot-stt-settings';
 
 const defaultConfig: SttConfig = {
-  provider: 'auto',
-  localUrl: 'http://127.0.0.1:8000/v1/audio/transcriptions'
+  provider: 'auto'
 };
 
 export const sttConfigStore = {
@@ -22,8 +20,7 @@ export const sttConfigStore = {
       if (!raw) return { ...defaultConfig };
       const parsed = JSON.parse(raw) as Partial<SttConfig>;
       return {
-        provider: parsed.provider || defaultConfig.provider,
-        localUrl: parsed.localUrl || defaultConfig.localUrl
+        provider: ((parsed.provider as any) === 'local' ? 'auto' : parsed.provider) || defaultConfig.provider
       };
     } catch (error) {
       console.warn('[SttConfig] Failed to read settings:', error);
@@ -36,6 +33,10 @@ export const sttConfigStore = {
     try {
       const current = this.get();
       const next = { ...current, ...update };
+      // Sanitize if legacy provider comes in
+      if ((next.provider as any) === 'local') {
+        next.provider = 'auto';
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch (error) {
       console.warn('[SttConfig] Failed to save settings:', error);

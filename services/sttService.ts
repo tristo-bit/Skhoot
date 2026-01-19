@@ -69,19 +69,22 @@ const resolveProvider = async (): Promise<SttProvider | null> => {
     hasOpenAI = false;
   }
   
-  const hasLocal = !!config.localUrl?.trim();
-  console.log('[STT] Local URL configured:', hasLocal, config.localUrl);
-
   let result: SttProvider | null = null;
   
-  if (preference === 'web-speech') result = hasWebSpeech ? 'web-speech' : null;
-  else if (preference === 'openai') result = hasOpenAI ? 'openai' : null;
-  else if (preference === 'local') result = hasLocal ? 'local' : null;
-  else {
-    // Auto mode: prefer web-speech, then local, then openai
-    if (hasWebSpeech) result = 'web-speech';
-    else if (hasLocal) result = 'local';
-    else if (hasOpenAI) result = 'openai';
+  if (preference === 'web-speech') {
+    result = hasWebSpeech ? 'web-speech' : null;
+  } else if (preference === 'openai') {
+    // Always allow OpenAI if explicitly selected, even if key is missing
+    // validiation will happen at usage time
+    result = 'openai';
+  } else {
+    // Auto mode: prefer web-speech, then openai
+    if (hasWebSpeech) {
+      result = 'web-speech';
+    } else {
+      // Default to OpenAI if Web Speech is not available (e.g. Linux/Tauri)
+      result = 'openai';
+    }
   }
 
   console.log('[STT] Resolved provider:', result);
@@ -162,88 +165,6 @@ const transcribeWithOpenAIFile = async (audioFile: File): Promise<string> => {
   return (result?.text || '').trim();
 };
 
-const transcribeWithLocal = async (chunks: BlobPart[], mimeType: string | null, url: string): Promise<string> => {
-  console.log('[STT] Transcribing with local server:', url);
-  console.log('[STT] Audio chunks:', chunks.length, 'mimeType:', mimeType);
-  
-  const audioFile = buildAudioFile(chunks, mimeType);
-  console.log('[STT] Built audio file:', audioFile.name, 'size:', audioFile.size, 'type:', audioFile.type);
-  
-  const formData = new FormData();
-  formData.append('file', audioFile);
-  const lang = getLanguageHint();
-  if (lang) formData.append('language', lang);
-  if (url.includes('/v1/audio/transcriptions')) {
-    formData.append('model', 'whisper-1');
-    formData.append('response_format', 'json');
-  }
-
-  console.log('[STT] Sending request to:', url);
-  const response = await fetch(url, {
-    method: 'POST',
-    body: formData
-  });
-
-  console.log('[STT] Response status:', response.status, response.statusText);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[STT] Transcription failed:', errorText);
-    throw new Error(`Transcription failed: ${response.status} ${errorText}`);
-  }
-
-  const contentType = response.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    const result = await response.json();
-    console.log('[STT] JSON response:', result);
-    return (result?.text || result?.transcript || '').trim();
-  }
-
-  const text = await response.text();
-  console.log('[STT] Text response:', text);
-  return text.trim();
-};
-
-// Version that takes a File directly (for WebAudioRecorder)
-const transcribeWithLocalFile = async (audioFile: File, url: string): Promise<string> => {
-  console.log('[STT] Transcribing WAV with local server:', url);
-  console.log('[STT] WAV file size:', audioFile.size);
-  
-  const formData = new FormData();
-  formData.append('file', audioFile);
-  const lang = getLanguageHint();
-  if (lang) formData.append('language', lang);
-  if (url.includes('/v1/audio/transcriptions')) {
-    formData.append('model', 'whisper-1');
-    formData.append('response_format', 'json');
-  }
-
-  console.log('[STT] Sending WAV request to:', url);
-  const response = await fetch(url, {
-    method: 'POST',
-    body: formData
-  });
-
-  console.log('[STT] Response status:', response.status, response.statusText);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[STT] Transcription failed:', errorText);
-    throw new Error(`Transcription failed: ${response.status} ${errorText}`);
-  }
-
-  const contentType = response.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    const result = await response.json();
-    console.log('[STT] JSON response:', result);
-    return (result?.text || result?.transcript || '').trim();
-  }
-
-  const text = await response.text();
-  console.log('[STT] Text response:', text);
-  return text.trim();
-};
-
 export const sttService = {
   async getProviderDecision(): Promise<SttProvider | null> {
     return await resolveProvider();
@@ -254,10 +175,8 @@ export const sttService = {
     if (typeof window === 'undefined') return false;
     const config = sttConfigStore.get();
     const hasWebSpeech = sttConfigStore.hasWebSpeechSupport();
-    const hasLocal = !!config.localUrl?.trim();
-    // For sync check, assume OpenAI might be available if not web-speech or local
+    // For sync check, assume OpenAI might be available if not web-speech
     if (hasWebSpeech) return true;
-    if (hasLocal) return true;
     // Can't check OpenAI key synchronously, so return true to allow attempt
     if (!('MediaRecorder' in window)) return false;
     if (!audioService.isAudioSupported()) return false;
@@ -332,13 +251,9 @@ export const sttService = {
             return await transcribeWithOpenAIFile(wavFile);
           }
           
-          const config = sttConfigStore.get();
-          const url = config.localUrl?.trim();
-          if (!url) {
-            throw new Error('Local STT URL is not configured.');
-          }
-          
-          return await transcribeWithLocalFile(wavFile, url);
+          // Default fallback to OpenAI if provider is not specified but we ended up here
+          // This handles the case where we might be in auto mode and selected openai
+          return await transcribeWithOpenAIFile(wavFile);
         },
         abort: () => {
           webAudioSession.abort();
@@ -418,14 +333,8 @@ export const sttService = {
               return;
             }
 
-            const config = sttConfigStore.get();
-            const url = config.localUrl?.trim();
-            if (!url) {
-              reject(new Error('Local STT URL is not configured.'));
-              return;
-            }
-
-            const result = await transcribeWithLocal(chunks, recorder.mimeType || mimeType, url);
+            // Default fallback to OpenAI
+            const result = await transcribeWithOpenAI(chunks, recorder.mimeType || mimeType);
             resolve(result);
           } catch (error) {
             reject(error);

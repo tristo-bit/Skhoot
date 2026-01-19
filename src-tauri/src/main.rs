@@ -5,7 +5,6 @@
 mod terminal;
 mod api_keys;
 mod agent;
-mod whisper;
 mod disk_info;
 
 use tauri::Manager;
@@ -162,9 +161,6 @@ fn main() {
       // Initialize agent state
       app.manage(agent::AgentTauriState::default());
       
-      // Initialize whisper state
-      app.manage(whisper::WhisperState::default());
-      
       #[cfg(desktop)]
       {
         // Use an empty app-wide menu to avoid showing a menubar.
@@ -177,9 +173,6 @@ fn main() {
       tauri::async_runtime::spawn(async move {
         start_backend_sidecar(&app_handle_clone).await;
       });
-
-      // Start local whisper.cpp server if bundled
-      start_local_whisper_server(app.handle());
 
       // Log platform-specific audio permission info
       log_audio_permission_info();
@@ -267,65 +260,10 @@ fn main() {
         agent::get_agent_messages,
         agent::add_assistant_message,
         agent::get_agent_config,
-        whisper::check_whisper_status,
-        whisper::get_whisper_models,
-        whisper::install_whisper_binary,
-        whisper::download_whisper_model,
-        whisper::start_whisper_server,
-        whisper::stop_whisper_server,
-        whisper::uninstall_whisper,
-        whisper::delete_whisper_model,
         disk_info::get_system_disks,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
-}
-
-fn start_local_whisper_server(app_handle: &tauri::AppHandle) {
-  #[cfg(target_os = "linux")]
-  {
-    if std::env::var("SKHOOT_DISABLE_LOCAL_STT").is_ok() {
-      println!("[Skhoot] Local STT disabled via SKHOOT_DISABLE_LOCAL_STT");
-      return;
-    }
-
-    let resource_dir = match app_handle.path().resource_dir() {
-      Ok(dir) => dir,
-      Err(err) => {
-        eprintln!("[Skhoot] Failed to resolve resource dir: {}", err);
-        return;
-      }
-    };
-
-    let server_path = resource_dir.join("whisper/whisper-server");
-    let model_path = resource_dir.join("whisper/models/ggml-base.en.bin");
-
-    if !server_path.exists() || !model_path.exists() {
-      println!("[Skhoot] Whisper server or model not found in resources.");
-      return;
-    }
-
-    let _ = Command::new(&server_path)
-      .args(&[
-        "--model",
-        model_path.to_str().unwrap_or(""),
-        "--host",
-        "127.0.0.1",
-        "--port",
-        "8000",
-        "--inference-path",
-        "/v1/audio/transcriptions",
-        "--threads",
-        "4",
-        "--convert"
-      ])
-      .stdin(Stdio::null())
-      .stdout(Stdio::null())
-      .stderr(Stdio::null())
-      .spawn();
-
-    println!("[Skhoot] Started local whisper.cpp server on 127.0.0.1:8000");
-  }
 }
 
 /// Log platform-specific information about audio permissions
