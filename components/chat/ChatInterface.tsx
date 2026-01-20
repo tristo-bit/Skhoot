@@ -149,9 +149,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         console.log('[ChatInterface] Setting highlightedMessageId to:', messageId);
         setHighlightedMessageId(messageId);
         
-        // Try multiple times to find and scroll to the message
+        // Try multiple times to find and scroll to the message - optimized for speed
         let attempts = 0;
-        const maxAttempts = 10;
+        const maxAttempts = 15; // Increased attempts but faster intervals
         
         const tryScroll = () => {
           attempts++;
@@ -168,8 +168,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               setHighlightedMessageId(null);
             }, 3500);
           } else if (attempts < maxAttempts) {
-            console.log(`[ChatInterface] ⏳ Message not found yet, retrying in 100ms...`);
-            setTimeout(tryScroll, 100);
+            console.log(`[ChatInterface] ⏳ Message not found yet, retrying in 50ms...`);
+            setTimeout(tryScroll, 50); // Reduced from 100ms to 50ms
           } else {
             console.error('[ChatInterface] ❌ Message element not found after', maxAttempts, 'attempts');
             console.log('[ChatInterface] Available message elements:', 
@@ -182,8 +182,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           }
         };
         
-        // Start trying after initial delay
-        setTimeout(tryScroll, 300);
+        // Start trying immediately - no initial delay
+        tryScroll();
       }
     };
 

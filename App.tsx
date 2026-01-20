@@ -185,11 +185,11 @@ const AppContent: React.FC = () => {
         setCurrentChatId(chatId);
         // Close activity panel
         setIsActivityOpen(false);
-        // Dispatch event to highlight message after a longer delay to ensure component is mounted
+        // Dispatch event to highlight message - reduced delay for faster response
         setTimeout(() => {
           console.log('[App] Dispatching highlight-message event for:', messageId);
           window.dispatchEvent(new CustomEvent('highlight-message', { detail: { messageId } }));
-        }, 600); // Increased to 600ms to ensure ChatInterface is fully mounted
+        }, 200); // Reduced from 600ms to 200ms
       } else {
         console.warn('[App] Missing chatId or messageId in event');
       }
@@ -214,7 +214,7 @@ const AppContent: React.FC = () => {
         setTimeout(() => {
           console.log('[App] Dispatching highlight-message event for:', messageId);
           window.dispatchEvent(new CustomEvent('highlight-message', { detail: { messageId } }));
-        }, 600);
+        }, 100); // Reduced from 600ms - message already in DOM
         return;
       }
       
@@ -229,7 +229,7 @@ const AppContent: React.FC = () => {
           setTimeout(() => {
             console.log('[App] Dispatching highlight-message event for:', messageId);
             window.dispatchEvent(new CustomEvent('highlight-message', { detail: { messageId } }));
-          }, 600);
+          }, 200); // Reduced from 600ms
           return;
         }
       }
@@ -244,7 +244,7 @@ const AppContent: React.FC = () => {
         setTimeout(() => {
           console.log('[App] Dispatching highlight-message event for:', messageId);
           window.dispatchEvent(new CustomEvent('highlight-message', { detail: { messageId } }));
-        }, 600);
+        }, 200); // Reduced from 600ms
       } else {
         console.warn('[App] Could not find chat containing message:', messageId);
         console.log('[App] This message may have been deleted or is from an old session');
