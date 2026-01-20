@@ -27,7 +27,10 @@ export interface Message {
 // Agent tool call data for messages
 export interface AgentToolCallData {
   id: string;
-  name: 'shell' | 'read_file' | 'write_file' | 'list_directory' | 'search_files' | 'create_terminal' | 'execute_command' | 'read_output' | 'list_terminals' | 'inspect_terminal';
+  name: 'shell' | 'read_file' | 'write_file' | 'list_directory' | 'search_files' | 
+        'create_terminal' | 'execute_command' | 'read_output' | 'list_terminals' | 'inspect_terminal' |
+        'web_search' | 'browse' | 'hidden_web_search' | 'invoke_agent' | 'list_agents' | 'create_agent' |
+        'message_search' | 'list_workflows' | 'execute_workflow';
   arguments: Record<string, any>;
 }
 

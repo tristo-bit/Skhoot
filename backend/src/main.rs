@@ -20,6 +20,7 @@ mod search_engine;
 mod config;
 mod error;
 mod terminal;
+mod content_extraction;
 
 use config::AppConfig;
 use error::AppError;
@@ -29,6 +30,7 @@ use indexer::FileIndexer;
 use search::SearchEngine;
 use search_engine::{SearchManager, SearchManagerFactory};
 use terminal::TerminalManager;
+use content_extraction::ContentExtractionSystem;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -39,6 +41,7 @@ pub struct AppState {
     indexer: FileIndexer,
     search_engine: SearchEngine,
     file_search_manager: SearchManager,
+    content_extraction_system: Arc<tokio::sync::Mutex<ContentExtractionSystem>>,
 }
 
 #[derive(Serialize)]
@@ -111,6 +114,9 @@ async fn main() -> anyhow::Result<()> {
     let working_dir = std::env::current_dir()?;
     let file_search_manager = SearchManagerFactory::create_ai_optimized(working_dir);
     
+    // Initialize content extraction system
+    let content_extraction_system = Arc::new(tokio::sync::Mutex::new(ContentExtractionSystem::new()));
+    
     // Initialize terminal manager
     let terminal_manager = TerminalManager::default();
     
@@ -133,6 +139,7 @@ async fn main() -> anyhow::Result<()> {
         indexer,
         search_engine,
         file_search_manager,
+        content_extraction_system,
     };
 
     let app = Router::new()

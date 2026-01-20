@@ -9,11 +9,13 @@ use scraper::{Html, Selector};
 use std::collections::HashMap;
 
 use crate::error::AppError;
+use crate::content_extraction::PageExtract;
 
 /// API endpoints for web search functionality
 pub fn web_search_routes() -> Router<crate::AppState> {
     Router::new()
         .route("/search/web", get(web_search))
+        .route("/browse", get(browse))
 }
 
 /// Query parameters for web search
@@ -22,6 +24,15 @@ pub struct WebSearchQuery {
     pub q: String,                      // Search query
     pub num_results: Option<usize>,     // Number of results (default: 5, max: 10)
     pub search_type: Option<String>,    // Type: general, news, docs
+    pub gather: Option<bool>,           // Whether to gather content from top results (default: false)
+    pub gather_top: Option<usize>,      // Number of top results to gather from (default: 3, max: 5)
+}
+
+/// Query parameters for browse endpoint
+#[derive(Debug, Deserialize)]
+pub struct BrowseQuery {
+    pub url: String,                    // URL to browse and extract content from
+    pub render: Option<bool>,           // Whether to enable WebView rendering for low-confidence pages (default: false)
 }
 
 /// Web search result
@@ -63,22 +74,53 @@ pub struct ImageResult {
 /// - Falls back to SearXNG public instances if needed
 /// - No browser required - just HTTP + HTML parsing
 /// - Lightweight and fast (~500ms per search)
+/// - Optionally gathers content from top results when gather=true
 pub async fn web_search(
     Query(params): Query<WebSearchQuery>,
-    State(_state): State<crate::AppState>,
-) -> Result<Json<WebSearchResponse>, AppError> {
+    State(state): State<crate::AppState>,
+) -> Result<Json<serde_json::Value>, AppError> {
     let start_time = std::time::Instant::now();
     
     let num_results = params.num_results.unwrap_or(5).min(10);
     let search_type = params.search_type.as_deref().unwrap_or("general");
+    let gather = params.gather.unwrap_or(false);
+    let gather_top = params.gather_top.unwrap_or(3).min(5);
     
     tracing::info!(
-        "Web search request - query: '{}', type: {}, num_results: {}",
+        "Web search request - query: '{}', type: {}, num_results: {}, gather: {}, gather_top: {}",
         params.q,
         search_type,
-        num_results
+        num_results,
+        gather,
+        gather_top
     );
     
+    // Check if gather is enabled
+    if gather {
+        // Call search_and_gather() instead
+        tracing::info!("Gather enabled - calling search_and_gather()");
+        
+        let mut system = state.content_extraction_system.lock().await;
+        
+        let gather_response = system
+            .search_and_gather(&params.q, num_results, gather_top)
+            .await
+            .map_err(|e| AppError::Internal(format!("Search and gather failed: {}", e)))?;
+        
+        tracing::info!(
+            "Search and gather completed - query: '{}', results: {}, gathered: {}, search_time: {}ms, gather_time: {}ms",
+            gather_response.query,
+            gather_response.search_results.len(),
+            gather_response.gathered_pages.len(),
+            gather_response.total_search_time_ms,
+            gather_response.total_gather_time_ms
+        );
+        
+        // Return SearchGatherResponse as JSON
+        return Ok(Json(serde_json::to_value(gather_response).unwrap()));
+    }
+    
+    // Normal search without gathering
     // Try DuckDuckGo first (fast, free, unlimited)
     let results = match search_duckduckgo(&params.q, num_results).await {
         Ok(results) => {
@@ -114,7 +156,59 @@ pub async fn web_search(
         images,
     };
     
-    Ok(Json(response))
+    // Return normal WebSearchResponse as JSON
+    Ok(Json(serde_json::to_value(response).unwrap()))
+}
+
+/// Browse endpoint for content extraction
+/// 
+/// This endpoint:
+/// - Accepts a URL and optional render parameter
+/// - Validates the URL for SSRF attacks
+/// - Fetches and extracts content from the page
+/// - Returns structured PageExtract with content, metadata, and confidence scores
+/// - Optionally triggers WebView rendering for low-confidence pages
+/// 
+/// # Query Parameters
+/// 
+/// * `url` - The URL to browse and extract content from (required)
+/// * `render` - Whether to enable WebView rendering for low-confidence pages (optional, default: false)
+/// 
+/// # Returns
+/// 
+/// Returns a JSON `PageExtract` with:
+/// - Extracted text content
+/// - Metadata (title, author, date, images)
+/// - Confidence score (0.0-1.0)
+/// - Extraction method used
+/// - Performance metrics
+pub async fn browse(
+    Query(params): Query<BrowseQuery>,
+    State(state): State<crate::AppState>,
+) -> Result<Json<PageExtract>, AppError> {
+    let render = params.render.unwrap_or(false);
+    
+    tracing::info!(
+        "Browse request - url: '{}', render: {}",
+        params.url,
+        render
+    );
+    
+    // Get a lock on the content extraction system
+    let mut system = state.content_extraction_system.lock().await;
+    
+    // Call the browse method
+    let page_extract = system.browse(&params.url, render).await?;
+    
+    tracing::info!(
+        "Browse completed - url: '{}', confidence: {:.2}, method: {:?}, time: {}ms",
+        page_extract.final_url,
+        page_extract.confidence,
+        page_extract.extraction_method,
+        page_extract.total_time_ms
+    );
+    
+    Ok(Json(page_extract))
 }
 
 // ============================================================================
@@ -131,30 +225,57 @@ pub async fn web_search(
 /// - Unlimited searches
 /// - Fast (~500ms)
 /// - Lightweight (~10MB memory)
-async fn search_duckduckgo(query: &str, num_results: usize) -> Result<Vec<WebSearchResult>, AppError> {
+pub async fn search_duckduckgo(query: &str, num_results: usize) -> Result<Vec<WebSearchResult>, AppError> {
     // Prepare form data
     let mut form_data = HashMap::new();
     form_data.insert("q", query);
     form_data.insert("b", ""); // Start index
     form_data.insert("kl", "wt-wt"); // Region: worldwide
     
-    // Create HTTP client with proper headers
+    // Create HTTP client with proper headers and longer timeout
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(30))
+        .connect_timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| AppError::Internal(format!("Failed to create HTTP client: {}", e)))?;
     
     tracing::debug!("Sending DuckDuckGo search request for: {}", query);
     
-    // Send POST request to DuckDuckGo HTML endpoint
-    let response = client
-        .post("https://html.duckduckgo.com/html")
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-        .header("Referer", "https://html.duckduckgo.com/")
-        .form(&form_data)
-        .send()
-        .await
-        .map_err(|e| AppError::Internal(format!("DuckDuckGo request failed: {}", e)))?;
+    // Send POST request to DuckDuckGo HTML endpoint with retry logic
+    let mut last_error = None;
+    let mut response = None;
+    
+    for attempt in 1..=2 {
+        match client
+            .post("https://html.duckduckgo.com/html")
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .header("Referer", "https://html.duckduckgo.com/")
+            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+            .header("Accept-Language", "en-US,en;q=0.9")
+            .form(&form_data)
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                response = Some(resp);
+                break;
+            }
+            Err(e) => {
+                tracing::warn!("DuckDuckGo request attempt {} failed: {}", attempt, e);
+                last_error = Some(e);
+                if attempt < 2 {
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                }
+            }
+        }
+    }
+    
+    let response = response.ok_or_else(|| {
+        AppError::Internal(format!(
+            "DuckDuckGo request failed after 2 attempts: {}",
+            last_error.map(|e| e.to_string()).unwrap_or_else(|| "Unknown error".to_string())
+        ))
+    })?;
     
     if !response.status().is_success() {
         return Err(AppError::Internal(format!(
@@ -169,6 +290,13 @@ async fn search_duckduckgo(query: &str, num_results: usize) -> Result<Vec<WebSea
         .map_err(|e| AppError::Internal(format!("Failed to read DuckDuckGo response: {}", e)))?;
     
     tracing::debug!("Received DuckDuckGo HTML response (length: {})", html.len());
+    
+    // Check for CAPTCHA challenge
+    if html.contains("anomaly-modal") || html.contains("Select all squares") {
+        return Err(AppError::Internal(
+            "DuckDuckGo CAPTCHA detected - bot protection triggered".to_string()
+        ));
+    }
     
     // Parse HTML and extract results
     parse_duckduckgo_html(&html, num_results)
@@ -278,12 +406,15 @@ fn normalize_text(text: &str) -> String {
 /// Fallback to public SearXNG instances when browser is unavailable
 /// SearXNG is a free metasearch engine that aggregates results from multiple sources
 async fn search_searxng_fallback(query: &str, num_results: usize) -> Result<Vec<WebSearchResult>, AppError> {
-    // List of reliable public SearXNG instances
+    // Updated list of more reliable public SearXNG instances (as of 2026)
     let instances = [
+        "https://search.inetol.net",
+        "https://searx.fmac.xyz",
+        "https://search.ononoki.org",
         "https://searx.be",
-        "https://search.bus-hit.me",
         "https://searx.tiekoetter.com",
         "https://search.sapti.me",
+        "https://paulgo.io",
         "https://searx.work",
     ];
     
@@ -321,9 +452,12 @@ async fn search_searxng_instance(
         urlencoding::encode(query)
     );
     
+    tracing::debug!("Trying SearXNG instance: {}", instance);
+    
     // Set timeout to avoid hanging on slow instances
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(15))
+        .connect_timeout(std::time::Duration::from_secs(5))
         .build()
         .map_err(|e| AppError::Internal(format!("Failed to create HTTP client: {}", e)))?;
     
@@ -346,6 +480,7 @@ async fn search_searxng_instance(
         .await
         .map_err(|e| AppError::Internal(format!("Failed to parse SearXNG response: {}", e)))?;
     
+    tracing::info!("Successfully got results from SearXNG instance: {}", instance);
     parse_searxng_results(&data, num_results)
 }
 

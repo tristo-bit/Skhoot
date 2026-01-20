@@ -205,7 +205,28 @@ const AGENT_TOOLS = [
   },
   {
     name: 'web_search',
-    description: 'Search the web for current information, news, documentation, or answers to questions. Use this when you need up-to-date information that may not be in your training data. Returns search results with titles, URLs, snippets, and relevance scores.',
+    description: `Search the web with adaptive depth control. The depth parameter (0-10) controls how thoroughly the search investigates:
+
+DEPTH SCALE (0-10):
+• 0-2: Quick snippets only - Fast lookups, simple facts, definitions (~500ms)
+  Example: "What is X?", "Who is Y?", "Define Z"
+
+• 3-5: Moderate depth - Search + gather 1-3 full articles (~2-4s) - GOOD DEFAULT
+  Example: "How to use X?", "Explain Y", "Tutorial for Z"
+
+• 6-8: Deep research - Search + gather 3-5 articles, selective rendering (~5-8s)
+  Example: "Best practices for X", "Compare Y vs Z", "Comprehensive guide to W"
+
+• 9-10: Maximum depth - Search + gather 5+ articles, full rendering (~10-15s)
+  Example: "Research everything about X", "Detailed analysis of Y", "Expert-level Z"
+
+The AI should choose depth based on:
+- Query complexity (simple fact vs research question)
+- User's explicit depth request ("quick search" vs "thorough research")
+- Task requirements (casual question vs important decision)
+- Time sensitivity (urgent vs can wait)
+
+Users can also specify depth explicitly: "Do a depth 8 search on..." or "Quick depth 2 search for..."`,
     parameters: {
       type: 'object',
       properties: {
@@ -213,9 +234,15 @@ const AGENT_TOOLS = [
           type: 'string', 
           description: 'The search query. Be specific and use relevant keywords.' 
         },
+        depth: {
+          type: 'number',
+          description: 'Search depth from 0-10. Controls gathering and rendering. Choose based on query complexity and user needs. Default: 5 (moderate)',
+          minimum: 0,
+          maximum: 10
+        },
         num_results: { 
           type: 'number', 
-          description: 'Number of results to return (default: 5, max: 10)' 
+          description: 'Number of search results to return (default: 5, max: 10)' 
         },
         search_type: {
           type: 'string',
@@ -224,6 +251,42 @@ const AGENT_TOOLS = [
         },
       },
       required: ['query'],
+    },
+  },
+  {
+    name: 'browse',
+    description: `Extract full content from a specific URL. Use this when you need to read a particular article, documentation page, or website in detail.
+
+Features:
+- Extracts main article content (removes ads, navigation, boilerplate)
+- Gets metadata (title, author, publication date, images)
+- Handles JavaScript-heavy sites with optional rendering
+- Returns confidence score indicating extraction quality
+- Provides word count and reading time estimates
+
+Use cases:
+- Following up on a specific search result
+- Reading a URL the user provided directly
+- Deep-diving into a particular source for detailed information
+- Extracting content from documentation or blog posts
+
+The 'render' parameter enables WebView rendering for JavaScript-heavy single-page applications. Use it when:
+- Initial extraction has low confidence (<0.5)
+- The site is known to be JavaScript-heavy (React, Vue, Angular apps)
+- Content appears incomplete or missing`,
+    parameters: {
+      type: 'object',
+      properties: {
+        url: { 
+          type: 'string', 
+          description: 'URL to browse and extract content from. Must be a valid HTTP(S) URL.' 
+        },
+        render: { 
+          type: 'boolean', 
+          description: 'Enable WebView rendering for JavaScript-heavy pages. Use for SPAs or when content seems incomplete. Default: false' 
+        }
+      },
+      required: ['url'],
     },
   },
   {
@@ -512,9 +575,65 @@ CAPABILITIES:
 - Write/modify files using 'write_file' (create, edit, or append to files)
 - List directory contents using 'list_directory' (explore the filesystem)
 - Search for files using 'search_files' (find files by name or content)
-- Search the web using 'web_search' (get current information, news, documentation)
+- Search the web using 'web_search' with adaptive depth control (see WEB SEARCH DEPTH GUIDE below)
+- Browse specific URLs using 'browse' to extract full article content
 - Create specialized agents using 'invoke_agent' and 'create_agent' tools
 - List available agents using 'list_agents' tool${visionCapabilities}
+
+WEB SEARCH DEPTH GUIDE:
+The 'web_search' tool has a 'depth' parameter (0-10) that you should intelligently choose based on the query:
+
+DEPTH SELECTION STRATEGY:
+• Depth 0-2 (Snippets Only, ~500ms):
+  - Simple facts: "What is X?", "Who is Y?", "Define Z"
+  - Quick lookups: "Capital of France", "2+2"
+  - When user says: "quick search", "just check", "fast lookup"
+  
+• Depth 3-5 (Moderate, ~2-4s) - YOUR DEFAULT:
+  - How-to questions: "How do I use React hooks?"
+  - Explanations: "Explain quantum computing"
+  - Tutorials: "Learn Python basics"
+  - Most general queries
+  
+• Depth 6-8 (Deep Research, ~5-8s):
+  - Best practices: "Best practices for API design"
+  - Comparisons: "Compare Next.js vs Remix"
+  - Comprehensive guides: "Complete guide to Docker"
+  - When user says: "research", "detailed", "thorough"
+  
+• Depth 9-10 (Maximum, ~10-15s):
+  - Expert analysis: "Research everything about X"
+  - Complex topics: "Detailed analysis of Y"
+  - When user says: "deep dive", "comprehensive research", "expert level"
+  - Important decisions requiring multiple sources
+
+ADAPTIVE DEPTH RULES:
+1. Start with depth 5 (moderate) as your default
+2. Increase depth if:
+   - User explicitly requests thorough research
+   - Query is complex or multi-faceted
+   - Topic requires multiple perspectives
+   - Decision is important (architecture, security, etc.)
+3. Decrease depth if:
+   - User wants quick answer
+   - Query is simple factual lookup
+   - Time-sensitive situation
+   - User says "quick" or "fast"
+4. User can override: "Do a depth 8 search on..." or "Quick depth 2 search for..."
+
+BROWSE TOOL:
+Use 'browse' tool when you need to:
+- Read a specific URL the user provided
+- Follow up on a particular search result
+- Extract full content from a known article
+- Get detailed information from a specific source
+- Enable 'render: true' for JavaScript-heavy sites or if content seems incomplete
+
+EXAMPLES:
+• "What's the weather?" → depth: 1 (quick fact)
+• "How do I center a div in CSS?" → depth: 4 (moderate tutorial)
+• "Research best practices for microservices architecture" → depth: 8 (deep research)
+• "Read this article: https://..." → use browse() tool instead
 
 ${getHyperlinkInstructions(hyperlinkSettings)}
 
@@ -775,16 +894,36 @@ class AgentChatService {
         case 'web_search':
           const webSearchResults = await backendApi.webSearch(
             toolCall.arguments.query,
-            toolCall.arguments.num_results,
-            toolCall.arguments.search_type
+            {
+              depth: toolCall.arguments.depth,
+              num_results: toolCall.arguments.num_results,
+              search_type: toolCall.arguments.search_type
+            }
           );
           output = JSON.stringify(webSearchResults, null, 2);
           success = true;
           
-          // Store images for display if available
-          if (webSearchResults.images && webSearchResults.images.length > 0) {
+          // Store images for display if available (from basic search response)
+          if ('images' in webSearchResults && webSearchResults.images && webSearchResults.images.length > 0) {
             (toolCall as any)._webSearchImages = webSearchResults.images;
           }
+          
+          // For gathered responses, we might want to display gathered pages differently
+          if ('gathered_pages' in webSearchResults) {
+            (toolCall as any)._gatheredPages = webSearchResults.gathered_pages;
+          }
+          break;
+
+        case 'browse':
+          const browseResult = await backendApi.browse(
+            toolCall.arguments.url,
+            toolCall.arguments.render
+          );
+          output = JSON.stringify(browseResult, null, 2);
+          success = true;
+          
+          // Store browse result for potential UI display
+          (toolCall as any)._browseResult = browseResult;
           break;
 
         case 'hidden_web_search':

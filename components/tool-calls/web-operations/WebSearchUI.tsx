@@ -25,7 +25,8 @@ interface WebSearchResult {
 interface WebSearchResponse {
   query: string;
   results: WebSearchResult[];
-  total_results: number;
+  search_results?: WebSearchResult[]; // Added for compatibility with gather response
+  total_results?: number;
   search_time_ms: number;
 }
 
@@ -490,6 +491,17 @@ export const WebSearchUI = memo<ToolCallUIProps>(({
     try {
       const parsed = JSON.parse(result.output);
       console.log('[WebSearchUI] Parsed search results:', parsed);
+      
+      // Normalize response structure (handle both "results" and "search_results")
+      if (parsed.search_results && !parsed.results) {
+          parsed.results = parsed.search_results;
+      }
+      
+      // Ensure total_results exists
+      if (typeof parsed.total_results === 'undefined' && parsed.results) {
+          parsed.total_results = parsed.results.length;
+      }
+
       return parsed;
     } catch (error) {
       console.error('[WebSearchUI] Failed to parse result:', error);

@@ -29,10 +29,9 @@ import {
   agentService, 
   AgentStatus, 
   AgentMessage, 
-  AgentToolCall, 
-  ToolResult,
   AgentEventData 
 } from '../../services/agentService';
+import { AgentToolCall, ToolResult } from '../../services/agentChatService';
 
 // ============================================================================
 // Types

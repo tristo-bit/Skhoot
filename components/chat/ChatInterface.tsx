@@ -789,7 +789,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             frequencyPenalty: aiSettings.frequencyPenalty,
             presencePenalty: aiSettings.presencePenalty,
             onToolStart: (toolCall) => {
-              toolCalls.push(toolCall);
+              // Cast to AgentToolCallData - the name will be validated at runtime
+              toolCalls.push(toolCall as AgentToolCallData);
               setSearchStatus(`Executing ${toolCall.name}...`);
             },
             onToolComplete: (result) => {
@@ -1134,8 +1135,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           content: response.content,
           type: 'text',
           timestamp: new Date(),
-          toolCalls: response.toolCalls,
-          toolResults: response.toolResults,
+          toolCalls: response.toolCalls as AgentToolCallData[] | undefined,
+          toolResults: response.toolResults as AgentToolResultData[] | undefined,
         }]);
       }).catch(error => {
         console.error('[ChatInterface] Error:', error);
@@ -1511,7 +1512,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             frequencyPenalty: aiSettings.frequencyPenalty,
             presencePenalty: aiSettings.presencePenalty,
             onToolStart: (toolCall) => {
-              toolCalls.push(toolCall);
+              // Cast to AgentToolCallData - the name will be validated at runtime
+              toolCalls.push(toolCall as AgentToolCallData);
               setSearchStatus(`Executing ${toolCall.name}...`);
             },
             onToolComplete: (result) => {

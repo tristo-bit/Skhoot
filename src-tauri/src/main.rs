@@ -6,6 +6,8 @@ mod terminal;
 mod api_keys;
 mod agent;
 mod disk_info;
+mod webview_renderer;
+mod http_bridge;
 
 use tauri::Manager;
 use std::process::{Command, Stdio};
@@ -161,6 +163,17 @@ fn main() {
       // Initialize agent state
       app.manage(agent::AgentTauriState::default());
       
+      // Initialize WebView renderer state
+      let renderer_state = webview_renderer::WebViewRendererState::default();
+      renderer_state.initialize(app.handle().clone());
+      app.manage(renderer_state.clone());
+      
+      // Start HTTP bridge server for backend communication
+      let app_handle_for_bridge = app.handle().clone();
+      tauri::async_runtime::spawn(async move {
+        http_bridge::start_http_bridge(app_handle_for_bridge, renderer_state).await;
+      });
+      
       #[cfg(desktop)]
       {
         // Use an empty app-wide menu to avoid showing a menubar.
@@ -261,6 +274,7 @@ fn main() {
         agent::add_assistant_message,
         agent::get_agent_config,
         disk_info::get_system_disks,
+        webview_renderer::render_page,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

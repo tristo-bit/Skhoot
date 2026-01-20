@@ -10,6 +10,7 @@ pub mod api_key_storage;
 pub mod ai;
 pub mod error;
 pub mod workflows;
+pub mod content_extraction;
 
 // Re-export commonly used types
 pub use search_engine::{FileSearchEngine, FileSearchConfig, FileMatch};
@@ -21,3 +22,4 @@ pub use api_key_storage::KeyStorage;
 pub use ai::AIManager;
 pub use error::AppError;
 pub use workflows::{Workflow, WorkflowType, WorkflowStatus, WorkflowStep, WorkflowEngine, WorkflowStorage, TriggerManager, TriggerType, CreateWorkflowRequest, ExecuteWorkflowRequest};
+pub use content_extraction::{PageExtract, ContentExtractionError, ExtractionMethod, Metadata, SsrfValidator, HttpFetcher, MetadataExtractor, MainContentExtractor, CacheManager, ContentExtractionSystem, SearchGatherResponse, WebSearchResult};

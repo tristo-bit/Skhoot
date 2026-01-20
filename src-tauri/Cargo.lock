@@ -5826,8 +5826,10 @@ dependencies = [
 name = "src-tauri"
 version = "0.1.3"
 dependencies = [
+ "axum",
  "chrono",
  "futures-util",
+ "gio",
  "num_cpus",
  "portable-pty",
  "reqwest 0.11.27",
@@ -5841,6 +5843,7 @@ dependencies = [
  "tauri-plugin-notification",
  "tauri-plugin-shell",
  "tokio",
+ "tracing",
  "uuid",
  "webkit2gtk",
  "zip",

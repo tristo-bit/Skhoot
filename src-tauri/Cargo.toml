@@ -21,10 +21,13 @@ reqwest = { version = "0.11", features = ["stream"] }
 zip = "0.6"
 futures-util = "0.3"
 num_cpus = "1.16"
+axum = "0.7"
+tracing = "0.1"
 
 # Linux-only: WebKitGTK for MediaStream/WebRTC support
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = "2.0"
+gio = "0.18"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

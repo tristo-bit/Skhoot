@@ -198,6 +198,48 @@ export interface WebSearchResponse {
   images?: ImageResult[];
 }
 
+export interface SearchGatherResponse {
+  query: string;
+  search_results: WebSearchResult[];
+  gathered_pages: PageExtract[];
+  total_search_time_ms: number;
+  total_gather_time_ms: number;
+}
+
+export interface PageExtract {
+  // Core content
+  text: string;
+  word_count: number;
+  
+  // Metadata
+  final_url: string;
+  title?: string;
+  description?: string;
+  author?: string;
+  published_date?: string;
+  canonical_url?: string;
+  
+  // Images
+  primary_image?: string;
+  images: string[];
+  
+  // Links
+  links: string[];
+  
+  // Quality metrics
+  confidence: number;
+  extraction_method: 'DensityHeuristic' | 'ReadabilityAlgorithm' | 'BrowserRender' | 'Fallback';
+  
+  // Performance
+  fetch_time_ms: number;
+  extraction_time_ms: number;
+  total_time_ms: number;
+  
+  // HTTP details
+  status: number;
+  content_type?: string;
+}
+
 export const backendApi = {
   async health(): Promise<HealthResponse> {
     const response = await fetch(`${BACKEND_URL}/health`);
@@ -575,22 +617,69 @@ export const backendApi = {
   // ============================================================================
 
   /**
-   * Search the web for information
+   * Search the web for information with adaptive depth control
+   * 
+   * @param query - Search query
+   * @param options - Search options including depth control
+   * @returns WebSearchResponse (snippets only) or SearchGatherResponse (with gathered content)
    */
   async webSearch(
     query: string, 
-    numResults?: number, 
-    searchType?: 'general' | 'news' | 'docs'
-  ): Promise<WebSearchResponse> {
+    options?: {
+      depth?: number;           // 0-10 scale: 0=snippets only, 10=maximum depth with rendering
+      num_results?: number;     // Number of search results (default: 5, max: 10)
+      search_type?: 'general' | 'news' | 'docs';
+    }
+  ): Promise<WebSearchResponse | SearchGatherResponse> {
+    const depth = options?.depth ?? 5; // Default to moderate depth
+    
+    // Map depth (0-10) to gathering parameters
+    // This creates a continuous scale of search depth
+    const shouldGather = depth >= 3;
+    const gatherTop = shouldGather ? Math.min(Math.ceil(depth / 2), 5) : 0;
+    const enableRender = depth >= 7;
+    
     const params = new URLSearchParams({ 
       q: query,
-      num_results: (numResults || 5).toString(),
-      search_type: searchType || 'general'
+      num_results: (options?.num_results || 5).toString(),
+      search_type: options?.search_type || 'general',
+      gather: shouldGather.toString(),
     });
+    
+    if (shouldGather) {
+      params.append('gather_top', gatherTop.toString());
+    }
+    
+    // Note: render parameter would be passed to individual browse calls
+    // For now, the backend handles rendering based on confidence scores
     
     const response = await fetch(`${BACKEND_URL}/api/v1/search/web?${params}`);
     if (!response.ok) {
       throw new Error(`Web search failed: ${response.statusText}`);
+    }
+    
+    return response.json();
+  },
+
+  /**
+   * Browse and extract content from a specific URL
+   * 
+   * @param url - URL to browse and extract content from
+   * @param render - Enable WebView rendering for JavaScript-heavy pages
+   * @returns PageExtract with full content, metadata, and confidence scores
+   */
+  async browse(
+    url: string,
+    render?: boolean
+  ): Promise<PageExtract> {
+    const params = new URLSearchParams({ 
+      url,
+      render: (render ?? false).toString()
+    });
+    
+    const response = await fetch(`${BACKEND_URL}/api/v1/browse?${params}`);
+    if (!response.ok) {
+      throw new Error(`Browse failed: ${response.statusText}`);
     }
     
     return response.json();
