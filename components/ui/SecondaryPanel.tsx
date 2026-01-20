@@ -129,7 +129,7 @@ export const SecondaryPanel: React.FC<SecondaryPanelProps> = ({
       >
         {/* Resize Handle */}
         <div
-          className={`flex items-center justify-center h-6 cursor-ns-resize transition-colors ${isResizing ? 'bg-purple-500/20' : 'hover:bg-white/5'}`}
+          className={`flex items-center justify-center h-6 cursor-ns-resize transition-colors ${isResizing ? 'bg-[#8B5CF6]/20' : 'hover:bg-white/5'}`}
           onMouseDown={handleResizeStart}
         >
           <GripHorizontal size={16} className="opacity-40" style={{ color: 'var(--text-secondary)' }} />
@@ -150,7 +150,7 @@ export const SecondaryPanel: React.FC<SecondaryPanelProps> = ({
                   className={`
                     flex items-center gap-2 px-3 py-1.5 rounded-xl cursor-pointer transition-all text-sm
                     ${activeTabId === tab.id 
-                      ? 'bg-purple-500/20' 
+                      ? 'bg-[#8B5CF6]/20' 
                       : 'hover:bg-white/5'
                     }
                   `}

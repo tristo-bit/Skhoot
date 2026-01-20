@@ -24,6 +24,50 @@ const formatBytes = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
 
+// Helper function to get file color based on extension
+const getFileColor = (fileName: string, isFolder: boolean): { bg: string; text: string } => {
+  if (isFolder) {
+    return { bg: '#8B5CF6', text: '#A78BFA' }; // Violet for folders
+  }
+  
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  
+  // Color mapping based on file type
+  const colorMap: Record<string, { bg: string; text: string }> = {
+    // Images - Light purple/lavender
+    'jpg': { bg: '#C4B5FD', text: '#A78BFA' },
+    'jpeg': { bg: '#C4B5FD', text: '#A78BFA' },
+    'png': { bg: '#C4B5FD', text: '#A78BFA' },
+    'gif': { bg: '#C4B5FD', text: '#A78BFA' },
+    'svg': { bg: '#C4B5FD', text: '#A78BFA' },
+    'webp': { bg: '#C4B5FD', text: '#A78BFA' },
+    
+    // Documents - Green
+    'md': { bg: '#86EFAC', text: '#4ADE80' },
+    'txt': { bg: '#86EFAC', text: '#4ADE80' },
+    'doc': { bg: '#86EFAC', text: '#4ADE80' },
+    'docx': { bg: '#86EFAC', text: '#4ADE80' },
+    'pdf': { bg: '#86EFAC', text: '#4ADE80' },
+    
+    // Code - Blue
+    'js': { bg: '#93C5FD', text: '#60A5FA' },
+    'ts': { bg: '#93C5FD', text: '#60A5FA' },
+    'jsx': { bg: '#93C5FD', text: '#60A5FA' },
+    'tsx': { bg: '#93C5FD', text: '#60A5FA' },
+    'py': { bg: '#93C5FD', text: '#60A5FA' },
+    'java': { bg: '#93C5FD', text: '#60A5FA' },
+    
+    // Data - Yellow
+    'json': { bg: '#FDE047', text: '#FACC15' },
+    'xml': { bg: '#FDE047', text: '#FACC15' },
+    'csv': { bg: '#FDE047', text: '#FACC15' },
+    'yaml': { bg: '#FDE047', text: '#FACC15' },
+    'yml': { bg: '#FDE047', text: '#FACC15' },
+  };
+  
+  return colorMap[ext] || { bg: '#8B5CF6', text: '#A78BFA' }; // Default violet
+};
+
 // File action handlers - using fileOperations service
 const fileActions = {
   open: async (filePath: string): Promise<boolean> => {
@@ -457,32 +501,34 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
     return (
       <>
         <div className="grid grid-cols-4 gap-3">
-          {files.map(file => (
-            <div 
-              key={file.id} 
-              className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer relative group"
-              onContextMenu={(e) => handleContextMenu(file, e)}
-            >
-              <button
-                onClick={(e) => handleMoreClick(file, e)}
-                className="absolute top-2 right-2 p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all opacity-0 group-hover:opacity-100"
+          {files.map(file => {
+            const colors = getFileColor(file.name, file.type === 'folder');
+            return (
+              <div 
+                key={file.id} 
+                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer relative group"
+                onContextMenu={(e) => handleContextMenu(file, e)}
               >
-                <MoreHorizontal size={12} className="text-text-secondary" />
-              </button>
-              <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center mb-2">
-                {file.type === 'folder' ? <Folder size={20} className="text-purple-400" /> : <File size={20} className="text-purple-400" />}
+                <button
+                  onClick={(e) => handleMoreClick(file, e)}
+                  className="absolute top-2 right-2 p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <MoreHorizontal size={12} className="text-text-secondary" />
+                </button>
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: `${colors.bg}20` }}>
+                  {file.type === 'folder' ? <Folder size={20} style={{ color: colors.text }} /> : <File size={20} style={{ color: colors.text }} />}
+                </div>
+                <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                <p 
+                  className="text-[10px] mt-1 cursor-pointer hover:underline hover:opacity-80 transition-opacity truncate" 
+                  style={{ color: 'var(--text-secondary)' }}
+                  onClick={(e) => handleOpenFolder(file.path, e)}
+                  title="Click to open folder"
+                >
+                  {file.size}</p>
               </div>
-              <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
-              <p 
-                className="text-[10px] mt-1 cursor-pointer hover:underline hover:opacity-80 transition-opacity truncate" 
-                style={{ color: 'var(--text-secondary)' }}
-                onClick={(e) => handleOpenFolder(file.path, e)}
-                title="Click to open folder"
-              >
-                {file.size}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
         {contextMenu && (
           <FileContextMenu
@@ -498,38 +544,42 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
   return (
     <>
       <div className="space-y-1">
-        {files.map(file => (
-          <div 
-            key={file.id} 
-            className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all cursor-pointer group"
-            onContextMenu={(e) => handleContextMenu(file, e)}
-          >
-            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-              {file.type === 'folder' ? <Folder size={16} className="text-purple-400" /> : <File size={16} className="text-purple-400" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
-              <p 
-                className="text-xs truncate cursor-pointer hover:underline hover:opacity-80 transition-opacity" 
-                style={{ color: 'var(--text-secondary)' }}
-                onClick={(e) => handleOpenFolder(file.path, e)}
-                title="Click to open folder"
-              >
-                {file.path}
-              </p>
-            </div>
+        {files.map(file => {
+          const colors = getFileColor(file.name, file.type === 'folder');
+          return (
+            <div 
+              key={file.id} 
+              className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all cursor-pointer group"
+              onContextMenu={(e) => handleContextMenu(file, e)}
+            >
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${colors.bg}10` }}>
+                {file.type === 'folder' ? <Folder size={16} style={{ color: colors.text }} /> : <File size={16} style={{ color: colors.text }} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                <p 
+                  className="text-xs truncate cursor-pointer hover:underline hover:opacity-80 transition-opacity" 
+                  style={{ color: 'var(--text-secondary)' }}
+                  onClick={(e) => handleOpenFolder(file.path, e)}
+                  title="Click to open folder"
+                >
+                  {file.path}
+                </p>
+              </div>
             <div className="text-right flex-shrink-0">
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{file.size}</p>
             </div>
             <button 
               onClick={(e) => handleMoreClick(file, e)}
-              className="p-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 transition-all opacity-60 group-hover:opacity-100"
+              className="p-1.5 rounded-lg hover:bg-white/10 transition-all opacity-60 group-hover:opacity-100"
               title="More actions"
+              style={{ backgroundColor: `${colors.bg}10` }}
             >
-              <MoreHorizontal size={14} className="text-purple-400" />
+              <MoreHorizontal size={14} style={{ color: colors.text }} />
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
       {contextMenu && (
         <FileContextMenu

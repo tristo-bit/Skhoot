@@ -2,6 +2,39 @@
 
 ## January 20, 2026
 
+### File Explorer - Color System Update 🎨
+- **Status**: ✅ COMPLETE
+- **Components**: `SecondaryPanel.tsx`, `FileExplorerPanel.tsx`
+- **Change**: Updated tab and file colors to use proper violet and file-type-specific colors
+- **Impact**: Consistent color scheme matching the rest of the app
+
+**Changes Made**:
+1. **Tab Colors** (`SecondaryPanel.tsx`):
+   - Changed from `bg-purple-500/20` (pinkish) to `bg-[#8B5CF6]/20` (true violet)
+   - Applied to active tabs: Recent, Images, Disk, Analysis, Cleanup
+   - Also updated resize handle color when dragging
+
+2. **File Colors** (`FileExplorerPanel.tsx`):
+   - Created `getFileColor()` function for file-type-specific colors
+   - **Images** (jpg, png, gif, svg, webp): Light purple/lavender (#C4B5FD)
+   - **Documents** (md, txt, pdf, doc): Green (#86EFAC)
+   - **Code** (js, ts, py, java): Blue (#93C5FD)
+   - **Data** (json, xml, csv, yaml): Yellow (#FDE047)
+   - **Folders & Default**: Violet (#8B5CF6)
+
+3. **Applied to Both Views**:
+   - Grid view: File icons with colored backgrounds
+   - List view: File icons and "More" button with matching colors
+
+**User Experience**:
+- ✅ Tabs now display true violet (not pink)
+- ✅ JPG/image files have their own distinct color
+- ✅ Each file type has a recognizable color
+- ✅ Consistent with "Files Attached" color scheme
+- ✅ Better visual hierarchy and file recognition
+
+---
+
 ### Activity Log - Go Button Performance Optimization ⚡
 - **Status**: ✅ OPTIMIZED
 - **Components**: `App.tsx`, `ChatInterface.tsx`
