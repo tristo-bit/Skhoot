@@ -14151,3 +14151,56 @@ return <div className="absolute top-0 left-0 bottom-0 ...">...</div>;
 - ✅ Smooth 500ms cubic-bezier animation
 
 ---
+
+### Sidebar Z-Index Stacking Context Fix 🔧
+- **Status**: ✅ COMPLETE (CORRECTED)
+- **Component**: `Sidebar.tsx`
+- **Change**: Fixed stacking context conflict to ensure sidebar overlays all panels
+- **Impact**: Sidebar now always appears above action button panels (Files, Workflows, Agents)
+
+**Issue - Stacking Context Conflict**:
+After removing portal, sidebar was in different stacking context than panels:
+- Sidebar: `absolute` in `.app-glass` (local stacking context) with `z-30`
+- Modal panels (Files, Settings): `createPortal` to `document.body` (global stacking context) with `z-50`
+- SecondaryPanels (Workflows, Agents): `createPortal` to `document.body` (global stacking context) with `z-40`
+
+**Problem**: Even with higher z-index, elements in different stacking contexts cannot overlay each other based on z-index alone. The sidebar in `.app-glass` could never appear above panels in `document.body`.
+
+**Solution - Portal with Higher Z-Index**:
+Restored `createPortal` to place sidebar in same stacking context as panels:
+
+```tsx
+// Sidebar now in document.body with highest z-index
+const sidebar = (
+  <div className="fixed ... z-[70]" style={{ clipPath: 'inset(0 0 0 0 round 0 var(--app-radius) var(--app-radius) 0)' }}>
+    ...
+  </div>
+);
+return createPortal(sidebar, document.body);
+```
+
+**Technical Details**:
+1. **Portal**: Renders sidebar to `document.body` (same as panels)
+2. **Z-Index**: `z-[70]` (above Modal z-50 and SecondaryPanel z-40)
+3. **Positioning**: `fixed` (required for portal rendering)
+4. **Rounded Corners**: `clip-path: inset(0 0 0 0 round 0 32px 32px 0)` maintains right-side rounded corners
+5. **Animation**: `translate-x` from -100% to 0 (smooth slide from left)
+
+**Final Z-Index Hierarchy** (document.body):
+1. Sidebar: `z-[70]` ✅ (always on top)
+2. Modal panels: `z-50` (Files, Settings, Activity)
+3. Secondary panels: `z-40` (Workflows, Agents, FileExplorer)
+4. Header: `z-30` (in app container)
+
+**User Experience**:
+- ✅ Sidebar always overlays Files panel
+- ✅ Sidebar always overlays Workflows panel
+- ✅ Sidebar always overlays Agents panel
+- ✅ Sidebar always overlays all modals
+- ✅ No visual glitches during animations
+- ✅ Rounded corners maintained via clip-path
+
+**Why This Works**:
+All elements now share the same stacking context (`document.body`), so z-index values correctly determine layering order. Sidebar's `z-[70]` ensures it's always on top.
+
+---
