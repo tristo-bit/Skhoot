@@ -406,11 +406,12 @@ impl ContentExtractionSystem {
                 // (since we can't share &mut across tasks)
                 let mut system = ContentExtractionSystem::new();
                 
-                // Browse the URL (with render disabled initially for speed)
-                match system.browse(&url_clone, false).await {
+                // Browse the URL (with render ENABLED for quality)
+                // We use parallel execution to maintain speed
+                match system.browse(&url_clone, true).await {
                     Ok(page_extract) => {
                         tracing::info!(
-                            "✅ Gathered from {}: {} words, confidence: {:.2}",
+                            "✅ Gathered from {}: {} words, confidence: {:.2} (via WebView)",
                             url_clone,
                             page_extract.word_count,
                             page_extract.confidence
@@ -472,7 +473,7 @@ impl ContentExtractionSystem {
     }
     
     /// Internal helper to perform web search
-    /// Races WebView and HTTP implementations for maximum speed and reliability
+    /// WebView-only implementation for maximum reliability (with fallback)
     async fn perform_search(
         &self,
         query: &str,
@@ -486,31 +487,18 @@ impl ContentExtractionSystem {
         };
         
         if webview_available {
-            tracing::info!("🌐 Initiating parallel search (WebView + HTTP) for speed...");
+            tracing::info!("🌐 Using WebView search (reliable, JavaScript-enabled) for: {}", query);
             
-            // Create the two futures
-            // We Box::pin them to create a common type for the vector
-            let webview_fut = Box::pin(self.perform_webview_search(query, num_results));
-            let http_fut = Box::pin(self.perform_http_search(query, num_results));
-            
-            // Define the type explicitly to satisfy the compiler
-            type SearchFuture = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<crate::content_extraction::WebSearchResult>, ContentExtractionError>> + Send>>;
-            
-            let tasks: Vec<SearchFuture> = vec![
-                webview_fut,
-                http_fut,
-            ];
-            
-            // Race them using select_ok
-            // This returns the first SUCCESSFUL result, or the last error if both fail
-            match futures::future::select_ok(tasks).await {
-                Ok((results, _remaining)) => {
-                    tracing::info!("✅ Search succeeded (fastest provider won)");
-                    Ok(results)
-                },
+            // Use WebView directly - it's more reliable than HTTP
+            // But if it fails (e.g. 0ms render issue), fallback to HTTP
+            match self.perform_webview_search(query, num_results).await {
+                Ok(results) => Ok(results),
                 Err(e) => {
-                    tracing::warn!("❌ Both search providers failed. Last error: {}", e);
-                    Err(e)
+                    tracing::warn!(
+                        "⚠️ WebView search failed: {}. Falling back to HTTP search.", 
+                        e
+                    );
+                    self.perform_http_search(query, num_results).await
                 }
             }
         } else {

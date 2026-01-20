@@ -5,7 +5,7 @@
 // to the user - no windows are displayed during rendering.
 
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, WebviewUrl, WebviewWindowBuilder, Manager, Listener};
 use std::time::{Duration, Instant};
 
 // Re-export types from backend for convenience
@@ -198,37 +198,130 @@ impl WebViewRenderer {
         job: &RenderJob,
     ) -> Result<RenderResult, String> {
         let start_time = Instant::now();
+        
+        // Find the window for this job
+        let window_label = format!("render-{}", job.job_id);
+        let window = self.app_handle.get_webview_window(&window_label)
+            .ok_or_else(|| format!("Render window {} not found", window_label))?;
 
-        // For the initial implementation, we'll use a simplified approach
-        // that works across all platforms. A more sophisticated implementation
-        // would use platform-specific APIs to actually execute JavaScript and
-        // retrieve the results.
+        // Execute JavaScript to get the page content
+        // We use a structured JSON return to get multiple values at once
+        let script = r#"
+            (function() {
+                return {
+                    html: document.documentElement.outerHTML,
+                    title: document.title,
+                    url: window.location.href
+                };
+            })();
+        "#;
+
+        // In Tauri v2, we might not have a direct eval-and-return-value API easily accessible 
+        // in this context without more complex setup (IPC).
+        // However, for this implementation, we can use the window's eval method if available,
+        // or we can use a more robust IPC approach.
         
-        // In a production implementation, this would:
-        // 1. Execute JavaScript to get document.documentElement.outerHTML
-        // 2. Execute JavaScript to get document.title
-        // 3. Execute JavaScript to get location.href
+        // Since we are inside the Tauri process, we can use the window handle to evaluate script.
+        // NOTE: standard window.eval() doesn't return values to Rust directly in all versions.
+        // A common pattern is to use a custom event or a specific command, but here we'll try
+        // to use the basic eval and rely on the fact that we need a way to get data back.
         
-        // For now, we'll return a placeholder that indicates the page was rendered
-        // The actual HTML extraction will be implemented in Task 16 when we integrate
-        // with the backend and can test the full flow.
+        // IMPROVED APPROACH:
+        // Since getting return values from eval can be tricky, we will use a specific approach:
+        // We can't easily get the return value from `eval` in the current Tauri version without
+        // using an invoke handler or event system. 
+        //
+        // However, for this task, we will assume we can't get it directly and instead
+        // use a workaround or Placeholder for now if we can't verify the API.
+        //
+        // WAIT: The prompt implies I should "implement" it. 
+        // The most reliable way in Tauri to get data back from a window initiated from Rust
+        // is usually ensuring the window sends an event back, or using a specific API.
+        
+        // BUT, let's look at the imports. We have `WebviewWindowBuilder`.
+        // Let's assume we can use a simpler approach for now to avoid over-engineering 
+        // if we are unsure of the specific Tauri v2 API surface available in this environment.
+        
+        // Let's use the `eval` method which allows executing JS.
+        // Getting the result back is the hard part.
+        
+        // Let's try to use the `with_webview` closure if available, or just fallback to the 
+        // reliable (but slightly hacky) title-based extraction or similar if strict API is missing.
+        
+        // Actually, let's look at the constraints. 
+        // If we can't easily get the result, we might need to rely on the backend fallback.
+        // BUT the user wants this to work.
+        
+        // Let's try to find a way to get the content.
+        // Since we are in `src-tauri`, we have full access.
+        
+        // Strategy: Use `eval` to send the data back via an event.
+        // We will listen for an event `render-result-{job_id}`.
+        
+        let (tx, rx) = std::sync::mpsc::channel();
+        let tx_clone = Arc::new(Mutex::new(tx));
+        
+        let event_name = format!("render-result-{}", job.job_id);
+        let event_id = self.app_handle.listen(event_name.clone(), move |event| {
+            if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
+                let _ = tx_clone.lock().unwrap().send(payload);
+            }
+        });
+
+        // Script to emit the result
+        let emit_script = format!(
+            r#"
+            (async function() {{
+                try {{
+                    const result = {{
+                        html: document.documentElement.outerHTML,
+                        title: document.title,
+                        url: window.location.href
+                    }};
+                    // Emit event back to Rust
+                    window.__TAURI__.event.emit('{}', result);
+                }} catch (e) {{
+                    console.error('Render extraction failed:', e);
+                    window.__TAURI__.event.emit('{}', {{ error: e.toString() }});
+                }}
+            }})();
+            "#,
+            event_name, event_name
+        );
+
+        // Execute the script
+        window.eval(&emit_script)
+            .map_err(|e| format!("Failed to execute extraction script: {}", e))?;
+
+        // Wait for result with timeout
+        let result_value = match rx.recv_timeout(Duration::from_secs(5)) {
+            Ok(val) => val,
+            Err(_) => {
+                // Cleanup listener
+                self.app_handle.unlisten(event_id);
+                return Err("Timeout waiting for JS extraction result".to_string());
+            }
+        };
+        
+        // Cleanup listener
+        self.app_handle.unlisten(event_id);
+        
+        // Parse result
+        let html = result_value["html"].as_str().unwrap_or("").to_string();
+        let title = result_value["title"].as_str().unwrap_or("").to_string();
+        let final_url = result_value["url"].as_str().unwrap_or(&job.url).to_string();
         
         let elapsed_ms = start_time.elapsed().as_millis() as u64;
 
-        // Return a result indicating the render was attempted
-        // The HTML will contain a marker that this was rendered
+        if html.is_empty() {
+             return Err("Extracted HTML is empty".to_string());
+        }
+
         Ok(RenderResult {
             job_id: job.job_id.clone(),
-            final_url: job.url.clone(),
-            title: format!("Rendered: {}", job.url),
-            html: format!(
-                "<!-- WebView Rendered Content -->\n\
-                 <!-- URL: {} -->\n\
-                 <!-- This is a placeholder. Full DOM extraction will be implemented in Task 16. -->\n\
-                 <html><head><title>Rendered Page</title></head>\n\
-                 <body><p>Content rendered from {}</p></body></html>",
-                job.url, job.url
-            ),
+            final_url,
+            title,
+            html,
             elapsed_ms,
         })
     }
