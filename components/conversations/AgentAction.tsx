@@ -82,6 +82,11 @@ export const AgentAction = memo<AgentActionProps>(({
   onCancel,
   onNavigateDirectory,
 }) => {
+  // Skip rendering for hidden tool calls (e.g., hidden_web_search)
+  if ((toolCall as any)._hidden) {
+    return null;
+  }
+  
   // Get plugin for this tool
   const plugin = toolCallRegistry.get(toolCall.name);
   
