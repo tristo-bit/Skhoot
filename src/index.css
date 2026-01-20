@@ -288,22 +288,72 @@
   }
 
   .files-panel {
+    width: 92vw;
+    max-width: 420px;
+    max-height: 560px;
     border-radius: calc(24px * var(--component-scale) * var(--scale));
   }
 
-  .files-panel-header,
-  .files-panel-tabs {
+  .files-panel-header {
     padding-left: calc(var(--scale-space-4) * var(--spacing-scale));
     padding-right: calc(var(--scale-space-4) * var(--spacing-scale));
   }
 
-  .files-panel-body {
-    padding: calc(var(--scale-space-4) * var(--spacing-scale));
+  .files-panel-body-wrapper {
+    padding: 0;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .files-panel-tabs-container {
+    flex-shrink: 0;
+  }
+
+  .files-panel-content {
+    flex: 1;
+    overflow-y: auto;
   }
 
   .files-panel-tab {
     font-size: calc(11px * var(--scale-text));
+  }
+
+  /* Larger files panel on bigger screens */
+  @media (min-width: 768px) and (min-height: 700px) {
+    .files-panel {
+      max-width: 480px;
+      max-height: 640px;
+    }
+  }
+
+  @media (min-width: 1024px) and (min-height: 800px) {
+    .files-panel {
+      max-width: 520px;
+      max-height: 720px;
+    }
+  }
+
+  @media (min-width: 1280px) and (min-height: 900px) {
+    .files-panel {
+      max-width: 560px;
+      max-height: 800px;
+    }
+  }
+
+  @media (min-width: 1536px) and (min-height: 1000px) {
+    .files-panel {
+      max-width: 600px;
+      max-height: 880px;
+    }
+  }
+
+  @media (min-width: 1800px) and (min-height: 1000px) {
+    .files-panel {
+      width: 85vw;
+      max-width: 680px;
+      max-height: 920px;
+    }
   }
 
   .compact-mode .files-panel {

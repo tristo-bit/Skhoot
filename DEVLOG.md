@@ -14204,3 +14204,90 @@ return createPortal(sidebar, document.body);
 All elements now share the same stacking context (`document.body`), so z-index values correctly determine layering order. Sidebar's `z-[70]` ensures it's always on top.
 
 ---
+
+### Backup Panel UI/UX Refactor 🎨
+- **Status**: ✅ COMPLETE
+- **Component**: `FilesPanel.tsx`, `src/index.css`
+- **Change**: Aligned Backup panel with Settings/User Profile design system
+- **Impact**: Consistent, professional UI matching other major panels
+
+**Problem**:
+Backup panel had poor UI/UX compared to other major panels:
+- ❌ Too small (no defined dimensions)
+- ❌ Poor space utilization
+- ❌ Compressed tabs
+- ❌ Tiny empty states lost in small container
+- ❌ Inconsistent with Settings/User Profile panels
+
+**Solution - Adopt Standard Panel Pattern**:
+Refactored to match Settings/User Profile layout exactly:
+
+**1. Dimensions (Responsive)**:
+```css
+Base: max-width: 420px, max-height: 560px
+768px+: max-width: 480px, max-height: 640px
+1024px+: max-width: 520px, max-height: 720px
+1280px+: max-width: 560px, max-height: 800px
+1536px+: max-width: 600px, max-height: 880px
+1800px+: max-width: 680px, max-height: 920px
+```
+
+**2. Layout Structure**:
+```tsx
+<Modal>
+  {/* Fixed tabs section with border */}
+  <div className="tabs-container border-b">
+    <TabButton /> {/* Proper spacing: px-6 py-3 gap-2 */}
+  </div>
+  
+  {/* Scrollable content */}
+  <div className="content flex-1 overflow-y-auto px-6 py-4">
+    {/* Tab content */}
+  </div>
+</Modal>
+```
+
+**3. Empty States - Centered & Readable**:
+```tsx
+<div className="flex items-center justify-center min-h-[300px]">
+  <div className="text-center space-y-3 max-w-xs">
+    <div className="p-4 rounded-2xl glass-subtle">
+      <Icon size={32} />
+    </div>
+    <p className="text-sm font-bold">Title</p>
+    <p className="text-xs text-secondary">Description</p>
+  </div>
+</div>
+```
+
+**4. Content Spacing**:
+- Tabs: `px-6 py-3` with `gap-2` between buttons
+- Content: `px-6 py-4` for breathing room
+- Items: `space-y-2` or `space-y-3` for proper separation
+- Text: Upgraded from `text-[10px]` to `text-xs`, `text-[12px]` to `text-sm`
+
+**5. Apps Tab Improvements**:
+- Larger padding: `p-4` (was `p-3`)
+- Better text sizes: `text-sm` for names, `text-xs` for sync status
+- Improved buttons: `px-3 py-2` with `text-xs`
+- Icon sizes: `14px` (was `12px`)
+- Added hover states: `hover:glass`, `hover:bg-green-500/20`
+
+**User Experience**:
+- ✅ Same width/height as Settings/User Profile panels
+- ✅ Tabs have proper breathing room
+- ✅ Empty states are centered, visible, and readable
+- ✅ Content is well-spaced and scannable
+- ✅ Consistent typography and spacing
+- ✅ Professional, polished appearance
+- ✅ Indistinguishable from other major panels
+
+**Technical Changes**:
+- Removed custom small dimensions
+- Added responsive breakpoints matching modal-panel
+- Restructured JSX for proper flex layout
+- Updated all empty states with centered design
+- Improved spacing throughout all tabs
+- Enhanced interactive elements (buttons, hover states)
+
+---
