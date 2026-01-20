@@ -58,6 +58,9 @@ export interface AgentChatOptions {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
   /** Custom endpoint URL (for custom providers) */
   customEndpoint?: string;
   /** Workspace root directory for terminal commands and file operations */
@@ -1000,6 +1003,9 @@ class AgentChatService {
       messages,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.maxTokens ?? 4096,
+      top_p: options.topP ?? 1.0,
+      frequency_penalty: options.frequencyPenalty ?? 0,
+      presence_penalty: options.presencePenalty ?? 0,
     };
 
     // Only add tools if model supports tool calling
@@ -1110,6 +1116,8 @@ class AgentChatService {
     const body: any = {
       model,
       max_tokens: options.maxTokens ?? 4096,
+      temperature: options.temperature ?? 0.7,
+      top_p: options.topP ?? 1.0,
       system: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt),
       messages,
     };
@@ -1218,6 +1226,7 @@ class AgentChatService {
       generationConfig: {
         temperature: options.temperature ?? 0.7,
         maxOutputTokens: options.maxTokens ?? 4096,
+        topP: options.topP ?? 1.0,
       },
     };
 
