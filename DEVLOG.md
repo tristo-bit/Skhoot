@@ -14102,3 +14102,52 @@ Expanded:
 - Use fragments to return multiple elements for flex containers
 - Use `mr-auto` for left-aligned items that push others right
 - Pre-allocate space with width transitions, not flex-grow
+
+
+### Sidebar Animation Fix 🎯
+- **Status**: ✅ COMPLETE
+- **Component**: `Sidebar.tsx`, `App.tsx`
+- **Change**: Removed portal rendering to respect app container boundaries
+- **Impact**: Sidebar now properly contained within app rounded corners
+
+**Root Cause Analysis**:
+The sidebar was using `createPortal(sidebar, document.body)` which rendered it **outside** the main app container (`.app-glass`) that has:
+- `rounded-[var(--app-radius)]` (32px corners)
+- `overflow-hidden` to clip content
+
+This caused the sidebar to:
+- ❌ Render outside app boundaries
+- ❌ Ignore app's rounded corners
+- ❌ Clip visually beyond the app container
+
+**Failed Iterations** (treating symptoms, not root cause):
+1. Width-based animation (0 → 16rem)
+2. ScaleX transform with counter-scaling
+3. Various border-radius attempts
+
+**Solution**:
+- Removed `createPortal` and `import { createPortal } from 'react-dom'`
+- Changed from `fixed` to `absolute` positioning
+- Kept simple `translate-x` animation (-translate-x-full → translate-x-0)
+- App container's `overflow-hidden` now properly clips the sidebar
+- App container's `rounded-[var(--app-radius)]` now applies to sidebar
+- Fixed syntax error (missing closing div tag)
+
+**Technical Changes**:
+```tsx
+// Before: Portal to document.body (outside app)
+const sidebar = (<div className="fixed ...">...</div>);
+return createPortal(sidebar, document.body);
+
+// After: Direct render (inside app container)
+return <div className="absolute top-0 left-0 bottom-0 ...">...</div>;
+```
+
+**User Experience**:
+- ✅ Sidebar respects app's 32px rounded corners
+- ✅ Opens smoothly from left edge inside app
+- ✅ No visual clipping outside app boundaries
+- ✅ Proper z-index layering with other panels
+- ✅ Smooth 500ms cubic-bezier animation
+
+---
