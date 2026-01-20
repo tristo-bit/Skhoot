@@ -867,7 +867,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               setSearchType(prev => prev || 'files');
             }
           }, 
-          imageFiles, getEffectiveChatId(), userMsg.id, // Pass images for vision API
+          imageFiles, // Pass images for vision API
+          getEffectiveChatId(), // chatId
+          userMsg.id, // messageId
           {
             temperature: aiSettings.temperature,
             maxTokens: aiSettings.maxTokens,
@@ -1205,6 +1207,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           setSearchStatus(status);
         },
         undefined, // no images
+        getEffectiveChatId(), // chatId
+        undefined, // messageId
         {
           temperature: aiSettings.temperature,
           maxTokens: aiSettings.maxTokens,
@@ -1568,6 +1572,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             }
           }, 
           imageFiles, // Pass images for vision API
+          getEffectiveChatId(), // chatId
+          undefined, // messageId (not available in this context)
           {
             temperature: aiSettings.temperature,
             maxTokens: aiSettings.maxTokens,
