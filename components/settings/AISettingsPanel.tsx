@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Bot, Key, Activity, Zap, BarChart3, Settings2, Clock, Calendar, CalendarDays } from 'lucide-react';
+import { Bot, Key, Activity, Zap, BarChart3, Settings2, Clock, Calendar, CalendarDays, Link } from 'lucide-react';
 import { BackButton, SaveButton, ConnectionButton, IconButton } from '../buttonFormat';
 import { apiKeyService, PROVIDERS, type ProviderInfo } from '../../services/apiKeyService';
 import { providerRegistry } from '../../services/providerRegistry';
 import { tokenTrackingService, TimePeriod } from '../../services/tokenTrackingService';
 import { getMaxOutputTokens } from '../../services/modelCapabilities';
+import { hyperlinkSettingsService } from '../../services/hyperlinkSettingsService';
 
 interface AISettingsPanelProps {
   onBack: () => void;
@@ -24,6 +25,11 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
     const saved = localStorage.getItem('skhoot_agent_mode_default');
     return saved !== 'false';
   });
+
+  // Hyperlink Settings state
+  const [hyperlinkSettings, setHyperlinkSettings] = useState(() => 
+    hyperlinkSettingsService.loadSettings()
+  );
 
   // API Key state
   const [selectedProvider, setSelectedProvider] = useState<string>('openai');
@@ -130,6 +136,24 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
     setAgentModeDefault(enabled);
     localStorage.setItem('skhoot_agent_mode_default', String(enabled));
   }, []);
+
+  const handleToggleHyperlinks = useCallback((enabled: boolean) => {
+    const newSettings = { ...hyperlinkSettings, enabled };
+    setHyperlinkSettings(newSettings);
+    hyperlinkSettingsService.saveSetting('enabled', enabled);
+  }, [hyperlinkSettings]);
+
+  const handleToggleLearningHyperlinks = useCallback((enabled: boolean) => {
+    const newSettings = { ...hyperlinkSettings, learningHyperlinks: enabled };
+    setHyperlinkSettings(newSettings);
+    hyperlinkSettingsService.saveSetting('learningHyperlinks', enabled);
+  }, [hyperlinkSettings]);
+
+  const handleToggleSourceHyperlinks = useCallback((enabled: boolean) => {
+    const newSettings = { ...hyperlinkSettings, sourceHyperlinks: enabled };
+    setHyperlinkSettings(newSettings);
+    hyperlinkSettingsService.saveSetting('sourceHyperlinks', enabled);
+  }, [hyperlinkSettings]);
 
   const handleTemperatureChange = useCallback((value: number) => {
     setTemperature(value);
@@ -266,6 +290,73 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
             }`} />
           </button>
         </div>
+      </div>
+
+      {/* Hyperlink Settings */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
+          <Link size={16} className="text-blue-500" />
+          Hyperlinks
+        </label>
+        
+        {/* Master Toggle */}
+        <div className="flex items-center justify-between p-3 rounded-xl glass-subtle">
+          <div>
+            <p className="text-sm font-medium font-jakarta text-text-primary">Enable Hyperlinks</p>
+            <p className="text-xs text-text-secondary font-jakarta">Allow AI to add hyperlinks to responses</p>
+          </div>
+          <button
+            onClick={() => handleToggleHyperlinks(!hyperlinkSettings.enabled)}
+            className={`w-12 h-6 rounded-full transition-all ${
+              hyperlinkSettings.enabled ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
+            }`}
+          >
+            <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+              hyperlinkSettings.enabled ? 'translate-x-6' : 'translate-x-0.5'
+            }`} />
+          </button>
+        </div>
+
+        {/* Conditional Sub-toggles */}
+        {hyperlinkSettings.enabled && (
+          <>
+            {/* Learning Hyperlinks */}
+            <div className="flex items-center justify-between p-3 rounded-xl glass-subtle ml-4">
+              <div>
+                <p className="text-sm font-medium font-jakarta text-text-primary">Learning Hyperlinks</p>
+                <p className="text-xs text-text-secondary font-jakarta">Link complex terms and concepts for learning</p>
+              </div>
+              <button
+                onClick={() => handleToggleLearningHyperlinks(!hyperlinkSettings.learningHyperlinks)}
+                className={`w-12 h-6 rounded-full transition-all ${
+                  hyperlinkSettings.learningHyperlinks ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                  hyperlinkSettings.learningHyperlinks ? 'translate-x-6' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+
+            {/* Source Hyperlinks */}
+            <div className="flex items-center justify-between p-3 rounded-xl glass-subtle ml-4">
+              <div>
+                <p className="text-sm font-medium font-jakarta text-text-primary">Source Hyperlinks</p>
+                <p className="text-xs text-text-secondary font-jakarta">Link to sources and references</p>
+              </div>
+              <button
+                onClick={() => handleToggleSourceHyperlinks(!hyperlinkSettings.sourceHyperlinks)}
+                className={`w-12 h-6 rounded-full transition-all ${
+                  hyperlinkSettings.sourceHyperlinks ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                  hyperlinkSettings.sourceHyperlinks ? 'translate-x-6' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* API Configuration */}

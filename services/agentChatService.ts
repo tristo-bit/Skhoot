@@ -227,6 +227,26 @@ const AGENT_TOOLS = [
     },
   },
   {
+    name: 'hidden_web_search',
+    description: 'Search the web for hyperlink URLs without displaying UI. Use this to enrich your responses with contextual links for complex terms or source citations. This tool runs silently in the background and returns URLs for hyperlink insertion. Use for learning hyperlinks (complex terms, concepts) or source hyperlinks (citations, references).',
+    parameters: {
+      type: 'object',
+      properties: {
+        queries: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of search queries for terms needing hyperlinks. Keep to 2-3 most important terms to avoid over-linking.',
+        },
+        link_type: {
+          type: 'string',
+          enum: ['learning', 'source'],
+          description: 'Type of hyperlinks: "learning" for educational content about complex terms, "source" for citations and references',
+        },
+      },
+      required: ['queries', 'link_type'],
+    },
+  },
+  {
     name: 'invoke_agent',
     description: 'Invoke a specialized agent to handle a specific task. Agents are autonomous entities with specific capabilities and workflows. Use this to delegate tasks to agents that are better suited for the job.',
     parameters: {
@@ -379,7 +399,66 @@ function getToolsForFormat(format: APIFormat, allowedTools?: string[]) {
 // System Prompt
 // ============================================================================
 
-function getAgentSystemPrompt(provider: string, model: string, workingDirectory: string, capabilities?: ModelCapabilities, customPrompt?: string): string {
+function getHyperlinkInstructions(settings?: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean }): string {
+  // Default to all enabled if no settings provided
+  const enabled = settings?.enabled ?? true;
+  const learningEnabled = settings?.learningHyperlinks ?? true;
+  const sourceEnabled = settings?.sourceHyperlinks ?? true;
+
+  if (!enabled) {
+    return ''; // No hyperlink instructions if disabled
+  }
+
+  const learningInstructions = learningEnabled ? `
+1. Learning Hyperlinks (ENABLED - USE BY DEFAULT):
+   - ALWAYS add hyperlinks for complex terms, technical concepts, or specialized vocabulary
+   - Examples: "quantum entanglement", "REST API", "machine learning", "Docker containers"
+   - Use when the term may be unfamiliar to a general audience
+   - Prioritize the most important 2-3 terms per response
+   - This is your DEFAULT behavior - actively look for opportunities to add learning links` : `
+1. Learning Hyperlinks (DISABLED):
+   - Do NOT add learning hyperlinks for complex terms
+   - Skip the hidden_web_search tool for learning purposes`;
+
+  const sourceInstructions = sourceEnabled ? `
+2. Source Hyperlinks (ENABLED - USE BY DEFAULT):
+   - ALWAYS add hyperlinks when citing facts, data, or references
+   - ALWAYS cite sources when you use web_search results
+   - Examples: Documentation, research papers, official guides, articles
+   - Format: [Source: Title](url) or [1](url)
+   - This is MANDATORY - every web_search result you reference must be cited with a hyperlink` : `
+2. Source Hyperlinks (DISABLED):
+   - Do NOT add source hyperlinks when citing information
+   - You can still mention sources in text, but don't create clickable links`;
+
+  return `
+HYPERLINK CAPABILITIES (ACTIVE):
+You MUST enrich your responses with contextual hyperlinks. This is a core feature - use it proactively!
+
+${learningInstructions}
+
+${sourceInstructions}
+
+How to Add Hyperlinks:
+1. Compose your response normally
+2. Identify terms needing hyperlinks (2-3 max for learning, all sources for citations)
+3. Use hidden_web_search tool: hidden_web_search(queries: ["term1", "term2"], link_type: "learning" or "source")
+4. Insert markdown links: [term](url) using the returned URLs
+5. Distinguish link types:
+   - Learning: [quantum entanglement](url)
+   - Source: [Source: NASA](url) or [1](url)
+
+Example Workflow:
+User: "What is quantum computing?"
+1. Compose: "Quantum computing uses quantum entanglement and superposition..."
+2. Identify: ["quantum entanglement", "superposition"]
+3. hidden_web_search(queries: ["quantum entanglement", "superposition"], link_type: "learning")
+4. Insert: "Quantum computing uses [quantum entanglement](url1) and [superposition](url2)..."
+
+IMPORTANT: Hyperlinks are ENABLED by default. Use them actively unless the response is very simple (like "hello" or basic confirmations).`;
+}
+
+function getAgentSystemPrompt(provider: string, model: string, workingDirectory: string, capabilities?: ModelCapabilities, customPrompt?: string, hyperlinkSettings?: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean }): string {
   console.log('[AgentChatService] getAgentSystemPrompt() called');
   console.log('[AgentChatService] System Prompt Details:', {
     provider,
@@ -436,6 +515,8 @@ CAPABILITIES:
 - Search the web using 'web_search' (get current information, news, documentation)
 - Create specialized agents using 'invoke_agent' and 'create_agent' tools
 - List available agents using 'list_agents' tool${visionCapabilities}
+
+${getHyperlinkInstructions(hyperlinkSettings)}
 
 WORKING DIRECTORY: ${workingDirectory}
 
@@ -551,8 +632,62 @@ Remember: You have full access to the user's system through the shell tool. ALWA
 // Agent Chat Service Class
 // ============================================================================
 
+interface HyperlinkResult {
+  term: string;
+  url: string;
+  title: string;
+  snippet: string;
+  linkType: 'learning' | 'source';
+}
+
 class AgentChatService {
   private maxToolIterations = 10;
+
+  /**
+   * Execute hidden web search for hyperlink enrichment
+   * Searches for URLs without displaying UI feedback
+   */
+  private async executeHiddenWebSearch(
+    queries: string[],
+    linkType: 'learning' | 'source'
+  ): Promise<HyperlinkResult[]> {
+    const results: HyperlinkResult[] = [];
+    
+    try {
+      console.log('[HiddenWebSearch] Executing for queries:', queries, 'type:', linkType);
+      
+      for (const query of queries) {
+        try {
+          // Use the same backend API as web_search
+          const searchResults = await backendApi.webSearch(query, 1, 'general');
+          
+          if (searchResults.results && searchResults.results.length > 0) {
+            const topResult = searchResults.results[0];
+            results.push({
+              term: query,
+              url: topResult.url,
+              title: topResult.title,
+              snippet: topResult.snippet || '',
+              linkType,
+            });
+            console.log('[HiddenWebSearch] Found result for:', query);
+          } else {
+            console.log('[HiddenWebSearch] No results for:', query);
+          }
+        } catch (error) {
+          // Silently handle errors for individual queries
+          console.warn('[HiddenWebSearch] Failed to search for:', query, error);
+        }
+      }
+      
+      console.log('[HiddenWebSearch] Completed. Found', results.length, 'results');
+      return results;
+    } catch (error) {
+      // Gracefully handle errors without user-facing messages
+      console.error('[HiddenWebSearch] Error:', error);
+      return results; // Return whatever results we got
+    }
+  }
 
   /**
    * Execute a single tool call
@@ -652,6 +787,19 @@ class AgentChatService {
           }
           break;
 
+        case 'hidden_web_search':
+          // Execute hidden web search without UI feedback
+          const hiddenResults = await this.executeHiddenWebSearch(
+            toolCall.arguments.queries,
+            toolCall.arguments.link_type
+          );
+          output = JSON.stringify(hiddenResults, null, 2);
+          success = true;
+          
+          // Mark this tool call as hidden (no UI rendering)
+          (toolCall as any)._hidden = true;
+          break;
+
         // Agent tools
         case 'invoke_agent':
           const invokeResult = await agentTools.invokeAgent(toolCall.arguments);
@@ -716,6 +864,12 @@ class AgentChatService {
     console.log('[AgentChatService] Provider:', options.provider || 'auto-detect');
     console.log('[AgentChatService] Model:', options.model || 'default');
     console.log('[AgentChatService] Session ID:', options.sessionId);
+    
+    // Load hyperlink settings
+    const { hyperlinkSettingsService } = await import('./hyperlinkSettingsService');
+    const hyperlinkSettings = hyperlinkSettingsService.loadSettings();
+    console.log('[AgentChatService] Hyperlink settings:', hyperlinkSettings);
+    
     const provider = options.provider || await this.getActiveProvider();
     
     if (!provider) {
@@ -773,7 +927,8 @@ class AgentChatService {
         model,
         provider,
         modelInfo?.capabilities,
-        options
+        options,
+        hyperlinkSettings
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -929,19 +1084,20 @@ class AgentChatService {
     model: string,
     provider: string,
     capabilities: ModelCapabilities | undefined,
-    options: AgentChatOptions
+    options: AgentChatOptions,
+    hyperlinkSettings: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean }
   ): Promise<AgentChatResponse> {
     switch (format) {
       case 'openai':
       case 'ollama':
-        return this.chatOpenAIFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options);
+        return this.chatOpenAIFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options, hyperlinkSettings);
       case 'anthropic':
-        return this.chatAnthropicFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options);
+        return this.chatAnthropicFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options, hyperlinkSettings);
       case 'google':
-        return this.chatGoogleFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options);
+        return this.chatGoogleFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options, hyperlinkSettings);
       default:
         // Default to OpenAI format (most compatible)
-        return this.chatOpenAIFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options);
+        return this.chatOpenAIFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options, hyperlinkSettings);
     }
   }
 
@@ -957,7 +1113,8 @@ class AgentChatService {
     model: string,
     provider: string,
     capabilities: ModelCapabilities | undefined,
-    options: AgentChatOptions
+    options: AgentChatOptions,
+    hyperlinkSettings: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean }
   ): Promise<AgentChatResponse> {
     console.log('[AgentChatService] chatOpenAIFormat() - Using OpenAI-compatible format');
     console.log('[AgentChatService] Provider:', provider, '| Model:', model);
@@ -967,7 +1124,7 @@ class AgentChatService {
     const providerConfig = providerRegistry.getProvider(provider);
     
     const messages = [
-      { role: 'system', content: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt) },
+      { role: 'system', content: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt, hyperlinkSettings) },
       ...this.convertHistoryToOpenAI(history),
     ];
 
@@ -1078,7 +1235,8 @@ class AgentChatService {
     model: string,
     provider: string,
     capabilities: ModelCapabilities | undefined,
-    options: AgentChatOptions
+    options: AgentChatOptions,
+    hyperlinkSettings: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean }
   ): Promise<AgentChatResponse> {
     console.log('[AgentChatService] chatAnthropicFormat() - Using Anthropic format');
     console.log('[AgentChatService] Provider:', provider, '| Model:', model);
@@ -1118,7 +1276,7 @@ class AgentChatService {
       max_tokens: options.maxTokens ?? 4096,
       temperature: options.temperature ?? 0.7,
       top_p: options.topP ?? 1.0,
-      system: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt),
+      system: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt, hyperlinkSettings),
       messages,
     };
 
@@ -1193,7 +1351,8 @@ class AgentChatService {
     model: string,
     provider: string,
     capabilities: ModelCapabilities | undefined,
-    options: AgentChatOptions
+    options: AgentChatOptions,
+    hyperlinkSettings: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean }
   ): Promise<AgentChatResponse> {
     console.log('[AgentChatService] chatGoogleFormat() - Using Google/Gemini format');
     console.log('[AgentChatService] Provider:', provider, '| Model:', model);
@@ -1222,7 +1381,7 @@ class AgentChatService {
 
     const body: any = {
       contents,
-      systemInstruction: { parts: [{ text: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt) }] },
+      systemInstruction: { parts: [{ text: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt, hyperlinkSettings) }] },
       generationConfig: {
         temperature: options.temperature ?? 0.7,
         maxOutputTokens: options.maxTokens ?? 4096,

@@ -1,9 +1,192 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState } from 'react';
+import { linkPreviewService, PreviewData } from '../../services/linkPreviewService';
+import { browserNavigationService } from '../../services/browserNavigationService';
 
 interface MarkdownRendererProps {
   content: string;
   style?: React.CSSProperties;
 }
+
+// ============================================================================
+// Hyperlink Component
+// ============================================================================
+
+interface HyperlinkProps {
+  href: string;
+  children: React.ReactNode;
+  linkType?: 'learning' | 'source';
+}
+
+const Hyperlink: React.FC<HyperlinkProps> = ({ href, children, linkType }) => {
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [leaveTimeout, setLeaveTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = async () => {
+    // Clear any pending leave timeout
+    if (leaveTimeout) {
+      clearTimeout(leaveTimeout);
+      setLeaveTimeout(null);
+    }
+
+    // Show preview after 200ms delay
+    const timeout = setTimeout(async () => {
+      setShowPreview(true);
+      
+      if (!previewData && !isLoading) {
+        setIsLoading(true);
+        try {
+          const data = await linkPreviewService.fetchPreview(href);
+          setPreviewData(data);
+        } catch (error) {
+          console.error('Failed to load preview:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    }, 200);
+    
+    setHoverTimeout(timeout);
+  };
+
+  const handleMouseLeave = () => {
+    // Clear hover timeout if still pending
+    if (hoverTimeout) {
+      clearTimeout(hoverTimeout);
+      setHoverTimeout(null);
+    }
+
+    // Dismiss preview after 300ms delay
+    const timeout = setTimeout(() => {
+      setShowPreview(false);
+    }, 300);
+    
+    setLeaveTimeout(timeout);
+  };
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      await browserNavigationService.openUrl(href);
+    } catch (error) {
+      console.error('Failed to open URL:', error);
+      
+      // Show user-friendly error notification
+      const errorMessage = error instanceof Error ? error.message : 'Failed to open link';
+      
+      // Try to copy URL to clipboard as fallback
+      try {
+        await navigator.clipboard.writeText(href);
+        alert(`Could not open link in browser.\n\nURL copied to clipboard:\n${href}`);
+      } catch (clipboardError) {
+        alert(`Could not open link in browser.\n\nPlease copy this URL manually:\n${href}`);
+      }
+    }
+  };
+
+  // Determine link color based on type
+  const linkColor = linkType === 'source' 
+    ? 'text-purple-500 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300'
+    : 'text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300';
+
+  return (
+    <span className="relative inline-block">
+      <a
+        href={href}
+        onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className={`underline underline-offset-2 cursor-pointer transition-all duration-200 ${linkColor}`}
+        tabIndex={0}
+        role="link"
+        aria-label={`Link to ${href}`}
+      >
+        {children}
+      </a>
+      
+      {showPreview && (
+        <HyperlinkPreview
+          data={previewData}
+          isLoading={isLoading}
+          linkType={linkType}
+        />
+      )}
+    </span>
+  );
+};
+
+// ============================================================================
+// Hyperlink Preview Component
+// ============================================================================
+
+interface HyperlinkPreviewProps {
+  data: PreviewData | null;
+  isLoading: boolean;
+  linkType?: 'learning' | 'source';
+}
+
+const HyperlinkPreview: React.FC<HyperlinkPreviewProps> = ({ 
+  data, 
+  isLoading, 
+  linkType 
+}) => {
+  return (
+    <div 
+      className="absolute z-50 mt-2 w-80 rounded-lg glass-elevated p-3 shadow-lg"
+      style={{
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.2)',
+        backdropFilter: 'blur(12px) saturate(1.2)'
+      }}
+    >
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-text-secondary">
+          <div className="animate-spin w-4 h-4 border-2 border-accent border-t-transparent rounded-full" />
+          <span className="text-xs">Loading preview...</span>
+        </div>
+      ) : data ? (
+        <>
+          <div className="flex items-start gap-2 mb-2">
+            {data.favicon && (
+              <img src={data.favicon} alt="" className="w-4 h-4 mt-0.5" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-text-primary truncate">
+                {data.title}
+              </p>
+              <p className="text-xs text-text-secondary truncate">
+                {data.domain}
+              </p>
+            </div>
+            {linkType && (
+              <span className={`
+                px-2 py-0.5 text-[9px] rounded-full
+                ${linkType === 'learning' ? 'bg-blue-500/20 text-blue-500' : 'bg-purple-500/20 text-purple-500'}
+              `}>
+                {linkType === 'learning' ? 'Learn' : 'Source'}
+              </span>
+            )}
+          </div>
+          
+          {data.description && (
+            <p className="text-xs text-text-secondary leading-relaxed line-clamp-3">
+              {data.description}
+            </p>
+          )}
+          
+          <div className="mt-2 pt-2 border-t border-dashed border-glass-border">
+            <p className="text-[9px] text-text-secondary truncate">
+              {data.url}
+            </p>
+          </div>
+        </>
+      ) : (
+        <p className="text-xs text-text-secondary">No preview available</p>
+      )}
+    </div>
+  );
+};
 
 // Base text style for AI messages - using primary color for better readability
 const baseTextStyle: React.CSSProperties = {
@@ -59,16 +242,23 @@ const parseInline = (text: string): React.ReactNode[] => {
     // Links [text](url)
     match = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/);
     if (match) {
+      const linkText = match[1];
+      const url = match[2];
+      
+      // Detect link type from text or URL
+      // Source links typically have "Source:" prefix or are numbered citations
+      const isSourceLink = linkText.toLowerCase().startsWith('source:') || 
+                          /^\[\d+\]$/.test(linkText);
+      const linkType = isSourceLink ? 'source' : 'learning';
+      
       elements.push(
-        <a
+        <Hyperlink
           key={key++}
-          href={match[2]}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:opacity-70 transition-opacity text-accent"
+          href={url}
+          linkType={linkType}
         >
-          {match[1]}
-        </a>
+          {linkText}
+        </Hyperlink>
       );
       remaining = remaining.slice(match[0].length);
       continue;
