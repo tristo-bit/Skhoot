@@ -15,12 +15,15 @@ export const ActivityLogItem: React.FC<ActivityLogItemProps> = ({ log }) => {
   const [showDetail, setShowDetail] = useState(false);
   const bgColor = `${getActivityColor(log.action)}50`;
   
+  // Debug: log the isDeleted state
+  console.log('[ActivityLogItem] Rendering log:', log.id, 'isDeleted:', log.isDeleted, 'chatId:', log.chatId);
+  
   // Check if this is a search action that can show details
   const isSearchAction = log.action.includes('Search');
   const isClickable = isSearchAction && log.searchMetadata;
   
-  // Check if we can navigate to the chat/message
-  const canNavigate = log.chatId && log.messageId;
+  // Check if we can navigate to the chat/message (and it's not deleted)
+  const canNavigate = log.chatId && log.messageId && !log.isDeleted;
 
   const handleClick = () => {
     if (isClickable) {
@@ -94,23 +97,33 @@ export const ActivityLogItem: React.FC<ActivityLogItemProps> = ({ log }) => {
             </p>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[9px] font-semibold text-text-secondary font-jakarta">
-                {log.result}
+                {log.isDeleted ? 'Chat deleted' : log.result}
               </span>
               <span className="text-[9px] text-text-secondary opacity-50">•</span>
               <span className="text-[9px] font-medium text-text-secondary font-jakarta">
                 {formatRelativeTime(log.timestamp)}
               </span>
+              {log.isDeleted && (
+                <>
+                  <span className="text-[9px] text-text-secondary opacity-50">•</span>
+                  <span className="text-[9px] font-medium text-red-500 font-jakarta">
+                    Deleted
+                  </span>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={handleGoToMessage}
-              className="px-3 py-1.5 rounded-lg glass-subtle hover:glass transition-all active:scale-95 text-[10px] font-bold text-text-primary"
-              title="Go to message"
-              aria-label="Go to message"
-            >
-              Go
-            </button>
+            {canNavigate && (
+              <button
+                onClick={handleGoToMessage}
+                className="px-3 py-1.5 rounded-lg glass-subtle hover:glass transition-all active:scale-95 text-[10px] font-bold text-text-primary"
+                title="Go to message"
+                aria-label="Go to message"
+              >
+                Go
+              </button>
+            )}
             {isClickable && (
               <ChevronRight size={16} className="text-text-secondary opacity-50" />
             )}

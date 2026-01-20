@@ -2,6 +2,40 @@
 
 ## January 20, 2026
 
+### Activity Log - Deleted Chat Handling 🗑️
+- **Status**: ✅ COMPLETE
+- **Components**: `activityLogger.ts`, `App.tsx`, `ActivityLogItem.tsx`
+- **Feature**: Mark deleted chats in Activity Log and hide "Go" button
+
+**Implementation**:
+When a chat is deleted, the activity logs remain visible but are marked as deleted with visual indicators.
+
+**Changes Made**:
+1. Added `isDeleted?: boolean` field to `ActivityLog` interface
+2. Created `markChatAsDeleted(chatId)` function in activityLogger service
+3. Called `markChatAsDeleted()` in `handleDeleteChat` when user deletes a conversation
+4. Updated `ActivityLogItem` to:
+   - Show "Chat deleted" instead of result text
+   - Add red "Deleted" badge after timestamp
+   - Hide "Go" button for deleted entries
+   - Prevent navigation to deleted messages
+
+**User Experience**:
+- ✅ Activity logs persist after chat deletion (for history tracking)
+- ✅ Clear visual indication: "Chat deleted" + red "Deleted" badge
+- ✅ "Go" button hidden for deleted entries
+- ✅ Cannot navigate to deleted messages
+- ✅ All other functionality works normally (view details, etc.)
+
+**Testing**:
+1. Send a message in a chat
+2. Open Activity Log - see the entry with "Go" button
+3. Delete the chat
+4. Reopen Activity Log - entry shows "Chat deleted" + "Deleted" badge, no "Go" button
+5. Other entries still work normally ✅
+
+---
+
 ### AI Settings - Dynamic Model-Aware Max Tokens 🎯
 - **Status**: ✅ Implemented
 - **Components**: `modelCapabilities.ts`, `AISettingsModal.tsx`, `AISettingsPanel.tsx`

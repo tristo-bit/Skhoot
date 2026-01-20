@@ -43,6 +43,7 @@ export interface ActivityLog {
   searchMetadata?: SearchMetadata;
   chatId?: string;
   messageId?: string;
+  isDeleted?: boolean; // Indicates if the associated chat/message was deleted
 }
 
 export type ActivityFilter = 'all' | 'search' | 'cleanup' | 'archive' | 'chat';
@@ -169,6 +170,25 @@ export const activityLogger = {
   subscribe(listener: LogListener): () => void {
     listeners.add(listener);
     return () => listeners.delete(listener);
+  },
+
+  /**
+   * Mark all logs associated with a chat as deleted
+   */
+  markChatAsDeleted(chatId: string): void {
+    console.log('[activityLogger] Marking chat as deleted:', chatId);
+    console.log('[activityLogger] Logs before:', logsCache.filter(l => l.chatId === chatId));
+    
+    logsCache = logsCache.map(log => 
+      log.chatId === chatId ? { ...log, isDeleted: true } : log
+    );
+    
+    console.log('[activityLogger] Logs after:', logsCache.filter(l => l.chatId === chatId));
+    
+    saveLogs(logsCache);
+    notifyListeners();
+    
+    console.log('[activityLogger] Saved and notified listeners');
   },
 
   /**

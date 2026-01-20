@@ -308,6 +308,7 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
   - Click on activity logs to navigate directly to the related conversation and message
   - Automatic message highlighting when navigating from activity logs
   - Smart chat lookup: Automatically finds the correct conversation when navigating from logs with incomplete metadata
+  - Deleted chat handling: Activity logs are preserved when conversations are deleted, with visual indicators showing the chat is no longer available
 - **Help Center**: Comprehensive support hub with documentation access
 
 </details>
@@ -982,6 +983,10 @@ const allLogs = activityLogger.getFilteredLogs('all');         // All activities
 // Clear all logs
 activityLogger.clearLogs();
 
+// Mark all logs associated with a chat as deleted
+// (useful when a conversation is deleted to maintain log integrity)
+activityLogger.markChatAsDeleted('conv-123');
+
 // Subscribe to log updates (real-time)
 const unsubscribe = activityLogger.subscribe((logs: ActivityLog[]) => {
   console.log('Logs updated:', logs.length);
@@ -1026,6 +1031,7 @@ const timeStr2 = formatRelativeTime(new Date(Date.now() - 300000)); // "5m ago"
 - `searchMetadata`: Optional search-specific metadata (SearchMetadata)
 - `chatId`: Optional conversation ID for linking to chat sessions
 - `messageId`: Optional message ID for linking to specific messages
+- `isDeleted`: Optional boolean indicating if the associated chat/message was deleted
 
 **SearchMetadata Interface:**
 - `query`: Search query string
@@ -1044,6 +1050,7 @@ const timeStr2 = formatRelativeTime(new Date(Date.now() - 300000)); // "5m ago"
 - **Filtering**: Built-in category filters for different activity types
 - **Export Options**: JSON and CSV export for external analysis
 - **Conversation Linking**: Link activities to specific chat conversations and messages
+- **Deletion Tracking**: Mark logs as deleted when associated chats/messages are removed (maintains log integrity while indicating unavailable references)
 - **Search Metadata**: Rich metadata for search operations with detailed results
 - **Time Formatting**: Human-readable relative time formatting
 - **Auto-Cleanup**: Automatically trims to most recent 100 logs

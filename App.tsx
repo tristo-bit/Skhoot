@@ -21,6 +21,7 @@ import { initUIConfig } from './services/uiConfig';
 import { demoModeService } from './services/demoMode';
 import { nativeNotifications } from './services/nativeNotifications';
 import { tokenTrackingService } from './services/tokenTrackingService';
+import { activityLogger } from './services/activityLogger';
 import { Chat, Message, User } from './types';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { SettingsProvider } from './src/contexts/SettingsContext';
@@ -296,8 +297,14 @@ const AppContent: React.FC = () => {
   }, []);
 
   const handleDeleteChat = useCallback((chatId: string) => {
+    console.log('[App] Deleting chat:', chatId);
     chatStorage.deleteChat(chatId);
     setChats(chatStorage.getChats());
+    
+    // Mark all activity logs for this chat as deleted
+    console.log('[App] Marking activity logs as deleted for chat:', chatId);
+    activityLogger.markChatAsDeleted(chatId);
+    
     if (currentChatId === chatId) {
       setCurrentChatId(null);
     }
