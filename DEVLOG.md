@@ -14291,3 +14291,100 @@ Base: max-width: 420px, max-height: 560px
 - Enhanced interactive elements (buttons, hover states)
 
 ---
+
+### Activity Log Panel UI/UX Refactor 🎨
+- **Status**: ✅ COMPLETE
+- **Component**: `ActivityPanel.tsx`, `src/index.css`
+- **Change**: Aligned Activity Log with Settings/User Profile design system
+- **Impact**: Consistent, professional UI with ZERO functional regressions
+
+**Problem**:
+Activity Log had layout issues compared to major panels:
+- ❌ Custom modal implementation (not using standard Modal component)
+- ❌ Fixed dimensions (max-width: 520px, h-[85vh])
+- ❌ Inconsistent spacing and padding
+- ❌ Poor visual hierarchy
+- ❌ Not responsive like other panels
+
+**Solution - Layout-Only Refactor**:
+Migrated to standard `Modal` component WITHOUT touching any logic:
+
+**What Changed (Layout Only)**:
+1. **Component Migration**:
+   ```tsx
+   // Before: Custom portal modal
+   const panel = (<div className="fixed inset-0 z-50">...</div>);
+   return createPortal(panel, document.body);
+   
+   // After: Standard Modal component
+   return <Modal panelClassName="activity-panel">...</Modal>;
+   ```
+
+2. **Dimensions (Responsive)**:
+   ```css
+   Base: max-width: 420px, max-height: 560px
+   768px+: max-width: 480px, max-height: 640px
+   1024px+: max-width: 520px, max-height: 720px
+   1280px+: max-width: 560px, max-height: 800px
+   1536px+: max-width: 600px, max-height: 880px
+   1800px+: max-width: 680px, max-height: 920px
+   ```
+
+3. **Header Structure**:
+   ```tsx
+   // Moved to Modal's headerContent prop
+   <div className="flex items-center gap-3">
+     {onBack && <BackButton onClick={onBack} />}
+     <div>
+       <h2>Activity Log</h2>
+       <p className="text-xs">Track all Skhoot actions</p>
+     </div>
+   </div>
+   ```
+
+4. **Footer Structure**:
+   ```tsx
+   // Moved to Modal's footer prop
+   <div className="flex gap-2">
+     <button onClick={exportJSON}>Export</button>
+     <button onClick={handleClearLogs}>Clear</button>
+   </div>
+   ```
+
+5. **Content Layout**:
+   - Filters: Border-bottom separator, proper padding
+   - Logs: Scrollable area with consistent spacing
+   - Typography: `text-[10px]` → `text-xs` for better readability
+
+**What Did NOT Change (100% Preserved)**:
+- ✅ `useActivityLogs` hook - untouched
+- ✅ `filter`, `setFilter` state - untouched
+- ✅ `exportJSON` function - untouched
+- ✅ `handleClearLogs` function - untouched
+- ✅ `isEmpty` logic - untouched
+- ✅ All button onClick handlers - untouched
+- ✅ ActivityFilterBar component - untouched
+- ✅ ActivityLogItem component - untouched
+- ✅ EmptyActivityState component - untouched
+- ✅ Props interface - untouched
+- ✅ All functional behavior - 100% preserved
+
+**User Experience**:
+- ✅ Same width/height as Settings/User Profile panels
+- ✅ Responsive across all screen sizes
+- ✅ Better visual hierarchy (header/filters/content/footer)
+- ✅ Consistent spacing and padding
+- ✅ Professional appearance matching design system
+- ✅ **All buttons work exactly as before**
+- ✅ **All filters work exactly as before**
+- ✅ **Export/Clear work exactly as before**
+
+**Technical Changes**:
+- Replaced custom modal with standard `Modal` component
+- Added `activity-panel` CSS classes with responsive breakpoints
+- Restructured JSX to use Modal's props (headerContent, footer)
+- Updated text sizes for consistency (`text-[10px]` → `text-xs`)
+- Added proper flex layout for body content
+- **Zero changes to any functional logic or handlers**
+
+---

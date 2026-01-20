@@ -356,6 +356,106 @@
     }
   }
 
+  /* Activity Panel - Same dimensions as other major panels */
+  .activity-panel {
+    width: 92vw;
+    max-width: 420px;
+    max-height: 560px;
+    border-radius: calc(24px * var(--component-scale) * var(--scale));
+  }
+
+  .activity-panel-header {
+    padding-left: calc(var(--scale-space-4) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-4) * var(--spacing-scale));
+  }
+
+  .activity-panel-body {
+    padding: calc(var(--scale-space-4) * var(--spacing-scale));
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .activity-panel-footer {
+    padding-left: calc(var(--scale-space-4) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-4) * var(--spacing-scale));
+  }
+
+  /* Larger activity panel on bigger screens */
+  @media (min-width: 768px) and (min-height: 700px) {
+    .activity-panel {
+      max-width: 480px;
+      max-height: 640px;
+    }
+  }
+
+  @media (min-width: 1024px) and (min-height: 800px) {
+    .activity-panel {
+      max-width: 520px;
+      max-height: 720px;
+    }
+  }
+
+  @media (min-width: 1280px) and (min-height: 900px) {
+    .activity-panel {
+      max-width: 560px;
+      max-height: 800px;
+    }
+  }
+
+  @media (min-width: 1536px) and (min-height: 1000px) {
+    .activity-panel {
+      max-width: 600px;
+      max-height: 880px;
+    }
+  }
+
+  @media (min-width: 1800px) and (min-height: 1000px) {
+    .activity-panel {
+      width: 85vw;
+      max-width: 680px;
+      max-height: 920px;
+    }
+  }
+
+  .compact-mode .activity-panel {
+    width: 94vw;
+    height: 88vh;
+    max-height: 520px;
+    border-radius: calc(20px * var(--component-scale) * var(--scale));
+  }
+
+  .compact-mode .activity-panel-header,
+  .compact-mode .activity-panel-footer {
+    padding-left: calc(var(--scale-space-3) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-3) * var(--spacing-scale));
+  }
+
+  .compact-mode .activity-panel-body {
+    padding: calc(var(--scale-space-3) * var(--spacing-scale));
+  }
+
+  .mobile-mode .activity-panel,
+  .micro-mode .activity-panel {
+    width: 96vw;
+    height: 90vh;
+    max-height: none;
+    border-radius: calc(16px * var(--component-scale) * var(--scale));
+  }
+
+  .mobile-mode .activity-panel-header,
+  .mobile-mode .activity-panel-footer,
+  .micro-mode .activity-panel-header,
+  .micro-mode .activity-panel-footer {
+    padding-left: calc(var(--scale-space-2) * var(--spacing-scale));
+    padding-right: calc(var(--scale-space-2) * var(--spacing-scale));
+  }
+
+  .mobile-mode .activity-panel-body,
+  .micro-mode .activity-panel-body {
+    padding: calc(var(--scale-space-2) * var(--spacing-scale));
+  }
+
   .compact-mode .files-panel {
     width: 94vw;
     height: 88vh;
