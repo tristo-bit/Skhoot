@@ -124,6 +124,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     onActiveModeChange?.(activeMode);
   }, [activeMode, onActiveModeChange]);
 
+  // Reset activeMode when panels are closed
+  useEffect(() => {
+    // If a panel-opening mode is active but all panels are closed, reset the mode
+    if (activeMode === 'Files' && !isFileExplorerOpen) {
+      setActiveMode(null);
+    } else if (activeMode === 'Workflows' && !isWorkflowsOpen) {
+      setActiveMode(null);
+    } else if (activeMode === 'Agents' && !isAgentsOpen) {
+      setActiveMode(null);
+    }
+  }, [isFileExplorerOpen, isWorkflowsOpen, isAgentsOpen, activeMode]);
+
   // Keyboard shortcut for agent mode toggle (Ctrl+Shift+A)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

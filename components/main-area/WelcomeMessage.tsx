@@ -33,7 +33,7 @@ export const WelcomeMessage = memo<WelcomeMessageProps>(({
   
   return (
     <div 
-      className={`text-center max-w-[340px] transition-all duration-600 ease-out ${
+      className={`text-center max-w-[480px] transition-all duration-600 ease-out ${
         isExiting ? 'empty-state-exit' : 'animate-in fade-in zoom-in duration-700'
       }`}
       style={{
