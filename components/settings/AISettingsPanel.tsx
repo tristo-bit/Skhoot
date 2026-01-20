@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Bot, Key, Activity, Zap, BarChart3, Settings2, Clock, Calendar, CalendarDays } from 'lucide-react';
 import { BackButton, SaveButton, ConnectionButton, IconButton } from '../buttonFormat';
 import { apiKeyService, PROVIDERS, type ProviderInfo } from '../../services/apiKeyService';
 import { providerRegistry } from '../../services/providerRegistry';
 import { tokenTrackingService, TimePeriod } from '../../services/tokenTrackingService';
+import { getMaxOutputTokens } from '../../services/modelCapabilities';
 
 interface AISettingsPanelProps {
   onBack: () => void;
@@ -56,6 +57,12 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
     outputTokens: 0,
     totalCost: 0,
   });
+
+  // Compute max tokens limit based on selected model
+  const maxTokensLimit = useMemo(() => {
+    if (!selectedModel) return 16384; // Default fallback
+    return getMaxOutputTokens(selectedModel, selectedProvider);
+  }, [selectedModel, selectedProvider]);
 
   // Update token usage when period changes or new data arrives
   const updateTokenUsage = useCallback(() => {
@@ -434,14 +441,14 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
           <input
             type="range"
             min="256"
-            max="16384"
+            max={maxTokensLimit}
             step="256"
-            value={maxTokens}
+            value={Math.min(maxTokens, maxTokensLimit)}
             onChange={(e) => handleMaxTokensChange(parseInt(e.target.value))}
             className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700"
           />
           <p className="text-xs text-text-secondary font-jakarta">
-            Maximum length of AI responses
+            Model: {selectedModel || 'None'} • Max: {maxTokensLimit.toLocaleString()} tokens
           </p>
         </div>
       </div>

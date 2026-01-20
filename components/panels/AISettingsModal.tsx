@@ -2,7 +2,7 @@
  * AISettingsModal - AI configuration modal
  * Includes: Agent mode toggle, AI logs, advanced mode, API parameters, usage stats
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Bot, Terminal, Zap, Settings, Key, BarChart3,
   ChevronRight, Check, AlertCircle, Eye, EyeOff,
@@ -11,6 +11,7 @@ import {
 import { Modal } from '../ui';
 import { TabButton } from '../buttonFormat';
 import { apiKeyService } from '../../services/apiKeyService';
+import { getMaxOutputTokens } from '../../services/modelCapabilities';
 
 type Tab = 'general' | 'parameters' | 'usage';
 
@@ -41,6 +42,8 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeModel, setActiveModel] = useState<string>('');
+  const [activeProvider, setActiveProvider] = useState<string>('');
 
   // General settings
   const [agentModeDefault, setAgentModeDefault] = useState(() => 
@@ -96,7 +99,7 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
       setIsLoading(true);
       try {
         const providerIds = ['openai', 'google', 'anthropic', 'custom'];
-        const activeProvider = await apiKeyService.getActiveProvider();
+        const activeProviderId = await apiKeyService.getActiveProvider();
         
         const configs: ProviderConfig[] = await Promise.all(
           providerIds.map(async (id) => {
@@ -107,12 +110,19 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
               name: getProviderName(id),
               hasKey,
               model,
-              isActive: id === activeProvider,
+              isActive: id === activeProviderId,
             };
           })
         );
         
         setProviders(configs);
+        
+        // Set active model and provider
+        const active = configs.find(p => p.isActive);
+        if (active) {
+          setActiveProvider(active.id);
+          setActiveModel(active.model);
+        }
       } catch (error) {
         console.error('Failed to load providers:', error);
       } finally {
@@ -122,6 +132,12 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
     
     loadProviders();
   }, []);
+
+  // Compute max tokens limit based on active model
+  const maxTokensLimit = useMemo(() => {
+    if (!activeModel) return 16384; // Default fallback
+    return getMaxOutputTokens(activeModel, activeProvider);
+  }, [activeModel, activeProvider]);
 
   // Save settings handlers
   const handleAgentModeChange = useCallback((enabled: boolean) => {
@@ -153,11 +169,19 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
   const handleSetActiveProvider = useCallback(async (providerId: string) => {
     try {
       await apiKeyService.setActiveProvider(providerId);
-      setProviders(prev => prev.map(p => ({ ...p, isActive: p.id === providerId })));
+      const updatedProviders = providers.map(p => ({ ...p, isActive: p.id === providerId }));
+      setProviders(updatedProviders);
+      
+      // Update active model
+      const newActive = updatedProviders.find(p => p.id === providerId);
+      if (newActive) {
+        setActiveProvider(newActive.id);
+        setActiveModel(newActive.model);
+      }
     } catch (error) {
       console.error('Failed to set active provider:', error);
     }
-  }, []);
+  }, [providers]);
 
   return (
     <Modal
@@ -200,6 +224,8 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
             topP={topP}
             frequencyPenalty={frequencyPenalty}
             presencePenalty={presencePenalty}
+            maxTokensLimit={maxTokensLimit}
+            activeModel={activeModel}
             onParameterChange={handleParameterChange}
           />
         )}
@@ -385,8 +411,10 @@ const ParametersTab: React.FC<{
   topP: number;
   frequencyPenalty: number;
   presencePenalty: number;
+  maxTokensLimit: number;
+  activeModel: string;
   onParameterChange: (key: string, value: number) => void;
-}> = ({ temperature, maxTokens, topP, frequencyPenalty, presencePenalty, onParameterChange }) => (
+}> = ({ temperature, maxTokens, topP, frequencyPenalty, presencePenalty, maxTokensLimit, activeModel, onParameterChange }) => (
   <div className="space-y-4">
     <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Model Parameters</p>
     
@@ -402,13 +430,23 @@ const ParametersTab: React.FC<{
     
     <SliderSetting
       label="Max Tokens"
-      description="Maximum response length"
+      description={`Maximum response length (model max: ${maxTokensLimit.toLocaleString()})`}
       value={maxTokens}
       min={256}
-      max={8192}
+      max={maxTokensLimit}
       step={256}
       onChange={(v) => onParameterChange(STORAGE_KEYS.maxTokens, v)}
     />
+    
+    {/* Model-specific token limits info */}
+    <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+      <p className="text-xs text-blue-400 font-medium mb-1">Current Model: {activeModel || 'Loading...'}</p>
+      <p className="text-[10px] text-blue-300/80 leading-relaxed">
+        Max output tokens: {maxTokensLimit.toLocaleString()}
+        <br />
+        Slider automatically adjusts to your selected model's capabilities
+      </p>
+    </div>
     
     <SliderSetting
       label="Top P"
@@ -451,31 +489,38 @@ const SliderSetting: React.FC<{
   max: number;
   step: number;
   onChange: (value: number) => void;
-}> = ({ label, description, value, min, max, step, onChange }) => (
-  <div className="p-3 rounded-xl glass-subtle">
-    <div className="flex items-center justify-between mb-2">
-      <div>
-        <p className="text-sm font-medium text-text-primary">{label}</p>
-        <p className="text-xs text-text-secondary">{description}</p>
+}> = ({ label, description, value, min, max, step, onChange }) => {
+  // Format value display - use locale string for large numbers (tokens)
+  const displayValue = value >= 1000 
+    ? value.toLocaleString() 
+    : value.toFixed(step < 1 ? 1 : 0);
+  
+  return (
+    <div className="p-3 rounded-xl glass-subtle">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <p className="text-sm font-medium text-text-primary">{label}</p>
+          <p className="text-xs text-text-secondary">{description}</p>
+        </div>
+        <span className="text-sm font-bold text-purple-400 min-w-[80px] text-right">
+          {displayValue}
+        </span>
       </div>
-      <span className="text-sm font-bold text-purple-400 min-w-[60px] text-right">
-        {value.toFixed(step < 1 ? 1 : 0)}
-      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full h-2 rounded-full appearance-none cursor-pointer"
+        style={{
+          background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.1) ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.1) 100%)`,
+        }}
+      />
     </div>
-    <input
-      type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onChange={(e) => onChange(parseFloat(e.target.value))}
-      className="w-full h-2 rounded-full appearance-none cursor-pointer"
-      style={{
-        background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.1) ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.1) 100%)`,
-      }}
-    />
-  </div>
-);
+  );
+};
 
 // Usage Tab
 const UsageTab: React.FC<{ stats: any }> = ({ stats }) => (

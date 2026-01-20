@@ -43,6 +43,9 @@ export interface AIServiceConfig {
   customModel?: string;
   temperature?: number;
   maxTokens?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
 }
 
 // Provider-specific configurations
@@ -607,7 +610,8 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
     onStatusUpdate?: (status: string) => void,
     images?: Array<{ fileName: string; base64: string; mimeType: string }>,
     chatId?: string,
-    messageId?: string
+    messageId?: string,
+    config?: AIServiceConfig
   ): Promise<AIResponse> {
     const provider = await this.getActiveProvider();
     
@@ -626,13 +630,13 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
       
       switch (provider) {
         case 'openai':
-          return await this.chatWithOpenAI(apiKey, message, history, onStatusUpdate, images);
+          return await this.chatWithOpenAI(apiKey, message, history, onStatusUpdate, images, config);
         case 'google':
-          return await this.chatWithGoogle(apiKey, message, history, onStatusUpdate, images);
+          return await this.chatWithGoogle(apiKey, message, history, onStatusUpdate, images, config);
         case 'anthropic':
-          return await this.chatWithAnthropic(apiKey, message, history, onStatusUpdate, images);
+          return await this.chatWithAnthropic(apiKey, message, history, onStatusUpdate, images, config);
         case 'custom':
-          return await this.chatWithCustom(apiKey, message, history, onStatusUpdate, images);
+          return await this.chatWithCustom(apiKey, message, history, onStatusUpdate, images, config);
         default:
           throw new Error(`Unknown provider: ${provider}`);
       }
@@ -654,7 +658,8 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
     message: string,
     history: AIMessage[],
     onStatusUpdate?: (status: string) => void,
-    images?: Array<{ fileName: string; base64: string; mimeType: string }>
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>,
+    config?: AIServiceConfig
   ): Promise<AIResponse> {
     onStatusUpdate?.('Connecting to OpenAI...');
     
@@ -752,8 +757,11 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
         messages,
         tools: TOOLS_OPENAI,
         tool_choice: 'auto',
-        temperature: this.config.temperature ?? 0.7,
-        max_tokens: this.config.maxTokens ?? 4096,
+        temperature: config?.temperature ?? this.config.temperature ?? 0.7,
+        max_tokens: config?.maxTokens ?? this.config.maxTokens ?? 4096,
+        top_p: config?.topP ?? 1.0,
+        frequency_penalty: config?.frequencyPenalty ?? 0,
+        presence_penalty: config?.presencePenalty ?? 0,
       }),
     });
 
@@ -821,7 +829,7 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
           body: JSON.stringify({
             model,
             messages: summaryMessages,
-            temperature: 0.7,
+            temperature: config?.temperature ?? 0.7,
             max_tokens: 1024,
           }),
         });
@@ -857,7 +865,8 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
     message: string,
     history: AIMessage[],
     onStatusUpdate?: (status: string) => void,
-    images?: Array<{ fileName: string; base64: string; mimeType: string }>
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>,
+    config?: AIServiceConfig
   ): Promise<AIResponse> {
     onStatusUpdate?.('Connecting to Google Gemini...');
     
@@ -959,8 +968,9 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
       systemInstruction: { parts: [{ text: systemPrompt }] },
       tools,
       generationConfig: {
-        temperature: this.config.temperature ?? 0.7,
-        maxOutputTokens: this.config.maxTokens ?? 4096,
+        temperature: config?.temperature ?? this.config.temperature ?? 0.7,
+        maxOutputTokens: config?.maxTokens ?? this.config.maxTokens ?? 4096,
+        topP: config?.topP ?? 1.0,
       },
     };
     
@@ -1088,7 +1098,8 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
     message: string,
     history: AIMessage[],
     onStatusUpdate?: (status: string) => void,
-    images?: Array<{ fileName: string; base64: string; mimeType: string }>
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>,
+    config?: AIServiceConfig
   ): Promise<AIResponse> {
     onStatusUpdate?.('Connecting to Anthropic Claude...');
     
@@ -1146,7 +1157,9 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
       },
       body: JSON.stringify({
         model,
-        max_tokens: this.config.maxTokens ?? 4096,
+        max_tokens: config?.maxTokens ?? this.config.maxTokens ?? 4096,
+        temperature: config?.temperature ?? this.config.temperature ?? 0.7,
+        top_p: config?.topP ?? 1.0,
         system: this.getSystemPrompt('anthropic', model),
         messages,
         tools: TOOLS_ANTHROPIC,
@@ -1216,6 +1229,7 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
           body: JSON.stringify({
             model,
             max_tokens: 1024,
+            temperature: config?.temperature ?? 0.7,
             messages: summaryMessages,
           }),
         });
@@ -1252,7 +1266,8 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
     message: string,
     history: AIMessage[],
     onStatusUpdate?: (status: string) => void,
-    images?: Array<{ fileName: string; base64: string; mimeType: string }>
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>,
+    config?: AIServiceConfig
   ): Promise<AIResponse> {
     const endpoint = this.config.customEndpoint;
     
@@ -1319,8 +1334,11 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
           messages,
           tools: TOOLS_OPENAI,
           tool_choice: 'auto',
-          temperature: this.config.temperature ?? 0.7,
-          max_tokens: this.config.maxTokens ?? 4096,
+          temperature: config?.temperature ?? this.config.temperature ?? 0.7,
+          max_tokens: config?.maxTokens ?? this.config.maxTokens ?? 4096,
+          top_p: config?.topP ?? 1.0,
+          frequency_penalty: config?.frequencyPenalty ?? 0,
+          presence_penalty: config?.presencePenalty ?? 0,
         }),
       });
 
@@ -1372,8 +1390,11 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
         body: JSON.stringify({
           model,
           messages,
-          temperature: this.config.temperature ?? 0.7,
-          max_tokens: this.config.maxTokens ?? 4096,
+          temperature: config?.temperature ?? this.config.temperature ?? 0.7,
+          max_tokens: config?.maxTokens ?? this.config.maxTokens ?? 4096,
+          top_p: config?.topP ?? 1.0,
+          frequency_penalty: config?.frequencyPenalty ?? 0,
+          presence_penalty: config?.presencePenalty ?? 0,
         }),
       });
 

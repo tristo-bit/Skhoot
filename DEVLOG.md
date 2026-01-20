@@ -2,6 +2,142 @@
 
 ## January 20, 2026
 
+### AI Settings - Dynamic Model-Aware Max Tokens 🎯
+- **Status**: ✅ Implemented
+- **Components**: `modelCapabilities.ts`, `AISettingsModal.tsx`, `AISettingsPanel.tsx`
+- **Change**: Max tokens slider now dynamically adapts to each model's actual capabilities
+- **Impact**: Perfect UX - slider maximum always matches the selected model's limit
+
+**Problem**:
+- Fixed 131k limit didn't make sense for all models
+- GPT-4o supports 16k, Claude 3.5 supports 8k, Gemini supports 8k
+- Users could set values higher than their model supports
+- No visibility into what the current model actually supports
+
+**Solution - Model-Aware Configuration**:
+1. **Created `modelCapabilities.ts`**:
+   - Comprehensive database of model capabilities
+   - Tracks max output tokens for each specific model
+   - Includes OpenAI (GPT-4o: 16k, GPT-3.5: 4k), Google (Gemini: 8k), Anthropic (Claude: 4-8k)
+   - Provider-level fallbacks for unknown models
+   - Helper functions: `getMaxOutputTokens()`, `getModelDisplayName()`, `isMaxTokensSupported()`
+
+2. **Updated AISettingsModal**:
+   - Tracks active provider and model
+   - Computes `maxTokensLimit` dynamically using `useMemo`
+   - Slider max automatically adjusts when provider/model changes
+   - Shows current model and its max in info box
+   - Description updates to show model's actual limit
+
+3. **Updated AISettingsPanel**:
+   - Same dynamic behavior as modal
+   - Computes limit based on selected model
+   - Shows "Model: X • Max: Y tokens" below slider
+   - Clamps current value if it exceeds new model's limit
+
+**User Experience**:
+- Slider maximum = model's actual maximum (always perfect)
+- No confusion about what values are valid
+- Clear visibility of current model's capabilities
+- Automatic adjustment when switching models
+- Can't accidentally set invalid values
+
+**Examples**:
+- Select GPT-4o → slider max becomes 16,384
+- Select Claude 3.5 → slider max becomes 8,192
+- Select Gemini 2.0 → slider max becomes 8,192
+- Select GPT-3.5 → slider max becomes 4,096
+
+**Benefits**:
+- ✅ Always shows the right range for the selected model
+- ✅ No wasted slider space for models with lower limits
+- ✅ Clear feedback about model capabilities
+- ✅ Prevents setting invalid values
+- ✅ Scales perfectly as new models are added
+
+---
+
+### AI Settings - Increased Max Token Limit 🚀
+- **Status**: ✅ Enhanced
+- **Components**: `AISettingsModal.tsx`, `AISettingsPanel.tsx`
+- **Change**: Increased max tokens limit from 8,192 to 131,072 (128k)
+- **Impact**: Users can now leverage full context windows of modern AI models
+
+**Problem**:
+- Previous limit of 8,192 tokens was too restrictive
+- Modern models support much larger context windows:
+  - GPT-4: up to 128k tokens
+  - Claude 3.5 Sonnet: up to 200k tokens  
+  - Gemini 2.0: up to 1M tokens
+- Users couldn't take advantage of these capabilities
+
+**Changes Made**:
+1. **Increased slider maximum**: 8,192 → 131,072 tokens
+2. **Better number formatting**: Large numbers now display with commas (e.g., "65,536")
+3. **Added helpful info box**: Shows model-specific token limits for reference
+4. **Updated descriptions**: Clarified these are "output tokens" (response length)
+5. **Applied to both settings panels**: AISettingsModal and AISettingsPanel
+
+**Benefits**:
+- Users can now set max tokens up to 128k
+- Better support for long-form content generation
+- Clearer understanding of model capabilities
+- Numbers are easier to read with proper formatting
+- Providers will automatically cap at their model's actual limit
+
+---
+
+### AI Settings Implementation - Made Functional ⚙️
+- **Status**: ✅ Implemented
+- **Components**: `aiSettingsService.ts`, `aiService.ts`, `agentChatService.ts`, `ChatInterface.tsx`
+- **Change**: AI settings (temperature, maxTokens, topP, frequency/presence penalties) now actually work
+- **Impact**: Users can now control AI behavior through settings instead of hardcoded defaults
+
+**Problem Identified**:
+- AI settings in the Settings Panel were being saved to localStorage but never loaded or used
+- All AI calls used hardcoded defaults (temperature: 0.7, maxTokens: 4096)
+- Settings were essentially placeholders with no functionality
+
+**Changes Made**:
+1. **Created `aiSettingsService.ts`**:
+   - Centralized service for loading/saving AI settings
+   - Provides default values and error handling
+   - Single source of truth for AI configuration
+
+2. **Updated `aiService.ts`**:
+   - Added `AIServiceConfig` interface with all parameters (topP, frequencyPenalty, presencePenalty)
+   - Updated `chat()` method to accept optional config parameter
+   - Updated all provider methods (OpenAI, Google, Anthropic, Custom) to use config
+   - Applied settings to both main calls and summary/tool calls
+
+3. **Updated `agentChatService.ts`**:
+   - Extended `AgentChatOptions` interface with all AI parameters
+   - Updated OpenAI, Anthropic, and Google implementations to use options
+   - Settings now apply to agent tool execution
+
+4. **Updated `ChatInterface.tsx`**:
+   - Loads AI settings at the start of each message send
+   - Passes settings to both `aiService.chat()` and `agentChatService.executeWithTools()`
+   - Applied to all call sites: normal chat, agent mode, workflow prompts, and message regeneration
+
+**Settings Now Functional**:
+- **Temperature** (0-2): Controls randomness/creativity
+- **Max Tokens** (256-8192): Controls response length
+- **Top P** (0-1): Nucleus sampling threshold
+- **Frequency Penalty** (0-2): Reduces token repetition
+- **Presence Penalty** (0-2): Encourages new topics
+
+**Benefits**:
+- Users have real control over AI behavior
+- Settings persist across sessions
+- Works with all providers (OpenAI, Google, Anthropic, Custom)
+- Works in both normal and agent modes
+- Consistent behavior across all AI interactions
+
+---
+
+## January 20, 2026
+
 ### Activity Log - Go Button Fixed (Correct Message & Color) 🎨
 - **Status**: ✅ FIXED
 - **Components**: `ChatInterface.tsx`, `MessageBubble.tsx`

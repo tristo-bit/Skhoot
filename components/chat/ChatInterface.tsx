@@ -7,6 +7,7 @@ import { agentChatService } from '../../services/agentChatService';
 import { activityLogger } from '../../services/activityLogger';
 import { nativeNotifications } from '../../services/nativeNotifications';
 import { imageStorage } from '../../services/imageStorage';
+import { aiSettingsService } from '../../services/aiSettingsService';
 import { MainArea } from '../main-area';
 import { PromptArea } from './PromptArea';
 import { ToolCallInput } from './ToolCallInput';
@@ -643,6 +644,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }, 100);
     }
 
+    // Load AI settings
+    const aiSettings = aiSettingsService.loadSettings();
+    console.log('[ChatInterface] Using AI settings:', aiSettings);
+
     // Process attached files - load their contents to send to AI
     let processedMessage = messageText;
     let imageFiles: Array<{ fileName: string; base64: string; mimeType: string }> = [];
@@ -766,6 +771,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           {
             sessionId: currentSessionId,
             images: imageFiles, // Pass current images for vision API
+            temperature: aiSettings.temperature,
+            maxTokens: aiSettings.maxTokens,
+            topP: aiSettings.topP,
+            frequencyPenalty: aiSettings.frequencyPenalty,
+            presencePenalty: aiSettings.presencePenalty,
             onToolStart: (toolCall) => {
               toolCalls.push(toolCall);
               setSearchStatus(`Executing ${toolCall.name}...`);
@@ -847,13 +857,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           historyWithImages: history.filter(m => m.images && m.images.length > 0).length
         });
 
-        const result = await aiService.chat(processedMessage, history, (status) => { // Use processed message with file contents
-          setSearchStatus(status);
-          // Detect if AI is doing a file search and update searchType accordingly
-          if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
-            setSearchType(prev => prev || 'files');
+        const result = await aiService.chat(
+          processedMessage, 
+          history, 
+          (status) => {
+            setSearchStatus(status);
+            // Detect if AI is doing a file search and update searchType accordingly
+            if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
+              setSearchType(prev => prev || 'files');
+            }
+          }, 
+          imageFiles, getEffectiveChatId(), userMsg.id, // Pass images for vision API
+          {
+            temperature: aiSettings.temperature,
+            maxTokens: aiSettings.maxTokens,
+            topP: aiSettings.topP,
+            frequencyPenalty: aiSettings.frequencyPenalty,
+            presencePenalty: aiSettings.presencePenalty,
           }
-        }, imageFiles, getEffectiveChatId(), userMsg.id); // Pass images for vision API
+        );
         setSearchType(null);
         setSearchStatus('');
         
@@ -1134,6 +1156,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   // Handle workflow prompts - sends to AI and returns response
   // Uses agent mode if available for tool access (file operations, terminal, etc.)
   const handleWorkflowPrompt = useCallback(async (prompt: string): Promise<string> => {
+    // Load AI settings
+    const aiSettings = aiSettingsService.loadSettings();
+    
     try {
       // If agent mode is enabled, use agent chat service for tool access
       if (isAgentMode && agentSessionId) {
@@ -1152,6 +1177,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           agentHistory,
           {
             sessionId: agentSessionId,
+            temperature: aiSettings.temperature,
+            maxTokens: aiSettings.maxTokens,
+            topP: aiSettings.topP,
+            frequencyPenalty: aiSettings.frequencyPenalty,
+            presencePenalty: aiSettings.presencePenalty,
             onStatusUpdate: (status) => {
               setSearchStatus(status);
             },
@@ -1168,9 +1198,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         content: m.content,
       }));
 
-      const result = await aiService.chat(prompt, history, (status) => {
-        setSearchStatus(status);
-      }, undefined, getEffectiveChatId(), undefined);
+      const result = await aiService.chat(
+        prompt, 
+        history, 
+        (status) => {
+          setSearchStatus(status);
+        },
+        undefined, // no images
+        {
+          temperature: aiSettings.temperature,
+          maxTokens: aiSettings.maxTokens,
+          topP: aiSettings.topP,
+          frequencyPenalty: aiSettings.frequencyPenalty,
+          presencePenalty: aiSettings.presencePenalty,
+        }
+      );
 
       return result.text || 'No response';
     } catch (error) {
@@ -1359,6 +1401,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     // Wait a tick for state to update
     await new Promise(resolve => setTimeout(resolve, 0));
 
+    // Load AI settings
+    const aiSettings = aiSettingsService.loadSettings();
+
     // Find the index of the edited message
     const messageIndex = messages.findIndex(msg => msg.id === messageId);
     if (messageIndex === -1) return;
@@ -1444,6 +1489,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           {
             sessionId: currentSessionId,
             images: imageFiles, // Pass current images for vision API
+            temperature: aiSettings.temperature,
+            maxTokens: aiSettings.maxTokens,
+            topP: aiSettings.topP,
+            frequencyPenalty: aiSettings.frequencyPenalty,
+            presencePenalty: aiSettings.presencePenalty,
             onToolStart: (toolCall) => {
               toolCalls.push(toolCall);
               setSearchStatus(`Executing ${toolCall.name}...`);
@@ -1508,12 +1558,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         );
       } else {
         // Normal mode
-        const result = await aiService.chat(processedMessage, history, (status) => { // Use processed message with file contents
-          setSearchStatus(status);
-          if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
-            setSearchType(prev => prev || 'files');
+        const result = await aiService.chat(
+          processedMessage, 
+          history, 
+          (status) => {
+            setSearchStatus(status);
+            if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
+              setSearchType(prev => prev || 'files');
+            }
+          }, 
+          imageFiles, // Pass images for vision API
+          {
+            temperature: aiSettings.temperature,
+            maxTokens: aiSettings.maxTokens,
+            topP: aiSettings.topP,
+            frequencyPenalty: aiSettings.frequencyPenalty,
+            presencePenalty: aiSettings.presencePenalty,
           }
-        }, imageFiles, getEffectiveChatId(), editedMessage.id); // Pass images for vision API
+        );
         
         setSearchType(null);
         setSearchStatus('');
