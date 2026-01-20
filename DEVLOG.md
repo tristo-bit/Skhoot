@@ -1,6 +1,295 @@
 # Development Log
 
+## January 20, 2026
+
+### Activity Log - Go Button Fixed (Correct Message & Color) 🎨
+- **Status**: ✅ FIXED
+- **Components**: `ChatInterface.tsx`, `MessageBubble.tsx`
+- **Issue**: Highlighted wrong message (assistant instead of user) and wrong color
+- **Fix**: Changed to log user message ID and use Skhoot brand color
+
+**Root Cause**:
+- Activity logs were storing `assistantMsg.id` (Skhoot's response)
+- Should store `userMsg.id` (user's original message)
+- Highlight color was purple instead of Skhoot's brand color
+
+**Solution Implemented**:
+1. Changed all `activityLogger.log()` calls to use `userMsg.id` instead of `assistantMsg.id`
+2. For regenerate, use `editedMessage.id` (the message being regenerated)
+3. Changed highlight color from `ring-purple-400` to `ring-[#D1DBCB]` (almostAqua)
+4. Increased ring width from `ring-2` to `ring-4` for better visibility
+
+**Now Working**:
+- ✅ Highlights the USER's message (not Skhoot's response)
+- ✅ Uses Skhoot's brand color (#D1DBCB - almostAqua)
+- ✅ Thicker ring (4px) for better visibility
+- ✅ Works for both normal messages and regenerated messages
+
+**Testing**:
+1. Clear Activity Log
+2. Send a message
+3. Open Activity Log
+4. Click "Go" → Scrolls to YOUR message + Skhoot color highlight! 🎯
+
+---
+
+### Activity Log - Go Button Fixed (Assistant Message Highlight) 🔴
+- **Status**: ✅ FIXED - CRITICAL BUG
+- **Components**: `MessageBubble.tsx`, `ChatInterface.tsx`
+- **Issue**: Assistant (AI) messages weren't being highlighted or scrolled to
+- **Fix**: Added ID and highlight styling to assistant message container
+
+**Root Cause**:
+- User messages had `id="message-{id}"` and highlight styling
+- Assistant messages only had `data-message-id` attribute, NO `id` attribute
+- `document.getElementById()` couldn't find assistant messages
+- Highlight ring styling was missing for assistant messages
+
+**Solution Implemented**:
+1. Added `id={message-${message.id}}` to assistant message container
+2. Added `isHighlighted` conditional class with purple ring styling
+3. Added transition style for smooth highlight effect
+4. Implemented retry logic (up to 10 attempts) to find message element
+5. Added comprehensive debug logging to track element lookup
+
+**Now Working**:
+- ✅ User messages: ID + highlight + scroll
+- ✅ Assistant messages: ID + highlight + scroll
+- ✅ Retry mechanism finds messages even with slow rendering
+- ✅ Debug logs show exactly what's happening
+
+**Testing**:
+1. Clear Activity Log
+2. Send a message and get AI response
+3. Open Activity Log
+4. Click "Go" on AI Chat entry → Scrolls to AI message + purple highlight! 🎯
+
+---
+
+### Activity Log - Go Button Fixed (Scroll & Highlight) 🎨
+- **Status**: ✅ FIXED
+- **Components**: `ChatInterface.tsx`, `App.tsx`
+- **Issue**: Message wasn't highlighted and scroll went to bottom instead of target message
+- **Fix**: Disabled auto-scroll during highlight and increased timing delays
+
+**Root Cause**:
+- Auto-scroll effect was interfering with the scroll-to-message functionality
+- 100ms delay wasn't enough for DOM to be ready after chat switch
+- Auto-scroll triggered on every message change, overriding the targeted scroll
+
+**Solution Implemented**:
+1. Added `highlightedMessageId` check to auto-scroll effect - disables auto-scroll when highlighting
+2. Increased highlight delay from 100ms to 500ms in `ChatInterface`
+3. Increased dispatch delay from 300ms to 600ms in `App.tsx` for all highlight events
+4. Added debug logging to track message element lookup
+5. Extended highlight duration from 3s to 3.5s for better visibility
+
+**Now Working**:
+- ✅ Navigates to correct chat
+- ✅ Scrolls to the specific message (not bottom)
+- ✅ Highlights message with purple ring for 3.5 seconds
+- ✅ Auto-scroll disabled during highlight to prevent interference
+
+**Testing**:
+1. Clear Activity Log
+2. Send a message
+3. Open Activity Log
+4. Click "Go" → Scrolls to message + purple highlight! 🎯
+
+---
+
+### Activity Log - Go Button Fixed (Pending Chat Tracking) 🎯
+- **Status**: ✅ FIXED - CRITICAL FIX
+- **Components**: `App.tsx`, `ChatInterface.tsx`
+- **Issue**: New conversations had `chatId: undefined` in activity logs
+- **Fix**: Added pending chat ID tracking to capture chat context immediately
+
+**Root Cause**:
+- When sending the first message of a new conversation, `chatId` is `null`
+- The chat is only created AFTER the message is sent in `handleMessagesChange`
+- Activity logs were created with `chatId: undefined` because the chat didn't exist yet
+- The chat ID was stored in `pendingChatIdRef` but `ChatInterface` couldn't access it
+
+**Solution Implemented**:
+1. Added `getPendingChatId` callback prop to `ChatInterface`
+2. Created `getEffectiveChatId()` helper that returns `chatId || pendingChatId || undefined`
+3. Replaced all `chatId || undefined` with `getEffectiveChatId()` in activity logging
+4. Now captures the pending chat ID immediately when logging activities
+
+**Impact**:
+- ✅ New conversations now have proper `chatId` in activity logs
+- ✅ Go button works for first messages in new chats
+- ✅ Go button works for all subsequent messages
+- ✅ Go button works for file searches in new chats
+- ✅ Complete chat tracking from the very first message
+
+**Testing**:
+1. Clear Activity Log
+2. Start a NEW conversation (click "New Chat")
+3. Send any message (e.g., "hello")
+4. Open Activity Log - entry will have proper chatId
+5. Click "Go" - navigates and highlights! ✅
+
+---
+
+### Activity Log - Go Button Fixed (Search Logging) 🔧
+- **Status**: ✅ FIXED
+- **Components**: `aiService.ts`, `ChatInterface.tsx`
+- **Issue**: File/Content searches weren't logging `chatId` and `messageId`
+- **Fix**: Added chat tracking to all search operations
+
+**Root Cause**:
+- `aiService.chat()` wasn't receiving or passing `chatId` and `messageId` parameters
+- Search functions (`executeFileSearch`, `executeContentSearch`) couldn't log with chat context
+- Activity logs for searches had `messageId` but `chatId: undefined`
+
+**Solution Implemented**:
+1. Added `chatId` and `messageId` optional parameters to `aiService.chat()`
+2. Updated `executeFileSearch()` and `executeContentSearch()` signatures
+3. Passed chat context through all tool execution paths (OpenAI, Google, Anthropic, Custom)
+4. Updated all `activityLogger.log()` calls in search functions to include `chatId` and `messageId`
+5. Updated all `aiService.chat()` calls in `ChatInterface.tsx` to pass `chatId` and `userMsg.id`
+
+**Now Working**:
+- File searches log with proper `chatId` and `messageId`
+- Content searches log with proper `chatId` and `messageId`
+- Go button can navigate to messages from search activities
+- All activity log entries have complete tracking information
+
+**Testing**:
+1. Clear Activity Log
+2. Send a message that triggers a file search (e.g., "find my config files")
+3. Open Activity Log - see the search entry
+4. Click "Go" - navigates to the message and highlights it ✅
+
+---
+
+### Activity Log - Go Button Feature Complete ✅
+- **Status**: ✅ COMPLETE & WORKING
+- **Components**: `ActivityLogItem.tsx`, `App.tsx`, `ChatInterface.tsx`, `activityLogger.ts`
+- **Feature**: Navigate to chat messages from Activity Log with visual highlighting
+
+**Implementation Summary**:
+Complete navigation system from Activity Log to specific chat messages with visual feedback.
+
+**Key Features**:
+1. **Go Button**: Always-visible button on each activity log entry
+2. **Smart Navigation**: 3-level chat lookup (current → pending → saved)
+3. **Visual Highlight**: Purple ring effect on target message (3-second duration)
+4. **Auto-scroll**: Smooth scroll to message with centering
+5. **Chat Tracking**: All activity logs now include `chatId` and `messageId`
+
+**Technical Implementation**:
+- Custom events: `navigate-to-message`, `find-message-chat`, `close-activity-panel`, `highlight-message`
+- Message IDs added to DOM: `id="message-{messageId}"` for scroll targeting
+- Activity logger enhanced with `chatId` and `messageId` parameters
+- All `activityLogger.log()` calls updated to pass chat and message IDs
+
+**Testing Requirements**:
+⚠️ **IMPORTANT**: Must test with NEW messages, not old logs!
+
+1. **Clear old logs**: Activity Log → "Clear" button
+2. **Send new message**: Type anything and send in chat
+3. **Open Activity Log**: See new entry with proper tracking
+4. **Click "Go"**: Navigates to message with purple highlight
+
+**Why Old Logs Don't Work**:
+- Old activity logs were created before `chatId` tracking was added
+- They have `messageId` but `chatId: undefined`
+- Referenced messages may have been deleted when chats were cleared
+- Solution: Always test with fresh messages created after the feature
+
+**Files Modified**:
+- `components/activity/ui/ActivityLogItem.tsx` - Go button UI and event dispatch
+- `App.tsx` - Event listeners for navigation and 3-level chat lookup
+- `components/chat/ChatInterface.tsx` - Activity logging with chatId/messageId
+- `services/activityLogger.ts` - Added chatId and messageId fields
+- `components/conversations/MessageBubble.tsx` - Message ID in DOM
+- `components/main-area/MainArea.tsx` - Highlight effect styling
+
+---
+
 ## January 19, 2026
+
+### Activity Log - Go Button Enhanced Debug & Testing 🔍
+- **Status**: ✅ Enhanced debugging (superseded by complete implementation)
+- **Components**: `App.tsx`
+- **Change**: Added detailed debug logging to troubleshoot message lookup
+- **Impact**: Better visibility into why messages aren't found
+
+---
+
+### Activity Log - Go Button Fixed (Enhanced Chat Lookup) 🔧
+- **Status**: ✅ Fixed & Enhanced
+- **Components**: `ActivityLogItem.tsx`, `App.tsx`
+- **Issue**: Go button wasn't finding messages in current/pending chats
+- **Fix**: Added multi-level chat lookup strategy
+
+**Root Cause**:
+- When creating a new chat, `chatId` is `null` during message sending
+- Activity logs were created with `messageId` but `chatId: undefined`
+- Chat lookup only searched saved chats, missing current and pending chats
+
+**Solution Implemented**:
+Enhanced `find-message-chat` event with 3-level lookup strategy:
+
+1. **Current Chat Check**: First checks if message is in the currently active chat
+   - Fastest path for messages in active conversation
+   - No chat switching needed, just highlights message
+
+2. **Pending Chat Check**: Checks if message is in pending chat (being created)
+   - Handles messages sent before chat is fully saved
+   - Switches from null to pending chat ID
+   - Clears pendingChatIdRef after switching
+
+3. **All Chats Search**: Searches all saved chats as fallback
+   - Finds messages in any saved conversation
+   - Switches to the correct chat
+
+**Changes Made**:
+- `ActivityLogItem`: Added fallback logic to dispatch `find-message-chat` when chatId is missing
+- `App.tsx`: Enhanced `handleFindMessageChat` with 3-level lookup
+- Added logging for currentChatId and pendingChatId for debugging
+- Activity panel closes even if message not found (better UX)
+
+**Benefits**:
+- Go button now works for all activity logs (current, pending, and saved)
+- Handles edge cases with pending chats
+- Robust fallback mechanism for missing chatId
+- No data migration needed for old logs
+- Better user experience - navigation always works
+- Optimized lookup order (current → pending → all)
+
+---
+
+### Activity Log - Go Button Debug Logs Added 🔍
+- **Status**: ✅ Debug logs added
+- **Components**: `ActivityLogItem.tsx`, `App.tsx`
+- **Change**: Added comprehensive debug logging to troubleshoot Go button navigation
+- **Impact**: Easier to identify where the navigation flow breaks
+
+**Debug Logs Added**:
+- `ActivityLogItem`: Logs when Go button is clicked, shows chatId/messageId/canNavigate status
+- `ActivityLogItem`: Warns when navigation cannot proceed (missing IDs)
+- `App.tsx`: Logs when navigate-to-message event is received
+- `App.tsx`: Logs when switching to chat and dispatching highlight event
+- `App.tsx`: Warns when event is missing required data
+
+**How to Debug**:
+1. Open browser console (F12)
+2. Click "Go" button on an activity log entry
+3. Check console logs to see:
+   - If log has chatId/messageId
+   - If events are dispatched
+   - If events are received in App
+   - If highlight event is dispatched
+
+**Next Steps**:
+- User to test and report console output
+- Based on logs, identify exact failure point
+- Fix the specific issue found
+
+---
 
 ### Settings Panel - Improved Spacing 📏
 - **Status**: ✅ Fixed

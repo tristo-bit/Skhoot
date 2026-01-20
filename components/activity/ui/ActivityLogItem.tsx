@@ -30,7 +30,29 @@ export const ActivityLogItem: React.FC<ActivityLogItemProps> = ({ log }) => {
 
   const handleGoToMessage = (e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    console.log('[ActivityLogItem] Go button clicked', { 
+      chatId: log.chatId, 
+      messageId: log.messageId,
+      canNavigate 
+    });
+    
+    // If we have a messageId but no chatId, try to find the chat
+    if (log.messageId && !log.chatId) {
+      console.log('[ActivityLogItem] No chatId, dispatching find-message-chat event');
+      const event = new CustomEvent('find-message-chat', {
+        detail: { messageId: log.messageId }
+      });
+      window.dispatchEvent(event);
+      
+      // Close activity panel
+      const closeEvent = new CustomEvent('close-activity-panel');
+      window.dispatchEvent(closeEvent);
+      return;
+    }
+    
     if (canNavigate) {
+      console.log('[ActivityLogItem] Dispatching navigate-to-message event');
       // Dispatch custom event to navigate to chat and highlight message
       const event = new CustomEvent('navigate-to-message', {
         detail: { chatId: log.chatId, messageId: log.messageId }
@@ -40,6 +62,8 @@ export const ActivityLogItem: React.FC<ActivityLogItemProps> = ({ log }) => {
       // Close activity panel
       const closeEvent = new CustomEvent('close-activity-panel');
       window.dispatchEvent(closeEvent);
+    } else {
+      console.warn('[ActivityLogItem] Cannot navigate - missing chatId or messageId');
     }
   };
 

@@ -176,20 +176,85 @@ const AppContent: React.FC = () => {
     // Listen for navigate-to-message event (from ActivityPanel)
     const handleNavigateToMessage = (event: CustomEvent) => {
       const { chatId, messageId } = event.detail;
+      console.log('[App] navigate-to-message event received', { chatId, messageId });
+      
       if (chatId && messageId) {
+        console.log('[App] Switching to chat:', chatId);
         // Switch to the chat
         setCurrentChatId(chatId);
         // Close activity panel
         setIsActivityOpen(false);
-        // Dispatch event to highlight message after a short delay
+        // Dispatch event to highlight message after a longer delay to ensure component is mounted
         setTimeout(() => {
+          console.log('[App] Dispatching highlight-message event for:', messageId);
           window.dispatchEvent(new CustomEvent('highlight-message', { detail: { messageId } }));
-        }, 300);
+        }, 600); // Increased to 600ms to ensure ChatInterface is fully mounted
+      } else {
+        console.warn('[App] Missing chatId or messageId in event');
+      }
+    };
+
+    // Listen for find-message-chat event (when chatId is missing)
+    const handleFindMessageChat = (event: CustomEvent) => {
+      const { messageId } = event.detail;
+      console.log('[App] find-message-chat event received', { 
+        messageId, 
+        currentChatId, 
+        pendingChatId: pendingChatIdRef.current,
+        totalChats: chats.length,
+        chatsWithMessages: chats.map(c => ({ id: c.id, messageCount: c.messages.length, messageIds: c.messages.map(m => m.id) }))
+      });
+      
+      // First check if the message is in the current chat (including pending)
+      const currentChat = currentChatId ? chats.find(c => c.id === currentChatId) : null;
+      if (currentChat && currentChat.messages.some(m => m.id === messageId)) {
+        console.log('[App] Message found in current chat:', currentChatId);
+        setIsActivityOpen(false);
+        setTimeout(() => {
+          console.log('[App] Dispatching highlight-message event for:', messageId);
+          window.dispatchEvent(new CustomEvent('highlight-message', { detail: { messageId } }));
+        }, 600);
+        return;
+      }
+      
+      // Check if there's a pending chat
+      if (pendingChatIdRef.current) {
+        const pendingChat = chats.find(c => c.id === pendingChatIdRef.current);
+        if (pendingChat && pendingChat.messages.some(m => m.id === messageId)) {
+          console.log('[App] Message found in pending chat:', pendingChatIdRef.current);
+          setCurrentChatId(pendingChatIdRef.current);
+          pendingChatIdRef.current = null;
+          setIsActivityOpen(false);
+          setTimeout(() => {
+            console.log('[App] Dispatching highlight-message event for:', messageId);
+            window.dispatchEvent(new CustomEvent('highlight-message', { detail: { messageId } }));
+          }, 600);
+          return;
+        }
+      }
+      
+      // Find the chat that contains this message
+      const chat = chats.find(c => c.messages.some(m => m.id === messageId));
+      
+      if (chat) {
+        console.log('[App] Found chat:', chat.id);
+        setCurrentChatId(chat.id);
+        setIsActivityOpen(false);
+        setTimeout(() => {
+          console.log('[App] Dispatching highlight-message event for:', messageId);
+          window.dispatchEvent(new CustomEvent('highlight-message', { detail: { messageId } }));
+        }, 600);
+      } else {
+        console.warn('[App] Could not find chat containing message:', messageId);
+        console.log('[App] This message may have been deleted or is from an old session');
+        // Close activity panel anyway
+        setIsActivityOpen(false);
       }
     };
 
     // Listen for close-activity-panel event
     const handleCloseActivityPanel = () => {
+      console.log('[App] close-activity-panel event received');
       setIsActivityOpen(false);
     };
 
@@ -199,6 +264,7 @@ const AppContent: React.FC = () => {
     window.addEventListener('ai-terminal-created', handleAITerminalCreated);
     window.addEventListener('open-terminal-panel', handleOpenTerminalPanel);
     window.addEventListener('navigate-to-message', handleNavigateToMessage as EventListener);
+    window.addEventListener('find-message-chat', handleFindMessageChat as EventListener);
     window.addEventListener('close-activity-panel', handleCloseActivityPanel);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -207,6 +273,7 @@ const AppContent: React.FC = () => {
       window.removeEventListener('ai-terminal-created', handleAITerminalCreated);
       window.removeEventListener('open-terminal-panel', handleOpenTerminalPanel);
       window.removeEventListener('navigate-to-message', handleNavigateToMessage as EventListener);
+      window.removeEventListener('find-message-chat', handleFindMessageChat as EventListener);
       window.removeEventListener('close-activity-panel', handleCloseActivityPanel);
     };
   }, []);
@@ -457,6 +524,7 @@ const AppContent: React.FC = () => {
               <ChatInterface 
                 key={currentChatId ?? 'new-chat'} 
                 chatId={currentChatId}
+                getPendingChatId={() => pendingChatIdRef.current}
                 initialMessages={currentChat?.messages || []}
                 onMessagesChange={isDemoMode ? () => {} : handleMessagesChange}
                 onActiveModeChange={handleQuickActionMode}

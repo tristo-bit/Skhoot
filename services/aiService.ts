@@ -398,7 +398,9 @@ async function executeFileSearch(
   provider?: AIProvider,
   apiKey?: string,
   model?: string,
-  userMessage?: string
+  userMessage?: string,
+  chatId?: string,
+  messageId?: string
 ): Promise<any> {
   console.log('🔍 Executing file search:', args);
   onStatusUpdate?.(`Searching for "${args.query}"...`);
@@ -439,7 +441,10 @@ async function executeFileSearch(
       args.query + (args.search_path ? ` in ${args.search_path}` : ''),
       `Found ${scoredFiles.length} relevant files (${convertedResults.files.length} total)`,
       'success',
-      { executionTime: convertedResults.searchInfo.executionTime }
+      { executionTime: convertedResults.searchInfo.executionTime },
+      undefined,
+      chatId,
+      messageId
     );
     
     return {
@@ -454,7 +459,7 @@ async function executeFileSearch(
     };
   } catch (error) {
     console.error('❌ File search failed:', error);
-    activityLogger.log('File Search', args.query, 'Search failed', 'error');
+    activityLogger.log('File Search', args.query, 'Search failed', 'error', undefined, undefined, chatId, messageId);
     return {
       type: 'error',
       text: `File search failed: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -463,7 +468,12 @@ async function executeFileSearch(
 }
 
 // Execute content search
-async function executeContentSearch(args: any, onStatusUpdate?: (status: string) => void): Promise<any> {
+async function executeContentSearch(
+  args: any, 
+  onStatusUpdate?: (status: string) => void,
+  chatId?: string,
+  messageId?: string
+): Promise<any> {
   console.log('🔍 Executing content search:', args);
   onStatusUpdate?.(`Searching content for "${args.query}"...`);
   
@@ -479,7 +489,11 @@ async function executeContentSearch(args: any, onStatusUpdate?: (status: string)
       'Content Search',
       args.query,
       `Found ${convertedResults.files.length} files`,
-      'success'
+      'success',
+      undefined,
+      undefined,
+      chatId,
+      messageId
     );
     
     return {
@@ -591,7 +605,9 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
     message: string,
     history: AIMessage[] = [],
     onStatusUpdate?: (status: string) => void,
-    images?: Array<{ fileName: string; base64: string; mimeType: string }>
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>,
+    chatId?: string,
+    messageId?: string
   ): Promise<AIResponse> {
     const provider = await this.getActiveProvider();
     
@@ -783,9 +799,9 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
       
       let toolResult: any;
       if (functionName === 'findFile') {
-        toolResult = await executeFileSearch(args, onStatusUpdate, 'openai', apiKey, model, message);
+        toolResult = await executeFileSearch(args, onStatusUpdate, 'openai', apiKey, model, message, chatId, messageId);
       } else if (functionName === 'searchContent') {
-        toolResult = await executeContentSearch(args, onStatusUpdate);
+        toolResult = await executeContentSearch(args, onStatusUpdate, chatId, messageId);
       }
       
       if (toolResult && toolResult.type === 'file_list') {
@@ -1016,9 +1032,9 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
       
       let toolResult: any;
       if (fc.name === 'findFile') {
-        toolResult = await executeFileSearch(args, onStatusUpdate, 'google', apiKey, model, message);
+        toolResult = await executeFileSearch(args, onStatusUpdate, 'google', apiKey, model, message, chatId, messageId);
       } else if (fc.name === 'searchContent') {
-        toolResult = await executeContentSearch(args, onStatusUpdate);
+        toolResult = await executeContentSearch(args, onStatusUpdate, chatId, messageId);
       }
       
       if (toolResult && toolResult.type === 'file_list') {
@@ -1176,9 +1192,9 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
       
       let toolResult: any;
       if (toolUse.name === 'findFile') {
-        toolResult = await executeFileSearch(args, onStatusUpdate, 'anthropic', apiKey, model, message);
+        toolResult = await executeFileSearch(args, onStatusUpdate, 'anthropic', apiKey, model, message, chatId, messageId);
       } else if (toolUse.name === 'searchContent') {
-        toolResult = await executeContentSearch(args, onStatusUpdate);
+        toolResult = await executeContentSearch(args, onStatusUpdate, chatId, messageId);
       }
       
       if (toolResult && toolResult.type === 'file_list') {
@@ -1322,9 +1338,9 @@ Be concise, friendly, and helpful. Always explain what you found or why you coul
         
         let toolResult: any;
         if (functionName === 'findFile') {
-          toolResult = await executeFileSearch(args, onStatusUpdate, 'custom', apiKey, model, message);
+          toolResult = await executeFileSearch(args, onStatusUpdate, 'custom', apiKey, model, message, chatId, messageId);
         } else if (functionName === 'searchContent') {
-          toolResult = await executeContentSearch(args, onStatusUpdate);
+          toolResult = await executeContentSearch(args, onStatusUpdate, chatId, messageId);
         }
         
         if (toolResult && toolResult.type === 'file_list') {

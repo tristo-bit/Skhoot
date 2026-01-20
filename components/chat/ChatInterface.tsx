@@ -18,6 +18,7 @@ import { useAgentLogTab } from '../../hooks';
 
 interface ChatInterfaceProps {
   chatId: string | null;
+  getPendingChatId?: () => string | null;
   initialMessages: Message[];
   onMessagesChange: (messages: Message[]) => void;
   onActiveModeChange?: (mode: string | null) => void;
@@ -35,6 +36,7 @@ interface ChatInterfaceProps {
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
   chatId,
+  getPendingChatId,
   initialMessages, 
   onMessagesChange, 
   onActiveModeChange,
@@ -138,21 +140,49 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     const handleHighlightMessage = (event: CustomEvent) => {
       const { messageId } = event.detail;
+      console.log('[ChatInterface] Highlight message event received:', messageId);
+      console.log('[ChatInterface] Current messages:', messages.map(m => m.id));
+      
       if (messageId) {
+        // Set highlighted state immediately
+        console.log('[ChatInterface] Setting highlightedMessageId to:', messageId);
         setHighlightedMessageId(messageId);
         
-        // Scroll to the message
-        setTimeout(() => {
-          const messageElement = document.getElementById(`message-${messageId}`);
-          if (messageElement) {
-            messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }, 100);
+        // Try multiple times to find and scroll to the message
+        let attempts = 0;
+        const maxAttempts = 10;
         
-        // Remove highlight after 3 seconds
-        setTimeout(() => {
-          setHighlightedMessageId(null);
-        }, 3000);
+        const tryScroll = () => {
+          attempts++;
+          const messageElement = document.getElementById(`message-${messageId}`);
+          console.log(`[ChatInterface] Attempt ${attempts}: Looking for message-${messageId}`, messageElement);
+          
+          if (messageElement) {
+            console.log('[ChatInterface] ✅ Message element found! Scrolling...');
+            messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Remove highlight after 3.5 seconds
+            setTimeout(() => {
+              console.log('[ChatInterface] Removing highlight');
+              setHighlightedMessageId(null);
+            }, 3500);
+          } else if (attempts < maxAttempts) {
+            console.log(`[ChatInterface] ⏳ Message not found yet, retrying in 100ms...`);
+            setTimeout(tryScroll, 100);
+          } else {
+            console.error('[ChatInterface] ❌ Message element not found after', maxAttempts, 'attempts');
+            console.log('[ChatInterface] Available message elements:', 
+              Array.from(document.querySelectorAll('[id^="message-"]')).map(el => el.id)
+            );
+            // Still remove highlight even if scroll failed
+            setTimeout(() => {
+              setHighlightedMessageId(null);
+            }, 3500);
+          }
+        };
+        
+        // Start trying after initial delay
+        setTimeout(tryScroll, 300);
       }
     };
 
@@ -160,7 +190,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return () => {
       window.removeEventListener('highlight-message', handleHighlightMessage as EventListener);
     };
-  }, []);
+  }, [messages]);
 
   // Notify parent when messages change
   useEffect(() => {
@@ -168,6 +198,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       onMessagesChange(messages);
     }
   }, [messages, onMessagesChange]);
+
+  // Helper to get effective chatId (current or pending)
+  const getEffectiveChatId = useCallback((): string | undefined => {
+    const effectiveId = chatId || getPendingChatId?.() || undefined;
+    return effectiveId || undefined;
+  }, [chatId, getPendingChatId]);
 
   // Demo event listener
   useEffect(() => {
@@ -402,8 +438,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [hasMessages, isRecording, hasVoiceContent, isEmptyStateVisible, isEmptyStateExiting]);
 
-  // Smooth auto-scroll
+  // Smooth auto-scroll (disabled when highlighting a specific message)
   useEffect(() => {
+    // Don't auto-scroll if we're highlighting a specific message
+    if (highlightedMessageId) {
+      return;
+    }
+    
     if (scrollRef.current) {
       const scrollElement = scrollRef.current;
       const targetScroll = scrollElement.scrollHeight;
@@ -429,7 +470,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         requestAnimationFrame(animateScroll);
       }
     }
-  }, [messages, voiceTranscript, pendingVoiceText, hasPendingVoiceMessage]);
+  }, [messages, voiceTranscript, pendingVoiceText, hasPendingVoiceMessage, highlightedMessageId]);
 
   // Determine search type from message - supports English and French keywords
   const getSearchType = (text: string): typeof searchType => {
@@ -775,8 +816,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           'success',
           undefined,
           undefined,
-          chatId || undefined,
-          assistantMsg.id
+          getEffectiveChatId(),
+          userMsg.id // Log the USER message ID
         );
 
         // Send success notification
@@ -812,7 +853,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
             setSearchType(prev => prev || 'files');
           }
-        }, imageFiles); // Pass images for vision API
+        }, imageFiles, getEffectiveChatId(), userMsg.id); // Pass images for vision API
         setSearchType(null);
         setSearchStatus('');
         
@@ -847,8 +888,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             'success',
             undefined,
             undefined,
-            chatId || undefined,
-            assistantMsg.id
+            getEffectiveChatId(),
+            userMsg.id // Log the USER message ID, not the assistant's
           );
         }
       }
@@ -882,7 +923,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         'error',
         undefined,
         undefined,
-        chatId || undefined,
+        getEffectiveChatId(),
         userMsg.id
       );
       
@@ -1129,7 +1170,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       const result = await aiService.chat(prompt, history, (status) => {
         setSearchStatus(status);
-      });
+      }, undefined, getEffectiveChatId(), undefined);
 
       return result.text || 'No response';
     } catch (error) {
@@ -1451,8 +1492,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           'success',
           undefined,
           undefined,
-          chatId || undefined,
-          assistantMsg.id
+          getEffectiveChatId(),
+          editedMessage.id // Log the edited message ID
         );
 
         await nativeNotifications.success(
@@ -1472,7 +1513,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
             setSearchType(prev => prev || 'files');
           }
-        }, imageFiles); // Pass images for vision API
+        }, imageFiles, getEffectiveChatId(), editedMessage.id); // Pass images for vision API
         
         setSearchType(null);
         setSearchStatus('');
@@ -1506,8 +1547,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             'success',
             undefined,
             undefined,
-            chatId || undefined,
-            assistantMsg.id
+            getEffectiveChatId(),
+            editedMessage.id // Log the edited message ID
           );
         }
       }
@@ -1537,7 +1578,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         'error',
         undefined,
         undefined,
-        chatId || undefined,
+        getEffectiveChatId(),
         messageId
       );
       

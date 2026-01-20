@@ -172,15 +172,22 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 
 - **Conversational AI**: Powered by Google Gemini for natural interactions
 - **Chat History**: Save and manage multiple conversation threads
-- **Message Editing**: Edit sent messages with inline editing interface
+- **Message Editing & Regeneration**: Edit sent messages and regenerate AI responses from any point in the conversation
   - Hover over user messages to reveal edit button
   - Click edit to modify message content in-place
   - Save with Ctrl+Enter or Cancel with Escape
+  - **Regenerate from Message**: Edit a message to regenerate the conversation from that point forward
+  - All messages after the edited one are removed and AI generates a fresh response
+  - File attachments preserved and automatically reloaded during regeneration
+  - Works in both Normal Mode and Agent Mode
   - Visual feedback with save/cancel buttons
 - **Message Highlighting**: Visual highlighting for bookmarked or referenced messages
   - Purple ring effect with smooth transitions for highlighted messages
   - Automatic scroll-to-message support via message ID anchors
   - Seamless integration with bookmark navigation
+  - **Activity Panel Navigation**: Click on activity logs to jump directly to related messages
+  - **Smart Chat Lookup**: Automatically finds conversations when navigating from activity logs
+  - **Pending Chat Support**: Handles navigation to messages in newly created chats
 - **Vision & Image Analysis**: Multi-modal AI support for image understanding in both Normal and Agent modes
   - Attach images to messages for visual analysis and OCR
   - Automatic base64 encoding for all AI providers
@@ -190,6 +197,12 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
   - Multiple images per message supported
   - **Agent Mode Support**: Full vision capabilities in agent mode with tool calling
   - **Optimized Loading**: Desktop app uses native Tauri file API for faster image loading, web version uses backend endpoint
+  - **Image Display**: Attached images shown as thumbnails in message bubbles with full-size preview on click
+- **Message Queue System**: Queue new messages while AI is processing
+  - Visual queued message indicator appears when typing during AI response
+  - Options to send immediately (interrupts current response) or wait for completion
+  - Edit or discard queued messages before sending
+  - Smooth workflow for rapid-fire questions
 - **Rich Responses**: Support for file lists, disk usage charts, and cleanup suggestions
 - **Interactive File Paths**: Click on file paths in search results to open the containing folder
 - **Markdown Support**: Full markdown rendering in responses
@@ -197,6 +210,12 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 - **Multilingual Intent Detection**: Understands search commands in English and French
 - **Smart Error Handling**: Specific error messages with actionable guidance
 - **Native Notifications**: Active integration for chat events and AI responses with automatic conversation tracking (desktop only)
+- **Workflow Integration**: Execute multi-step workflows directly from chat with AI-powered prompt handling
+- **Token Tracking**: Real-time token usage monitoring with conversation-level tracking
+  - Displays input/output tokens for each request
+  - Tracks cumulative conversation tokens
+  - Automatic reset on new conversations
+  - Cost estimation based on model pricing
 
 </details>
 
@@ -288,6 +307,7 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 - **Activity Logging**: Track and review your interactions with export and clear options
   - Click on activity logs to navigate directly to the related conversation and message
   - Automatic message highlighting when navigating from activity logs
+  - Smart chat lookup: Automatically finds the correct conversation when navigating from logs with incomplete metadata
 - **Help Center**: Comprehensive support hub with documentation access
 
 </details>
@@ -1036,6 +1056,7 @@ The Activity Panel (`components/activity/ActivityPanel.tsx`) provides a visual i
 - **Clear Logs**: Clear all logs with confirmation dialog
 - **Message Navigation**: Click on logs with conversation links to jump directly to the related message in chat
 - **Visual Feedback**: Automatic message highlighting when navigating from activity logs
+- **Smart Navigation**: Automatically finds the correct conversation when chatId is missing, using messageId lookup
 
 </details>
 
@@ -1234,6 +1255,54 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
 ## 📝 Recent Updates
 
 <details>
+<summary><strong>Enhanced Architecture with Context Providers</strong></summary>
+
+**Centralized State Management**: App.tsx now uses React Context API for theme and settings management, providing better state consistency and performance.
+
+- **ThemeProvider Integration**: Centralized theme management with automatic system theme detection
+  - Supports light, dark, and system-based theme preferences
+  - `resolvedTheme` provides the actual active theme (resolves 'system' to 'light' or 'dark')
+  - Automatic theme switching based on system preferences
+  - Persistent theme storage across sessions
+- **SettingsProvider Integration**: Centralized settings management with theme-aware configuration
+  - Receives `resolvedTheme` from ThemeProvider for theme-dependent settings
+  - Manages application-wide settings state
+  - Provides consistent settings access across all components
+  - Eliminates prop drilling for settings data
+- **Improved Component Architecture**: 
+  - `SettingsWrapper` component bridges ThemeProvider and SettingsProvider
+  - Ensures settings always have access to resolved theme
+  - Clean separation of concerns between theme and settings logic
+- **Enhanced Message Navigation**: Improved activity panel navigation with smart chat lookup
+  - **navigate-to-message Event**: Direct navigation to specific messages in conversations
+  - **find-message-chat Event**: Intelligent chat lookup when chatId is missing
+  - **Pending Chat Support**: Handles navigation to messages in newly created chats
+  - **Current Chat Check**: Prioritizes current chat when searching for messages
+  - **Automatic Highlighting**: Messages automatically highlighted after navigation
+  - **Activity Panel Integration**: Seamless navigation from activity logs to related messages
+- **Token Tracking Integration**: Real-time token usage monitoring throughout the application
+  - Conversation-level token tracking with automatic reset on new chats
+  - Integration with `tokenTrackingService` for persistent usage history
+  - Token display in chat interface for transparency
+  - Cost estimation based on model pricing
+- **Event-Driven Architecture**: Comprehensive custom event system for cross-component communication
+  - `open-api-config`: Opens user panel and scrolls to API configuration
+  - `open-ai-settings`: Opens AI settings modal
+  - `ai-terminal-created`: Auto-opens terminal panel when AI creates terminals
+  - `open-terminal-panel`: Opens terminal panel from mini terminal view
+  - `navigate-to-message`: Navigates to specific message in conversation
+  - `find-message-chat`: Finds chat containing a specific message
+  - `close-activity-panel`: Closes activity panel programmatically
+- **Panel Management**: Intelligent panel state management with mutual exclusivity
+  - Opening one panel automatically closes conflicting panels
+  - Prevents UI clutter with smart panel switching
+  - Maintains clean workspace with focused panel display
+
+**Why This Matters**: Context providers eliminate prop drilling, improve performance through memoization, and provide a single source of truth for theme and settings. The enhanced navigation system makes it easy to jump between activity logs and related conversations, while token tracking provides transparency into API usage and costs.
+
+</details>
+
+<details>
 <summary><strong>File Explorer Panel Simplification</strong></summary>
 
 **UI Cleanup**: Removed placeholder tabs from FileExplorerPanel to streamline the interface and reduce clutter.
@@ -1409,20 +1478,30 @@ const agentResponse = await agentChatService.executeWithTools(
 </details>
 
 <details>
-<summary><strong>Message Editing Feature</strong></summary>
+<summary><strong>Message Editing & Regeneration Feature</strong></summary>
 
-**New User Experience Enhancement**: Users can now edit their sent messages directly in the chat interface.
+**Enhanced User Experience**: Users can now edit their sent messages and regenerate AI responses from any point in the conversation.
 
 - **Inline Editing Interface**: Edit messages without leaving the conversation flow
   - Hover over any user message to reveal the edit button (pencil icon)
   - Click to enter edit mode with a textarea for content modification
   - Visual feedback with glassmorphic styling matching the design system
 - **Keyboard Shortcuts**: 
-  - **Ctrl+Enter**: Save edited message
+  - **Ctrl+Enter**: Save edited message and regenerate conversation
   - **Escape**: Cancel editing and revert to original content
 - **Action Buttons**: Clear save/cancel buttons with icons for intuitive interaction
   - Save button disabled when content is unchanged or empty
   - Cancel button restores original message content
+- **Conversation Regeneration**: 
+  - Editing a message removes all subsequent messages in the conversation
+  - AI generates a fresh response based on the edited message
+  - Conversation history up to the edited message is preserved
+  - Works in both Normal Mode and Agent Mode
+- **File Attachment Preservation**: 
+  - File attachments from the original message are automatically preserved
+  - File contents are reloaded and included in the regenerated conversation
+  - Images are re-encoded for vision API support
+  - Binary files are properly handled (skipped with informative notes)
 - **State Management**: 
   - Local state tracks editing mode and edited content
   - Original message preserved until save is confirmed
@@ -1432,11 +1511,11 @@ const agentResponse = await agentChatService.executeWithTools(
   - Keyboard navigation support
   - Visual indicators for edit state
 - **Integration**: 
-  - `onEdit` callback prop passes `(messageId, newContent)` to parent component
+  - `onRegenerateFromMessage` callback handles conversation regeneration
   - Compatible with existing message bubble styling and animations
-  - Works seamlessly with file attachments and other message features
+  - Works seamlessly with file attachments, images, and agent mode
 
-**Technical Implementation**: Added `useState` for edit state management, new icons (`Edit2`, `Check`, `X`), and conditional rendering for edit/display modes in `MessageBubble.tsx`.
+**Technical Implementation**: Enhanced `ChatInterface.tsx` with `handleRegenerateFromMessage` method that processes file attachments, manages conversation history, and triggers AI/agent response generation. Added `onRegenerateFromMessage` prop to `MainArea` and `MessageBubble` components.
 
 </details>
 
@@ -2187,7 +2266,7 @@ This project is private and proprietary.
 
 ## 📄 Version
 
-v0.2.0 - Agent Mode Release
+v0.2.1 - Enhanced Architecture & Context Management
 
 **Major Features:**
 - Full CLI agent mode with visual tool execution
@@ -2195,6 +2274,8 @@ v0.2.0 - Agent Mode Release
 - Multi-provider tool calling support (OpenAI, Anthropic, Google AI)
 - 5 agent tools: shell, read_file, write_file, list_directory, search_files
 - Rich UI components for agent actions and command output
+- Theme and settings context providers for centralized state management
+- Enhanced token tracking with conversation-level monitoring
 
 ---
 
