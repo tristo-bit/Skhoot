@@ -52,7 +52,7 @@ export const PANEL_PRELOADERS: Record<string, PreloadFn> = {
   'settings': () => import('../panels/SettingsPanel'),
   'activity': () => import('../activity/ActivityPanel'),
   'user-panel': () => import('../settings/UserPanel'),
-  'files-panel': () => import('../panels/FilesPanel'),
+  'files-panel': () => import('../panels/BackupPanel'),
   'ai-settings': () => import('../panels/AISettingsModal'),
 };
 

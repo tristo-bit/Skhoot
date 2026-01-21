@@ -65,6 +65,8 @@ src-tauri/resources/skhoot-backend.exe
 .vscode/settings.json
 
 # Documentation Projects
+documentation/agentsmith-master
 documentation/codex-main
 documentation/website-example
+documentation/websearch-main
 .vercel

@@ -5,7 +5,7 @@ import SettingsPanel from './components/panels/SettingsPanel';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import UserPanel from './components/settings/UserPanel';
-import FilesPanel from './components/panels/FilesPanel';
+import FilesPanel from './components/panels/BackupPanel';
 import AgentsPanel from './components/panels/AgentsPanel';
 import { AISettingsModal } from './components/panels/AISettingsModal';
 import { ActivityPanel } from './components/activity';

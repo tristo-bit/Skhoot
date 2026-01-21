@@ -1,26 +1,26 @@
 import React, { memo, useState } from 'react';
-import { Link2, Archive, Plus, Check, Brain, Bookmark } from 'lucide-react';
+import { Archive, Plus, Check, Brain, Bookmark } from 'lucide-react';
 import { MOCK_CONNECTED_APPS, MOCK_ARCHIVED_FILES } from '../../browser-test/demo';
 import { Modal, FileCard, type FileCardFile } from '../ui';
 import { TabButton } from '../buttonFormat';
 import { BookmarksTab } from './bookmarks/BookmarksTab';
+import { MemoriesTab } from './memories/MemoriesTab';
 
 interface FilesPanelProps {
   onClose: () => void;
 }
 
-type Tab = 'links' | 'memories' | 'bookmarks' | 'apps' | 'archive';
+type Tab = 'memories' | 'bookmarks' | 'apps' | 'archive';
 
 const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
-  const [activeTab, setActiveTab] = useState<Tab>('links');
+  const [activeTab, setActiveTab] = useState<Tab>('memories');
   const [connectedApps, setConnectedApps] = useState(MOCK_CONNECTED_APPS);
   const [archivedFiles, setArchivedFiles] = useState(MOCK_ARCHIVED_FILES);
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'links', label: 'Links', icon: <Link2 size={14} /> },
     { id: 'memories', label: 'Memories', icon: <Brain size={14} /> },
     { id: 'bookmarks', label: 'Bookmarks', icon: <Bookmark size={14} /> },
-    { id: 'apps', label: 'Apps', icon: <Link2 size={14} /> },
+    // { id: 'apps', label: 'Apps', icon: <Bookmark size={14} /> },
     { id: 'archive', label: 'Archive', icon: <Archive size={14} /> },
   ];
 
@@ -64,12 +64,11 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
 
       {/* Content Section - Scrollable */}
       <div className="files-panel-content flex-1 overflow-y-auto no-scrollbar px-6 py-4">
-        {activeTab === 'links' && <LinksTab />}
         {activeTab === 'memories' && <MemoriesTab />}
         {activeTab === 'bookmarks' && <BookmarksTab viewMode="list" searchQuery="" />}
-        {activeTab === 'apps' && (
+        {/* {activeTab === 'apps' && (
           <AppsTab apps={connectedApps} onToggle={toggleAppConnection} />
-        )}
+        )} */}
         {activeTab === 'archive' && (
           <ArchiveTab files={archivedFiles} onDelete={deleteArchive} />
         )}
@@ -78,59 +77,59 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
   );
 };
 
-interface AppsTabProps {
-  apps: typeof MOCK_CONNECTED_APPS;
-  onToggle: (id: string) => void;
-}
+// interface AppsTabProps {
+//   apps: typeof MOCK_CONNECTED_APPS;
+//   onToggle: (id: string) => void;
+// }
 
-const AppsTab = memo<AppsTabProps>(({ apps, onToggle }) => (
-  <div className="space-y-3">
-    <p className="text-xs font-medium text-text-secondary font-jakarta px-1">
-      Connect apps to search messages
-    </p>
-    <div className="space-y-2">
-      {apps.map(app => (
-        <div 
-          key={app.id}
-          className="p-4 rounded-xl glass-subtle border-glass-border flex items-center gap-3 hover:glass transition-all"
-        >
-          <span className="text-2xl">{app.icon}</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold font-jakarta text-text-primary">{app.name}</p>
-            {app.connected && app.lastSync && (
-              <p className="text-xs font-medium text-text-secondary font-jakarta">
-                Synced {app.lastSync}
-              </p>
-            )}
-          </div>
-          <button
-            onClick={() => onToggle(app.id)}
-            aria-label={app.connected ? `Disconnect ${app.name}` : `Connect ${app.name}`}
-            title={app.connected ? `Disconnect ${app.name}` : `Connect ${app.name}`}
-            className={`px-3 py-2 rounded-lg text-xs font-bold font-jakarta transition-all flex items-center gap-1.5 flex-shrink-0 ${
-              app.connected 
-                ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20' 
-                : 'glass-subtle text-text-secondary hover:glass-elevated'
-            }`}
-          >
-            {app.connected ? (
-              <>
-                <Check size={14} />
-                Connected
-              </>
-            ) : (
-              <>
-                <Plus size={14} />
-                Connect
-              </>
-            )}
-          </button>
-        </div>
-      ))}
-    </div>
-  </div>
-));
-AppsTab.displayName = 'AppsTab';
+// const AppsTab = memo<AppsTabProps>(({ apps, onToggle }) => (
+//   <div className="space-y-3">
+//     <p className="text-xs font-medium text-text-secondary font-jakarta px-1">
+//       Connect apps to search messages
+//     </p>
+//     <div className="space-y-2">
+//       {apps.map(app => (
+//         <div 
+//           key={app.id}
+//           className="p-4 rounded-xl glass-subtle border-glass-border flex items-center gap-3 hover:glass transition-all"
+//         >
+//           <span className="text-2xl">{app.icon}</span>
+//           <div className="flex-1 min-w-0">
+//             <p className="text-sm font-bold font-jakarta text-text-primary">{app.name}</p>
+//             {app.connected && app.lastSync && (
+//               <p className="text-xs font-medium text-text-secondary font-jakarta">
+//                 Synced {app.lastSync}
+//               </p>
+//             )}
+//           </div>
+//           <button
+//             onClick={() => onToggle(app.id)}
+//             aria-label={app.connected ? `Disconnect ${app.name}` : `Connect ${app.name}`}
+//             title={app.connected ? `Disconnect ${app.name}` : `Connect ${app.name}`}
+//             className={`px-3 py-2 rounded-lg text-xs font-bold font-jakarta transition-all flex items-center gap-1.5 flex-shrink-0 ${
+//               app.connected 
+//                 ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20' 
+//                 : 'glass-subtle text-text-secondary hover:glass-elevated'
+//             }`}
+//           >
+//             {app.connected ? (
+//               <>
+//                 <Check size={14} />
+//                 Connected
+//               </>
+//             ) : (
+//               <>
+//                 <Plus size={14} />
+//                 Connect
+//               </>
+//             )}
+//           </button>
+//         </div>
+//       ))}
+//     </div>
+//   </div>
+// ));
+// AppsTab.displayName = 'AppsTab';
 
 interface ArchiveTabProps {
   files: typeof MOCK_ARCHIVED_FILES;
@@ -192,43 +191,5 @@ const ArchiveTab = memo<ArchiveTabProps>(({ files, onDelete }) => (
   </div>
 ));
 ArchiveTab.displayName = 'ArchiveTab';
-
-const LinksTab = memo(() => (
-  <div className="flex items-center justify-center min-h-[300px]">
-    <div className="text-center space-y-3 max-w-xs">
-      <div className="flex justify-center">
-        <div className="p-4 rounded-2xl glass-subtle">
-          <Link2 size={32} className="text-text-secondary opacity-60" />
-        </div>
-      </div>
-      <div className="space-y-1">
-        <p className="text-sm font-bold text-text-primary font-jakarta">No links saved yet</p>
-        <p className="text-xs text-text-secondary font-jakarta">
-          Save and organize important URLs for quick access
-        </p>
-      </div>
-    </div>
-  </div>
-));
-LinksTab.displayName = 'LinksTab';
-
-const MemoriesTab = memo(() => (
-  <div className="flex items-center justify-center min-h-[300px]">
-    <div className="text-center space-y-3 max-w-xs">
-      <div className="flex justify-center">
-        <div className="p-4 rounded-2xl glass-subtle">
-          <Brain size={32} className="text-text-secondary opacity-60" />
-        </div>
-      </div>
-      <div className="space-y-1">
-        <p className="text-sm font-bold text-text-primary font-jakarta">No memories stored yet</p>
-        <p className="text-xs text-text-secondary font-jakarta">
-          Long-term memory storage helps AI remember important context
-        </p>
-      </div>
-    </div>
-  </div>
-));
-MemoriesTab.displayName = 'MemoriesTab';
 
 export default FilesPanel;

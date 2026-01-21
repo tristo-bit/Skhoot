@@ -3,17 +3,17 @@
  * Includes: Agent mode toggle, AI logs, advanced mode, API parameters, usage stats
  */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
+import {
   Bot, Terminal, Zap, Settings, Key, BarChart3,
   ChevronRight, Check, AlertCircle, Eye, EyeOff,
-  RefreshCw, Sliders, Clock, Cpu
+  RefreshCw, Sliders, Clock, Cpu, Brain
 } from 'lucide-react';
 import { Modal } from '../ui';
 import { TabButton } from '../buttonFormat';
 import { apiKeyService } from '../../services/apiKeyService';
 import { getMaxOutputTokens } from '../../services/modelCapabilities';
 
-type Tab = 'general' | 'parameters' | 'usage';
+type Tab = 'general' | 'memories' | 'parameters' | 'usage';
 
 interface AISettingsModalProps {
   onClose: () => void;
@@ -36,6 +36,9 @@ const STORAGE_KEYS = {
   topP: 'skhoot_ai_top_p',
   frequencyPenalty: 'skhoot_ai_frequency_penalty',
   presencePenalty: 'skhoot_ai_presence_penalty',
+  memoryEnabled: 'skhoot_memory_enabled',
+  memoryAutoSave: 'skhoot_memory_auto_save',
+  memoryImportance: 'skhoot_memory_importance',
 };
 
 export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => {
@@ -69,8 +72,19 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
   const [frequencyPenalty, setFrequencyPenalty] = useState(() => 
     parseFloat(localStorage.getItem(STORAGE_KEYS.frequencyPenalty) || '0')
   );
-  const [presencePenalty, setPresencePenalty] = useState(() => 
+  const [presencePenalty, setPresencePenalty] = useState(() =>
     parseFloat(localStorage.getItem(STORAGE_KEYS.presencePenalty) || '0')
+  );
+
+  // Memory settings
+  const [memoryEnabled, setMemoryEnabled] = useState(() =>
+    localStorage.getItem(STORAGE_KEYS.memoryEnabled) !== 'false'
+  );
+  const [memoryAutoSave, setMemoryAutoSave] = useState(() =>
+    localStorage.getItem(STORAGE_KEYS.memoryAutoSave) !== 'false'
+  );
+  const [memoryImportance, setMemoryImportance] = useState<'low' | 'medium' | 'high'>(() =>
+    (localStorage.getItem(STORAGE_KEYS.memoryImportance) as 'low' | 'medium' | 'high') || 'medium'
   );
 
   // Usage stats (mock data for now)
@@ -87,11 +101,12 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
     },
   });
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'general', label: 'General', icon: <Settings size={14} /> },
-    { id: 'parameters', label: 'Parameters', icon: <Sliders size={14} /> },
-    { id: 'usage', label: 'Usage', icon: <BarChart3 size={14} /> },
-  ];
+const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: 'general', label: 'General', icon: <Settings size={14} /> },
+  { id: 'memories', label: 'Memories', icon: <Brain size={14} /> },
+  { id: 'parameters', label: 'Parameters', icon: <Sliders size={14} /> },
+  { id: 'usage', label: 'Usage', icon: <BarChart3 size={14} /> },
+];
 
   // Load provider configs
   useEffect(() => {
@@ -215,6 +230,25 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
             onAiLogsChange={handleAiLogsChange}
             onAdvancedModeChange={handleAdvancedModeChange}
             onSetActiveProvider={handleSetActiveProvider}
+          />
+        )}
+        {activeTab === 'memories' && (
+          <MemoriesTab
+            enabled={memoryEnabled}
+            autoSave={memoryAutoSave}
+            importance={memoryImportance}
+            onEnabledChange={(enabled) => {
+              setMemoryEnabled(enabled);
+              localStorage.setItem(STORAGE_KEYS.memoryEnabled, enabled.toString());
+            }}
+            onAutoSaveChange={(enabled) => {
+              setMemoryAutoSave(enabled);
+              localStorage.setItem(STORAGE_KEYS.memoryAutoSave, enabled.toString());
+            }}
+            onImportanceChange={(importance) => {
+              setMemoryImportance(importance);
+              localStorage.setItem(STORAGE_KEYS.memoryImportance, importance);
+            }}
           />
         )}
         {activeTab === 'parameters' && (
@@ -575,5 +609,61 @@ const ComparisonRow: React.FC<{ label: string; current: number; previous: number
     </div>
   );
 };
+
+// Memories Tab
+const MemoriesTab: React.FC<{
+  enabled: boolean;
+  autoSave: boolean;
+  importance: 'low' | 'medium' | 'high';
+  onEnabledChange: (enabled: boolean) => void;
+  onAutoSaveChange: (enabled: boolean) => void;
+  onImportanceChange: (importance: 'low' | 'medium' | 'high') => void;
+}> = ({ enabled, autoSave, importance, onEnabledChange, onAutoSaveChange, onImportanceChange }) => (
+  <div className="space-y-6">
+    <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Memory Settings</p>
+
+    <ToggleSetting
+      icon={<Brain size={16} />}
+      title="Enable Memory"
+      description="Allow AI to remember important context across conversations"
+      enabled={enabled}
+      onChange={onEnabledChange}
+    />
+
+    {enabled && (
+      <>
+        <ToggleSetting
+          icon={<Zap size={16} />}
+          title="Auto-Save Memories"
+          description="Automatically save important information as memories"
+          enabled={autoSave}
+          onChange={onAutoSaveChange}
+        />
+
+        <div className="p-3 rounded-xl glass-subtle">
+          <p className="text-sm font-medium text-text-primary mb-2">Memory Importance Threshold</p>
+          <div className="flex items-center gap-2">
+            {(['low', 'medium', 'high'] as const).map(level => (
+              <button
+                key={level}
+                onClick={() => onImportanceChange(level)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
+                  importance === level
+                    ? 'bg-purple-500 text-white'
+                    : 'bg-white/10 text-text-secondary hover:bg-white/20'
+                }`}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-text-secondary mt-2">
+            Determines which conversations are saved as long-term memories
+          </p>
+        </div>
+      </>
+    )}
+  </div>
+);
 
 export default AISettingsModal;

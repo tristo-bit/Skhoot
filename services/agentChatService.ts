@@ -342,13 +342,31 @@ The 'render' parameter enables WebView rendering for JavaScript-heavy single-pag
     parameters: {
       type: 'object',
       properties: {
-        query: { 
-          type: 'string', 
-          description: 'Search query to find in bookmarked messages. Searches through message content, tags, and notes.' 
+        query: {
+          type: 'string',
+          description: 'Search query to find in bookmarked messages. Searches through message content, tags, and notes.'
         },
-        limit: { 
-          type: 'number', 
-          description: 'Maximum number of results to return (default: 10, max: 50)' 
+        limit: {
+          type: 'number',
+          description: 'Maximum number of results to return (default: 10, max: 50)'
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'memory_search',
+    description: 'Search through your long-term memories to retrieve important context from past conversations. Use this to find information that has been stored as memories, including user preferences, important decisions, project details, or any other context that should persist across sessions.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search query to find in long-term memories. Searches through memory content, categories, and tags.'
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of results to return (default: 5, max: 20)'
         },
       },
       required: ['query'],
@@ -524,7 +542,7 @@ User: "What is quantum computing?"
 IMPORTANT: Hyperlinks are ENABLED by default. Use them actively unless the response is very simple (like "hello" or basic confirmations).`;
 }
 
-function getAgentSystemPrompt(provider: string, model: string, workingDirectory: string, capabilities?: ModelCapabilities, customPrompt?: string, hyperlinkSettings?: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean }): string {
+function getAgentSystemPrompt(provider: string, model: string, workingDirectory: string, capabilities?: ModelCapabilities, customPrompt?: string, hyperlinkSettings?: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean }, memoryContext?: string): string {
   console.log('[AgentChatService] getAgentSystemPrompt() called');
   console.log('[AgentChatService] System Prompt Details:', {
     provider,
@@ -556,16 +574,21 @@ function getAgentSystemPrompt(provider: string, model: string, workingDirectory:
   const supportsVision = visionModels.some(vm => model.toLowerCase().includes(vm.toLowerCase()));
   
   const visionCapabilities = supportsVision ? `
+ VISION CAPABILITIES:
+ - You CAN see and analyze images that users attach to their messages
+ - You have OCR capabilities to read text from images (screenshots, documents, signs, etc.)
+ - You can describe what's in images, identify objects, people, and scenes
+ - You can answer questions about image content
+ - When users attach images, analyze them and respond based on what you see
+ - NEVER say you cannot see images - you have full vision capabilities` : '';
 
-VISION CAPABILITIES:
-- You CAN see and analyze images that users attach to their messages
-- You have OCR capabilities to read text from images (screenshots, documents, signs, etc.)
-- You can describe what's in images, identify objects, people, and scenes
-- You can answer questions about image content
-- When users attach images, analyze them and respond based on what you see
-- NEVER say you cannot see images - you have full vision capabilities` : '';
+  const memoryContextSection = memoryContext ? `
+LONG-TERM MEMORY:
+${memoryContext}
+Use this memory context to provide more personalized and informed responses. Reference relevant memories when they are useful to the current conversation.` : '';
 
   return `You are Skhoot Agent, an AI coding and system assistant running in the Skhoot application. You are expected to be precise, safe, and helpful.
+${memoryContextSection}
 
 IDENTITY:
 - You are Skhoot Agent, powered by ${provider} (${model})${capabilitiesInfo}
@@ -984,6 +1007,19 @@ class AgentChatService {
           success = true;
           break;
 
+        case 'memory_search':
+          const memoryQuery = toolCall.arguments.query;
+          const memoryLimit = toolCall.arguments.limit || 5;
+          const { memoryService } = await import('../services/memoryService');
+          const memories = await memoryService.search(memoryQuery, memoryLimit, options.sessionId);
+          output = JSON.stringify({
+            query: memoryQuery,
+            results: memories,
+            total_results: memories.length,
+          }, null, 2);
+          success = true;
+          break;
+
         // Workflow tools
         case 'create_workflow':
         case 'execute_workflow':
@@ -1032,14 +1068,17 @@ class AgentChatService {
     console.log('[AgentChatService] Provider:', options.provider || 'auto-detect');
     console.log('[AgentChatService] Model:', options.model || 'default');
     console.log('[AgentChatService] Session ID:', options.sessionId);
-    
-    // Load hyperlink settings
+
+    // Load settings
     const { hyperlinkSettingsService } = await import('./hyperlinkSettingsService');
+    const { memorySettingsService } = await import('./memorySettingsService');
     const hyperlinkSettings = hyperlinkSettingsService.loadSettings();
+    const memorySettings = memorySettingsService.loadSettings();
     console.log('[AgentChatService] Hyperlink settings:', hyperlinkSettings);
-    
+    console.log('[AgentChatService] Memory settings:', memorySettings);
+
     const provider = options.provider || await this.getActiveProvider();
-    
+
     if (!provider) {
       throw new Error('No AI provider configured. Please add an API key in settings.');
     }
@@ -1096,7 +1135,8 @@ class AgentChatService {
         provider,
         modelInfo?.capabilities,
         options,
-        hyperlinkSettings
+        hyperlinkSettings,
+        memorySettings
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1254,19 +1294,35 @@ class AgentChatService {
     provider: string,
     capabilities: ModelCapabilities | undefined,
     options: AgentChatOptions,
-    hyperlinkSettings: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean }
+    hyperlinkSettings: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean },
+    memorySettings?: { enabled: boolean; autoSave: boolean; importance: string }
   ): Promise<AgentChatResponse> {
+    // Retrieve relevant memories if enabled
+    let memoryContext = '';
+    if (memorySettings?.enabled && options.sessionId) {
+      try {
+        const { memoryService } = await import('./memoryService');
+        const memories = await memoryService.recent(3, options.sessionId);
+        if (memories.length > 0) {
+          memoryContext = 'Relevant memories from this session:\n' +
+            memories.map(m => `- ${m.content}`).join('\n');
+        }
+      } catch (error) {
+        console.warn('[AgentChatService] Failed to retrieve memories:', error);
+      }
+    }
+
     switch (format) {
       case 'openai':
       case 'ollama':
-        return this.chatOpenAIFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options, hyperlinkSettings);
+        return this.chatOpenAIFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options, hyperlinkSettings, memorySettings);
       case 'anthropic':
-        return this.chatAnthropicFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options, hyperlinkSettings);
+        return this.chatAnthropicFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options, hyperlinkSettings, memorySettings);
       case 'google':
-        return this.chatGoogleFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options, hyperlinkSettings);
+        return this.chatGoogleFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options, hyperlinkSettings, memorySettings);
       default:
         // Default to OpenAI format (most compatible)
-        return this.chatOpenAIFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options, hyperlinkSettings);
+        return this.chatOpenAIFormat(baseUrl, apiKey, message, history, model, provider, capabilities, options, hyperlinkSettings, memorySettings);
     }
   }
 
@@ -1283,7 +1339,8 @@ class AgentChatService {
     provider: string,
     capabilities: ModelCapabilities | undefined,
     options: AgentChatOptions,
-    hyperlinkSettings: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean }
+    hyperlinkSettings: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean },
+    memorySettings?: { enabled: boolean; autoSave: boolean; importance: string }
   ): Promise<AgentChatResponse> {
     console.log('[AgentChatService] chatOpenAIFormat() - Using OpenAI-compatible format');
     console.log('[AgentChatService] Provider:', provider, '| Model:', model);
@@ -1291,9 +1348,24 @@ class AgentChatService {
     // In browser context, we don't have process.cwd(), so use a sensible default
     const workingDirectory = options.workspaceRoot || '~/workspace';
     const providerConfig = providerRegistry.getProvider(provider);
-    
+
+    // Retrieve relevant memories if enabled
+    let memoryContext = '';
+    if (memorySettings?.enabled && options.sessionId) {
+      try {
+        const { memoryService } = await import('./memoryService');
+        const memories = await memoryService.recent(3, options.sessionId);
+        if (memories.length >0) {
+          memoryContext = 'Relevant memories from this session:\n' +
+            memories.map(m => `- ${m.content}`).join('\n');
+        }
+      } catch (error) {
+        console.warn('[AgentChatService] Failed to retrieve memories:', error);
+      }
+    }
+
     const messages = [
-      { role: 'system', content: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt, hyperlinkSettings) },
+      { role: 'system', content: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt, hyperlinkSettings, memoryContext) },
       ...this.convertHistoryToOpenAI(history),
     ];
 
@@ -1405,16 +1477,32 @@ class AgentChatService {
     provider: string,
     capabilities: ModelCapabilities | undefined,
     options: AgentChatOptions,
-    hyperlinkSettings: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean }
+    hyperlinkSettings: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean },
+    memorySettings?: { enabled: boolean; autoSave: boolean; importance: string }
   ): Promise<AgentChatResponse> {
     console.log('[AgentChatService] chatAnthropicFormat() - Using Anthropic format');
     console.log('[AgentChatService] Provider:', provider, '| Model:', model);
     
     // In browser context, we don't have process.cwd(), so use a sensible default
     const workingDirectory = options.workspaceRoot || '~/workspace';
-    
+
+    // Retrieve relevant memories if enabled
+    let memoryContext = '';
+    if (memorySettings?.enabled && options.sessionId) {
+      try {
+        const { memoryService } = await import('./memoryService');
+        const memories = await memoryService.recent(3, options.sessionId);
+        if (memories.length >0) {
+          memoryContext = 'Relevant memories from this session:\n' +
+            memories.map(m => `- ${m.content}`).join('\n');
+        }
+      } catch (error) {
+        console.warn('[AgentChatService] Failed to retrieve memories:', error);
+      }
+    }
+
     const messages = this.convertHistoryToAnthropic(history);
-    
+
     // Add current message with images if provided
     if (options.images && options.images.length > 0) {
       console.log('[AgentChatService] Adding images to message:', options.images.length, 'images');
@@ -1445,7 +1533,7 @@ class AgentChatService {
       max_tokens: options.maxTokens ?? 4096,
       temperature: options.temperature ?? 0.7,
       top_p: options.topP ?? 1.0,
-      system: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt, hyperlinkSettings),
+      system: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt, hyperlinkSettings, memoryContext),
       messages,
     };
 
@@ -1521,7 +1609,8 @@ class AgentChatService {
     provider: string,
     capabilities: ModelCapabilities | undefined,
     options: AgentChatOptions,
-    hyperlinkSettings: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean }
+    hyperlinkSettings: { enabled: boolean; learningHyperlinks: boolean; sourceHyperlinks: boolean },
+    memorySettings?: { enabled: boolean; autoSave: boolean; importance: string }
   ): Promise<AgentChatResponse> {
     console.log('[AgentChatService] chatGoogleFormat() - Using Google/Gemini format');
     console.log('[AgentChatService] Provider:', provider, '| Model:', model);
@@ -1529,9 +1618,24 @@ class AgentChatService {
     
     // In browser context, we don't have process.cwd(), so use a sensible default
     const workingDirectory = options.workspaceRoot || '~/workspace';
-    
+
+    // Retrieve relevant memories if enabled
+    let memoryContext = '';
+    if (memorySettings?.enabled && options.sessionId) {
+      try {
+        const { memoryService } = await import('./memoryService');
+        const memories = await memoryService.recent(3, options.sessionId);
+        if (memories.length >0) {
+          memoryContext = 'Relevant memories from this session:\n' +
+            memories.map(m => `- ${m.content}`).join('\n');
+        }
+      } catch (error) {
+        console.warn('[AgentChatService] Failed to retrieve memories:', error);
+      }
+    }
+
     const contents = this.convertHistoryToGemini(history);
-    
+
     // Add current message with images if provided
     const currentParts: any[] = [{ text: message }];
     if (options.images && options.images.length > 0) {
@@ -1550,7 +1654,7 @@ class AgentChatService {
 
     const body: any = {
       contents,
-      systemInstruction: { parts: [{ text: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt, hyperlinkSettings) }] },
+      systemInstruction: { parts: [{ text: getAgentSystemPrompt(provider, model, workingDirectory, capabilities, options.systemPrompt, hyperlinkSettings, memoryContext) }] },
       generationConfig: {
         temperature: options.temperature ?? 0.7,
         maxOutputTokens: options.maxTokens ?? 4096,
