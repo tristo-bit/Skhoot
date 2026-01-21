@@ -14626,6 +14626,43 @@ All elements now share the same stacking context (`document.body`), so z-index v
 
 ---
 
+### Window Drag Fix 🖱️
+- **Status**: ✅ COMPLETE
+- **Component**: `Sidebar.tsx`
+- **Change**: Fixed pointer events to restore window drag functionality
+- **Impact**: Window drag works again without any other changes
+
+**Problem**:
+After sidebar was moved to portal with `fixed` positioning, it blocked window drag events:
+- Sidebar container covered the entire left side of the window
+- Even when closed (`translate-x-full`), the invisible container blocked mouse events
+- Window drag stopped working
+
+**Solution - Pointer Events**:
+```tsx
+// Container: pointer-events-none (allows drag events to pass through)
+<div className="fixed ... pointer-events-none">
+  {/* Content: pointer-events-auto (sidebar interactions work) */}
+  <div className="... pointer-events-auto">
+    {/* Sidebar content */}
+  </div>
+</div>
+```
+
+**Technical Details**:
+- Outer container: `pointer-events-none` - transparent to mouse events
+- Inner content: `pointer-events-auto` - captures interactions when visible
+- Window drag events pass through the empty container
+- Sidebar interactions (clicks, scrolls) work normally on visible content
+
+**User Experience**:
+- ✅ Window drag restored
+- ✅ Sidebar interactions still work
+- ✅ No side effects on other functionality
+- ✅ Minimal diff (2 class additions)
+
+---
+
 ### Backup Panel UI/UX Refactor 🎨
 - **Status**: ✅ COMPLETE
 - **Component**: `FilesPanel.tsx`, `src/index.css`

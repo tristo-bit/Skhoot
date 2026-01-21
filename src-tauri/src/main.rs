@@ -194,6 +194,42 @@ fn main() {
       if let Some(window) = app.get_webview_window("main") {
         println!("[Skhoot] Main window initialized");
         
+        // Windows: Fix caption leak in transparent frameless window
+        #[cfg(target_os = "windows")]
+        {
+          use windows::Win32::Foundation::HWND;
+          use windows::Win32::UI::WindowsAndMessaging::{
+            GetWindowLongPtrW, SetWindowLongPtrW, GWL_STYLE, GWL_EXSTYLE,
+            WS_CAPTION, WS_THICKFRAME, WS_MINIMIZEBOX, WS_MAXIMIZEBOX, WS_SYSMENU,
+            WS_EX_APPWINDOW, WS_EX_WINDOWEDGE
+          };
+          
+          if let Ok(hwnd) = window.hwnd() {
+            let hwnd = HWND(hwnd.0 as isize);
+            
+            unsafe {
+              // Get current styles
+              let mut style = GetWindowLongPtrW(hwnd, GWL_STYLE) as u32;
+              let mut ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
+              
+              // Remove caption and borders that cause the title leak
+              style &= !(WS_CAPTION.0 | WS_THICKFRAME.0);
+              // Keep window controls functionality
+              style |= WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0 | WS_SYSMENU.0;
+              
+              // Ensure proper extended styles for frameless transparent window
+              ex_style |= WS_EX_APPWINDOW.0;
+              ex_style &= !WS_EX_WINDOWEDGE.0;
+              
+              // Apply new styles
+              SetWindowLongPtrW(hwnd, GWL_STYLE, style as isize);
+              SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style as isize);
+              
+              println!("[Skhoot] Windows: Caption removed, frameless transparent window configured");
+            }
+          }
+        }
+        
         // Set window icon for dev mode (release uses bundle icons)
         #[cfg(debug_assertions)]
         {

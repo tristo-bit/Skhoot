@@ -41,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header
       className="header-bar relative z-30 flex items-center justify-between cursor-move select-none"
       onMouseDown={onDragMouseDown}
+      data-tauri-drag-region
     >
       {/* Left side with morphing background */}
       <div className="flex items-center gap-4 relative">
