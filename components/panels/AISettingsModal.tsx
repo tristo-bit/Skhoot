@@ -13,7 +13,7 @@ import { TabButton } from '../buttonFormat';
 import { apiKeyService } from '../../services/apiKeyService';
 import { getMaxOutputTokens } from '../../services/modelCapabilities';
 
-type Tab = 'general' | 'memories' | 'parameters' | 'usage';
+type Tab = 'general' | 'parameters' | 'usage';
 
 interface AISettingsModalProps {
   onClose: () => void;
@@ -103,7 +103,6 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'general', label: 'General', icon: <Settings size={14} /> },
-  { id: 'memories', label: 'Memories', icon: <Brain size={14} /> },
   { id: 'parameters', label: 'Parameters', icon: <Sliders size={14} /> },
   { id: 'usage', label: 'Usage', icon: <BarChart3 size={14} /> },
 ];
@@ -224,31 +223,27 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
             agentModeDefault={agentModeDefault}
             aiLogsEnabled={aiLogsEnabled}
             advancedMode={advancedMode}
+            memoryEnabled={memoryEnabled}
+            memoryAutoSave={memoryAutoSave}
+            memoryImportance={memoryImportance}
             providers={providers}
             isLoading={isLoading}
             onAgentModeChange={handleAgentModeChange}
             onAiLogsChange={handleAiLogsChange}
             onAdvancedModeChange={handleAdvancedModeChange}
-            onSetActiveProvider={handleSetActiveProvider}
-          />
-        )}
-        {activeTab === 'memories' && (
-          <MemoriesTab
-            enabled={memoryEnabled}
-            autoSave={memoryAutoSave}
-            importance={memoryImportance}
-            onEnabledChange={(enabled) => {
+            onMemoryEnabledChange={(enabled) => {
               setMemoryEnabled(enabled);
               localStorage.setItem(STORAGE_KEYS.memoryEnabled, enabled.toString());
             }}
-            onAutoSaveChange={(enabled) => {
+            onMemoryAutoSaveChange={(enabled) => {
               setMemoryAutoSave(enabled);
               localStorage.setItem(STORAGE_KEYS.memoryAutoSave, enabled.toString());
             }}
-            onImportanceChange={(importance) => {
+            onMemoryImportanceChange={(importance) => {
               setMemoryImportance(importance);
               localStorage.setItem(STORAGE_KEYS.memoryImportance, importance);
             }}
+            onSetActiveProvider={handleSetActiveProvider}
           />
         )}
         {activeTab === 'parameters' && (
@@ -297,21 +292,29 @@ const GeneralTab: React.FC<{
   agentModeDefault: boolean;
   aiLogsEnabled: boolean;
   advancedMode: boolean;
+  memoryEnabled: boolean;
+  memoryAutoSave: boolean;
+  memoryImportance: 'low' | 'medium' | 'high';
   providers: ProviderConfig[];
   isLoading: boolean;
   onAgentModeChange: (enabled: boolean) => void;
   onAiLogsChange: (enabled: boolean) => void;
   onAdvancedModeChange: (enabled: boolean) => void;
+  onMemoryEnabledChange: (enabled: boolean) => void;
+  onMemoryAutoSaveChange: (enabled: boolean) => void;
+  onMemoryImportanceChange: (importance: 'low' | 'medium' | 'high') => void;
   onSetActiveProvider: (id: string) => void;
 }> = ({
-  agentModeDefault, aiLogsEnabled, advancedMode, providers, isLoading,
-  onAgentModeChange, onAiLogsChange, onAdvancedModeChange, onSetActiveProvider
+  agentModeDefault, aiLogsEnabled, advancedMode, memoryEnabled, memoryAutoSave, memoryImportance,
+  providers, isLoading,
+  onAgentModeChange, onAiLogsChange, onAdvancedModeChange,
+  onMemoryEnabledChange, onMemoryAutoSaveChange, onMemoryImportanceChange, onSetActiveProvider
 }) => (
   <div className="space-y-6">
     {/* Mode Settings */}
     <div className="space-y-3">
       <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Mode Settings</p>
-      
+
       <ToggleSetting
         icon={<Bot size={16} />}
         title="Agent Mode Default"
@@ -319,7 +322,7 @@ const GeneralTab: React.FC<{
         enabled={agentModeDefault}
         onChange={onAgentModeChange}
       />
-      
+
       <ToggleSetting
         icon={<Terminal size={16} />}
         title="AI Logs in Terminal"
@@ -327,7 +330,7 @@ const GeneralTab: React.FC<{
         enabled={aiLogsEnabled}
         onChange={onAiLogsChange}
       />
-      
+
       <ToggleSetting
         icon={<Zap size={16} />}
         title="Advanced Mode"
@@ -336,6 +339,53 @@ const GeneralTab: React.FC<{
         onChange={onAdvancedModeChange}
         badge="Beta"
       />
+    </div>
+
+    {/* Memory Settings */}
+    <div className="space-y-3">
+      <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Memory Settings</p>
+
+      <ToggleSetting
+        icon={<Brain size={16} />}
+        title="Enable Memory"
+        description="Allow AI to remember important context across conversations"
+        enabled={memoryEnabled}
+        onChange={onMemoryEnabledChange}
+      />
+
+      {memoryEnabled && (
+        <>
+          <ToggleSetting
+            icon={<Zap size={16} />}
+            title="Auto-Save Memories"
+            description="Automatically save important information as memories"
+            enabled={memoryAutoSave}
+            onChange={onMemoryAutoSaveChange}
+          />
+
+          <div className="p-3 rounded-xl glass-subtle">
+            <p className="text-sm font-medium text-text-primary mb-2">Memory Importance Threshold</p>
+            <div className="flex items-center gap-2">
+              {(['low', 'medium', 'high'] as const).map(level => (
+                <button
+                  key={level}
+                  onClick={() => onMemoryImportanceChange(level)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
+                    memoryImportance === level
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-white/10 text-text-secondary hover:bg-white/20'
+                  }`}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-text-secondary mt-2">
+              Determines which conversations are saved as long-term memories
+            </p>
+          </div>
+        </>
+      )}
     </div>
 
     {/* Provider Selection */}
@@ -609,61 +659,5 @@ const ComparisonRow: React.FC<{ label: string; current: number; previous: number
     </div>
   );
 };
-
-// Memories Tab
-const MemoriesTab: React.FC<{
-  enabled: boolean;
-  autoSave: boolean;
-  importance: 'low' | 'medium' | 'high';
-  onEnabledChange: (enabled: boolean) => void;
-  onAutoSaveChange: (enabled: boolean) => void;
-  onImportanceChange: (importance: 'low' | 'medium' | 'high') => void;
-}> = ({ enabled, autoSave, importance, onEnabledChange, onAutoSaveChange, onImportanceChange }) => (
-  <div className="space-y-6">
-    <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Memory Settings</p>
-
-    <ToggleSetting
-      icon={<Brain size={16} />}
-      title="Enable Memory"
-      description="Allow AI to remember important context across conversations"
-      enabled={enabled}
-      onChange={onEnabledChange}
-    />
-
-    {enabled && (
-      <>
-        <ToggleSetting
-          icon={<Zap size={16} />}
-          title="Auto-Save Memories"
-          description="Automatically save important information as memories"
-          enabled={autoSave}
-          onChange={onAutoSaveChange}
-        />
-
-        <div className="p-3 rounded-xl glass-subtle">
-          <p className="text-sm font-medium text-text-primary mb-2">Memory Importance Threshold</p>
-          <div className="flex items-center gap-2">
-            {(['low', 'medium', 'high'] as const).map(level => (
-              <button
-                key={level}
-                onClick={() => onImportanceChange(level)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
-                  importance === level
-                    ? 'bg-purple-500 text-white'
-                    : 'bg-white/10 text-text-secondary hover:bg-white/20'
-                }`}
-              >
-                {level}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-text-secondary mt-2">
-            Determines which conversations are saved as long-term memories
-          </p>
-        </div>
-      </>
-    )}
-  </div>
-);
 
 export default AISettingsModal;
