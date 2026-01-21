@@ -8,6 +8,9 @@
  * - Manual workflows (user-triggered)
  */
 
+import { backendApi } from './backendApi';
+import { fileOperations } from './fileOperations';
+
 // ============================================================================
 // Types & Interfaces
 // ============================================================================
@@ -32,6 +35,12 @@ export interface DecisionNode {
   falseBranch?: string;
 }
 
+export interface WorkflowLoop {
+  type: 'foreach';
+  source: string;
+  itemVar: string;
+}
+
 export interface WorkflowStep {
   id: string;
   name: string;
@@ -42,6 +51,12 @@ export interface WorkflowStep {
   outputFormat?: string;
   requiresConfirmation?: boolean;
   timeoutSecs?: number;
+  outputVar?: string;
+  loop?: WorkflowLoop;
+  inputRequest?: {
+    enabled: boolean;
+    placeholder?: string;
+  };
 }
 
 export interface OutputSettings {
@@ -61,6 +76,15 @@ export interface WorkflowBehavior {
   logExecution?: boolean;
 }
 
+export interface WorkflowVariable {
+  name: string;
+  description: string;
+  type: 'string' | 'number' | 'boolean' | 'select';
+  options?: string[];
+  required?: boolean;
+  defaultValue?: string;
+}
+
 export interface Workflow {
   id: string;
   name: string;
@@ -77,7 +101,7 @@ export interface Workflow {
   runCount: number;
   lastRun?: number;
   status: WorkflowStatus;
-  variables?: Record<string, string>;
+  variables?: WorkflowVariable[];
 }
 
 export interface StepResult {
@@ -89,6 +113,13 @@ export interface StepResult {
   decisionResult?: boolean;
 }
 
+export interface LoopState {
+  stepId: string;
+  items: any[];
+  currentIndex: number;
+  itemVar: string;
+}
+
 export interface ExecutionContext {
   workflowId: string;
   executionId: string;
@@ -98,6 +129,7 @@ export interface ExecutionContext {
   startedAt: number;
   completedAt?: number;
   status: WorkflowStatus;
+  loopState?: LoopState;
 }
 
 export interface CreateWorkflowRequest {
@@ -110,6 +142,7 @@ export interface CreateWorkflowRequest {
   trigger?: TriggerType;
   outputSettings?: OutputSettings;
   behavior?: WorkflowBehavior;
+  variables?: WorkflowVariable[];
 }
 
 // ============================================================================
@@ -720,6 +753,64 @@ Encourage them to try it out!`,
     runCount: 0,
     status: 'idle',
   },
+  // ============================================================================
+  // Test Workflows
+  // ============================================================================
+  {
+    id: 'demo-meal-planner',
+    name: 'Healthy Meal Planner',
+    description: 'Plans a healthy week of meals with recipes, prices, and budget',
+    category: 'demo',
+    workflowType: 'manual',
+    steps: [
+      {
+        id: 's1',
+        name: 'Find Recipes',
+        prompt: 'Search the web for 10 healthy recipes that are nutritious and easy to make. List them with their main ingredients.',
+        order: 1,
+        outputVar: 'recipes',
+        timeoutSecs: 120
+      },
+      {
+        id: 's2',
+        name: 'Check Prices',
+        prompt: 'Based on the recipes found, search for the current prices of the main ingredients for 2 people. Calculate approximate costs.',
+        order: 2,
+        outputVar: 'prices',
+        timeoutSecs: 180
+      },
+      {
+        id: 's3',
+        name: 'Create Plan',
+        prompt: 'Create a 7-day meal plan for 2 people using the recipes and prices found. Calculate the total budget. Ensure it is balanced.',
+        order: 3,
+        outputVar: 'plan',
+        timeoutSecs: 120
+      },
+      {
+        id: 's4',
+        name: 'Generate HTML',
+        prompt: 'Create a beautiful HTML file displaying the meal plan, recipes, and budget. Save it to "meal_plan.html" using the write_file tool.',
+        order: 4,
+        outputFormat: 'file',
+        timeoutSecs: 60
+      }
+    ],
+    outputSettings: {
+      folder: 'outputs',
+      filePattern: 'meal_plan.html',
+      formatDescription: 'HTML Meal Plan'
+    },
+    behavior: {
+      notifyOnComplete: true,
+      logExecution: true,
+      asToolcall: true // Enable tool access
+    },
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    runCount: 0,
+    status: 'idle',
+  },
 ];
 
 // ============================================================================
@@ -730,15 +821,70 @@ class WorkflowService {
   private workflows: Map<string, Workflow> = new Map();
   private executions: Map<string, ExecutionContext> = new Map();
   private eventListeners: Map<string, Set<(data: any) => void>> = new Map();
+  private readonly STORAGE_PATH = '.skhoot/workflows';
 
   constructor() {
     this.initDefaults();
+    this.loadFromDisk();
   }
 
   private initDefaults(): void {
     DEFAULT_WORKFLOWS.forEach(wf => {
       this.workflows.set(wf.id, wf);
     });
+  }
+
+  async openStorage(): Promise<void> {
+    try {
+      // Ensure it exists by trying to write a dummy file if needed, or just open
+      // backendApi.openFileLocation usually opens the folder
+      await backendApi.openFileLocation(this.STORAGE_PATH);
+    } catch (error) {
+      console.error('[WorkflowService] Failed to open storage:', error);
+    }
+  }
+
+  private async loadFromDisk(): Promise<void> {
+    try {
+      const result = await backendApi.listDirectory(this.STORAGE_PATH);
+      // Handle various response formats (files array or items property)
+      const items = Array.isArray(result) ? result : (result.files || result.items || []);
+      
+      for (const item of items) {
+        if (item.name && item.name.endsWith('.json')) {
+          try {
+            const content = await backendApi.readFile(item.path);
+            const workflow = JSON.parse(content);
+            if (workflow.id && workflow.name) {
+              this.workflows.set(workflow.id, workflow);
+            }
+          } catch (e) {
+            console.error(`[WorkflowService] Failed to load ${item.name}:`, e);
+          }
+        }
+      }
+      this.emit('workflow_updated', { workflow: null }); // Force UI refresh
+    } catch (error) {
+      // Ignore errors if directory doesn't exist yet
+    }
+  }
+
+  private async saveToDisk(workflow: Workflow): Promise<void> {
+    try {
+      const filePath = `${this.STORAGE_PATH}/${workflow.id}.json`;
+      await backendApi.writeFile(filePath, JSON.stringify(workflow, null, 2));
+    } catch (error) {
+      console.error('[WorkflowService] Failed to save to disk:', error);
+    }
+  }
+
+  private async deleteFromDisk(workflowId: string): Promise<void> {
+    try {
+      const filePath = `${this.STORAGE_PATH}/${workflowId}.json`;
+      await fileOperations.delete(filePath);
+    } catch (error) {
+      // Ignore if file doesn't exist
+    }
   }
 
   // ==========================================================================
@@ -781,6 +927,7 @@ class WorkflowService {
       trigger: request.trigger,
       outputSettings: request.outputSettings || {},
       behavior: request.behavior || { notifyOnComplete: true, logExecution: true },
+      variables: request.variables,
       createdAt: now,
       updatedAt: now,
       runCount: 0,
@@ -788,6 +935,7 @@ class WorkflowService {
     };
 
     this.workflows.set(workflow.id, workflow);
+    this.saveToDisk(workflow);
     this.emit('workflow_created', { workflow });
     return workflow;
   }
@@ -804,6 +952,7 @@ class WorkflowService {
     };
 
     this.workflows.set(id, updated);
+    this.saveToDisk(updated);
     this.emit('workflow_updated', { workflow: updated });
     return updated;
   }
@@ -811,6 +960,7 @@ class WorkflowService {
   async delete(id: string): Promise<boolean> {
     const deleted = this.workflows.delete(id);
     if (deleted) {
+      this.deleteFromDisk(id);
       this.emit('workflow_deleted', { workflowId: id });
     }
     return deleted;
@@ -826,6 +976,16 @@ class WorkflowService {
       throw new Error(`Workflow ${workflowId} not found`);
     }
 
+    // Merge default variables
+    const finalVariables = { ...variables };
+    if (workflow.variables) {
+      workflow.variables.forEach(v => {
+        if (finalVariables[v.name] === undefined && v.defaultValue !== undefined) {
+          finalVariables[v.name] = v.defaultValue;
+        }
+      });
+    }
+
     const executionId = `exec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const firstStep = workflow.steps.find(s => s.order === 1);
 
@@ -833,7 +993,7 @@ class WorkflowService {
       workflowId,
       executionId,
       currentStepId: firstStep?.id,
-      variables,
+      variables: finalVariables,
       stepResults: {},
       startedAt: Date.now(),
       status: 'running',
@@ -879,11 +1039,29 @@ class WorkflowService {
       throw new Error('Current step not found');
     }
 
+    // Process Output & Capture Variables
+    let processedOutput: any = output;
+    
+    if (currentStep.outputFormat === 'json') {
+      try {
+        // Try to find JSON block if mixed with text
+        const jsonMatch = output.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+        const jsonStr = jsonMatch ? jsonMatch[0] : output;
+        processedOutput = JSON.parse(jsonStr);
+      } catch (e) {
+        console.warn('[WorkflowService] Failed to parse JSON output for step:', currentStep.id);
+      }
+    }
+
+    if (currentStep.outputVar) {
+      context.variables[currentStep.outputVar] = processedOutput;
+    }
+
     // Record step result
     const result: StepResult = {
       stepId: currentStep.id,
       success: true,
-      output,
+      output, // Keep raw output for logs
       durationMs: 0,
       decisionResult,
     };
@@ -897,6 +1075,59 @@ class WorkflowService {
         : currentStep.decision.falseBranch;
     } else {
       nextStepId = currentStep.nextStep;
+    }
+
+    // ========================================================================
+    // Loop Logic
+    // ========================================================================
+    
+    // 1. Handle Active Loop (Iterate or Finish)
+    if (context.loopState && context.loopState.stepId === currentStep.id) {
+      context.loopState.currentIndex++;
+      
+      if (context.loopState.currentIndex < context.loopState.items.length) {
+        // Continue Loop: Update variable and repeat step
+        const nextItem = context.loopState.items[context.loopState.currentIndex];
+        context.variables[context.loopState.itemVar] = nextItem;
+        nextStepId = currentStep.id;
+        console.log(`[WorkflowService] Looping step ${currentStep.id} (Index: ${context.loopState.currentIndex})`);
+      } else {
+        // Loop Finished: Clear state and proceed to nextStepId (already set above)
+        console.log(`[WorkflowService] Loop finished for step ${currentStep.id}`);
+        // Optional: clear the item variable?
+        // delete context.variables[context.loopState.itemVar];
+        context.loopState = undefined;
+      }
+    }
+
+    // 2. Handle Next Step Loop Initialization (if not repeating self)
+    if (nextStepId && nextStepId !== currentStep.id) {
+      let nextStepObj = workflow.steps.find(s => s.id === nextStepId);
+      
+      // Handle skipping empty loops (simple 1-level skip for now)
+      if (nextStepObj && nextStepObj.loop) {
+        const sourceName = nextStepObj.loop.source;
+        const collection = context.variables[sourceName];
+        
+        if (Array.isArray(collection) && collection.length > 0) {
+          // Initialize Loop
+          console.log(`[WorkflowService] Initializing loop for step ${nextStepId} with ${collection.length} items`);
+          context.loopState = {
+            stepId: nextStepId,
+            items: collection,
+            currentIndex: 0,
+            itemVar: nextStepObj.loop.itemVar
+          };
+          context.variables[nextStepObj.loop.itemVar] = collection[0];
+        } else {
+          // Skip loop step if collection is empty or missing
+          console.log(`[WorkflowService] Skipping loop step ${nextStepId} (Empty/Invalid source: ${sourceName})`);
+          nextStepId = nextStepObj.nextStep;
+          
+          // Re-fetch next step object if we skipped
+          // Note: This doesn't handle consecutive empty loops recursively
+        }
+      }
     }
 
     context.currentStepId = nextStepId;

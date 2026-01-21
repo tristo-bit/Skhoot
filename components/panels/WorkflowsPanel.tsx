@@ -17,7 +17,7 @@ import {
   CheckCircle, XCircle, Settings,
   Save, Zap, GitBranch, FileOutput, Bell,
   Code, Folder, ChevronRight, ChevronDown,
-  AlertCircle, Target, Layers
+  AlertCircle, Target, Layers, Upload, Download
 } from 'lucide-react';
 import { SecondaryPanel, SecondaryPanelTab } from '../ui/SecondaryPanel';
 import { 
@@ -28,10 +28,11 @@ import {
   TriggerType,
   OutputSettings,
   WorkflowBehavior,
-  ExecutionContext
+  ExecutionContext,
+  WorkflowVariable
 } from '../../services/workflowService';
 
-type TabId = 'workflows' | 'running' | 'create';
+type TabId = 'workflows' | 'running' | 'create' | 'import' | 'run';
 
 interface WorkflowsPanelProps {
   isOpen: boolean;
@@ -44,6 +45,7 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
   const [selectedWorkflow, setSelectedWorkflow] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [runningExecutions, setRunningExecutions] = useState<ExecutionContext[]>([]);
+  const [activeWorkflow, setActiveWorkflow] = useState<WorkflowType | null>(null);
 
   // Load workflows on mount
   useEffect(() => {
@@ -82,9 +84,50 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
     { id: 'create', title: 'Create', icon: <Plus size={14} /> },
   ], []);
 
+  const handleOpenStorage = useCallback(() => {
+    workflowService.openStorage();
+  }, []);
+
+  const handleImportJson = useCallback(async (json: string) => {
+    try {
+      const data = JSON.parse(json);
+      const items = Array.isArray(data) ? data : [data];
+      for (const item of items) {
+        await workflowService.create({
+          ...item,
+          name: item.name ? `${item.name} (Imported)` : 'Imported Workflow',
+        });
+      }
+      setActiveTab('workflows');
+      loadWorkflows();
+    } catch (e) {
+      console.error('Import failed', e);
+      alert('Failed to import JSON: Invalid format');
+    }
+  }, [loadWorkflows]);
+
+  const handleExport = useCallback((workflowId: string) => {
+    const workflow = workflows.find(w => w.id === workflowId);
+    if (!workflow) return;
+    const json = JSON.stringify(workflow, null, 2);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(json);
+      // Could show toast here
+    }
+  }, [workflows]);
+
   const handleRunWorkflow = useCallback(async (workflowId: string) => {
     try {
       const workflow = workflows.find(w => w.id === workflowId);
+      if (!workflow) return;
+
+      // Check if workflow has variables that need input
+      if (workflow.variables && workflow.variables.length > 0) {
+        setActiveWorkflow(workflow);
+        setActiveTab('run');
+        return;
+      }
+
       await workflowService.execute(workflowId);
       setRunningExecutions(workflowService.getActiveExecutions());
       
@@ -96,6 +139,20 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
       console.error('Failed to run workflow:', error);
     }
   }, [workflows, onClose]);
+
+  const handleExecuteWithVariables = useCallback(async (variables: Record<string, any>) => {
+    if (!activeWorkflow) return;
+    
+    try {
+      await workflowService.execute(activeWorkflow.id, variables);
+      setRunningExecutions(workflowService.getActiveExecutions());
+      setActiveWorkflow(null);
+      setActiveTab('workflows');
+      onClose();
+    } catch (error) {
+      console.error('Failed to run workflow with variables:', error);
+    }
+  }, [activeWorkflow, onClose]);
 
   const handleDeleteWorkflow = useCallback(async (workflowId: string) => {
     await workflowService.delete(workflowId);
@@ -118,15 +175,37 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
   }, []);
 
   const headerActions = useMemo(() => (
-    <button
-      onClick={handleCreateWorkflow}
-      className="p-1.5 rounded-xl transition-all hover:bg-emerald-500/10 hover:text-emerald-500"
-      style={{ color: 'var(--text-secondary)' }}
-      title="New Workflow"
-    >
-      <Plus size={14} />
-    </button>
-  ), [handleCreateWorkflow]);
+    <div className="flex items-center gap-1">
+      <button
+        onClick={handleOpenStorage}
+        className="p-1.5 rounded-xl transition-all hover:bg-blue-500/10 hover:text-blue-500"
+        style={{ color: 'var(--text-secondary)' }}
+        title="Open Storage Folder"
+      >
+        <Folder size={14} />
+      </button>
+      <button
+        onClick={() => {
+          setActiveTab('import');
+          setSelectedWorkflow(null);
+          setIsEditing(false);
+        }}
+        className={`p-1.5 rounded-xl transition-all ${activeTab === 'import' ? 'bg-purple-500/20 text-purple-500' : 'hover:bg-purple-500/10 hover:text-purple-500'}`}
+        style={{ color: activeTab === 'import' ? undefined : 'var(--text-secondary)' }}
+        title="Import JSON"
+      >
+        <Upload size={14} />
+      </button>
+      <button
+        onClick={handleCreateWorkflow}
+        className="p-1.5 rounded-xl transition-all hover:bg-emerald-500/10 hover:text-emerald-500"
+        style={{ color: 'var(--text-secondary)' }}
+        title="New Workflow"
+      >
+        <Plus size={14} />
+      </button>
+    </div>
+  ), [handleCreateWorkflow, handleOpenStorage, activeTab]);
 
   const selected = useMemo(() => 
     workflows.find(wf => wf.id === selectedWorkflow), [workflows, selectedWorkflow]);
@@ -169,42 +248,54 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
       animationName="workflowsSlideUp"
     >
       <div className="h-full flex">
-        {activeTab === 'create' ? (
-          <WorkflowCreator onSave={handleSaveNewWorkflow} onCancel={() => setActiveTab('workflows')} />
-        ) : (
-          <>
-            {/* Workflow List */}
-            <div className="w-1/3 border-r border-white/5 overflow-y-auto">
-              {activeTab === 'workflows' && (
-                <WorkflowList
-                  workflows={workflows}
-                  selectedId={selectedWorkflow}
-                  onSelect={setSelectedWorkflow}
-                  onRun={handleRunWorkflow}
-                  onDelete={handleDeleteWorkflow}
-                />
-              )}
-              {activeTab === 'running' && (
-                <RunningList executions={runningExecutions} workflows={workflows} />
-              )}
-            </div>
+        {/* Left Column - Always visible */}
+        <div className="w-1/3 border-r border-white/5 overflow-y-auto">
+          {activeTab === 'running' ? (
+            <RunningList executions={runningExecutions} workflows={workflows} />
+          ) : (
+            <WorkflowList
+              workflows={workflows}
+              selectedId={selectedWorkflow}
+              onSelect={(id) => {
+                setSelectedWorkflow(id);
+                if (activeTab !== 'workflows') setActiveTab('workflows');
+              }}
+              onRun={handleRunWorkflow}
+              onDelete={handleDeleteWorkflow}
+              onExport={handleExport}
+            />
+          )}
+        </div>
 
-            {/* Workflow Detail */}
-            <div className="flex-1 overflow-y-auto p-4">
-              {selected ? (
-                <WorkflowDetail
-                  workflow={selected}
-                  isEditing={isEditing}
-                  onEdit={handleEdit}
-                  onSave={handleSave}
-                  onUpdateWorkflow={handleUpdateWorkflow}
-                />
-              ) : (
-                <EmptyState onCreateWorkflow={handleCreateWorkflow} />
-              )}
-            </div>
-          </>
-        )}
+        {/* Right Column - Context switch */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {activeTab === 'create' ? (
+            <WorkflowCreator onSave={handleSaveNewWorkflow} onCancel={() => setActiveTab('workflows')} />
+          ) : activeTab === 'import' ? (
+            <ImportView onImport={handleImportJson} onCancel={() => setActiveTab('workflows')} />
+          ) : activeTab === 'run' && activeWorkflow ? (
+            <WorkflowRunner 
+              workflow={activeWorkflow} 
+              onExecute={handleExecuteWithVariables} 
+              onCancel={() => { setActiveTab('workflows'); setActiveWorkflow(null); }} 
+            />
+          ) : activeTab === 'running' ? (
+             <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
+                <Zap size={32} className="mb-3" />
+                <p className="text-sm">Viewing running executions</p>
+             </div>
+          ) : selected ? (
+            <WorkflowDetail
+              workflow={selected}
+              isEditing={isEditing}
+              onEdit={handleEdit}
+              onSave={handleSave}
+              onUpdateWorkflow={handleUpdateWorkflow}
+            />
+          ) : (
+            <EmptyState onCreateWorkflow={handleCreateWorkflow} />
+          )}
+        </div>
       </div>
     </SecondaryPanel>
   );
@@ -238,7 +329,8 @@ const WorkflowList = memo<{
   onSelect: (id: string) => void;
   onRun: (id: string) => void;
   onDelete: (id: string) => void;
-}>(({ workflows, selectedId, onSelect, onRun, onDelete }) => {
+  onExport: (id: string) => void;
+}>(({ workflows, selectedId, onSelect, onRun, onDelete, onExport }) => {
   const groupedWorkflows = useMemo(() => {
     const groups: Record<string, WorkflowType[]> = {};
     workflows.forEach(wf => {
@@ -264,6 +356,7 @@ const WorkflowList = memo<{
               onSelect={onSelect}
               onRun={onRun}
               onDelete={onDelete}
+              onExport={onExport}
             />
           ))}
         </div>
@@ -279,7 +372,8 @@ const WorkflowListItem = memo<{
   onSelect: (id: string) => void;
   onRun: (id: string) => void;
   onDelete: (id: string) => void;
-}>(({ workflow, isSelected, onSelect, onRun, onDelete }) => (
+  onExport: (id: string) => void;
+}>(({ workflow, isSelected, onSelect, onRun, onDelete, onExport }) => (
   <div
     onClick={() => onSelect(workflow.id)}
     className={`p-3 rounded-xl cursor-pointer transition-all group ${
@@ -308,6 +402,13 @@ const WorkflowListItem = memo<{
       >
         <Play size={12} />
       </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onExport(workflow.id); }}
+        className="p-1 rounded-lg hover:bg-blue-500/20 text-blue-400"
+        title="Export JSON"
+      >
+        <Download size={12} />
+      </button>
       {workflow.category !== 'default' && (
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(workflow.id); }}
@@ -323,13 +424,13 @@ const WorkflowListItem = memo<{
 WorkflowListItem.displayName = 'WorkflowListItem';
 
 const WorkflowTypeIcon = memo<{ type: WFType }>(({ type }) => {
-  const icons = {
-    hook: <Zap size={12} className="text-amber-400" />,
-    process: <Layers size={12} className="text-blue-400" />,
-    manual: <Target size={12} className="text-purple-400" />,
-  };
-  return icons[type] || null;
-});
+    const icons = {
+      hook: <Zap size={12} className="text-amber-400" />,
+      process: <Layers size={12} className="text-blue-400" />,
+      manual: <Target size={12} className="text-purple-400" />,
+    };
+    return (icons as any)[type] || null;
+  });
 WorkflowTypeIcon.displayName = 'WorkflowTypeIcon';
 
 const RunningList = memo<{ executions: ExecutionContext[]; workflows: WorkflowType[] }>(
@@ -395,7 +496,7 @@ const WorkflowDetail = memo<{
   onUpdateWorkflow: (workflow: WorkflowType) => void;
 }>(({ workflow, isEditing, onEdit, onSave, onUpdateWorkflow }) => {
   const [editedWorkflow, setEditedWorkflow] = useState(workflow);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['steps']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['variables', 'steps']));
 
   useEffect(() => {
     setEditedWorkflow(workflow);
@@ -505,6 +606,20 @@ const WorkflowDetail = memo<{
           </span>
         )}
       </div>
+
+      {/* Variables Section */}
+      <CollapsibleSection
+        title="Input Variables"
+        icon={<Code size={14} />}
+        isExpanded={expandedSections.has('variables')}
+        onToggle={() => toggleSection('variables')}
+      >
+        <VariablesEditor
+          variables={isEditing ? editedWorkflow.variables : workflow.variables}
+          isEditing={isEditing}
+          onChange={(variables) => setEditedWorkflow(prev => ({ ...prev, variables }))}
+        />
+      </CollapsibleSection>
 
       {/* Steps Section */}
       <CollapsibleSection
@@ -653,6 +768,71 @@ const StepCard = memo<{
               <span style={{ color: 'var(--text-secondary)' }}>Requires confirmation</span>
             </label>
           </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+             <div className="p-2 rounded-lg bg-white/5">
+                <span className="text-[10px] uppercase block mb-1" style={{ color: 'var(--text-secondary)' }}>Output to Variable</span>
+                <input 
+                   value={step.outputVar || ''}
+                   onChange={e => onUpdate({ outputVar: e.target.value })}
+                   className="w-full bg-transparent border-b border-white/10 outline-none font-mono"
+                   style={{ color: 'var(--text-primary)' }}
+                   placeholder="e.g. step_result"
+                />
+             </div>
+             
+             <div className="p-2 rounded-lg bg-white/5">
+                <div className="flex items-center justify-between mb-1">
+                   <span className="text-[10px] uppercase" style={{ color: 'var(--text-secondary)' }}>Loop (Foreach)</span>
+                   <input 
+                      type="checkbox"
+                      checked={!!step.loop}
+                      onChange={e => onUpdate({ loop: e.target.checked ? { type: 'foreach', source: '', itemVar: 'item' } : undefined })}
+                      className="rounded"
+                   />
+                </div>
+                {step.loop && (
+                   <div className="space-y-1">
+                      <input 
+                         value={step.loop.source}
+                         onChange={e => onUpdate({ loop: { ...step.loop!, source: e.target.value } })}
+                         className="w-full bg-transparent border-b border-white/10 outline-none font-mono"
+                         style={{ color: 'var(--text-primary)' }}
+                         placeholder="Source (list var)"
+                      />
+                      <input 
+                         value={step.loop.itemVar}
+                         onChange={e => onUpdate({ loop: { ...step.loop!, itemVar: e.target.value } })}
+                         className="w-full bg-transparent border-b border-white/10 outline-none font-mono"
+                         style={{ color: 'var(--text-primary)' }}
+                         placeholder="Item var name"
+                      />
+                   </div>
+                )}
+             </div>
+
+             <div className="p-2 rounded-lg bg-white/5 col-span-2">
+                <div className="flex items-center justify-between mb-1">
+                   <span className="text-[10px] uppercase" style={{ color: 'var(--text-secondary)' }}>Wait for User Input</span>
+                   <input 
+                      type="checkbox"
+                      checked={step.inputRequest?.enabled || false}
+                      onChange={e => onUpdate({ inputRequest: { enabled: e.target.checked, placeholder: step.inputRequest?.placeholder } })}
+                      className="rounded"
+                   />
+                </div>
+                {step.inputRequest?.enabled && (
+                   <input 
+                      value={step.inputRequest.placeholder || ''}
+                      onChange={e => onUpdate({ inputRequest: { ...step.inputRequest!, placeholder: e.target.value } })}
+                      className="w-full bg-transparent border-b border-white/10 outline-none font-mono text-xs"
+                      style={{ color: 'var(--text-primary)' }}
+                      placeholder="Question for user (e.g. What is the API key?)"
+                   />
+                )}
+             </div>
+          </div>
+
           {step.decision && (
             <div className="p-2 rounded-lg bg-amber-500/10 text-xs">
               <div className="flex items-center gap-1 text-amber-400 mb-1">
@@ -673,6 +853,18 @@ const StepCard = memo<{
         <>
           <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>{step.name}</p>
           <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{step.prompt}</p>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {step.outputVar && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-mono">
+                → {step.outputVar}
+              </span>
+            )}
+            {step.loop && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 font-mono">
+                ↻ {step.loop.itemVar} in {step.loop.source}
+              </span>
+            )}
+          </div>
           {step.decision && (
             <div className="mt-2 flex items-center gap-1 text-xs text-amber-400">
               <GitBranch size={10} />
@@ -712,6 +904,7 @@ const TriggerEditor = memo<{
     { value: 'on_git_commit', label: 'On Git Commit' },
     { value: 'on_error', label: 'On Error' },
     { value: 'on_ai_detection', label: 'On AI Detection' },
+    { value: 'on_schedule', label: 'On Schedule (Cron)' },
   ];
 
   return (
@@ -737,6 +930,29 @@ const TriggerEditor = memo<{
               style={{ color: 'var(--text-primary)' }}
               placeholder="File patterns (e.g., *.ts, src/*.tsx)"
             />
+          )}
+          {trigger && trigger.type === 'on_git_commit' && (
+            <input
+              value={trigger.patterns?.join(', ') || ''}
+              onChange={(e) => onChange({ ...trigger, patterns: e.target.value.split(',').map(s => s.trim()) })}
+              className="w-full text-sm bg-white/5 rounded-lg p-2 border-none outline-none"
+              style={{ color: 'var(--text-primary)' }}
+              placeholder="Branch patterns (e.g., main, feature/*)"
+            />
+          )}
+          {trigger && trigger.type === 'on_schedule' && (
+            <div className="space-y-1">
+              <input
+                value={trigger.cron || ''}
+                onChange={(e) => onChange({ ...trigger, cron: e.target.value })}
+                className="w-full text-sm bg-white/5 rounded-lg p-2 border-none outline-none"
+                style={{ color: 'var(--text-primary)' }}
+                placeholder="Cron expression (e.g., 0 9 * * *)"
+              />
+              <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                Format: Minute Hour Day Month DayOfWeek
+              </p>
+            </div>
           )}
           {trigger && trigger.type === 'on_message' && (
             <input
@@ -768,6 +984,9 @@ const TriggerEditor = memo<{
           )}
           {trigger?.intentPatterns && (
             <p style={{ color: 'var(--text-secondary)' }}>Intent: {trigger.intentPatterns.join(', ')}</p>
+          )}
+          {trigger?.cron && (
+            <p style={{ color: 'var(--text-secondary)' }}>Schedule: {trigger.cron}</p>
           )}
         </div>
       )}
@@ -924,6 +1143,7 @@ const WorkflowCreator = memo<{
   const [steps, setSteps] = useState<WorkflowStep[]>([
     { id: 'step-1', name: 'Step 1', prompt: '', order: 1 }
   ]);
+  const [variables, setVariables] = useState<WorkflowVariable[]>([]);
   const [trigger, setTrigger] = useState<TriggerType | undefined>();
   const [outputSettings, setOutputSettings] = useState<OutputSettings>({});
   const [behavior, setBehavior] = useState<WorkflowBehavior>({
@@ -960,11 +1180,12 @@ const WorkflowCreator = memo<{
       trigger,
       outputSettings,
       behavior,
+      variables,
     });
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex-1 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Create Workflow</h3>
         <div className="flex items-center gap-2">
@@ -1026,6 +1247,12 @@ const WorkflowCreator = memo<{
         />
       </div>
 
+      {/* Variables */}
+      <div className="space-y-2">
+        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Input Variables</p>
+        <VariablesEditor variables={variables} isEditing={true} onChange={setVariables} />
+      </div>
+
       {/* Steps */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -1069,5 +1296,231 @@ const WorkflowCreator = memo<{
   );
 });
 WorkflowCreator.displayName = 'WorkflowCreator';
+
+// ============================================================================
+// Variables Editor
+// ============================================================================
+
+// ============================================================================
+// ============================================================================
+// Workflow Runner (Variable Input)
+// ============================================================================
+
+const WorkflowRunner = memo<{
+  workflow: WorkflowType;
+  onExecute: (variables: Record<string, any>) => void;
+  onCancel: () => void;
+}>(({ workflow, onExecute, onCancel }) => {
+  const [values, setValues] = useState<Record<string, any>>({});
+
+  const handleSubmit = () => {
+    // Validate required fields
+    const missing = workflow.variables?.filter(v => v.required && !values[v.name]);
+    if (missing && missing.length > 0) {
+      alert(`Missing required fields: ${missing.map(v => v.name).join(', ')}`);
+      return;
+    }
+    onExecute(values);
+  };
+
+  return (
+    <div className="flex-1 space-y-4 flex flex-col h-full">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+           <Play size={16} className="text-purple-400" />
+           <div>
+              <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Run Workflow</h3>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{workflow.name}</p>
+           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={onCancel} className="px-3 py-1.5 rounded-xl text-sm hover:bg-white/10" style={{ color: 'var(--text-secondary)' }}>
+            Cancel
+          </button>
+          <button 
+            onClick={handleSubmit}
+            className="px-3 py-1.5 rounded-xl text-sm bg-purple-500 text-white font-medium hover:bg-purple-600 shadow-lg shadow-purple-500/20"
+          >
+            Run
+          </button>
+        </div>
+      </div>
+      
+      <div className="flex-1 min-h-0 space-y-4">
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Please provide the following inputs:</p>
+        
+        {workflow.variables?.map(v => (
+          <div key={v.name} className="space-y-1">
+            <label className="text-xs font-medium text-purple-400 flex items-center gap-1">
+              {v.name}
+              {v.required && <span className="text-red-400">*</span>}
+            </label>
+            <input
+              value={values[v.name] || ''}
+              onChange={(e) => setValues(prev => ({ ...prev, [v.name]: e.target.value }))}
+              className="w-full bg-black/20 border border-white/10 rounded-lg p-2.5 text-sm focus:border-purple-500/50 outline-none"
+              style={{ color: 'var(--text-primary)' }}
+              placeholder={v.description}
+              type={v.type === 'number' ? 'number' : 'text'}
+            />
+            {v.description && (
+              <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{v.description}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+WorkflowRunner.displayName = 'WorkflowRunner';
+
+// ============================================================================
+// Import View
+// ============================================================================
+
+const ImportView = memo<{
+  onImport: (json: string) => void;
+  onCancel: () => void;
+}>(({ onImport, onCancel }) => {
+  const [text, setText] = useState('');
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col h-full">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Import Workflow</h3>
+        <div className="flex items-center gap-2">
+          <button onClick={onCancel} className="px-3 py-1.5 rounded-xl text-sm hover:bg-white/10" style={{ color: 'var(--text-secondary)' }}>
+            Cancel
+          </button>
+          <button 
+            onClick={() => onImport(text)}
+            disabled={!text.trim()}
+            className="px-3 py-1.5 rounded-xl text-sm bg-purple-500 text-white font-medium hover:bg-purple-600 shadow-lg shadow-purple-500/20 disabled:opacity-50"
+          >
+            Import JSON
+          </button>
+        </div>
+      </div>
+      
+      <div className="flex-1 flex flex-col gap-2 min-h-0">
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Paste Workflow JSON below:</p>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          className="flex-1 w-full bg-black/20 border border-white/10 rounded-xl p-4 text-xs font-mono focus:border-purple-500/50 outline-none resize-none"
+          style={{ color: 'var(--text-primary)' }}
+          placeholder='[
+  {
+    "name": "My Workflow",
+    "steps": [...]
+  }
+]'
+        />
+      </div>
+    </div>
+  );
+});
+ImportView.displayName = 'ImportView';
+
+const VariablesEditor = memo<{
+  variables?: WorkflowVariable[];
+  isEditing: boolean;
+  onChange: (variables: WorkflowVariable[]) => void;
+}>(({ variables = [], isEditing, onChange }) => {
+  const addVariable = () => {
+    onChange([
+      ...variables,
+      { 
+        name: 'variable_name', 
+        description: 'Description...', 
+        type: 'string',
+        required: true 
+      }
+    ]);
+  };
+
+  const updateVariable = (index: number, updates: Partial<WorkflowVariable>) => {
+    const newVars = [...variables];
+    newVars[index] = { ...newVars[index], ...updates };
+    onChange(newVars);
+  };
+
+  const removeVariable = (index: number) => {
+    onChange(variables.filter((_, i) => i !== index));
+  };
+
+  if (!isEditing && variables.length === 0) {
+    return <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>No input variables defined</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {variables.map((v, i) => (
+        <div key={i} className="p-2 rounded-lg bg-white/5 space-y-2">
+          {isEditing ? (
+            <>
+              <div className="flex items-center gap-2">
+                <input
+                  value={v.name}
+                  onChange={(e) => updateVariable(i, { name: e.target.value })}
+                  className="flex-1 text-sm font-mono bg-transparent border-b border-white/10 outline-none"
+                  style={{ color: 'var(--text-primary)' }}
+                  placeholder="name"
+                />
+                <select
+                  value={v.type}
+                  onChange={(e) => updateVariable(i, { type: e.target.value as any })}
+                  className="text-xs bg-white/10 rounded p-1 border-none outline-none"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  <option value="string">String</option>
+                  <option value="number">Number</option>
+                  <option value="boolean">Boolean</option>
+                </select>
+                <button onClick={() => removeVariable(i)} className="p-1 hover:text-red-400">
+                  <Trash2 size={12} />
+                </button>
+              </div>
+              <input
+                value={v.description}
+                onChange={(e) => updateVariable(i, { description: e.target.value })}
+                className="w-full text-xs bg-transparent outline-none"
+                style={{ color: 'var(--text-secondary)' }}
+                placeholder="Description..."
+              />
+              <label className="flex items-center gap-1 text-xs">
+                <input
+                  type="checkbox"
+                  checked={v.required}
+                  onChange={(e) => updateVariable(i, { required: e.target.checked })}
+                />
+                <span style={{ color: 'var(--text-secondary)' }}>Required</span>
+              </label>
+            </>
+          ) : (
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm text-purple-400">{v.name}</span>
+                <span className="text-xs opacity-50 px-1 rounded bg-white/10">{v.type}</span>
+                {v.required && <span className="text-[10px] text-red-400">*</span>}
+              </div>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>{v.description}</p>
+            </div>
+          )}
+        </div>
+      ))}
+      {isEditing && (
+        <button
+          onClick={addVariable}
+          className="w-full py-1 text-xs rounded-lg border border-dashed border-white/10 hover:bg-white/5"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          + Add Variable
+        </button>
+      )}
+    </div>
+  );
+});
+VariablesEditor.displayName = 'VariablesEditor';
 
 export default WorkflowsPanel;

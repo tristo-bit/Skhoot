@@ -21,6 +21,13 @@ export interface Message {
     executionId: string;
     workflowId: string;
     workflowName: string;
+    currentStep?: {
+       id: string;
+       name: string;
+       order: number;
+    };
+    status?: 'running' | 'completed' | 'failed' | 'cancelled' | 'waiting';
+    totalSteps?: number;
   };
 }
 
@@ -37,6 +44,7 @@ export interface AgentToolCallData {
 // Agent tool result data for messages
 export interface AgentToolResultData {
   toolCallId: string;
+  toolCallName?: string;
   success: boolean;
   output: string;
   error?: string;

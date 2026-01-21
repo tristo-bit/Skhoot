@@ -61,18 +61,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onD
         )}
       </div>
     
-    {/* New Search Button */}
+    {/* New Chat Button */}
     <div className="relative z-10 px-5 mb-4 flex-shrink-0">
-      <NewSearchButton onClick={onNewChat} />
+      <NewChatButton onClick={onNewChat} />
     </div>
 
-    {/* Past Searches Header - Fixed */}
+    {/* Past Chats Header - Fixed */}
     <div className="relative z-10 px-5 flex-shrink-0">
       <div className="px-2 mb-3">
         <p 
           className="text-[10px] font-black uppercase tracking-[0.1em] font-jakarta text-text-primary"
         >
-          Past searches
+          Past chats
         </p>
       </div>
     </div>
@@ -169,18 +169,18 @@ ChatItem.displayName = 'ChatItem';
 const EmptySearchState = memo(() => (
   <div className="flex flex-col items-center justify-center py-12 px-4 text-center space-y-3 opacity-40">
     <div className="p-3 rounded-full bg-black/5">
-      <Search size={24} className="text-text-secondary" />
+      <MessageSquare size={24} className="text-text-secondary" />
     </div>
     <p 
       className="text-[11px] font-bold font-jakarta text-text-secondary" 
     >
-      No recent searches
+      No recent chats
     </p>
   </div>
 ));
 EmptySearchState.displayName = 'EmptySearchState';
 
-const NewSearchButton = memo<{ onClick: () => void }>(({ onClick }) => {
+const NewChatButton = memo<{ onClick: () => void }>(({ onClick }) => {
   const [isHovering, setIsHovering] = useState(false);
   const [shouldSpin, setShouldSpin] = useState(false);
   const [spinStartTime, setSpinStartTime] = useState<number | null>(null);
@@ -267,11 +267,11 @@ const NewSearchButton = memo<{ onClick: () => void }>(({ onClick }) => {
       iconPosition="left"
       className="flex items-center gap-3 w-full p-3.5 rounded-2xl transition-all active:scale-95 glass-elevated hover:brightness-105 group text-text-primary"
     >
-      <span className="text-sm font-black tracking-tight font-jakarta">New Search</span>
+      <span className="text-sm font-black tracking-tight font-jakarta">New Chat</span>
     </Button>
   );
 });
-NewSearchButton.displayName = 'NewSearchButton';
+NewChatButton.displayName = 'NewChatButton';
 
 const AuthButton = memo<{ user: User | null; onSignIn: () => void; onSignOut: () => void }>(
   ({ user, onSignIn, onSignOut }) => {

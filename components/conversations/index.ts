@@ -19,4 +19,4 @@ export { FileOperation } from './FileOperation';
 export type { FileOperationProps, FileOperationType } from './FileOperation';
 
 // Workflow components
-export { WorkflowExecution } from './WorkflowExecution';
+// WorkflowProgress is exported from its own file

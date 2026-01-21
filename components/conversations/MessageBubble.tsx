@@ -8,7 +8,7 @@ import { DiskUsage } from './DiskUsage';
 import { CleanupList } from './CleanupList';
 import { AgentAction } from './AgentAction';
 import { MiniTerminalView } from './MiniTerminalView';
-import { WorkflowExecution } from './WorkflowExecution';
+import { WorkflowProgress } from '../chat/WorkflowProgress';
 import { ToolCallDisplay } from '../chat/ToolCallDisplay';
 import { ImageGallery } from './ImageGallery';
 import { Button } from '../buttonFormat';
@@ -176,20 +176,10 @@ export const MessageBubble = memo<MessageBubbleProps>(({ message, onEdit, onRege
               <CleanupList items={message.data} />
             )}
 
-            {/* Workflow Execution */}
-            {message.type === 'workflow' && message.workflowExecution && (() => {
-              const workflow = workflowService.getWorkflowSync(message.workflowExecution.workflowId);
-              if (!workflow) return null;
-              
-              return (
-                <WorkflowExecution
-                  executionId={message.workflowExecution.executionId}
-                  workflow={workflow}
-                  onSendPrompt={handleWorkflowPrompt}
-                  hasAgentMode={hasAgentMode}
-                />
-              );
-            })()}
+            {/* Workflow Progress */}
+            {message.type === 'workflow' && message.workflowExecution && (
+              <WorkflowProgress message={message} />
+            )}
 
             {/* Agent Actions - Tool Calls */}
             {message.type === 'agent_action' && message.toolCalls && (() => {

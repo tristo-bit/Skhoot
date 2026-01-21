@@ -6,7 +6,6 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import UserPanel from './components/settings/UserPanel';
 import FilesPanel from './components/panels/FilesPanel';
-import WorkflowsPanel from './components/panels/WorkflowsPanel';
 import AgentsPanel from './components/panels/AgentsPanel';
 import { AISettingsModal } from './components/panels/AISettingsModal';
 import { ActivityPanel } from './components/activity';
@@ -57,6 +56,7 @@ const AppContent: React.FC = () => {
   const [isWorkflowsOpen, setIsWorkflowsOpen] = useState(false);
   const [isAgentsOpen, setIsAgentsOpen] = useState(false);
   const [isAISettingsOpen, setIsAISettingsOpen] = useState(false);
+  const [newChatSession, setNewChatSession] = useState(0);
   
   // Track pending chat creation to avoid remounting during first message
   const pendingChatIdRef = useRef<string | null>(null);
@@ -283,6 +283,7 @@ const AppContent: React.FC = () => {
   const handleNewChat = useCallback(() => {
     pendingChatIdRef.current = null;
     setCurrentChatId(null);
+    setNewChatSession(prev => prev + 1);
     setIsSidebarOpen(false);
     // Reset conversation token counter
     tokenTrackingService.resetConversation();
@@ -503,7 +504,6 @@ const AppContent: React.FC = () => {
           {isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
           {isFileSearchTestOpen && <FileSearchTest onClose={closeFileSearchTest} />}
           {isAISettingsOpen && <AISettingsModal onClose={closeAISettings} />}
-          {isWorkflowsOpen && <WorkflowsPanel isOpen={isWorkflowsOpen} onClose={closeWorkflows} />}
           {isAgentsOpen && <AgentsPanel isOpen={isAgentsOpen} onClose={closeAgents} />}
 
           {/* Auth Views */}
@@ -529,7 +529,7 @@ const AppContent: React.FC = () => {
           >
             <div className="flex-1 relative overflow-hidden" data-tauri-drag-region="false">
               <ChatInterface 
-                key={currentChatId ?? 'new-chat'} 
+                key={currentChatId ?? `new-chat-${newChatSession}`} 
                 chatId={currentChatId}
                 getPendingChatId={() => pendingChatIdRef.current}
                 initialMessages={currentChat?.messages || []}

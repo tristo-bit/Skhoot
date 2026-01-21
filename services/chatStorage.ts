@@ -83,7 +83,7 @@ export const chatStorage = {
     const now = new Date();
     return {
       id: `chat_${Date.now()}`,
-      title: 'New Search',
+      title: 'New Chat',
       messages: [],
       createdAt: now,
       updatedAt: now
@@ -92,9 +92,9 @@ export const chatStorage = {
 
   // Generate title from first message
   generateTitle(messages: Message[]): string {
-    if (messages.length === 0) return 'New Search';
+    if (messages.length === 0) return 'New Chat';
     const firstUserMessage = messages.find(m => m.role === 'user');
-    if (!firstUserMessage) return 'New Search';
+    if (!firstUserMessage) return 'New Chat';
     
     const content = firstUserMessage.content;
     if (content.length <= 30) return content;

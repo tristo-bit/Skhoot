@@ -13,6 +13,7 @@ import { activityLogger } from './activityLogger';
 import { tokenTrackingService } from './tokenTrackingService';
 import * as agentTools from './agentTools/agentTools';
 import * as terminalTools from './agentTools/terminalTools';
+import { workflowToolDefinitions, executeWorkflowTool } from './agentTools/workflowTools';
 import { backendApi } from './backendApi';
 
 // ============================================================================
@@ -29,6 +30,7 @@ export interface AgentToolCall {
 
 export interface ToolResult {
   toolCallId: string;
+  toolCallName?: string;
   success: boolean;
   output: string;
   error?: string;
@@ -368,6 +370,7 @@ The 'render' parameter enables WebView rendering for JavaScript-heavy single-pag
       required: ['name', 'description', 'master_prompt'],
     },
   },
+  ...workflowToolDefinitions,
 ];
 
 // ============================================================================
@@ -778,10 +781,20 @@ class AgentChatService {
       for (const query of queries) {
         try {
           // Use the same backend API as web_search
-          const searchResults = await backendApi.webSearch(query, 1, 'general');
+          const searchResults = await backendApi.webSearch(query, { 
+            depth: 1, 
+            search_type: 'general' 
+          });
           
-          if (searchResults.results && searchResults.results.length > 0) {
-            const topResult = searchResults.results[0];
+          let resultsList: any[] = [];
+          if ('results' in searchResults) {
+            resultsList = searchResults.results;
+          } else if ('search_results' in searchResults) {
+            resultsList = searchResults.search_results;
+          }
+
+          if (resultsList && resultsList.length > 0) {
+            const topResult = resultsList[0];
             results.push({
               term: query,
               url: topResult.url,
@@ -971,6 +984,20 @@ class AgentChatService {
           success = true;
           break;
 
+        // Workflow tools
+        case 'create_workflow':
+        case 'execute_workflow':
+        case 'list_workflows':
+        case 'get_workflow':
+        case 'update_workflow':
+        case 'delete_workflow':
+          const workflowResult = await executeWorkflowTool(toolCall.name, toolCall.arguments);
+          output = workflowResult.data
+            ? JSON.stringify(workflowResult.data, null, 2)
+            : (workflowResult.error || 'No output');
+          success = workflowResult.success;
+          break;
+
         default:
           output = `Unknown tool: ${toolCall.name}`;
           success = false;
@@ -978,12 +1005,14 @@ class AgentChatService {
 
       return {
         toolCallId: toolCall.id,
+        toolCallName: toolCall.name,
         success,
         output,
       };
     } catch (error) {
       return {
         toolCallId: toolCall.id,
+        toolCallName: toolCall.name,
         success: false,
         output: '',
         error: error instanceof Error ? error.message : String(error),
@@ -1129,6 +1158,7 @@ class AgentChatService {
       } catch (error) {
         const errorResult: ToolResult = {
           toolCallId: toolCall.id,
+          toolCallName: toolCall.name,
           success: false,
           output: '',
           error: error instanceof Error ? error.message : String(error),
