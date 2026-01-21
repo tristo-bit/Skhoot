@@ -553,12 +553,11 @@ function getAgentSystemPrompt(provider: string, model: string, workingDirectory:
     contextWindow: capabilities?.contextWindow,
     hasCustomPrompt: !!customPrompt
   });
-  
-  // If a custom prompt is provided, use it instead of the default
-  if (customPrompt) {
-    console.log('[AgentChatService] Using custom system prompt');
-    return customPrompt;
-  }
+
+  // If a custom prompt is provided, append it to the default prompt instead of replacing
+  const userInstructionsSection = customPrompt ? `
+USER INSTRUCTIONS:
+${customPrompt}` : '';
   
   const capabilitiesInfo = capabilities 
     ? `\nModel capabilities: ${capabilities.toolCalling ? 'Tool calling ✓' : 'No tool calling'}, Context: ${capabilities.contextWindow} tokens`
@@ -588,6 +587,7 @@ ${memoryContext}
 Use this memory context to provide more personalized and informed responses. Reference relevant memories when they are useful to the current conversation.` : '';
 
   return `You are Skhoot Agent, an AI coding and system assistant running in the Skhoot application. You are expected to be precise, safe, and helpful.
+${userInstructionsSection}
 ${memoryContextSection}
 
 IDENTITY:

@@ -430,6 +430,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             topP: aiSettings.topP,
             frequencyPenalty: aiSettings.frequencyPenalty,
             presencePenalty: aiSettings.presencePenalty,
+            systemPrompt: aiSettings.userInstructions,
             onStatusUpdate: (status) => {
               setSearchStatus(status);
             },
@@ -450,8 +451,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }));
 
       const result = await aiService.chat(
-        prompt, 
-        history, 
+        prompt,
+        history,
         (status) => {
           setSearchStatus(status);
         },
@@ -464,6 +465,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           topP: aiSettings.topP,
           frequencyPenalty: aiSettings.frequencyPenalty,
           presencePenalty: aiSettings.presencePenalty,
+          systemPrompt: aiSettings.userInstructions,
         }
       );
 

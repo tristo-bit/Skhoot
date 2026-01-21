@@ -46,6 +46,7 @@ export interface AIServiceConfig {
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
+  systemPrompt?: string;
 }
 
 // Provider-specific configurations

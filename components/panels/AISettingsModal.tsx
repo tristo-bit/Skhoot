@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Bot, Terminal, Zap, Settings, Key, BarChart3,
   ChevronRight, Check, AlertCircle, Eye, EyeOff,
-  RefreshCw, Sliders, Clock, Cpu, Brain
+  RefreshCw, Sliders, Clock, Cpu, Brain, Edit3
 } from 'lucide-react';
 import { Modal } from '../ui';
 import { TabButton } from '../buttonFormat';
@@ -31,6 +31,7 @@ const STORAGE_KEYS = {
   agentModeDefault: 'skhoot_agent_mode_default',
   aiLogsEnabled: 'skhoot_ai_logs_enabled',
   advancedMode: 'skhoot_advanced_mode',
+  userInstructions: 'skhoot_user_instructions',
   temperature: 'skhoot_ai_temperature',
   maxTokens: 'skhoot_ai_max_tokens',
   topP: 'skhoot_ai_top_p',
@@ -55,8 +56,11 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
   const [aiLogsEnabled, setAiLogsEnabled] = useState(() => 
     localStorage.getItem(STORAGE_KEYS.aiLogsEnabled) === 'true'
   );
-  const [advancedMode, setAdvancedMode] = useState(() => 
+  const [advancedMode, setAdvancedMode] = useState(() =>
     localStorage.getItem(STORAGE_KEYS.advancedMode) === 'true'
+  );
+  const [userInstructions, setUserInstructions] = useState(() =>
+    localStorage.getItem(STORAGE_KEYS.userInstructions) || ''
   );
 
   // AI Parameters
@@ -180,6 +184,11 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     }
   }, []);
 
+  const handleUserInstructionsChange = useCallback((instructions: string) => {
+    setUserInstructions(instructions);
+    localStorage.setItem(STORAGE_KEYS.userInstructions, instructions);
+  }, []);
+
   const handleSetActiveProvider = useCallback(async (providerId: string) => {
     try {
       await apiKeyService.setActiveProvider(providerId);
@@ -223,6 +232,7 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
             agentModeDefault={agentModeDefault}
             aiLogsEnabled={aiLogsEnabled}
             advancedMode={advancedMode}
+            userInstructions={userInstructions}
             memoryEnabled={memoryEnabled}
             memoryAutoSave={memoryAutoSave}
             memoryImportance={memoryImportance}
@@ -231,6 +241,7 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
             onAgentModeChange={handleAgentModeChange}
             onAiLogsChange={handleAiLogsChange}
             onAdvancedModeChange={handleAdvancedModeChange}
+            onUserInstructionsChange={handleUserInstructionsChange}
             onMemoryEnabledChange={(enabled) => {
               setMemoryEnabled(enabled);
               localStorage.setItem(STORAGE_KEYS.memoryEnabled, enabled.toString());
@@ -292,6 +303,7 @@ const GeneralTab: React.FC<{
   agentModeDefault: boolean;
   aiLogsEnabled: boolean;
   advancedMode: boolean;
+  userInstructions: string;
   memoryEnabled: boolean;
   memoryAutoSave: boolean;
   memoryImportance: 'low' | 'medium' | 'high';
@@ -300,14 +312,16 @@ const GeneralTab: React.FC<{
   onAgentModeChange: (enabled: boolean) => void;
   onAiLogsChange: (enabled: boolean) => void;
   onAdvancedModeChange: (enabled: boolean) => void;
+  onUserInstructionsChange: (instructions: string) => void;
   onMemoryEnabledChange: (enabled: boolean) => void;
   onMemoryAutoSaveChange: (enabled: boolean) => void;
   onMemoryImportanceChange: (importance: 'low' | 'medium' | 'high') => void;
   onSetActiveProvider: (id: string) => void;
 }> = ({
-  agentModeDefault, aiLogsEnabled, advancedMode, memoryEnabled, memoryAutoSave, memoryImportance,
+  agentModeDefault, aiLogsEnabled, advancedMode, userInstructions,
+  memoryEnabled, memoryAutoSave, memoryImportance,
   providers, isLoading,
-  onAgentModeChange, onAiLogsChange, onAdvancedModeChange,
+  onAgentModeChange, onAiLogsChange, onAdvancedModeChange, onUserInstructionsChange,
   onMemoryEnabledChange, onMemoryAutoSaveChange, onMemoryImportanceChange, onSetActiveProvider
 }) => (
   <div className="space-y-6">
@@ -447,6 +461,40 @@ const GeneralTab: React.FC<{
         <Key size={14} />
         Configure API Keys
       </button>
+    </div>
+
+    {/* User Instructions */}
+    <div className="space-y-3">
+      <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">User Instructions</p>
+
+      <div className="p-3 rounded-xl glass-subtle space-y-2">
+        <div className="flex items-start gap-2">
+          <Edit3 size={14} className="text-purple-400 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-text-secondary flex-1">
+            Provide custom instructions to modify AI behavior. These instructions will be added to the system prompt for all conversations.
+          </p>
+        </div>
+        <textarea
+          value={userInstructions}
+          onChange={(e) => onUserInstructionsChange(e.target.value)}
+          placeholder="Example: You are a helpful coding assistant. Always provide clear explanations for your code. When suggesting solutions, prioritize security and best practices..."
+          className="w-full bg-white/5 text-sm text-text-primary font-jakarta outline-none px-3 py-2.5 rounded-lg resize-none min-h-[120px] placeholder:text-text-secondary/50 transition-all focus:bg-white/10"
+          rows={4}
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-text-secondary">
+            {userInstructions.length} characters
+          </span>
+          {userInstructions.length > 0 && (
+            <button
+              onClick={() => onUserInstructionsChange('')}
+              className="text-[10px] text-red-400 hover:text-red-300 transition-colors px-2 py-1 rounded hover:bg-red-500/10"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   </div>
 );
