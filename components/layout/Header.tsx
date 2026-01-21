@@ -20,7 +20,6 @@ export interface HeaderProps {
   onClose: () => void;
   onMinimize: () => void;
   onMaximize: () => void;
-  onDragMouseDown: (e: React.MouseEvent) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,14 +32,12 @@ export const Header: React.FC<HeaderProps> = ({
   onClose,
   onMinimize,
   onMaximize,
-  onDragMouseDown,
 }) => {
   const { showBranding } = useTheme();
 
   return (
     <header
-      className="header-bar relative z-30 flex items-center justify-between cursor-move select-none"
-      onMouseDown={onDragMouseDown}
+      className="header-bar relative z-30 flex items-center justify-between select-none"
       data-tauri-drag-region
     >
       {/* Left side with morphing background */}

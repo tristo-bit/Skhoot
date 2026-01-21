@@ -480,7 +480,6 @@ const AppContent: React.FC = () => {
             onClose={handleClose}
             onMinimize={handleMinimize}
             onMaximize={handleMaximize}
-            onDragMouseDown={handleDragMouseDown}
           />
 
           {/* Sidebar - rendered via portal */}

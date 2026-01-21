@@ -14628,17 +14628,16 @@ All elements now share the same stacking context (`document.body`), so z-index v
 
 ### Window Drag Fix 🖱️
 - **Status**: ✅ COMPLETE
-- **Component**: `Sidebar.tsx`
-- **Change**: Fixed pointer events to restore window drag functionality
-- **Impact**: Window drag works again without any other changes
+- **Component**: `Sidebar.tsx`, `Header.tsx`, `App.tsx`
+- **Change**: Fixed pointer events + removed conflicting drag handlers
+- **Impact**: Window drag works correctly, Windows native title bar no longer appears
 
-**Problem**:
+**Problem 1 - Sidebar Blocking Drag**:
 After sidebar was moved to portal with `fixed` positioning, it blocked window drag events:
 - Sidebar container covered the entire left side of the window
 - Even when closed (`translate-x-full`), the invisible container blocked mouse events
-- Window drag stopped working
 
-**Solution - Pointer Events**:
+**Solution 1 - Pointer Events**:
 ```tsx
 // Container: pointer-events-none (allows drag events to pass through)
 <div className="fixed ... pointer-events-none">
@@ -14649,17 +14648,44 @@ After sidebar was moved to portal with `fixed` positioning, it blocked window dr
 </div>
 ```
 
+**Problem 2 - Conflicting Drag Handlers**:
+Header had both `data-tauri-drag-region` (Tauri v2 native) AND `onMouseDown={handleDragMouseDown}` (manual handler):
+- Tauri v2 automatically handles drag with `data-tauri-drag-region`
+- Manual handler was redundant and caused conflicts
+- Windows showed native title bar due to improper drag region handling
+
+**Solution 2 - Use Native Tauri Drag Region**:
+```tsx
+// Before: Conflicting handlers
+<header 
+  onMouseDown={onDragMouseDown}  // ❌ Manual handler
+  data-tauri-drag-region         // ✅ Native Tauri
+>
+
+// After: Native only
+<header 
+  data-tauri-drag-region         // ✅ Native Tauri handles everything
+>
+```
+
 **Technical Details**:
-- Outer container: `pointer-events-none` - transparent to mouse events
-- Inner content: `pointer-events-auto` - captures interactions when visible
-- Window drag events pass through the empty container
-- Sidebar interactions (clicks, scrolls) work normally on visible content
+- Removed `onMouseDown` handler from Header
+- Removed `onDragMouseDown` prop from HeaderProps interface
+- Removed `cursor-move` class (handled by Tauri)
+- Kept `data-no-drag` on buttons to exclude them from drag region
+- Tauri v2 natively manages drag with `data-tauri-drag-region`
+- Permissions already correct: `core:window:allow-start-dragging`
 
 **User Experience**:
-- ✅ Window drag restored
-- ✅ Sidebar interactions still work
-- ✅ No side effects on other functionality
-- ✅ Minimal diff (2 class additions)
+- ✅ Window drag works from header
+- ✅ Sidebar interactions work normally
+- ✅ Buttons in header are clickable (not draggable)
+- ✅ No Windows native title bar appearing
+- ✅ Clean, frameless window maintained
+- ✅ Transparent window preserved
+
+**Why This Works**:
+Tauri v2's `data-tauri-drag-region` is the proper way to handle window dragging. Manual handlers interfere with the native implementation and can cause Windows to show its title bar. By using only the native attribute and excluding interactive elements with `data-no-drag`, the drag region is properly defined and Windows respects the frameless configuration.
 
 ---
 
@@ -14846,3 +14872,59 @@ Migrated to standard `Modal` component WITHOUT touching any logic:
 - **Zero changes to any functional logic or handlers**
 
 ---
+
+
+## January 21, 2026
+
+### WebView Renderer - Native Titlebar Transparency Fix 🪟
+- **Status**: ✅ FIXED
+- **Components**: `src-tauri/src/webview_renderer.rs`
+- **Issue**: Windows native titlebar visible behind app due to alpha transparency
+- **Fix**: Added `.transparent(true)` to hidden WebView renderer configuration
+
+**Problem Identified**:
+- Main window configured with `transparent: true` in `tauri.conf.json`
+- Hidden WebView renderer window missing transparency configuration
+- Windows native titlebar showing through alpha channel of main app
+- Visual artifact: white/gray titlebar visible behind transparent areas
+
+**Root Cause**:
+The headless WebView renderer creates hidden windows for content extraction but wasn't matching the main window's transparency settings:
+```rust
+// Before - Missing transparency
+WebviewWindowBuilder::new(...)
+    .visible(false)
+    .decorations(false)
+    .skip_taskbar(true)
+    .build()?
+```
+
+**Solution Implemented**:
+Added `.transparent(true)` to match main window configuration:
+```rust
+// After - With transparency
+WebviewWindowBuilder::new(...)
+    .visible(false)
+    .decorations(false)
+    .transparent(true)  // ← Added this
+    .skip_taskbar(true)
+    .build()?
+```
+
+**Impact**:
+- ✅ Native titlebar no longer visible through alpha channel
+- ✅ Hidden WebView windows match main window transparency
+- ✅ Consistent window configuration across all WebView instances
+- ✅ Clean visual appearance on Windows platform
+
+**Technical Details**:
+- Hidden WebView windows must have same transparency settings as main window
+- Without transparency, OS renders default window chrome (titlebar, borders)
+- Even invisible windows can show through parent window's alpha channel
+- Fix ensures all WebView instances are truly transparent
+
+**Testing**:
+1. Rebuild Tauri app with updated configuration
+2. Launch app on Windows
+3. Check transparent areas - no native titlebar visible
+4. Verify web search still works (hidden WebView functionality intact)
