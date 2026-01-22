@@ -37,13 +37,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onClose }) => {
       panelClassName="settings-panel"
       headerClassName="settings-panel-header"
       bodyClassName="settings-panel-body"
-      footerClassName="settings-panel-footer"
       closeAriaLabel="Close settings"
-      footer={(
-        <p className="text-[10px] font-medium font-jakarta text-center opacity-40 text-text-primary">
-          Skhoot v1.0
-        </p>
-      )}
     >
       {activePanel === 'AI Settings' ? (
         <AISettingsPanel onBack={handleBack} />
