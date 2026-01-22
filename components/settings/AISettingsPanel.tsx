@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Bot, Key, Activity, Zap, BarChart3, Settings2, Clock, Calendar, CalendarDays, Link } from 'lucide-react';
+import { Bot, Key, Activity, Zap, BarChart3, Settings2, Clock, Calendar, CalendarDays, Link, Edit3 } from 'lucide-react';
 import { BackButton, SaveButton, ConnectionButton, IconButton } from '../buttonFormat';
 import { apiKeyService, PROVIDERS, type ProviderInfo } from '../../services/apiKeyService';
 import { providerRegistry } from '../../services/providerRegistry';
@@ -24,6 +24,24 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
   const [agentModeDefault, setAgentModeDefault] = useState(() => {
     const saved = localStorage.getItem('skhoot_agent_mode_default');
     return saved !== 'false';
+  });
+  const [userInstructions, setUserInstructions] = useState(() => {
+    const saved = localStorage.getItem('skhoot_user_instructions');
+    return saved || '';
+  });
+
+  // Memory settings
+  const [memoryEnabled, setMemoryEnabled] = useState(() => {
+    const saved = localStorage.getItem('skhoot_memory_enabled');
+    return saved !== 'false';
+  });
+  const [memoryAutoSave, setMemoryAutoSave] = useState(() => {
+    const saved = localStorage.getItem('skhoot_memory_auto_save');
+    return saved !== 'false';
+  });
+  const [memoryImportance, setMemoryImportance] = useState<'low' | 'medium' | 'high'>(() => {
+    const saved = localStorage.getItem('skhoot_memory_importance');
+    return (saved as 'low' | 'medium' | 'high') || 'medium';
   });
 
   // Hyperlink Settings state
@@ -154,6 +172,26 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
     setHyperlinkSettings(newSettings);
     hyperlinkSettingsService.saveSetting('sourceHyperlinks', enabled);
   }, [hyperlinkSettings]);
+
+  const handleUserInstructionsChange = useCallback((value: string) => {
+    setUserInstructions(value);
+    localStorage.setItem('skhoot_user_instructions', value);
+  }, []);
+
+  const handleToggleMemoryEnabled = useCallback((enabled: boolean) => {
+    setMemoryEnabled(enabled);
+    localStorage.setItem('skhoot_memory_enabled', String(enabled));
+  }, []);
+
+  const handleToggleMemoryAutoSave = useCallback((enabled: boolean) => {
+    setMemoryAutoSave(enabled);
+    localStorage.setItem('skhoot_memory_auto_save', String(enabled));
+  }, []);
+
+  const handleMemoryImportanceChange = useCallback((importance: 'low' | 'medium' | 'high') => {
+    setMemoryImportance(importance);
+    localStorage.setItem('skhoot_memory_importance', importance);
+  }, []);
 
   const handleTemperatureChange = useCallback((value: number) => {
     setTemperature(value);
@@ -290,6 +328,114 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
             }`} />
           </button>
         </div>
+      </div>
+
+      {/* User Instructions */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
+          <Edit3 size={16} className="text-purple-500" />
+          User Instructions
+        </label>
+
+        <div className="p-4 rounded-xl glass-subtle space-y-3">
+          <div>
+            <p className="text-xs text-text-secondary font-jakarta mb-2">
+              Provide custom instructions to modify AI behavior. These instructions will be added to the system prompt for all conversations.
+            </p>
+            <textarea
+              value={userInstructions}
+              onChange={(e) => handleUserInstructionsChange(e.target.value)}
+              placeholder="Example: You are a helpful coding assistant. Always provide clear explanations for your code. When suggesting solutions, prioritize security and best practices..."
+              className="w-full bg-transparent text-sm text-text-primary font-jakarta outline-none resize-none min-h-[150px] placeholder:text-text-secondary/50 border-b border-glass-border focus:border-purple-500 transition-all"
+              rows={5}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-text-secondary font-jakarta">
+              {userInstructions.length} characters
+            </span>
+            {userInstructions.length > 0 && (
+              <button
+                onClick={() => handleUserInstructionsChange('')}
+                className="text-red-400 hover:text-red-300 transition-colors font-medium"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Memory Settings */}
+      <div className="space-y-3">
+        <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
+          <Activity size={16} className="text-purple-500" />
+          Memory Settings
+        </label>
+
+        {/* Memory Enable Toggle */}
+        <div className="flex items-center justify-between p-3 rounded-xl glass-subtle">
+          <div>
+            <p className="text-sm font-medium font-jakarta text-text-primary">Enable Memory</p>
+            <p className="text-xs text-text-secondary font-jakarta">Allow AI to remember important context across conversations</p>
+          </div>
+          <button
+            onClick={() => handleToggleMemoryEnabled(!memoryEnabled)}
+            className={`w-12 h-6 rounded-full transition-all ${
+              memoryEnabled ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+            }`}
+          >
+            <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+              memoryEnabled ? 'translate-x-6' : 'translate-x-0.5'
+            }`} />
+          </button>
+        </div>
+
+        {/* Conditional Memory Sub-settings */}
+        {memoryEnabled && (
+          <>
+            {/* Auto-Save Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-xl glass-subtle">
+              <div>
+                <p className="text-sm font-medium font-jakarta text-text-primary">Auto-Save Memories</p>
+                <p className="text-xs text-text-secondary font-jakarta">Automatically save important information as memories</p>
+              </div>
+              <button
+                onClick={() => handleToggleMemoryAutoSave(!memoryAutoSave)}
+                className={`w-12 h-6 rounded-full transition-all ${
+                  memoryAutoSave ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                  memoryAutoSave ? 'translate-x-6' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+
+            {/* Importance Selector */}
+            <div className="p-4 rounded-xl glass-subtle space-y-3">
+              <p className="text-sm font-medium font-jakarta text-text-primary">Memory Importance Threshold</p>
+              <div className="flex items-center gap-2">
+                {(['low', 'medium', 'high'] as const).map(level => (
+                  <button
+                    key={level}
+                    onClick={() => handleMemoryImportanceChange(level)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium font-jakarta capitalize transition-colors ${
+                      memoryImportance === level
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-white/10 text-text-secondary hover:bg-white/20'
+                    }`}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-text-secondary font-jakarta">
+                Determines which conversations are saved as long-term memories
+              </p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Hyperlink Settings */}

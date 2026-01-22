@@ -59,6 +59,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [searchType, setSearchType] = useState<'files' | 'messages' | 'disk' | 'cleanup' | null>(null);
   const [searchStatus, setSearchStatus] = useState<string>('');
   const [activeMode, setActiveMode] = useState<string | null>(null);
+  const [turnCount, setTurnCount] = useState(0);
   const [promptKey, setPromptKey] = useState(0);
   const [welcomeMessage] = useState(() => 
     WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)]
@@ -1241,7 +1242,41 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           timestamp: new Date()
         };
 
-        setMessages(prev => [...prev, assistantMsg]);
+        setMessages(prev => {
+          const newMessages = [...prev, assistantMsg];
+
+          // Extract memories automatically after conversation completes
+          if (currentSessionId) {
+            (async () => {
+              try {
+                const { memorySettingsService } = await import('../../services/memorySettingsService');
+                const memorySettings = memorySettingsService.loadSettings();
+
+              if (memorySettings.autoSave) {
+                const { extractMemoriesFromConversation, shouldExtractMemories, generateSessionSummary, shouldSummarizeSession } = await import('../../services/memoryExtractor');
+
+                if (shouldExtractMemories(newMessages, turnCount)) {
+                  await extractMemoriesFromConversation(newMessages, {
+                    sessionId: currentSessionId || null,
+                    importance: memorySettings.importance,
+                    autoSave: true,
+                  });
+                }
+
+                if (shouldSummarizeSession(newMessages, turnCount)) {
+                  await generateSessionSummary(newMessages, currentSessionId);
+                }
+              }
+              } catch (error) {
+                console.warn('[ChatInterface] Automatic memory extraction failed:', error);
+              }
+            })();
+          }
+
+          return newMessages;
+        });
+
+        setTurnCount(prev => prev + 1);
 
         // Log agent activity
         activityLogger.log(

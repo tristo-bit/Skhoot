@@ -113,22 +113,84 @@ class MemoryService {
 
   async search(query: string, limit?: number, sessionId?: string): Promise<Memory[]> {
     const lowerQuery = query.toLowerCase();
-    let results = this.memories.filter(m => {
-      const matchesQuery =
-        m.content.toLowerCase().includes(lowerQuery) ||
-        m.metadata.category?.toLowerCase().includes(lowerQuery) ||
-        m.metadata.tags?.some(t => t.toLowerCase().includes(lowerQuery)) ||
-        m.notes?.toLowerCase().includes(lowerQuery);
+    const queryTerms = lowerQuery.split(/\s+/).filter(t => t.length > 0);
 
-      const matchesSession = !sessionId || m.session_id === sessionId;
-      return matchesQuery && matchesSession;
-    });
-
-    if (limit) {
-      results = results.slice(0, limit);
+    interface ScoredMemory extends Memory {
+      _score: number;
     }
 
-    return results;
+    const memoriesToSearch = [...this.memories];
+
+    const scoredMemories = memoriesToSearch
+      .filter(m => {
+        // Cross-session search: don't filter by sessionId
+        // This allows finding memories from any past session
+        // If sessionId is provided, we'll still search everything
+        // The caller can decide whether to scope the search
+
+        // Calculate relevance score
+        let localScore = 0;
+        const contentLower = m.content.toLowerCase();
+        const categoryLower = (m.metadata.category || '').toLowerCase();
+        const notesLower = (m.notes || '').toLowerCase();
+        const tags = m.metadata.tags || [];
+
+        // Exact matches get highest score
+        queryTerms.forEach(term => {
+          // Content exact match
+          if (contentLower.includes(term)) {
+            localScore += 10;
+            // Bonus for exact phrase match
+            if (contentLower.includes(query)) {
+              localScore += 5;
+            }
+          }
+
+          // Category match
+          if (categoryLower.includes(term)) {
+            localScore += 8;
+          }
+
+          // Notes match
+          if (notesLower.includes(term)) {
+            localScore += 6;
+          }
+
+          // Tag match
+          if (tags.some(t => t.toLowerCase().includes(term))) {
+            localScore += 4;
+          }
+
+          // Importance bonus
+          if (m.metadata.importance === 'high') {
+            localScore += 3;
+          } else if (m.metadata.importance === 'medium') {
+            localScore += 1;
+          }
+        });
+
+        return localScore > 0;
+      })
+      .map(m => ({ ...m, _score: localScore }))
+      .sort((a: any, b: any) => {
+        const scoreA = a._score;
+        const scoreB = b._score;
+        const scoreDiff = scoreB - scoreA;
+        if (scoreDiff !== 0) {
+          return scoreDiff;
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      })
+      .map((m: any) => {
+        const { _score, ...rest } = m;
+        return rest as Memory;
+      }) as Memory[];
+
+    if (limit) {
+      scoredMemories.length = Math.min(scoredMemories.length, limit);
+    }
+
+    return scoredMemories;
   }
 
   async recent(limit: number = 10, sessionId?: string): Promise<Memory[]> {
