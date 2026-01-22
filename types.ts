@@ -26,8 +26,24 @@ export interface Message {
        name: string;
        order: number;
     };
-    status?: 'running' | 'completed' | 'failed' | 'cancelled' | 'waiting';
+    status?: 'running' | 'completed' | 'failed' | 'cancelled' | 'waiting' | 'paused';
     totalSteps?: number;
+    completedSteps?: Array<{
+       id: string;
+       name: string;
+       status: 'completed' | 'failed' | 'skipped';
+    }>;
+  };
+  // Workflow Input Request
+  inputRequest?: {
+     stepId: string;
+     prompt: string;
+     schema?: any; 
+  };
+  // Workflow Completion Data
+  completion?: {
+     text: string; 
+     artifacts: any[]; 
   };
 }
 

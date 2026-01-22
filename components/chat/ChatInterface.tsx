@@ -12,6 +12,7 @@ import { aiSettingsService } from '../../services/aiSettingsService';
 import { MainArea } from '../main-area';
 import { PromptArea } from './PromptArea';
 import { ToolCallInput } from './ToolCallInput';
+import { UnifiedWorkflowMessage } from './UnifiedWorkflowMessage';
 import { TerminalView } from '../terminal';
 import { FileExplorerPanel } from '../panels/FileExplorerPanel';
 import { WorkflowsPanel } from '../panels/WorkflowsPanel';
@@ -610,6 +611,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       // Skip if it's a background/silent workflow
       if (workflow.behavior?.background || workflow.workflowType === 'hook') {
+        // Show silent notification
+        nativeNotifications.success(
+            'Background Workflow Started',
+            `Workflow "${workflow.name}" has started running in the background.`,
+        );
         return;
       }
 
@@ -726,7 +732,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }));
       
       // Don't show success message for background workflows
-      if (workflow.behavior?.background || workflow.workflowType === 'hook') return;
+      if (workflow.behavior?.background || workflow.workflowType === 'hook') {
+        // Show silent notification
+        nativeNotifications.success(
+            'Background Workflow Completed',
+            `Workflow "${workflow.name}" has completed successfully.`,
+        );
+        return;
+      }
 
       // Check if the workflow produced any files
       const filesGenerated: Array<{ fileName: string; filePath: string }> = [];

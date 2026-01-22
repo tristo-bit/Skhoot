@@ -89,7 +89,9 @@
           "wireplumber",
           "xdg-desktop-portal",
           "xdg-desktop-portal-gtk",
-          "ffmpeg"
+          "ffmpeg",
+          "libnotify4",
+          "libappindicator3-1"
         ],
         "recommends": [
           "pulseaudio"

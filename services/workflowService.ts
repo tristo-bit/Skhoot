@@ -10,6 +10,7 @@
 
 import { backendApi } from './backendApi';
 import { fileOperations } from './fileOperations';
+import { WorkflowExecutor } from './WorkflowExecutor';
 
 // ============================================================================
 // Types & Interfaces
@@ -821,6 +822,7 @@ Encourage them to try it out!`,
 class WorkflowService {
   private workflows: Map<string, Workflow> = new Map();
   private executions: Map<string, ExecutionContext> = new Map();
+  private executors: Map<string, WorkflowExecutor> = new Map();
   private eventListeners: Map<string, Set<(data: any) => void>> = new Map();
   private readonly STORAGE_PATH = '.skhoot/workflows';
 
@@ -1028,7 +1030,7 @@ class WorkflowService {
   // Execution
   // ==========================================================================
 
-  async execute(workflowId: string, variables: Record<string, any> = {}): Promise<ExecutionContext> {
+  async execute(workflowId: string, variables: Record<string, any> = {}, agentSessionId?: string): Promise<ExecutionContext> {
     const workflow = this.workflows.get(workflowId);
     if (!workflow) {
       throw new Error(`Workflow ${workflowId} not found`);
@@ -1074,196 +1076,112 @@ class WorkflowService {
         currentStep: firstStep,
       }
     }));
+
+    // Initialize Executor
+    const executor = new WorkflowExecutor(workflow, context, agentSessionId);
+    this.executors.set(executionId, executor);
+
+    // Bind events
+    executor.on('step_start', (data: any) => {
+        this.emit('step_start', data);
+        window.dispatchEvent(new CustomEvent('workflow-step-start', { detail: { ...data, executionId, workflow } }));
+        this.saveExecutions();
+    });
+
+    executor.on('step_complete', (data: any) => {
+        this.emit('step_completed', { context, stepResult: data.result, nextStepId: data.nextStepId });
+        
+        // Dispatch event to continue workflow (UI updates)
+        window.dispatchEvent(new CustomEvent('workflow-step-next', {
+          detail: {
+            executionId,
+            workflow,
+            context,
+            currentStep: workflow.steps.find(s => s.id === data.nextStepId),
+            previousResult: data.result,
+          }
+        }));
+        this.saveExecutions();
+    });
+
+    executor.on('waiting_for_input', (data: any) => {
+        window.dispatchEvent(new CustomEvent('workflow-input-request', { detail: { ...data, executionId, workflow } }));
+        this.saveExecutions();
+    });
+
+    executor.on('workflow_complete', (data: any) => {
+        this.update(workflowId, {
+          status: 'idle',
+          runCount: workflow.runCount + 1,
+          lastRun: Date.now(),
+        });
+        
+        this.emit('execution_completed', { context, workflow });
+        
+        // Dispatch completion event
+        window.dispatchEvent(new CustomEvent('workflow-completed', {
+          detail: { executionId, context, workflow }
+        }));
+        
+        this.executors.delete(executionId);
+        this.saveExecutions();
+    });
+    
+    executor.on('workflow_failed', (data: any) => {
+        this.update(workflowId, { status: 'idle' });
+        // Use completion event but context status is failed
+        window.dispatchEvent(new CustomEvent('workflow-completed', { detail: { executionId, context, workflow } }));
+        this.executors.delete(executionId);
+        this.saveExecutions();
+    });
+
+    executor.on('execution_cancelled', (data: any) => {
+        this.update(workflowId, { status: 'idle' });
+        this.emit('execution_cancelled', { context });
+        window.dispatchEvent(new CustomEvent('workflow-completed', { detail: { executionId, context, workflow } }));
+        this.executors.delete(executionId);
+        this.saveExecutions();
+    });
+
+    // Start execution
+    executor.start();
     
     return context;
   }
 
+  async resumeExecution(executionId: string, input: string): Promise<void> {
+    const executor = this.executors.get(executionId);
+    if (executor) {
+        executor.resume(input);
+    }
+  }
+
+  /**
+   * @deprecated Use WorkflowExecutor
+   */
   async executeStep(
     executionId: string,
     output: string,
     decisionResult?: boolean,
     generatedFiles?: string[]
   ): Promise<{ nextStepId?: string; completed: boolean }> {
-    const context = this.executions.get(executionId);
-    if (!context) {
-      throw new Error(`Execution ${executionId} not found`);
-    }
-
-    const workflow = this.workflows.get(context.workflowId);
-    if (!workflow) {
-      throw new Error('Workflow not found');
-    }
-
-    const currentStep = workflow.steps.find(s => s.id === context.currentStepId);
-    if (!currentStep) {
-      throw new Error('Current step not found');
-    }
-
-    // Process Output & Capture Variables
-    let processedOutput: any = output;
-    
-    // Auto-detect file paths if not provided explicitly
-    let detectedFiles = generatedFiles || [];
-    if (detectedFiles.length === 0 && currentStep.outputFormat === 'file') {
-       // Simple detection for file paths in output
-       // Matches absolute paths or relative paths in common formats
-       const pathMatch = output.match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t]+\.[a-zA-Z0-9]{1,5}/g);
-       if (pathMatch) {
-         detectedFiles = [...detectedFiles, ...pathMatch];
-       }
-    }
-    
-    if (currentStep.outputFormat === 'json') {
-      try {
-        // Try to find JSON block if mixed with text
-        const jsonMatch = output.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-        const jsonStr = jsonMatch ? jsonMatch[0] : output;
-        processedOutput = JSON.parse(jsonStr);
-      } catch (e) {
-        console.warn('[WorkflowService] Failed to parse JSON output for step:', currentStep.id);
-      }
-    }
-
-    if (currentStep.outputVar) {
-      context.variables[currentStep.outputVar] = processedOutput;
-    }
-
-    // Record step result
-    const result: StepResult = {
-      stepId: currentStep.id,
-      success: true,
-      output, // Keep raw output for logs
-      durationMs: 0,
-      decisionResult,
-      generatedFiles: detectedFiles.length > 0 ? detectedFiles : undefined
-    };
-    context.stepResults[currentStep.id] = result;
-
-    // Determine next step using tree-of-decision logic
-    let nextStepId: string | undefined;
-    if (currentStep.decision) {
-      nextStepId = decisionResult 
-        ? currentStep.decision.trueBranch 
-        : currentStep.decision.falseBranch;
-    } else {
-      nextStepId = currentStep.nextStep;
-    }
-
-    // ========================================================================
-    // Loop Logic
-    // ========================================================================
-    
-    // 1. Handle Active Loop (Iterate or Finish)
-    if (context.loopState && context.loopState.stepId === currentStep.id) {
-      context.loopState.currentIndex++;
-      
-      if (context.loopState.currentIndex < context.loopState.items.length) {
-        // Continue Loop: Update variable and repeat step
-        const nextItem = context.loopState.items[context.loopState.currentIndex];
-        context.variables[context.loopState.itemVar] = nextItem;
-        nextStepId = currentStep.id;
-        console.log(`[WorkflowService] Looping step ${currentStep.id} (Index: ${context.loopState.currentIndex})`);
-      } else {
-        // Loop Finished: Clear state and proceed to nextStepId (already set above)
-        console.log(`[WorkflowService] Loop finished for step ${currentStep.id}`);
-        // IMPORTANT: The nextStepId was already determined by tree logic above (e.g. nextStep property)
-        // We must ensure it's not pointing back to self if loop is done
-        if (nextStepId === currentStep.id) {
-           nextStepId = currentStep.nextStep;
-        }
-        
-        context.loopState = undefined;
-      }
-    }
-
-    // 2. Handle Next Step Loop Initialization (if not repeating self)
-    if (nextStepId && nextStepId !== currentStep.id) {
-      let nextStepObj = workflow.steps.find(s => s.id === nextStepId);
-      
-      // Handle skipping empty loops (simple 1-level skip for now)
-      if (nextStepObj && nextStepObj.loop) {
-        const sourceName = nextStepObj.loop.source;
-        // Check variables, but also allow source to be a stringified array from previous step output
-        let collection = context.variables[sourceName];
-        
-        // If variable is missing, check if it's the result of the previous step
-        if (!collection && sourceName === currentStep.outputVar) {
-           collection = context.variables[currentStep.outputVar];
-        }
-
-        if (Array.isArray(collection) && collection.length > 0) {
-          // Initialize Loop
-          console.log(`[WorkflowService] Initializing loop for step ${nextStepId} with ${collection.length} items`);
-          context.loopState = {
-            stepId: nextStepId,
-            items: collection,
-            currentIndex: 0,
-            itemVar: nextStepObj.loop.itemVar
-          };
-          context.variables[nextStepObj.loop.itemVar] = collection[0];
-        } else {
-          // Skip loop step if collection is empty or missing
-          console.log(`[WorkflowService] Skipping loop step ${nextStepId} (Empty/Invalid source: ${sourceName})`);
-          nextStepId = nextStepObj.nextStep;
-          
-          // Re-fetch next step object if we skipped
-          // Note: This doesn't handle consecutive empty loops recursively
-        }
-      }
-    }
-
-    context.currentStepId = nextStepId;
-
-    // Check if workflow is complete
-    const completed = !nextStepId;
-    if (completed) {
-      context.status = 'completed';
-      context.completedAt = Date.now();
-      
-      const wf = this.workflows.get(context.workflowId);
-      if (wf) {
-        await this.update(context.workflowId, {
-          status: 'idle',
-          runCount: wf.runCount + 1,
-          lastRun: Date.now(),
-        });
-      }
-      
-      this.emit('execution_completed', { context, workflow });
-      
-      // Dispatch completion event
-      window.dispatchEvent(new CustomEvent('workflow-completed', {
-        detail: { executionId, context, workflow }
-      }));
-    } else {
-      // Get next step and dispatch event
-      const nextStep = workflow.steps.find(s => s.id === nextStepId);
-      this.emit('step_completed', { context, stepResult: result, nextStepId });
-      
-      // Dispatch event to continue workflow
-      window.dispatchEvent(new CustomEvent('workflow-step-next', {
-        detail: {
-          executionId,
-          workflow,
-          context,
-          currentStep: nextStep,
-          previousResult: result,
-        }
-      }));
-    }
-
-    this.saveExecutions();
-    return { nextStepId, completed };
+    console.warn('[WorkflowService] executeStep is deprecated. Execution is now handled by WorkflowExecutor.');
+    return { completed: true };
   }
 
   async cancelExecution(executionId: string): Promise<void> {
-    const context = this.executions.get(executionId);
-    if (context) {
-      context.status = 'cancelled';
-      context.completedAt = Date.now();
-      await this.update(context.workflowId, { status: 'idle' });
-      this.saveExecutions();
-      this.emit('execution_cancelled', { context });
+    const executor = this.executors.get(executionId);
+    if (executor) {
+       executor.cancel();
+    } else {
+       const context = this.executions.get(executionId);
+       if (context) {
+         context.status = 'cancelled';
+         context.completedAt = Date.now();
+         await this.update(context.workflowId, { status: 'idle' });
+         this.saveExecutions();
+         this.emit('execution_cancelled', { context });
+       }
     }
   }
 
