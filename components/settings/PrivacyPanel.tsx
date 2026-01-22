@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Shield, Mail, Lock, Download } from 'lucide-react';
+import { Shield, Mail, Lock, FolderOpen } from 'lucide-react';
 import { BackButton } from '../buttonFormat';
+import { isTauriApp } from '../../services/tauriDetection';
 
 interface PrivacyPanelProps {
   onBack: () => void;
@@ -121,42 +122,27 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ onBack }) => {
     }
   };
 
-  const handleDownloadData = async () => {
+  const handleOpenLocalStorage = async () => {
     setIsDownloading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const isTauri = isTauriApp();
+      console.log('[OpenLocalStorage] Tauri detection result:', isTauri);
       
-      const userData = {
-        profile: {
-          email: 'user@example.com',
-          createdAt: new Date().toISOString(),
-        },
-        conversations: [
-          {
-            id: '1',
-            title: 'Sample conversation',
-            messages: ['Hello', 'Hi there!'],
-            createdAt: new Date().toISOString(),
-          }
-        ],
-        settings: {
-          theme: 'default',
-        }
-      };
-      
-      const blob = new Blob([JSON.stringify(userData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `skhoot-data-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      alert('Your data has been downloaded successfully!');
+      // Check if Tauri is available
+      if (isTauri) {
+        console.log('[OpenLocalStorage] Tauri detected, opening local data directory...');
+        const { invoke } = await import('@tauri-apps/api/core');
+        
+        // Use our custom command that opens the folder directly
+        await invoke('open_local_data_dir');
+        console.log('[OpenLocalStorage] Directory opened successfully');
+      } else {
+        // Web fallback
+        console.log('[OpenLocalStorage] Running in web mode, Tauri not available');
+        console.info('Browser localStorage is managed by your browser. Access it through developer tools (F12) → Application/Storage → Local Storage');
+      }
     } catch (error) {
-      alert('Failed to download data. Please try again.');
+      console.error('[OpenLocalStorage] Failed to open local storage:', error);
     } finally {
       setIsDownloading(false);
     }
@@ -278,23 +264,23 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ onBack }) => {
         </div>
       </div>
 
-      {/* Data Download */}
+      {/* Open Local Storage */}
       <div className="space-y-3">
         <SectionLabel 
-          label="Download Your Data" 
-          icon={<Download size={16} />}
+          label="Open Local Storage" 
+          icon={<FolderOpen size={16} />}
           iconColor="text-[#d4e4f1]"
         />
         <div className="p-3 rounded-xl glass-subtle">
           <p className="text-xs text-text-secondary font-jakarta mb-3">
-            Export all your conversations, settings, and account data in JSON format
+            Open the folder where your settings and user data are stored (AI parameters, preferences, etc.)
           </p>
           <button
-            onClick={handleDownloadData}
+            onClick={handleOpenLocalStorage}
             disabled={isDownloading}
             className="w-full px-4 py-2 rounded-lg text-sm font-medium font-jakarta bg-[#d4e4f1] text-gray-800 hover:bg-[#c4d4e1] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            {isDownloading ? 'Preparing Download...' : 'Download Data'}
+            {isDownloading ? 'Opening...' : 'Open Local Storage'}
           </button>
         </div>
       </div>

@@ -106,6 +106,149 @@ async fn check_audio_server() -> Result<String, String> {
     }
 }
 
+/// Get the app's local data directory path
+#[tauri::command]
+async fn get_local_data_dir(app: tauri::AppHandle) -> Result<String, String> {
+    app.path()
+        .app_local_data_dir()
+        .map(|path| path.to_string_lossy().to_string())
+        .map_err(|e| format!("Failed to get local data directory: {}", e))
+}
+
+/// Open the app's local data directory in the system file explorer
+#[tauri::command]
+async fn open_local_data_dir(app: tauri::AppHandle) -> Result<(), String> {
+    // On Windows with WebView2, localStorage is stored in the WebView2 user data folder
+    // This is where actual user settings (temperature, agentMode, etc.) are stored
+    #[cfg(target_os = "windows")]
+    {
+        // WebView2 stores data in: AppData\Local\[app-name]\WebView2\EBWebView\Default\
+        let app_data_local = std::env::var("LOCALAPPDATA")
+            .map_err(|_| "Failed to get LOCALAPPDATA path".to_string())?;
+        
+        // Get app identifier from tauri config
+        let app_name = app.config().identifier.clone();
+        
+        // Construct WebView2 data path
+        let webview_path = std::path::PathBuf::from(app_data_local)
+            .join(&app_name)
+            .join("WebView2");
+        
+        // If WebView2 folder exists, open it (contains localStorage)
+        if webview_path.exists() {
+            std::process::Command::new("explorer")
+                .arg(&webview_path)
+                .spawn()
+                .map_err(|e| format!("Failed to open file explorer: {}", e))?;
+        } else {
+            // Fallback to app local data dir if WebView2 folder doesn't exist yet
+            let local_data_path = app.path()
+                .app_local_data_dir()
+                .map_err(|e| format!("Failed to get local data directory: {}", e))?;
+            
+            if !local_data_path.exists() {
+                std::fs::create_dir_all(&local_data_path)
+                    .map_err(|e| format!("Failed to create local data directory: {}", e))?;
+            }
+            
+            std::process::Command::new("explorer")
+                .arg(&local_data_path)
+                .spawn()
+                .map_err(|e| format!("Failed to open file explorer: {}", e))?;
+        }
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        // On macOS, WebKit stores data in ~/Library/WebKit/[bundle-id]/
+        let home = std::env::var("HOME")
+            .map_err(|_| "Failed to get HOME path".to_string())?;
+        
+        let bundle_id = app.config().identifier.clone();
+        
+        let webkit_path = std::path::PathBuf::from(home)
+            .join("Library")
+            .join("WebKit")
+            .join(&bundle_id);
+        
+        if webkit_path.exists() {
+            std::process::Command::new("open")
+                .arg(&webkit_path)
+                .spawn()
+                .map_err(|e| format!("Failed to open Finder: {}", e))?;
+        } else {
+            // Fallback to app local data dir
+            let local_data_path = app.path()
+                .app_local_data_dir()
+                .map_err(|e| format!("Failed to get local data directory: {}", e))?;
+            
+            if !local_data_path.exists() {
+                std::fs::create_dir_all(&local_data_path)
+                    .map_err(|e| format!("Failed to create local data directory: {}", e))?;
+            }
+            
+            std::process::Command::new("open")
+                .arg(&local_data_path)
+                .spawn()
+                .map_err(|e| format!("Failed to open Finder: {}", e))?;
+        }
+    }
+    
+    #[cfg(target_os = "linux")]
+    {
+        // On Linux, WebKitGTK stores data in ~/.local/share/[app-name]/
+        let home = std::env::var("HOME")
+            .map_err(|_| "Failed to get HOME path".to_string())?;
+        
+        let app_name = app.config().identifier.clone();
+        
+        let webkit_path = std::path::PathBuf::from(home)
+            .join(".local")
+            .join("share")
+            .join(&app_name);
+        
+        let path_to_open = if webkit_path.exists() {
+            webkit_path
+        } else {
+            // Fallback to app local data dir
+            let local_data_path = app.path()
+                .app_local_data_dir()
+                .map_err(|e| format!("Failed to get local data directory: {}", e))?;
+            
+            if !local_data_path.exists() {
+                std::fs::create_dir_all(&local_data_path)
+                    .map_err(|e| format!("Failed to create local data directory: {}", e))?;
+            }
+            
+            local_data_path
+        };
+        
+        // Try xdg-open first (most common)
+        let result = std::process::Command::new("xdg-open")
+            .arg(&path_to_open)
+            .spawn();
+        
+        if result.is_err() {
+            // Fallback to other common file managers
+            let file_managers = ["nautilus", "dolphin", "thunar", "nemo", "caja"];
+            let mut opened = false;
+            
+            for fm in &file_managers {
+                if let Ok(_) = std::process::Command::new(fm).arg(&path_to_open).spawn() {
+                    opened = true;
+                    break;
+                }
+            }
+            
+            if !opened {
+                return Err("Failed to open file manager. Please install xdg-utils or a file manager.".to_string());
+            }
+        }
+    }
+    
+    Ok(())
+}
+
 /// Start PipeWire/PulseAudio user services
 #[tauri::command]
 async fn start_audio_services() -> Result<String, String> {
@@ -283,6 +426,8 @@ fn main() {
         check_audio_group_membership,
         check_audio_server,
         start_audio_services,
+        get_local_data_dir,
+        open_local_data_dir,
         terminal::create_terminal_session,
         terminal::write_to_terminal,
         terminal::read_from_terminal,
