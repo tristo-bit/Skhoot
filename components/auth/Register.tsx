@@ -80,25 +80,25 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin, onClos
         </div>
       )}
     >
-      <div className="max-w-sm mx-auto space-y-5">
+      <div className="max-w-sm mx-auto space-y-4">
         {/* SSO Buttons */}
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <SSOButton provider="google" onClick={() => handleSSORegister('google')} isLoading={ssoLoading === 'google'} mode="register" />
           <SSOButton provider="microsoft" onClick={() => handleSSORegister('microsoft')} isLoading={ssoLoading === 'microsoft'} mode="register" />
           <SSOButton provider="apple" onClick={() => handleSSORegister('apple')} isLoading={ssoLoading === 'apple'} mode="register" />
         </div>
 
         {/* Divider */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 py-1">
           <div className="flex-1 h-px border-glass-border bg-current opacity-20" />
           <span className="text-xs text-text-secondary font-jakarta">or</span>
           <div className="flex-1 h-px border-glass-border bg-current opacity-20" />
         </div>
 
         {/* Email Form */}
-        <form onSubmit={handleEmailRegister} className="space-y-3">
+        <form onSubmit={handleEmailRegister} className="space-y-2.5">
           {error && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
               <p className="text-xs text-red-600 dark:text-red-400 font-jakarta">{error}</p>
             </div>
           )}
@@ -112,7 +112,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin, onClos
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Your name"
-                className="w-full pl-10 pr-4 py-3 rounded-xl border-glass-border glass-subtle text-sm font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent/50"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border-glass-border glass-subtle text-sm font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent/50"
               />
             </div>
           </div>
@@ -126,7 +126,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin, onClos
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full pl-10 pr-4 py-3 rounded-xl border-glass-border glass-subtle text-sm font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent/50"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border-glass-border glass-subtle text-sm font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent/50"
               />
             </div>
           </div>
@@ -140,7 +140,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin, onClos
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-10 py-3 rounded-xl border-glass-border glass-subtle text-sm font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent/50"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl border-glass-border glass-subtle text-sm font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent/50"
               />
               <IconButton
                 type="button"
@@ -162,7 +162,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin, onClos
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-3 rounded-xl border-glass-border glass-subtle text-sm font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent/50"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border-glass-border glass-subtle text-sm font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent/50"
               />
             </div>
           </div>

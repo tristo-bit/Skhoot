@@ -17060,3 +17060,89 @@ let webkit_path = PathBuf::from(home)
 **Files Modified**:
 - `src-tauri/src/main.rs` - Updated `open_local_data_dir` with WebView paths
 - `components/settings/PrivacyPanel.tsx` - Updated description text
+
+
+---
+
+## January 22, 2026
+
+### Register Panel - Spacing Optimization to Remove Scroll 📐
+- **Status**: ✅ **COMPLETED**
+- **Components**: `components/auth/Register.tsx`
+- **Change**: Optimized spacing and padding to fit content perfectly in viewport
+- **Impact**: Eliminated unnecessary mini-scroll, cleaner user experience
+
+**Problem Identified**:
+The Create Account modal had slightly too much content for the viewport:
+- ❌ Mini vertical scroll appeared
+- ❌ Content was just barely too long
+- ❌ Not a good user experience
+- ❌ Unnecessary scrolling for a registration form
+
+**Solution - Spacing Optimization**:
+Reduced spacing throughout the form without compromising readability:
+
+**Changes Applied**:
+
+1. **Main Container Spacing**:
+   - Before: `space-y-5` (20px gaps)
+   - After: `space-y-4` (16px gaps)
+   - Savings: 4px × 4 sections = 16px
+
+2. **SSO Buttons Section**:
+   - Before: `space-y-3` (12px gaps)
+   - After: `space-y-2.5` (10px gaps)
+   - Savings: 2px × 2 gaps = 4px
+
+3. **Divider Section**:
+   - Before: No vertical padding
+   - After: `py-1` (4px top/bottom)
+   - More balanced spacing around "or" text
+
+4. **Form Fields Section**:
+   - Before: `space-y-3` (12px gaps)
+   - After: `space-y-2.5` (10px gaps)
+   - Savings: 2px × 4 fields = 8px
+
+5. **Input Fields Padding**:
+   - Before: `py-3` (12px top/bottom)
+   - After: `py-2.5` (10px top/bottom)
+   - Savings: 2px × 2 × 4 inputs = 16px
+
+6. **Error Message Padding**:
+   - Before: `p-3` (12px all sides)
+   - After: `p-2.5` (10px all sides)
+   - Savings: 2px per side
+
+**Total Space Saved**: ~44px vertical space
+
+**Benefits**:
+- ✅ No scroll needed - content fits perfectly
+- ✅ Still comfortable and readable
+- ✅ Cleaner, more polished appearance
+- ✅ Better user experience
+- ✅ Maintains visual hierarchy
+- ✅ All touch targets remain accessible
+
+**Design Principles Maintained**:
+- Proper visual breathing room
+- Clear field separation
+- Readable labels and inputs
+- Accessible button sizes
+- Professional appearance
+
+**User Experience**:
+- Form appears complete in viewport
+- No need to scroll to see "Create Account" button
+- All fields visible at once
+- Faster form completion
+- More polished feel
+
+**Technical Details**:
+- Used Tailwind's fractional spacing (2.5 = 10px)
+- Maintained consistent spacing ratios
+- Preserved accessibility standards
+- No content removed, only spacing adjusted
+
+**Files Modified**:
+- `components/auth/Register.tsx` - Optimized spacing values throughout
