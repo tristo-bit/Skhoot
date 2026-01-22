@@ -271,15 +271,15 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 <summary><strong>🔔 Native Notifications</strong></summary>
 
 - **Desktop Notifications**: Native system notifications using Tauri plugin with automatic environment detection
-- **Comprehensive Settings Panel**: Full-featured notification configuration interface with:
+- **Comprehensive Settings Panel**: Full-featured notification configuration interface with modern glassmorphic design:
   - **General Controls**: Master enable/disable toggle for all notifications
   - **Notification Types**: Individual controls for success (✅), error (❌), warning (⚠️), and info (ℹ️) notifications
   - **Sound Management**: Enable/disable notification sounds with volume control slider (0-100%) and custom sound support
   - **Display Customization**: Duration control (0-30s, 0=persistent), position selection (4 corners), action buttons, and notification grouping
   - **Frequency Control**: Rate limiting with max notifications per minute (1-20) and quiet hours scheduling with overnight support
   - **Priority Settings**: Individual priority levels (low/normal/high) for each notification type affecting display behavior
-  - **Test Interface**: Built-in test buttons for all notification types with real-time preview and debug logging (bypasses all filters for reliable testing)
-  - **Reset Functionality**: One-click restore to default settings with confirmation
+  - **Test Notifications**: Interactive 2x2 grid of test buttons for all notification types (success, error, warning, info) with real-time preview and debug logging (bypasses all filters for reliable testing)
+  - **Advanced Tools**: Glassmorphic cards for reset to defaults, debug information, and service reinitialization with clear descriptions and one-click actions
 - **Smart Features**:
   - **Permission Management**: Automatic permission request and graceful handling of denied permissions
   - **Duplicate Prevention**: Tag-based notification deduplication and replacement

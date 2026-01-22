@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, Volume2, VolumeX, Clock, Settings as SettingsIcon, TestTube } from 'lucide-react';
-import { Button, ToggleSwitch } from '../buttonFormat';
+import { BackButton } from '../buttonFormat';
 import { nativeNotifications, NotificationSettings, NotificationType } from '../../services/nativeNotifications';
-import { PanelHeader } from './shared';
 
 interface NotificationsPanelProps {
   onBack: () => void;
@@ -10,18 +9,15 @@ interface NotificationsPanelProps {
 
 interface SectionLabelProps {
   label: string;
-  description?: string;
   icon?: React.ReactNode;
+  iconColor?: string;
 }
 
-const SectionLabel: React.FC<SectionLabelProps> = ({ label, description, icon }) => (
-  <div className="flex items-center gap-3 mb-4">
-    {icon && <div className="text-text-secondary">{icon}</div>}
-    <div>
-      <h3 className="text-sm font-semibold text-text-primary">{label}</h3>
-      {description && <p className="text-xs text-text-secondary mt-0.5">{description}</p>}
-    </div>
-  </div>
+const SectionLabel: React.FC<SectionLabelProps> = ({ label, icon, iconColor = 'text-purple-500' }) => (
+  <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
+    {icon && <span className={iconColor}>{icon}</span>}
+    {label}
+  </label>
 );
 
 interface SettingRowProps {
@@ -33,16 +29,22 @@ interface SettingRowProps {
 }
 
 const SettingRow: React.FC<SettingRowProps> = ({ label, description, checked, onChange, disabled }) => (
-  <div className="flex items-center justify-between py-3 border-b border-black/5 last:border-b-0">
-    <div className="flex-1">
-      <div className="text-sm font-medium text-text-primary">{label}</div>
-      {description && <div className="text-xs text-text-secondary mt-0.5">{description}</div>}
+  <div className="flex items-center justify-between p-3 rounded-xl glass-subtle">
+    <div>
+      <p className="text-sm font-medium font-jakarta text-text-primary">{label}</p>
+      {description && <p className="text-xs text-text-secondary font-jakarta">{description}</p>}
     </div>
-    <ToggleSwitch
-      isToggled={checked}
-      onToggle={onChange}
+    <button
+      onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
-    />
+      className={`w-12 h-6 rounded-full transition-all ${
+        checked ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
+      <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+        checked ? 'translate-x-6' : 'translate-x-0.5'
+      }`} />
+    </button>
   </div>
 );
 
@@ -69,13 +71,10 @@ const SliderRow: React.FC<SliderRowProps> = ({
   onChange, 
   disabled 
 }) => (
-  <div className="py-3 border-b border-black/5 last:border-b-0">
-    <div className="flex items-center justify-between mb-2">
-      <div>
-        <div className="text-sm font-medium text-text-primary">{label}</div>
-        {description && <div className="text-xs text-text-secondary mt-0.5">{description}</div>}
-      </div>
-      <span className="text-sm font-mono text-text-secondary">
+  <div className="p-3 rounded-xl glass-subtle space-y-2">
+    <div className="flex items-center justify-between">
+      <p className="text-sm font-medium font-jakarta text-text-primary">{label}</p>
+      <span className="text-sm font-bold font-jakarta text-purple-500">
         {value}{unit}
       </span>
     </div>
@@ -87,8 +86,9 @@ const SliderRow: React.FC<SliderRowProps> = ({
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
       disabled={disabled}
-      className="w-full h-2 bg-black/10 rounded-lg appearance-none cursor-pointer slider"
+      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700"
     />
+    {description && <p className="text-xs text-text-secondary font-jakarta">{description}</p>}
   </div>
 );
 interface SelectRowProps {
@@ -108,23 +108,25 @@ const SelectRow: React.FC<SelectRowProps> = ({
   onChange, 
   disabled 
 }) => (
-  <div className="flex items-center justify-between py-3 border-b border-black/5 last:border-b-0">
-    <div className="flex-1">
-      <div className="text-sm font-medium text-text-primary">{label}</div>
-      {description && <div className="text-xs text-text-secondary mt-0.5">{description}</div>}
+  <div className="p-3 rounded-xl glass-subtle space-y-2">
+    <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <p className="text-sm font-medium font-jakarta text-text-primary">{label}</p>
+        {description && <p className="text-xs text-text-secondary font-jakarta mt-1">{description}</p>}
+      </div>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="ml-3 px-3 py-1.5 text-sm font-medium font-jakarta bg-transparent text-text-primary rounded-lg glass-subtle focus:outline-none focus:ring-2 focus:ring-purple-500"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </div>
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-      className="px-3 py-1.5 text-sm bg-white/50 border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/50"
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
   </div>
 );
 
@@ -143,18 +145,20 @@ const TimeInputRow: React.FC<TimeInputRowProps> = ({
   onChange, 
   disabled 
 }) => (
-  <div className="flex items-center justify-between py-3 border-b border-black/5 last:border-b-0">
-    <div className="flex-1">
-      <div className="text-sm font-medium text-text-primary">{label}</div>
-      {description && <div className="text-xs text-text-secondary mt-0.5">{description}</div>}
+  <div className="p-3 rounded-xl glass-subtle space-y-2">
+    <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <p className="text-sm font-medium font-jakarta text-text-primary">{label}</p>
+        {description && <p className="text-xs text-text-secondary font-jakarta mt-1">{description}</p>}
+      </div>
+      <input
+        type="time"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="ml-3 px-3 py-1.5 text-sm font-medium font-jakarta bg-transparent text-text-primary rounded-lg glass-subtle focus:outline-none focus:ring-2 focus:ring-purple-500"
+      />
     </div>
-    <input
-      type="time"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled}
-      className="px-3 py-1.5 text-sm bg-white/50 border border-black/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/50"
-    />
   </div>
 );
 
@@ -218,14 +222,20 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
   };
 
   return (
-    <div className="space-y-8">
-      <PanelHeader title="Notifications" onBack={onBack} />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 pb-2 border-b border-glass-border">
+        <BackButton onClick={onBack} />
+        <Bell size={20} className="text-purple-500" />
+        <h3 className="text-lg font-black font-jakarta text-text-primary">Notifications</h3>
+      </div>
+
       {/* General Settings */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <SectionLabel 
           label="General Settings" 
-          description="Enable or disable native system notifications"
-          icon={<Bell size={18} />}
+          icon={<Bell size={16} />}
+          iconColor="text-purple-500"
         />
         
         <SettingRow
@@ -237,13 +247,14 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
       </div>
 
       {/* Notification Types */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <SectionLabel 
-          label="Notification Types" 
-          description="Choose which types of notifications to receive"
+          label="Notification Types"
+          icon={<SettingsIcon size={16} />}
+          iconColor="text-emerald-500"
         />
         
-        <div className="space-y-1">
+        <div className="space-y-3">
           <SettingRow
             label="Success Notifications"
             description="File saved, search completed, operations successful"
@@ -287,11 +298,11 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
       </div>
 
       {/* Sound Settings */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <SectionLabel 
-          label="Sound Settings" 
-          description="Configure notification sounds and volume"
-          icon={settings.sound.enabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          label="Sound Settings"
+          icon={settings.sound.enabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          iconColor="text-blue-500"
         />
         
         <SettingRow
@@ -306,7 +317,6 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
         
         <SliderRow
           label="Volume"
-          description="Notification sound volume level"
           value={settings.sound.volume}
           min={0}
           max={100}
@@ -315,19 +325,20 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
             sound: { ...settings.sound, volume }
           })}
           disabled={!settings.enabled || !settings.sound.enabled}
+          description="Notification sound volume level"
         />
       </div>
 
       {/* Display Settings */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <SectionLabel 
-          label="Display Settings" 
-          description="Customize how notifications appear"
+          label="Display Settings"
+          icon={<SettingsIcon size={16} />}
+          iconColor="text-cyan-500"
         />
         
         <SliderRow
           label="Display Duration"
-          description="How long notifications stay visible (0 = persistent)"
           value={settings.display.duration}
           min={0}
           max={30}
@@ -336,11 +347,11 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
             display: { ...settings.display, duration }
           })}
           disabled={!settings.enabled}
+          description="How long notifications stay visible (0 = persistent)"
         />
         
         <SelectRow
           label="Position"
-          description="Where notifications appear on screen"
           value={settings.display.position}
           options={[
             { value: 'top-right', label: 'Top Right' },
@@ -352,6 +363,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
             display: { ...settings.display, position }
           })}
           disabled={!settings.enabled}
+          description="Where notifications appear on screen"
         />
         
         <SettingRow
@@ -376,11 +388,11 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
       </div>
 
       {/* Frequency & Quiet Hours */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <SectionLabel 
-          label="Frequency Control" 
-          description="Manage notification frequency and quiet hours"
-          icon={<Clock size={18} />}
+          label="Frequency Control"
+          icon={<Clock size={16} />}
+          iconColor="text-amber-500"
         />
         
         <SettingRow
@@ -395,7 +407,6 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
         
         <SliderRow
           label="Max Notifications Per Minute"
-          description="Maximum number of notifications allowed per minute"
           value={settings.frequency.maxPerMinute}
           min={1}
           max={20}
@@ -403,6 +414,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
             frequency: { ...settings.frequency, maxPerMinute }
           })}
           disabled={!settings.enabled || !settings.frequency.enabled}
+          description="Maximum number of notifications allowed per minute"
         />
         
         <SettingRow
@@ -420,7 +432,6 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
         
         <TimeInputRow
           label="Quiet Hours Start"
-          description="When to start suppressing notifications"
           value={settings.frequency.quietHours.start}
           onChange={(start) => updateSettings({ 
             frequency: { 
@@ -429,11 +440,11 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
             }
           })}
           disabled={!settings.enabled || !settings.frequency.quietHours.enabled}
+          description="When to start suppressing notifications"
         />
         
         <TimeInputRow
           label="Quiet Hours End"
-          description="When to resume notifications"
           value={settings.frequency.quietHours.end}
           onChange={(end) => updateSettings({ 
             frequency: { 
@@ -442,19 +453,20 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
             }
           })}
           disabled={!settings.enabled || !settings.frequency.quietHours.enabled}
+          description="When to resume notifications"
         />
       </div>
 
       {/* Priority Settings */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <SectionLabel 
-          label="Priority Settings" 
-          description="Set notification priority levels for different types"
+          label="Priority Settings"
+          icon={<SettingsIcon size={16} />}
+          iconColor="text-purple-500"
         />
         
         <SelectRow
           label="Success Priority"
-          description="Priority level for success notifications"
           value={settings.priority.success}
           options={[
             { value: 'low', label: 'Low' },
@@ -465,11 +477,11 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
             priority: { ...settings.priority, success: priority }
           })}
           disabled={!settings.enabled}
+          description="Priority level for success notifications"
         />
         
         <SelectRow
           label="Error Priority"
-          description="Priority level for error notifications"
           value={settings.priority.error}
           options={[
             { value: 'low', label: 'Low' },
@@ -480,11 +492,11 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
             priority: { ...settings.priority, error: priority }
           })}
           disabled={!settings.enabled}
+          description="Priority level for error notifications"
         />
         
         <SelectRow
           label="Warning Priority"
-          description="Priority level for warning notifications"
           value={settings.priority.warning}
           options={[
             { value: 'low', label: 'Low' },
@@ -495,11 +507,11 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
             priority: { ...settings.priority, warning: priority }
           })}
           disabled={!settings.enabled}
+          description="Priority level for warning notifications"
         />
         
         <SelectRow
           label="Info Priority"
-          description="Priority level for info notifications"
           value={settings.priority.info}
           options={[
             { value: 'low', label: 'Low' },
@@ -510,122 +522,115 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
             priority: { ...settings.priority, info: priority }
           })}
           disabled={!settings.enabled}
+          description="Priority level for info notifications"
         />
       </div>
 
       {/* Test Notifications */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <SectionLabel 
-          label="Test Notifications" 
-          description="Test different notification types"
-          icon={<TestTube size={18} />}
+          label="Test Notifications"
+          icon={<TestTube size={16} />}
+          iconColor="text-cyan-500"
         />
         
         <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="glass"
-            size="sm"
+          <button
             onClick={() => handleTestNotification('success')}
             disabled={!settings.enabled || !settings.types.success}
-            className="text-green-600 hover:bg-green-50"
+            className="p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             ✅ Test Success
-          </Button>
+          </button>
           
-          <Button
-            variant="glass"
-            size="sm"
+          <button
             onClick={() => handleTestNotification('error')}
             disabled={!settings.enabled || !settings.types.error}
-            className="text-red-600 hover:bg-red-50"
+            className="p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-red-600 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             ❌ Test Error
-          </Button>
+          </button>
           
-          <Button
-            variant="glass"
-            size="sm"
+          <button
             onClick={() => handleTestNotification('warning')}
             disabled={!settings.enabled || !settings.types.warning}
-            className="text-amber-600 hover:bg-amber-50"
+            className="p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-amber-600 hover:bg-amber-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             ⚠️ Test Warning
-          </Button>
+          </button>
           
-          <Button
-            variant="glass"
-            size="sm"
+          <button
             onClick={() => handleTestNotification('info')}
             disabled={!settings.enabled || !settings.types.info}
-            className="text-blue-600 hover:bg-blue-50"
+            className="p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-blue-600 hover:bg-blue-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             ℹ️ Test Info
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* Reset Settings */}
-      <div className="space-y-4 pt-4 border-t border-black/10">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm font-medium text-text-primary">Reset to Defaults</div>
-            <div className="text-xs text-text-secondary mt-0.5">
-              Restore all notification settings to their default values
+      <div className="space-y-3 pt-4 border-t border-glass-border">
+        <div className="p-3 rounded-xl glass-subtle">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium font-jakarta text-text-primary">Reset to Defaults</p>
+              <p className="text-xs text-text-secondary font-jakarta mt-1">
+                Restore all notification settings to their default values
+              </p>
             </div>
+            <button
+              onClick={handleResetSettings}
+              className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta text-red-600 hover:bg-red-500/10 transition-all"
+            >
+              Reset All
+            </button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleResetSettings}
-            className="text-red-600 hover:bg-red-50"
-          >
-            Reset All
-          </Button>
         </div>
         
         {/* Debug Button */}
-        <div className="flex items-center justify-between pt-2 border-t border-black/5">
-          <div>
-            <div className="text-sm font-medium text-text-primary">Debug Information</div>
-            <div className="text-xs text-text-secondary mt-0.5">
-              View service state and troubleshooting info
+        <div className="p-3 rounded-xl glass-subtle">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium font-jakarta text-text-primary">Debug Information</p>
+              <p className="text-xs text-text-secondary font-jakarta mt-1">
+                View service state and troubleshooting info
+              </p>
             </div>
+            <button
+              onClick={handleDebugInfo}
+              className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta text-blue-600 hover:bg-blue-500/10 transition-all"
+            >
+              Debug Info
+            </button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDebugInfo}
-            className="text-blue-600 hover:bg-blue-50"
-          >
-            Debug Info
-          </Button>
         </div>
         
         {/* Reinitialize Button */}
-        <div className="flex items-center justify-between pt-2 border-t border-black/5">
-          <div>
-            <div className="text-sm font-medium text-text-primary">Reinitialize Service</div>
-            <div className="text-xs text-text-secondary mt-0.5">
-              Force reload the notification service (fixes initialization issues)
+        <div className="p-3 rounded-xl glass-subtle">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium font-jakarta text-text-primary">Reinitialize Service</p>
+              <p className="text-xs text-text-secondary font-jakarta mt-1">
+                Force reload the notification service (fixes initialization issues)
+              </p>
             </div>
+            <button
+              onClick={async () => {
+                console.log('[NotificationsPanel] Reinitializing notification service...');
+                try {
+                  await (nativeNotifications as any).reinitialize();
+                  alert('Notification service reinitialized successfully!');
+                } catch (error) {
+                  console.error('[NotificationsPanel] Reinitialize failed:', error);
+                  alert(`Reinitialize failed: ${error}`);
+                }
+              }}
+              className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta text-purple-600 hover:bg-purple-500/10 transition-all"
+            >
+              Reinitialize
+            </button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={async () => {
-              console.log('[NotificationsPanel] Reinitializing notification service...');
-              try {
-                await (nativeNotifications as any).reinitialize();
-                alert('Notification service reinitialized successfully!');
-              } catch (error) {
-                console.error('[NotificationsPanel] Reinitialize failed:', error);
-                alert(`Reinitialize failed: ${error}`);
-              }
-            }}
-            className="text-purple-600 hover:bg-purple-50"
-          >
-            Reinitialize
-          </Button>
         </div>
       </div>
     </div>

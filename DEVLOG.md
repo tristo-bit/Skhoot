@@ -15311,3 +15311,178 @@ getDiagnostics: No diagnostics found
 1. Profile Picture upload
 2. Personal Information (name, email)
 3. Clean, focused interface for user profile management
+
+
+## January 22, 2026
+
+### Settings UI - Notifications Panel Style Harmonization 🎨
+- **Status**: ✅ COMPLETE
+- **Components**: `components/settings/NotificationsPanel.tsx`
+- **Change**: Unified styling with AISettingsPanel for consistent design system
+- **Impact**: Professional, cohesive settings interface across all panels
+
+**Problem**:
+- NotificationsPanel had inconsistent styling compared to AISettingsPanel
+- Different component layouts (borders vs glassmorphic cards)
+- Mismatched spacing, colors, and visual hierarchy
+- Lacked the embossed glassmorphic design system
+
+**Solution - Style Harmonization**:
+Applied AISettingsPanel design patterns to NotificationsPanel:
+
+1. **Header Styling**:
+   - Added BackButton with consistent positioning
+   - Bell icon with purple-500 color
+   - Title in font-black font-jakarta
+   - Border-bottom with border-glass-border
+
+2. **Section Labels**:
+   - Removed verbose descriptions from labels
+   - Added colored icons (16px) matching section purpose:
+     - Purple: General, Priority
+     - Emerald: Notification Types
+     - Blue: Sound Settings
+     - Cyan: Display Settings, Test
+     - Amber: Frequency Control
+   - Compact label style with icon + text
+
+3. **Toggle Switches**:
+   - Replaced ToggleSwitch component with inline glassmorphic toggles
+   - Emerald-500 for active state (consistent with AISettings)
+   - Gray-300/600 for inactive state
+   - Smooth transitions and proper disabled states
+   - Wrapped in glass-subtle rounded-xl containers
+
+4. **Sliders**:
+   - Value display in purple-500 bold (accent color)
+   - Glass-subtle background with rounded-xl
+   - Description moved below slider
+   - Consistent spacing and typography
+
+5. **Select & Time Inputs**:
+   - Glassmorphic style with transparent background
+   - Purple-500 focus ring (2px)
+   - Font-medium font-jakarta for consistency
+   - Integrated into glass-subtle containers
+
+6. **Test Buttons**:
+   - Replaced Button components with native buttons
+   - Glass-subtle background with rounded-xl
+   - Colored text with subtle hover backgrounds:
+     - Emerald for success
+     - Red for error
+     - Amber for warning
+     - Blue for info
+   - Proper disabled states with opacity-50
+
+7. **Reset Section**:
+   - Glass-subtle cards instead of bordered rows
+   - Buttons with colored text and hover effects
+   - Consistent spacing with space-y-3
+   - Border-top with border-glass-border
+
+**Colors Used (Existing Palette)**:
+- **Purple (#8B5CF6)**: Primary accent, focus rings, value displays
+- **Emerald (#10B981)**: Active toggles, success states
+- **Blue (#3B82F6)**: Sound settings, info notifications
+- **Cyan (#06B6D4)**: Display settings, test section
+- **Amber (#F59E0B)**: Frequency control
+- **Red (#EF4444)**: Error states, reset actions
+- **Gray**: Inactive toggles, backgrounds
+
+**Spacing Adjustments**:
+- Changed space-y-8 → space-y-6 (main container)
+- Changed space-y-4 → space-y-3 (sections)
+- Consistent p-3 padding for all cards
+- Removed border-b separators in favor of glass-subtle cards
+
+**Typography**:
+- All text uses font-jakarta
+- Labels: font-bold text-sm
+- Values: font-bold text-sm (purple-500)
+- Descriptions: text-xs text-text-secondary
+- Buttons: font-medium text-sm
+
+**Benefits**:
+- ✅ Consistent visual language across all settings panels
+- ✅ Professional embossed glassmorphic design
+- ✅ Better visual hierarchy with colored icons
+- ✅ Cleaner, more compact layout
+- ✅ Improved readability and scannability
+- ✅ All functionality preserved (no breaking changes)
+- ✅ Proper disabled states and transitions
+- ✅ Theme-aware (light/dark mode support)
+
+**Testing**:
+1. Open Settings → Notifications
+2. Verify all toggles work with glassmorphic style
+3. Test sliders show purple values
+4. Check select/time inputs have purple focus rings
+5. Verify test buttons have colored hover states
+6. Confirm reset section uses glass-subtle cards
+7. Compare with AI Settings panel - should match styling
+
+**Technical Details**:
+- Removed dependency on Button and ToggleSwitch components
+- Removed PanelHeader import (using inline header)
+- All components now use inline glassmorphic styling
+- Maintained all props interfaces and functionality
+- No changes to state management or event handlers
+- Preserved all console logging and debug features
+
+
+### Settings UI - Notifications Panel Crash Fix 🐛
+- **Status**: ✅ FIXED
+- **Components**: `components/settings/NotificationsPanel.tsx`
+- **Issue**: App crashed when opening Notifications panel
+- **Fix**: Removed duplicate section with undefined Button component
+
+**Problem**:
+- App crashed immediately when navigating to Notifications panel
+- React error: Component `Button` is not defined
+- Panel was completely inaccessible
+
+**Root Cause**:
+During the style harmonization, a duplicate "Test Notifications" section was left in the code:
+1. **Old section** (lines 520-570): Used `<Button>` component from `../buttonFormat`
+2. **New section** (lines 572-620): Used native `<button>` elements with glassmorphic styling
+
+The `Button` component was removed from imports but the old section still referenced it, causing React to crash when trying to render an undefined component.
+
+**Solution**:
+Removed the duplicate old section that used the undefined `Button` component, keeping only the new glassmorphic button implementation.
+
+**Code Removed**:
+```tsx
+// OLD - Caused crash (Button not imported)
+<Button
+  variant="glass"
+  size="sm"
+  onClick={() => handleTestNotification('success')}
+  disabled={!settings.enabled || !settings.types.success}
+  className="text-green-600 hover:bg-green-50"
+>
+  ✅ Test Success
+</Button>
+
+// NEW - Works correctly (native button)
+<button
+  onClick={() => handleTestNotification('success')}
+  disabled={!settings.enabled || !settings.types.success}
+  className="p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+>
+  ✅ Test Success
+</button>
+```
+
+**Impact**:
+- ✅ Notifications panel now loads without crashing
+- ✅ All test buttons work correctly
+- ✅ Consistent glassmorphic styling maintained
+- ✅ No functionality lost
+
+**Testing**:
+1. Open Settings → Notifications
+2. Panel loads successfully (no crash)
+3. All toggles, sliders, and buttons functional
+4. Test notification buttons work as expected

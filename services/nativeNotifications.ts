@@ -79,6 +79,48 @@ class NativeNotificationService {
     this.initializeService();
   }
 
+  public getSettings(): NotificationSettings {
+    return { ...this.settings };
+  }
+
+  public updateSettings(newSettings: Partial<NotificationSettings>): void {
+    this.settings = { ...this.settings, ...newSettings };
+    this.saveSettings();
+  }
+
+  public resetSettings(): void {
+    this.settings = this.getDefaultSettings();
+    this.saveSettings();
+  }
+
+  public async testNotification(type: NotificationType): Promise<void> {
+    const titles = {
+      success: 'Test Success',
+      error: 'Test Error',
+      warning: 'Test Warning',
+      info: 'Test Info'
+    };
+    
+    await this.notify({
+      title: titles[type],
+      body: `This is a test ${type} notification from Skhoot settings.`,
+      type: type
+    });
+  }
+
+  public getDebugInfo(): any {
+    return {
+      settings: this.settings,
+      queueLength: this.notificationQueue.length,
+      tauriAvailable: this.tauriAvailable,
+      permissionGranted: this.permissionGranted
+    };
+  }
+
+  public async reinitialize(): Promise<void> {
+    await this.initializeService();
+  }
+
   private async initializeService() {
     console.log('[Notifications] Initializing notification service...');
     
