@@ -1,11 +1,23 @@
 import React, { useState } from 'react';
-import { Shield } from 'lucide-react';
-import { PanelHeader, SectionLabel } from './shared';
-import { Button, SubmitButton } from '../buttonFormat';
+import { Shield, Mail, Lock, Download } from 'lucide-react';
+import { BackButton } from '../buttonFormat';
 
 interface PrivacyPanelProps {
   onBack: () => void;
 }
+
+interface SectionLabelProps {
+  label: string;
+  icon?: React.ReactNode;
+  iconColor?: string;
+}
+
+const SectionLabel: React.FC<SectionLabelProps> = ({ label, icon, iconColor = 'text-[#C0B7C9]' }) => (
+  <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
+    {icon && <span className={iconColor}>{icon}</span>}
+    {label}
+  </label>
+);
 
 export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ onBack }) => {
   // Email state
@@ -152,50 +164,64 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ onBack }) => {
 
   return (
     <div className="space-y-6">
-      <PanelHeader title="Privacy & Security" onBack={onBack} />
+      {/* Header */}
+      <div className="flex items-center gap-3 pb-2 border-b border-glass-border">
+        <BackButton onClick={onBack} />
+        <Shield size={20} className="text-[#C0B7C9]" />
+        <h3 className="text-lg font-black font-jakarta text-text-primary">Privacy & Security</h3>
+      </div>
 
       {/* Email Update */}
       <div className="space-y-3">
-        <SectionLabel label="Update Email" description="Change your account email address" />
-        <div className="flex gap-2">
-          <input
-            type="email"
-            value={newEmail}
-            onChange={(e) => {
-              setNewEmail(e.target.value);
-              setEmailError('');
-              setEmailSuccess('');
-            }}
-            placeholder="Enter new email address"
-            className="flex-1 p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <SubmitButton
-            onClick={handleUpdateEmail}
-            isSubmitting={isUpdatingEmail}
-            submitText="Update"
-            submittingText="Updating..."
-            variant="primary"
-            size="md"
-          />
+        <SectionLabel 
+          label="Update Email" 
+          icon={<Mail size={16} />}
+          iconColor="text-blue-500"
+        />
+        <div className="p-3 rounded-xl glass-subtle space-y-3">
+          <div className="flex gap-2">
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => {
+                setNewEmail(e.target.value);
+                setEmailError('');
+                setEmailSuccess('');
+              }}
+              placeholder="Enter new email address"
+              className="flex-1 px-3 py-2 bg-transparent text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary/50 border-b border-glass-border focus:border-[#C0B7C9] outline-none transition-all"
+            />
+            <button
+              onClick={handleUpdateEmail}
+              disabled={isUpdatingEmail}
+              className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta bg-[#C0B7C9] text-white hover:bg-[#B0A7B9] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {isUpdatingEmail ? 'Updating...' : 'Update'}
+            </button>
+          </div>
+          
+          {emailError && (
+            <div className="p-2 rounded-lg bg-red-500/10">
+              <p className="text-xs font-medium font-jakarta text-red-600 dark:text-red-400">❌ {emailError}</p>
+            </div>
+          )}
+          
+          {emailSuccess && (
+            <div className="p-2 rounded-lg bg-emerald-500/10">
+              <p className="text-xs font-medium font-jakarta text-emerald-600 dark:text-emerald-400">✅ {emailSuccess}</p>
+            </div>
+          )}
         </div>
-        
-        {emailError && (
-          <div className="p-3 rounded-xl bg-red-100 border border-red-200">
-            <p className="text-sm font-medium text-red-700">❌ {emailError}</p>
-          </div>
-        )}
-        
-        {emailSuccess && (
-          <div className="p-3 rounded-xl bg-green-100 border border-green-200">
-            <p className="text-sm font-medium text-green-700">✅ {emailSuccess}</p>
-          </div>
-        )}
       </div>
 
       {/* Password Change */}
       <div className="space-y-3">
-        <SectionLabel label="Change Password" description="Update your account password" />
-        <div className="space-y-2">
+        <SectionLabel 
+          label="Change Password" 
+          icon={<Lock size={16} />}
+          iconColor="text-amber-500"
+        />
+        <div className="p-3 rounded-xl glass-subtle space-y-3">
           <input
             type="password"
             value={currentPassword}
@@ -205,7 +231,7 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ onBack }) => {
               setPasswordSuccess('');
             }}
             placeholder="Current password"
-            className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full px-3 py-2 bg-transparent text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary/50 border-b border-glass-border focus:border-[#C0B7C9] outline-none transition-all"
           />
           <input
             type="password"
@@ -215,8 +241,8 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ onBack }) => {
               setPasswordError('');
               setPasswordSuccess('');
             }}
-            placeholder="New password"
-            className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
+            placeholder="New password (min. 8 characters)"
+            className="w-full px-3 py-2 bg-transparent text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary/50 border-b border-glass-border focus:border-[#C0B7C9] outline-none transition-all"
           />
           <input
             type="password"
@@ -227,50 +253,56 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ onBack }) => {
               setPasswordSuccess('');
             }}
             placeholder="Confirm new password"
-            className="w-full p-3 rounded-xl border-glass-border glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full px-3 py-2 bg-transparent text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary/50 border-b border-glass-border focus:border-[#C0B7C9] outline-none transition-all"
           />
-          <SubmitButton
+          
+          {passwordError && (
+            <div className="p-2 rounded-lg bg-red-500/10">
+              <p className="text-xs font-medium font-jakarta text-red-600 dark:text-red-400">❌ {passwordError}</p>
+            </div>
+          )}
+          
+          {passwordSuccess && (
+            <div className="p-2 rounded-lg bg-emerald-500/10">
+              <p className="text-xs font-medium font-jakarta text-emerald-600 dark:text-emerald-400">✅ {passwordSuccess}</p>
+            </div>
+          )}
+          
+          <button
             onClick={handleChangePassword}
-            isSubmitting={isChangingPassword}
-            submitText="Change Password"
-            submittingText="Changing..."
-            variant="primary"
-            size="md"
-            className="w-full"
-          />
+            disabled={isChangingPassword}
+            className="w-full px-4 py-2 rounded-lg text-sm font-medium font-jakarta bg-[#C0B7C9] text-white hover:bg-[#B0A7B9] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            {isChangingPassword ? 'Changing...' : 'Change Password'}
+          </button>
         </div>
-        
-        {passwordError && (
-          <div className="p-3 rounded-xl bg-red-100 border border-red-200">
-            <p className="text-sm font-medium text-red-700">❌ {passwordError}</p>
-          </div>
-        )}
-        
-        {passwordSuccess && (
-          <div className="p-3 rounded-xl bg-green-100 border border-green-200">
-            <p className="text-sm font-medium text-green-700">✅ {passwordSuccess}</p>
-          </div>
-        )}
       </div>
 
       {/* Data Download */}
       <div className="space-y-3">
-        <SectionLabel label="Download Your Data" description="Export all your conversations and settings" />
-        <Button
-          onClick={handleDownloadData}
-          variant="primary"
-          size="md"
-          className="w-full"
-          disabled={isDownloading}
-        >
-          {isDownloading ? 'Preparing Download...' : 'Download Data'}
-        </Button>
+        <SectionLabel 
+          label="Download Your Data" 
+          icon={<Download size={16} />}
+          iconColor="text-cyan-500"
+        />
+        <div className="p-3 rounded-xl glass-subtle">
+          <p className="text-xs text-text-secondary font-jakarta mb-3">
+            Export all your conversations, settings, and account data in JSON format
+          </p>
+          <button
+            onClick={handleDownloadData}
+            disabled={isDownloading}
+            className="w-full px-4 py-2 rounded-lg text-sm font-medium font-jakarta bg-cyan-500 text-white hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            {isDownloading ? 'Preparing Download...' : 'Download Data'}
+          </button>
+        </div>
       </div>
 
       {/* Privacy Notice */}
       <div className="p-4 rounded-xl glass-subtle">
         <div className="flex items-start gap-3">
-          <Shield size={16} className="mt-0.5 flex-shrink-0" style={{ color: '#c0b7c9' }} />
+          <Shield size={16} className="mt-0.5 flex-shrink-0 text-[#C0B7C9]" />
           <div>
             <p className="text-sm font-bold font-jakarta text-text-primary mb-1">Your Privacy Matters</p>
             <p className="text-xs text-text-secondary font-jakarta">

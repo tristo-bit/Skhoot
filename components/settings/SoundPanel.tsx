@@ -1,15 +1,32 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, VolumeX, Volume2, AlertCircle, Terminal, CheckCircle } from 'lucide-react';
+import { Mic, VolumeX, Volume2, AlertCircle, Terminal, CheckCircle, Volume } from 'lucide-react';
 import { audioService, AudioDevice } from '../../services/audio/audioService';
 import { linuxAudioSetup, LinuxAudioStatus } from '../../services/audio/linuxAudioSetup';
 import { sttConfigStore, SttProvider } from '../../services/audio/sttConfig';
 import { sttService } from '../../services/audio/sttService';
-import { PanelHeader, SectionLabel } from './shared';
-import { Button, ToggleButton } from '../buttonFormat';
+import { BackButton } from '../buttonFormat';
+import SynthesisVisualizer from '../ui/SynthesisVisualizer';
 
 interface SoundPanelProps {
   onBack: () => void;
 }
+
+interface SectionLabelProps {
+  label: string;
+  description?: string;
+  icon?: React.ReactNode;
+  iconColor?: string;
+}
+
+const SectionLabel: React.FC<SectionLabelProps> = ({ label, description, icon, iconColor = 'text-[#C0B7C9]' }) => (
+  <div>
+    <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
+      {icon && <span className={iconColor}>{icon}</span>}
+      {label}
+    </label>
+    {description && <p className="text-xs text-text-secondary font-jakarta mt-1">{description}</p>}
+  </div>
+);
 
 export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
   // Audio settings state
@@ -162,6 +179,17 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
         manualSensitivity,
       });
       
+      // Get the audio stream first and store it in streamRef
+      const stream = await audioService.getInputStream();
+      if (!stream) {
+        setMicPermissionError('Could not access microphone');
+        setIsTesting(false);
+        return;
+      }
+      
+      // Store stream for SynthesisVisualizer
+      streamRef.current = stream;
+      
       // Use audioService's test function
       const testHandle = await audioService.testMicrophone(
         (level, waveform) => {
@@ -197,6 +225,7 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
     if (audioContextRef.current) {
       audioContextRef.current.close();
@@ -411,7 +440,12 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
 
   return (
     <div className="space-y-6">
-      <PanelHeader title="Sound Settings" onBack={onBack} />
+      {/* Header */}
+      <div className="flex items-center gap-3 pb-2 border-b border-glass-border">
+        <BackButton onClick={onBack} />
+        <Volume size={20} className="text-[#C0B7C9]" />
+        <h3 className="text-lg font-black font-jakarta text-text-primary">Sound Settings</h3>
+      </div>
 
       {/* Linux Audio Setup Banner */}
       {showLinuxFix && !linuxFixResult?.success && (
@@ -437,24 +471,23 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
               )}
               
               <div className="flex gap-2 flex-wrap">
-                <Button
+                <button
                   onClick={handleFixLinuxAudio}
-                  variant="primary"
-                  size="sm"
                   disabled={isFixingLinuxAudio}
+                  className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                 >
                   {isFixingLinuxAudio ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       Fixing...
                     </>
                   ) : (
                     <>
-                      <Terminal size={14} className="mr-2" />
+                      <Terminal size={14} />
                       Fix Audio Setup
                     </>
                   )}
-                </Button>
+                </button>
               </div>
               
               {linuxFixResult && !linuxFixResult.success && (
@@ -487,9 +520,9 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
 
       {/* Enable Microphone Button */}
       {showEnableButton && !showLinuxFix && (
-        <div className="p-6 rounded-xl glass-subtle border border-accent/30 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-accent/20 flex items-center justify-center">
-            <Mic size={32} className="text-accent" />
+        <div className="p-6 rounded-xl glass-subtle text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#C0B7C9]/20 flex items-center justify-center">
+            <Mic size={32} className="text-[#C0B7C9]" />
           </div>
           <h4 className="text-lg font-bold font-jakarta text-text-primary mb-2">
             Enable Microphone
@@ -497,15 +530,13 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
           <p className="text-sm text-text-secondary font-jakarta mb-4">
             Click the button below to allow Skhoot to access your microphone for voice features.
           </p>
-          <Button
+          <button
             onClick={handleRequestPermission}
-            variant="primary"
-            size="lg"
-            className="w-full"
+            className="w-full px-4 py-2 rounded-lg text-sm font-medium font-jakarta bg-[#C0B7C9] text-white hover:bg-[#B0A7B9] transition-all flex items-center justify-center gap-2"
           >
-            <Mic size={18} className="mr-2" />
+            <Mic size={18} />
             Enable Microphone Access
-          </Button>
+          </button>
         </div>
       )}
 
@@ -522,24 +553,22 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
                 {micPermissionError}
               </p>
               <div className="flex gap-2">
-                <Button
+                <button
                   onClick={handleRequestPermission}
-                  variant="danger"
-                  size="sm"
                   disabled={isRequestingPermission}
+                  className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {isRequestingPermission ? 'Requesting...' : 'Try Again'}
-                </Button>
-                <Button
+                </button>
+                <button
                   onClick={() => {
                     audioService.resetPermission();
                     setMicPermissionError(null);
                   }}
-                  variant="ghost"
-                  size="sm"
+                  className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta text-text-secondary hover:bg-white/5 transition-all"
                 >
                   Dismiss
-                </Button>
+                </button>
               </div>
             </div>
           </div>
@@ -550,7 +579,7 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
       {isRequestingPermission && !micPermissionError && (
         <div className="p-4 rounded-xl glass-subtle">
           <div className="flex items-center gap-3">
-            <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-[#C0B7C9] border-t-transparent rounded-full animate-spin" />
             <p className="text-sm font-medium font-jakarta text-text-secondary">
               Requesting microphone access...
             </p>
@@ -560,43 +589,48 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
 
       {/* Speech-to-Text Provider */}
       <div className="space-y-3">
-        <SectionLabel label="Speech-to-Text Provider" />
-        <select
-          value={sttProvider}
-          onChange={(e) => {
-            const next = e.target.value as SttProvider;
-            setSttProvider(next);
-            sttConfigStore.set({ provider: next });
-            setSttTestStatus('idle');
-            setSttTestMessage('');
-          }}
-          className="select-themed w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e1e1e] text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
-        >
-          <option value="auto">Auto (preferred)</option>
-          <option value="web-speech">Web Speech API</option>
-          <option value="openai">OpenAI Whisper (cloud)</option>
-        </select>
-        <p className="text-xs text-text-secondary font-jakarta">
-          Choose how speech is transcribed. Auto uses Web Speech when available, then OpenAI cloud.
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={handleTestStt}
-            variant="secondary"
-            size="sm"
-            disabled={sttTestStatus === 'testing'}
+        <SectionLabel 
+          label="Speech-to-Text Provider"
+          icon={<Mic size={16} />}
+          iconColor="text-blue-500"
+        />
+        <div className="p-3 rounded-xl glass-subtle space-y-3">
+          <select
+            value={sttProvider}
+            onChange={(e) => {
+              const next = e.target.value as SttProvider;
+              setSttProvider(next);
+              sttConfigStore.set({ provider: next });
+              setSttTestStatus('idle');
+              setSttTestMessage('');
+            }}
+            className="w-full px-3 py-2 bg-transparent text-sm font-medium font-jakarta text-text-primary rounded-lg glass-subtle focus:outline-none focus:ring-2 focus:ring-[#C0B7C9]"
           >
-            {sttTestStatus === 'testing' ? 'Testing…' : 'Test STT'}
-          </Button>
-          {sttTestMessage && (
-            <span
-              className={`text-xs font-jakarta ${
-                sttTestStatus === 'success' ? 'text-green-600' : 'text-red-600'
-              }`}
+            <option value="auto">Auto (preferred)</option>
+            <option value="web-speech">Web Speech API</option>
+            <option value="openai">OpenAI Whisper (cloud)</option>
+          </select>
+          <p className="text-xs text-text-secondary font-jakarta">
+            Choose how speech is transcribed. Auto uses Web Speech when available, then OpenAI cloud.
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleTestStt}
+              disabled={sttTestStatus === 'testing'}
+              className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta bg-[#C0B7C9] text-white hover:bg-[#B0A7B9] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              {sttTestMessage}
-            </span>
-          )}
+              {sttTestStatus === 'testing' ? 'Testing…' : 'Test STT'}
+            </button>
+            {sttTestMessage && (
+              <span
+                className={`text-xs font-jakarta ${
+                  sttTestStatus === 'success' ? 'text-emerald-600' : 'text-red-600'
+                }`}
+              >
+                {sttTestMessage}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -605,174 +639,191 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
         <>
           {/* Input Device */}
           <div className="space-y-3">
-            <SectionLabel label="Input Device" />
-            {inputDevices.length === 0 ? (
-              <p className="text-sm text-text-secondary font-jakarta">
-                No microphones found. Please connect a microphone.
-              </p>
-            ) : (
-              <select
-                value={selectedInputDevice}
-                onChange={(e) => handleInputDeviceChange(e.target.value)}
-                className="select-themed w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e1e1e] text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
-              >
-                {inputDevices.map(device => (
-                  <option key={device.deviceId} value={device.deviceId}>
-                    {device.label}{device.isDefault ? ' (Default)' : ''}
-                  </option>
-                ))}
-              </select>
-            )}
+            <SectionLabel 
+              label="Input Device"
+              icon={<Mic size={16} />}
+              iconColor="text-emerald-500"
+            />
+            <div className="p-3 rounded-xl glass-subtle">
+              {inputDevices.length === 0 ? (
+                <p className="text-sm text-text-secondary font-jakarta">
+                  No microphones found. Please connect a microphone.
+                </p>
+              ) : (
+                <select
+                  value={selectedInputDevice}
+                  onChange={(e) => handleInputDeviceChange(e.target.value)}
+                  className="w-full px-3 py-2 bg-transparent text-sm font-medium font-jakarta text-text-primary rounded-lg glass-subtle focus:outline-none focus:ring-2 focus:ring-[#C0B7C9]"
+                >
+                  {inputDevices.map(device => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label}{device.isDefault ? ' (Default)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
 
           {/* Output Device */}
           <div className="space-y-3">
-            <SectionLabel label="Output Device" />
-            {outputDevices.length === 0 ? (
-              <p className="text-sm text-text-secondary font-jakarta">
-                No output devices found.
-              </p>
-            ) : (
-              <select
-                value={selectedOutputDevice}
-                onChange={(e) => handleOutputDeviceChange(e.target.value)}
-                className="select-themed w-full p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1e1e1e] text-sm font-medium font-jakarta text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent"
-              >
-                {outputDevices.map(device => (
-                  <option key={device.deviceId} value={device.deviceId}>
-                    {device.label}{device.isDefault ? ' (Default)' : ''}
-                  </option>
-                ))}
-              </select>
-            )}
+            <SectionLabel 
+              label="Output Device"
+              icon={<Volume2 size={16} />}
+              iconColor="text-cyan-500"
+            />
+            <div className="p-3 rounded-xl glass-subtle">
+              {outputDevices.length === 0 ? (
+                <p className="text-sm text-text-secondary font-jakarta">
+                  No output devices found.
+                </p>
+              ) : (
+                <select
+                  value={selectedOutputDevice}
+                  onChange={(e) => handleOutputDeviceChange(e.target.value)}
+                  className="w-full px-3 py-2 bg-transparent text-sm font-medium font-jakarta text-text-primary rounded-lg glass-subtle focus:outline-none focus:ring-2 focus:ring-[#C0B7C9]"
+                >
+                  {outputDevices.map(device => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label}{device.isDefault ? ' (Default)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
 
           {/* Input Volume */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <SectionLabel label="Input Volume" />
-              <span className="text-sm font-medium text-text-secondary">{inputVolume}%</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <VolumeX size={16} className="text-text-secondary" />
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={inputVolume}
-                onChange={(e) => setInputVolume(Number(e.target.value))}
-                className="flex-1 h-2 bg-glass-border rounded-lg appearance-none cursor-pointer slider-accent"
-              />
-              <Volume2 size={16} className="text-text-secondary" />
+            <SectionLabel 
+              label="Input Volume"
+              icon={<VolumeX size={16} />}
+              iconColor="text-amber-500"
+            />
+            <div className="p-3 rounded-xl glass-subtle space-y-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium font-jakarta text-text-primary">Microphone Level</span>
+                <span className="text-sm font-bold font-jakarta text-[#C0B7C9]">{inputVolume}%</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <VolumeX size={16} className="text-text-secondary" />
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={inputVolume}
+                  onChange={(e) => setInputVolume(Number(e.target.value))}
+                  className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                />
+                <Volume2 size={16} className="text-text-secondary" />
+              </div>
             </div>
           </div>
 
           {/* Output Volume */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <SectionLabel label="Output Volume" />
-              <span className="text-sm font-medium text-text-secondary">{outputVolume}%</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <VolumeX size={16} className="text-text-secondary" />
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={outputVolume}
-                onChange={(e) => setOutputVolume(Number(e.target.value))}
-                className="flex-1 h-2 bg-glass-border rounded-lg appearance-none cursor-pointer slider-accent"
-              />
-              <Volume2 size={16} className="text-text-secondary" />
+            <SectionLabel 
+              label="Output Volume"
+              icon={<Volume2 size={16} />}
+              iconColor="text-purple-500"
+            />
+            <div className="p-3 rounded-xl glass-subtle space-y-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium font-jakarta text-text-primary">Speaker Level</span>
+                <span className="text-sm font-bold font-jakarta text-[#C0B7C9]">{outputVolume}%</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <VolumeX size={16} className="text-text-secondary" />
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={outputVolume}
+                  onChange={(e) => setOutputVolume(Number(e.target.value))}
+                  className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                />
+                <Volume2 size={16} className="text-text-secondary" />
+              </div>
             </div>
           </div>
 
           {/* Microphone Test */}
           <div className="space-y-3">
             <SectionLabel 
-              label="Microphone Test" 
+              label="Microphone Test"
               description="Mic acting up? Give it a hoot and say something silly... We'll echo it right back!"
             />
-            <div className="flex items-center gap-4">
-              <Button
+            <div className="p-3 rounded-xl glass-subtle space-y-3">
+              <button
                 onClick={handleMicTest}
-                variant={isTesting ? "danger" : "primary"}
-                size="md"
+                className={`w-full px-4 py-2 rounded-lg text-sm font-medium font-jakarta transition-all ${
+                  isTesting 
+                    ? 'bg-red-500 text-white hover:bg-red-600' 
+                    : 'bg-[#C0B7C9] text-white hover:bg-[#B0A7B9]'
+                }`}
               >
                 {isTesting ? 'Stop Test' : 'Let\'s Hoot!'}
-              </Button>
+              </button>
               
-              {/* Audio Level Visualization - Soundwave */}
-              <div className="flex-1 flex items-center justify-center gap-0.5 h-8 glass-subtle rounded-lg p-1">
-                {waveformData.map((sample, i) => {
-                  if (!isTesting) {
-                    return (
-                      <div
-                        key={i}
-                        className="w-1 rounded-full bg-glass-border"
-                        style={{ height: '4px' }}
-                      />
-                    );
-                  }
-                  
-                  const amplitude = Math.abs(sample);
-                  const baseHeight = 8;
-                  const maxHeight = 28;
-                  const height = baseHeight + (amplitude * maxHeight);
-                  
-                  return (
-                    <div
-                      key={i}
-                      className="w-1 rounded-full transition-all duration-100"
-                      style={{
-                        height: `${Math.max(baseHeight, Math.min(height, maxHeight + baseHeight))}px`,
-                        backgroundColor: amplitude > 0.1 
-                          ? `hsl(${280 - amplitude * 100}, 70%, 50%)` 
-                          : 'var(--accent)'
-                      }}
-                    />
-                  );
-                })}
-              </div>
+              {/* Audio Level Visualization - SynthesisVisualizer */}
+              {isTesting && (
+                <div className="h-24 glass-subtle rounded-lg overflow-hidden">
+                  <SynthesisVisualizer 
+                    audioStream={streamRef.current}
+                    lineColor="#C0B7C9"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
           {/* Voice Sensitivity */}
           <div className="space-y-3">
-            <SectionLabel label="Voice Sensitivity" />
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-text-secondary">Auto Detection</span>
-              <ToggleButton
-                isToggled={autoSensitivity}
-                onToggle={(toggled) => {
-                  setAutoSensitivity(toggled);
-                  console.log(`🎛️ Sensitivity mode changed to: ${toggled ? 'AUTO (3x)' : 'MANUAL'}`);
-                }}
-                toggledText="Auto"
-                untoggledText="Manual"
-              />
-            </div>
-            
-            {!autoSensitivity && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-text-secondary">Manual Sensitivity</span>
-                  <span className="text-sm font-medium text-text-secondary">{manualSensitivity}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={manualSensitivity}
-                  onChange={(e) => {
-                    const newValue = Number(e.target.value);
-                    setManualSensitivity(newValue);
-                    console.log(`🎛️ Manual sensitivity changed to: ${newValue}% (${(newValue / 25).toFixed(1)}x multiplier)`);
+            <SectionLabel 
+              label="Voice Sensitivity"
+              icon={<Mic size={16} />}
+              iconColor="text-[#C0B7C9]"
+            />
+            <div className="p-3 rounded-xl glass-subtle space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium font-jakarta text-text-primary">Auto Detection</span>
+                <button
+                  onClick={() => {
+                    const newValue = !autoSensitivity;
+                    setAutoSensitivity(newValue);
+                    console.log(`🎛️ Sensitivity mode changed to: ${newValue ? 'AUTO (3x)' : 'MANUAL'}`);
                   }}
-                  className="w-full h-2 bg-glass-border rounded-lg appearance-none cursor-pointer slider-accent"
-                />
+                  className={`w-12 h-6 rounded-full transition-all ${
+                    autoSensitivity ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                    autoSensitivity ? 'translate-x-6' : 'translate-x-0.5'
+                  }`} />
+                </button>
               </div>
-            )}
+              
+              {!autoSensitivity && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium font-jakarta text-text-primary">Manual Sensitivity</span>
+                    <span className="text-sm font-bold font-jakarta text-[#C0B7C9]">{manualSensitivity}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={manualSensitivity}
+                    onChange={(e) => {
+                      const newValue = Number(e.target.value);
+                      setManualSensitivity(newValue);
+                      console.log(`🎛️ Manual sensitivity changed to: ${newValue}% (${(newValue / 25).toFixed(1)}x multiplier)`);
+                    }}
+                    className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}

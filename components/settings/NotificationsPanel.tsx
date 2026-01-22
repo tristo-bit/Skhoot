@@ -13,7 +13,7 @@ interface SectionLabelProps {
   iconColor?: string;
 }
 
-const SectionLabel: React.FC<SectionLabelProps> = ({ label, icon, iconColor = 'text-purple-500' }) => (
+const SectionLabel: React.FC<SectionLabelProps> = ({ label, icon, iconColor = 'text-[#C0B7C9]' }) => (
   <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
     {icon && <span className={iconColor}>{icon}</span>}
     {label}
@@ -74,7 +74,7 @@ const SliderRow: React.FC<SliderRowProps> = ({
   <div className="p-3 rounded-xl glass-subtle space-y-2">
     <div className="flex items-center justify-between">
       <p className="text-sm font-medium font-jakarta text-text-primary">{label}</p>
-      <span className="text-sm font-bold font-jakarta text-purple-500">
+      <span className="text-sm font-bold font-jakarta text-[#C0B7C9]">
         {value}{unit}
       </span>
     </div>
@@ -118,7 +118,7 @@ const SelectRow: React.FC<SelectRowProps> = ({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="ml-3 px-3 py-1.5 text-sm font-medium font-jakarta bg-transparent text-text-primary rounded-lg glass-subtle focus:outline-none focus:ring-2 focus:ring-purple-500"
+        className="ml-3 px-3 py-1.5 text-sm font-medium font-jakarta bg-transparent text-text-primary rounded-lg glass-subtle focus:outline-none focus:ring-2 focus:ring-[#C0B7C9]"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -156,7 +156,7 @@ const TimeInputRow: React.FC<TimeInputRowProps> = ({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="ml-3 px-3 py-1.5 text-sm font-medium font-jakarta bg-transparent text-text-primary rounded-lg glass-subtle focus:outline-none focus:ring-2 focus:ring-purple-500"
+        className="ml-3 px-3 py-1.5 text-sm font-medium font-jakarta bg-transparent text-text-primary rounded-lg glass-subtle focus:outline-none focus:ring-2 focus:ring-[#C0B7C9]"
       />
     </div>
   </div>
@@ -226,7 +226,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
       {/* Header */}
       <div className="flex items-center gap-3 pb-2 border-b border-glass-border">
         <BackButton onClick={onBack} />
-        <Bell size={20} className="text-purple-500" />
+        <Bell size={20} className="text-[#C0B7C9]" />
         <h3 className="text-lg font-black font-jakarta text-text-primary">Notifications</h3>
       </div>
 
@@ -235,7 +235,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
         <SectionLabel 
           label="General Settings" 
           icon={<Bell size={16} />}
-          iconColor="text-purple-500"
+          iconColor="text-[#C0B7C9]"
         />
         
         <SettingRow
@@ -462,7 +462,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
         <SectionLabel 
           label="Priority Settings"
           icon={<SettingsIcon size={16} />}
-          iconColor="text-purple-500"
+          iconColor="text-[#C0B7C9]"
         />
         
         <SelectRow
@@ -626,7 +626,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
                   alert(`Reinitialize failed: ${error}`);
                 }
               }}
-              className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta text-purple-600 hover:bg-purple-500/10 transition-all"
+              className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta text-[#C0B7C9] hover:bg-[#C0B7C9]/10 transition-all"
             >
               Reinitialize
             </button>

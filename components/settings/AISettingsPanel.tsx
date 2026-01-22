@@ -264,7 +264,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
       {/* Header */}
       <div className="flex items-center gap-3 pb-2 border-b border-glass-border">
         <BackButton onClick={onBack} />
-        <Bot size={20} className="text-purple-500" />
+        <Bot size={20} className="text-[#C0B7C9]" />
         <h3 className="text-lg font-black font-jakarta text-text-primary">AI Settings</h3>
       </div>
 
@@ -320,7 +320,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
           <button
             onClick={() => handleToggleAdvancedMode(!advancedMode)}
             className={`w-12 h-6 rounded-full transition-all ${
-              advancedMode ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'
+              advancedMode ? 'bg-[#C0B7C9]' : 'bg-gray-300 dark:bg-gray-600'
             }`}
           >
             <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
@@ -333,7 +333,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
       {/* User Instructions */}
       <div className="space-y-3">
         <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
-          <Edit3 size={16} className="text-purple-500" />
+          <Edit3 size={16} className="text-[#C0B7C9]" />
           User Instructions
         </label>
 
@@ -346,7 +346,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
               value={userInstructions}
               onChange={(e) => handleUserInstructionsChange(e.target.value)}
               placeholder="Example: You are a helpful coding assistant. Always provide clear explanations for your code. When suggesting solutions, prioritize security and best practices..."
-              className="w-full bg-transparent text-sm text-text-primary font-jakarta outline-none resize-none min-h-[150px] placeholder:text-text-secondary/50 border-b border-glass-border focus:border-purple-500 transition-all"
+              className="w-full bg-transparent text-sm text-text-primary font-jakarta outline-none resize-none min-h-[150px] placeholder:text-text-secondary/50 border-b border-glass-border focus:border-[#C0B7C9] transition-all"
               rows={5}
             />
           </div>
@@ -369,7 +369,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
       {/* Memory Settings */}
       <div className="space-y-3">
         <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
-          <Activity size={16} className="text-purple-500" />
+          <Activity size={16} className="text-[#C0B7C9]" />
           Memory Settings
         </label>
 
@@ -422,7 +422,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
                     onClick={() => handleMemoryImportanceChange(level)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium font-jakarta capitalize transition-colors ${
                       memoryImportance === level
-                        ? 'bg-purple-500 text-white'
+                        ? 'bg-[#C0B7C9] text-white'
                         : 'bg-white/10 text-text-secondary hover:bg-white/20'
                     }`}
                   >
@@ -493,7 +493,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
               <button
                 onClick={() => handleToggleSourceHyperlinks(!hyperlinkSettings.sourceHyperlinks)}
                 className={`w-12 h-6 rounded-full transition-all ${
-                  hyperlinkSettings.sourceHyperlinks ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'
+                  hyperlinkSettings.sourceHyperlinks ? 'bg-[#C0B7C9]' : 'bg-gray-300 dark:bg-gray-600'
                 }`}
               >
                 <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
@@ -533,7 +533,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
               onClick={() => setSelectedProvider(provider.id)}
               className={`p-3 rounded-xl text-sm font-medium font-jakarta transition-all ${
                 selectedProvider === provider.id
-                  ? 'glass text-text-primary ring-2 ring-purple-500'
+                  ? 'glass text-text-primary ring-2 ring-[#C0B7C9]'
                   : 'glass-subtle text-text-secondary hover:glass'
               }`}
             >
@@ -555,7 +555,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
               }
               if (isApiKeySaved) setIsApiKeySaved(false);
             }}
-            className="w-full p-3 pr-12 rounded-xl glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full p-3 pr-12 rounded-xl glass-subtle text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-[#C0B7C9]"
             placeholder={`Enter ${PROVIDERS.find(p => p.id === selectedProvider)?.name} API key`}
           />
           <IconButton
@@ -584,7 +584,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
                   console.error('Failed to save model:', error);
                 }
               }}
-              className="w-full p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-[#C0B7C9]"
             >
               {availableModels.map((model) => (
                 <option key={model} value={model}>{model}</option>
@@ -605,10 +605,10 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
                 <span className="px-2 py-1 text-xs rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400">👁️ Vision</span>
               )}
               {modelCapabilities.ocr && (
-                <span className="px-2 py-1 text-xs rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-400">📄 OCR</span>
+                <span className="px-2 py-1 text-xs rounded-lg bg-[#C0B7C9]/20 text-[#C0B7C9]">📄 OCR</span>
               )}
               {modelCapabilities.streaming && (
-                <span className="px-2 py-1 text-xs rounded-lg bg-purple-500/20 text-purple-600 dark:text-purple-400">⚡ Stream</span>
+                <span className="px-2 py-1 text-xs rounded-lg bg-[#C0B7C9]/20 text-[#C0B7C9]">⚡ Stream</span>
               )}
               <span className="px-2 py-1 text-xs rounded-lg bg-gray-500/20 text-text-secondary">
                 📝 {modelCapabilities.contextWindow >= 1000000 
@@ -653,7 +653,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
         <div className="p-3 rounded-xl glass-subtle space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium font-jakarta text-text-primary">Temperature</p>
-            <span className="text-sm font-bold font-jakarta text-purple-500">{temperature.toFixed(2)}</span>
+            <span className="text-sm font-bold font-jakarta text-[#C0B7C9]">{temperature.toFixed(2)}</span>
           </div>
           <input
             type="range"
@@ -673,7 +673,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
         <div className="p-3 rounded-xl glass-subtle space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium font-jakarta text-text-primary">Max Output Tokens</p>
-            <span className="text-sm font-bold font-jakarta text-purple-500">{maxTokens.toLocaleString()}</span>
+            <span className="text-sm font-bold font-jakarta text-[#C0B7C9]">{maxTokens.toLocaleString()}</span>
           </div>
           <input
             type="range"
@@ -744,9 +744,9 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
                 {formatTokenDisplay(tokenUsage.inputTokens)}
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-purple-500/10">
+            <div className="p-3 rounded-lg bg-[#C0B7C9]/10">
               <p className="text-xs text-text-secondary font-jakarta">Output Tokens</p>
-              <p className="text-lg font-bold font-jakarta text-purple-500">
+              <p className="text-lg font-bold font-jakarta text-[#C0B7C9]">
                 {formatTokenDisplay(tokenUsage.outputTokens)}
               </p>
             </div>

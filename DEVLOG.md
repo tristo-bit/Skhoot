@@ -15486,3 +15486,384 @@ Removed the duplicate old section that used the undefined `Button` component, ke
 2. Panel loads successfully (no crash)
 3. All toggles, sliders, and buttons functional
 4. Test notification buttons work as expected
+
+
+### Settings UI - Privacy Panel Style Harmonization 🔒
+- **Status**: ✅ COMPLETE
+- **Components**: `components/settings/PrivacyPanel.tsx`
+- **Change**: Applied glassmorphic design system to Privacy & Security panel
+- **Impact**: Consistent styling across all settings panels
+
+**Changes Applied**:
+
+1. **Header Styling**:
+   - Replaced PanelHeader with inline header matching AISettings
+   - Added BackButton, Shield icon (purple-500), and font-black title
+   - Border-bottom with border-glass-border
+
+2. **Section Labels**:
+   - Removed verbose descriptions from labels
+   - Added colored icons (16px):
+     - Blue (Mail): Update Email
+     - Amber (Lock): Change Password
+     - Cyan (Download): Download Data
+     - Purple (Shield): Privacy Notice
+   - Compact label style with icon + text
+
+3. **Input Fields**:
+   - Replaced bordered inputs with glassmorphic style
+   - Transparent background with border-bottom
+   - Purple-500 focus border (no ring)
+   - Placeholder text in text-secondary/50
+   - All inputs wrapped in glass-subtle containers
+
+4. **Buttons**:
+   - Removed Button and SubmitButton components
+   - Native buttons with glassmorphic styling
+   - Color-coded by action:
+     - Purple: Update Email, Change Password
+     - Cyan: Download Data
+   - Proper disabled states with opacity-50
+
+5. **Error/Success Messages**:
+   - Replaced bordered divs with subtle backgrounds
+   - Red-500/10 for errors, Emerald-500/10 for success
+   - Smaller text (text-xs) for compact display
+   - Integrated within glass-subtle containers
+
+6. **Privacy Notice**:
+   - Shield icon now uses text-purple-500 (was inline style)
+   - Maintains glass-subtle background
+   - Consistent typography
+
+**Colors Used (Existing Palette)**:
+- **Purple (#8B5CF6)**: Primary actions, header icon, focus states
+- **Blue (#3B82F6)**: Email section
+- **Amber (#F59E0B)**: Password section
+- **Cyan (#06B6D4)**: Data download
+- **Red (#EF4444)**: Error states
+- **Emerald (#10B981)**: Success states
+
+**Layout Improvements**:
+- All sections wrapped in glass-subtle cards
+- Consistent p-3 padding
+- Error/success messages integrated within cards
+- Better visual hierarchy with colored section icons
+- Compact spacing with space-y-3
+
+**Benefits**:
+- ✅ Matches AISettings and Notifications panel styling
+- ✅ Professional glassmorphic design
+- ✅ Better visual hierarchy with colored icons
+- ✅ Cleaner, more compact layout
+- ✅ All functionality preserved
+- ✅ No dependencies on Button/SubmitButton components
+- ✅ Theme-aware (light/dark mode support)
+
+**Testing**:
+1. Open Settings → Privacy & Security
+2. Verify header matches other panels
+3. Test email update with validation
+4. Test password change with all validations
+5. Test data download functionality
+6. Check error/success message styling
+7. Verify all inputs have purple focus borders
+
+
+### Settings UI - Brand Color Unification 🎨
+- **Status**: ✅ COMPLETE
+- **Components**: `AISettingsPanel.tsx`, `NotificationsPanel.tsx`, `PrivacyPanel.tsx`
+- **Change**: Replaced purple-500 with fuku-brand color across all settings panels
+- **Impact**: Consistent brand identity with softer, more refined color palette
+
+**Color Transition**:
+- **Old**: `purple-500` (#A855F7) - Bright violet
+- **New**: `fuku-brand` (#C0B7C9) - Soft lavender/violet (brand color)
+
+**Rationale**:
+The bright purple-500 (#A855F7) was too vibrant and didn't align with the brand's softer aesthetic. Switching to fuku-brand (#C0B7C9) creates a more cohesive, professional look that matches the glassmorphic design system.
+
+**Changes Applied**:
+
+**1. AISettingsPanel.tsx (14 replacements)**:
+- Header Bot icon: `text-purple-500` → `text-[#C0B7C9]`
+- User Instructions icon: `text-purple-500` → `text-[#C0B7C9]`
+- Memory Settings icon: `text-purple-500` → `text-[#C0B7C9]`
+- Textarea focus border: `focus:border-purple-500` → `focus:border-[#C0B7C9]`
+- Advanced Mode toggle: `bg-purple-500` → `bg-[#C0B7C9]`
+- Source Hyperlinks toggle: `bg-purple-500` → `bg-[#C0B7C9]`
+- Memory importance buttons: `bg-purple-500` → `bg-[#C0B7C9]`
+- Provider selection ring: `ring-purple-500` → `ring-[#C0B7C9]`
+- API key input focus: `focus:ring-purple-500` → `focus:ring-[#C0B7C9]`
+- Model select focus: `focus:ring-purple-500` → `focus:ring-[#C0B7C9]`
+- OCR/Stream badges: `bg-purple-500/20 text-purple-600` → `bg-[#C0B7C9]/20 text-[#C0B7C9]`
+- Temperature value: `text-purple-500` → `text-[#C0B7C9]`
+- Max Tokens value: `text-purple-500` → `text-[#C0B7C9]`
+- Output Tokens: `bg-purple-500/10 text-purple-500` → `bg-[#C0B7C9]/10 text-[#C0B7C9]`
+
+**2. NotificationsPanel.tsx (7 replacements)**:
+- Header Bell icon: `text-purple-500` → `text-[#C0B7C9]`
+- Section label default color: `text-purple-500` → `text-[#C0B7C9]`
+- General Settings icon: `text-purple-500` → `text-[#C0B7C9]`
+- Priority Settings icon: `text-purple-500` → `text-[#C0B7C9]`
+- Slider values: `text-purple-500` → `text-[#C0B7C9]`
+- Select focus rings: `focus:ring-purple-500` → `focus:ring-[#C0B7C9]`
+- Time input focus rings: `focus:ring-purple-500` → `focus:ring-[#C0B7C9]`
+- Reinitialize button: `text-purple-600 hover:bg-purple-500/10` → `text-[#C0B7C9] hover:bg-[#C0B7C9]/10`
+
+**3. PrivacyPanel.tsx (6 replacements)**:
+- Header Shield icon: `text-purple-500` → `text-[#C0B7C9]`
+- Section label default color: `text-purple-500` → `text-[#C0B7C9]`
+- Privacy Notice icon: `text-purple-500` → `text-[#C0B7C9]`
+- Email input focus: `focus:border-purple-500` → `focus:border-[#C0B7C9]`
+- Password inputs focus (3x): `focus:border-purple-500` → `focus:border-[#C0B7C9]`
+- Update button: `bg-purple-500 hover:bg-purple-600` → `bg-[#C0B7C9] hover:bg-[#B0A7B9]`
+- Change Password button: `bg-purple-500 hover:bg-purple-600` → `bg-[#C0B7C9] hover:bg-[#B0A7B9]`
+
+**Visual Impact**:
+- Softer, more elegant appearance
+- Better alignment with brand identity
+- Reduced visual fatigue from bright colors
+- More professional, refined aesthetic
+- Maintains excellent contrast and accessibility
+- Consistent across all settings panels
+
+**Hover States**:
+Added darker hover state for buttons: `hover:bg-[#B0A7B9]` (10% darker than base)
+
+**Benefits**:
+- ✅ Unified brand color across all settings
+- ✅ Softer, more refined visual aesthetic
+- ✅ Better alignment with glassmorphic design
+- ✅ Professional appearance
+- ✅ Consistent user experience
+- ✅ All functionality preserved
+- ✅ Accessibility maintained (sufficient contrast)
+
+**Testing**:
+1. Open Settings → AI Settings
+2. Verify all purple elements now use fuku-brand color
+3. Check focus states on inputs (should be lavender)
+4. Test toggles and buttons (should be lavender when active)
+5. Repeat for Notifications and Privacy panels
+6. Verify hover states work correctly
+
+
+### Settings UI - Sound Panel Style Harmonization 🔊
+- **Status**: ✅ COMPLETE
+- **Components**: `components/settings/SoundPanel.tsx`
+- **Change**: Applied glassmorphic design system with fuku-brand color
+- **Impact**: Consistent styling across all settings panels
+
+**Changes Applied**:
+
+1. **Header Styling**:
+   - Replaced PanelHeader with inline header
+   - Added BackButton and Volume icon (#C0B7C9)
+   - Title in font-black font-jakarta
+   - Border-bottom with border-glass-border
+
+2. **Section Labels**:
+   - Created local SectionLabel component with icon support
+   - Added colored icons (16px) for each section:
+     - Blue (Mic): Speech-to-Text Provider
+     - Emerald (Mic): Input Device
+     - Cyan (Volume2): Output Device
+     - Amber (VolumeX): Input Volume
+     - Purple (Volume2): Output Volume
+     - Fuku-brand (Mic): Voice Sensitivity
+   - Compact label style with optional description
+
+3. **Device Selects**:
+   - Wrapped in glass-subtle containers
+   - Transparent background with glassmorphic styling
+   - Focus ring-[#C0B7C9] (2px)
+   - Removed border styling for cleaner look
+
+4. **Volume Sliders**:
+   - Wrapped in glass-subtle cards with p-3 padding
+   - Value display in #C0B7C9 bold
+   - Labels with section icons
+   - Slider background: gray-200/700
+   - Removed slider-accent class
+
+5. **Buttons**:
+   - Removed Button component dependency
+   - Native buttons with glassmorphic styling:
+     - Primary actions: bg-[#C0B7C9] hover:bg-[#B0A7B9]
+     - Danger actions: bg-red-500 hover:bg-red-600
+     - Linux fix: bg-amber-500 hover:bg-amber-600
+   - Proper disabled states with opacity-50
+
+6. **Toggle Switch**:
+   - Removed ToggleButton component
+   - Inline glassmorphic toggle for Auto Sensitivity
+   - Emerald-500 for active state
+   - Gray-300/600 for inactive state
+
+7. **Microphone Test**:
+   - Wrapped in glass-subtle card
+   - Button full-width with conditional styling
+   - Waveform uses #C0B7C9 as base color (was var(--accent))
+   - Improved layout with vertical stacking
+
+8. **STT Provider Section**:
+   - Wrapped in glass-subtle card
+   - Select with focus ring-[#C0B7C9]
+   - Test button with #C0B7C9 styling
+   - Success/error messages with emerald/red colors
+
+9. **Enable Microphone Card**:
+   - Icon background: bg-[#C0B7C9]/20
+   - Icon color: text-[#C0B7C9]
+   - Button: bg-[#C0B7C9] with hover state
+   - Removed border-accent styling
+
+10. **Loading Spinner**:
+    - Border color: border-[#C0B7C9]
+    - Consistent with brand color
+
+**Removed Dependencies**:
+- `PanelHeader` from './shared'
+- `SectionLabel` from './shared'
+- `Button` from '../buttonFormat'
+- `ToggleButton` from '../buttonFormat'
+
+**Added Imports**:
+- `Volume` from 'lucide-react' (for header icon)
+- `BackButton` from '../buttonFormat'
+
+**Color Scheme**:
+- Primary accent: #C0B7C9 (fuku-brand)
+- Hover state: #B0A7B9 (10% darker)
+- Section icons: blue, emerald, cyan, amber, purple
+- Success: emerald-600
+- Error: red-600
+- Warning: amber-500
+
+**Layout Improvements**:
+- All sections wrapped in glass-subtle cards
+- Consistent p-3 padding
+- Better visual hierarchy with colored icons
+- Vertical stacking for better mobile support
+- Improved spacing with space-y-3
+
+**Benefits**:
+- ✅ Matches other settings panels styling
+- ✅ Professional glassmorphic design
+- ✅ Better visual hierarchy with colored icons
+- ✅ Cleaner, more compact layout
+- ✅ All functionality preserved
+- ✅ No external component dependencies
+- ✅ Theme-aware (light/dark mode support)
+- ✅ Consistent brand color usage
+
+**Testing**:
+1. Open Settings → Sound
+2. Verify header matches other panels
+3. Test device selection (input/output)
+4. Test volume sliders (input/output)
+5. Test microphone test with waveform
+6. Test STT provider selection and test
+7. Test auto sensitivity toggle
+8. Verify all focus states use fuku-brand color
+9. Check Linux audio fix button (if applicable)
+10. Test enable microphone flow
+
+
+---
+
+## January 22, 2026
+
+### Sound Panel - SynthesisVisualizer Integration 🎵
+- **Status**: ✅ **COMPLETED**
+- **Components**: `components/settings/SoundPanel.tsx`
+- **Change**: Replaced manual waveform rendering with SynthesisVisualizer component
+- **Impact**: Consistent audio visualization across the app with enhanced visual quality
+
+**Problem Solved**:
+The microphone test section used a manual waveform implementation with basic bar visualization:
+- ❌ Simple bar-based waveform (40 bars with height animation)
+- ❌ Different visual style from voice recording in chat
+- ❌ Less sophisticated audio representation
+- ❌ Inconsistent user experience across features
+
+**Solution - SynthesisVisualizer Integration**:
+Replaced the manual waveform with the existing SynthesisVisualizer component:
+1. ✅ Imported SynthesisVisualizer from `components/ui/SynthesisVisualizer.tsx`
+2. ✅ Passed the audio stream directly (`streamRef.current`) when testing
+3. ✅ Applied fuku-brand color (#C0B7C9) for consistency
+4. ✅ Increased height from 8px to 24px (h-24) for better visibility
+5. ✅ Maintained glass-subtle styling with rounded corners
+
+**Before**:
+```tsx
+<div className="flex items-center justify-center gap-0.5 h-8 glass-subtle rounded-lg p-1">
+  {waveformData.map((sample, i) => (
+    <div key={i} className="w-1 rounded-full" 
+         style={{ height: `${height}px`, backgroundColor: color }} />
+  ))}
+</div>
+```
+
+**After**:
+```tsx
+<div className="h-24 glass-subtle rounded-lg overflow-hidden">
+  <SynthesisVisualizer 
+    audioStream={isTesting ? streamRef.current : null}
+    lineColor="#C0B7C9"
+  />
+</div>
+```
+
+**Benefits**:
+- ✅ Multi-layered wave visualization with 9 lines
+- ✅ Voice-optimized frequency response and modulation
+- ✅ Dynamic glow effects and harmonics
+- ✅ Smooth volume-reactive animation
+- ✅ Consistent with voice recording visualization in PromptArea
+- ✅ Professional audio analysis representation
+- ✅ Better visual feedback for microphone testing
+
+**User Experience**:
+Users now see the same high-quality synthesis visualization when:
+- Testing microphone in Sound Settings
+- Recording voice messages in chat
+- Monitoring audio input levels
+
+**Technical Notes**:
+- SynthesisVisualizer uses useAudioAnalyzer hook for real-time audio analysis
+- Automatically handles stream cleanup and canvas rendering
+- Supports dark mode with adaptive colors
+- Optimized for 60fps animation with requestAnimationFrame
+
+**Update - Conditional Rendering & Stream Integration**:
+Fixed visualization to only appear during active microphone testing and properly react to voice:
+- ✅ Wrapped SynthesisVisualizer in `{isTesting && ...}` conditional
+- ✅ Visualizer only renders when "Let's Hoot!" button is clicked
+- ✅ Disappears when test is stopped
+- ✅ No empty container shown when not testing
+
+**Critical Fix - Audio Stream Connection**:
+The SynthesisVisualizer wasn't receiving the actual audio stream:
+- ❌ **Problem**: `streamRef.current` was never populated with the microphone stream
+- ❌ `audioService.testMicrophone()` created stream internally but didn't expose it
+- ❌ SynthesisVisualizer received `null` stream, so no voice reactivity
+
+**Solution**:
+```typescript
+// Get and store the audio stream before testing
+const stream = await audioService.getInputStream();
+streamRef.current = stream; // Store for SynthesisVisualizer
+
+// Then start the test with the same stream
+const testHandle = await audioService.testMicrophone(...);
+```
+
+**Now Working**:
+- ✅ Stream properly stored in `streamRef.current`
+- ✅ SynthesisVisualizer receives real microphone stream
+- ✅ Waves move and react to voice detection
+- ✅ Amplitude scales with voice intensity via `useAudioAnalyzer.getVolume()`
+- ✅ Stream properly cleaned up on stop (`streamRef.current = null`)
+- ✅ Same voice-reactive behavior as original waveform, but with sophisticated multi-layer visualization
