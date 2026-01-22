@@ -122,12 +122,7 @@ class MemoryService {
     const memoriesToSearch = [...this.memories];
 
     const scoredMemories = memoriesToSearch
-      .filter(m => {
-        // Cross-session search: don't filter by sessionId
-        // This allows finding memories from any past session
-        // If sessionId is provided, we'll still search everything
-        // The caller can decide whether to scope the search
-
+      .map(m => {
         // Calculate relevance score
         let localScore = 0;
         const contentLower = m.content.toLowerCase();
@@ -168,10 +163,10 @@ class MemoryService {
             localScore += 1;
           }
         });
-
-        return localScore > 0;
+        
+        return { ...m, _score: localScore };
       })
-      .map(m => ({ ...m, _score: localScore }))
+      .filter(m => m._score > 0)
       .sort((a: any, b: any) => {
         const scoreA = a._score;
         const scoreB = b._score;

@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import { isTauriApp, requireTauri } from './tauriDetection';
+import { isTauriApp, requireTauri } from '../tauriDetection';
 import { terminalHttpService } from './terminalHttpService';
 
 /**

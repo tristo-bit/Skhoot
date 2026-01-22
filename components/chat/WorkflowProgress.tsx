@@ -1,5 +1,5 @@
-import React, { memo, useEffect, useState } from 'react';
-import { Play, CheckCircle2, Circle, Loader2, AlertCircle, XCircle, RotateCcw } from 'lucide-react';
+import React, { memo, useState } from 'react';
+import { Play, CheckCircle2, Circle, Loader2, AlertCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Message } from '../../types';
 import { workflowService } from '../../services/workflowService';
 
@@ -9,6 +9,7 @@ interface WorkflowProgressProps {
 
 export const WorkflowProgress = memo<WorkflowProgressProps>(({ message }) => {
   const { workflowExecution } = message;
+  const [isExpanded, setIsExpanded] = useState(false);
   
   if (!workflowExecution) return null;
   
@@ -29,8 +30,15 @@ export const WorkflowProgress = memo<WorkflowProgressProps>(({ message }) => {
     workflowService.cancelExecution(executionId);
   };
 
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
   return (
-    <div className="w-full max-w-xl bg-[#1E1E2E]/80 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden shadow-lg mb-4">
+    <div 
+      className="w-full max-w-xl bg-[#1E1E2E]/80 backdrop-blur-sm rounded-xl border border-white/10 overflow-hidden shadow-lg mb-4 transition-all duration-300 hover:border-purple-500/30 cursor-pointer"
+      onClick={toggleExpand}
+    >
       {/* Header */}
       <div className="p-3 border-b border-white/5 flex items-center justify-between bg-black/20">
         <div className="flex items-center gap-2.5">
@@ -68,9 +76,9 @@ export const WorkflowProgress = memo<WorkflowProgressProps>(({ message }) => {
                </button>
              </div>
           )}
-          {isCancelled && (
-             <div className="text-xs text-gray-500 font-medium">Cancelled</div>
-          )}
+          <div className="text-gray-500">
+            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
         </div>
       </div>
 
@@ -126,6 +134,29 @@ export const WorkflowProgress = memo<WorkflowProgressProps>(({ message }) => {
           <p className="text-xs text-gray-500 italic">Initializing...</p>
         )}
       </div>
+
+      {/* Expanded Details */}
+      {isExpanded && (
+        <div className="px-3 pb-3 pt-0 animate-in slide-in-from-top-2 duration-200">
+          <div className="mt-2 pt-2 border-t border-white/5 space-y-2">
+            <p className="text-xs font-bold text-gray-400 uppercase">Workflow Details</p>
+            <div className="text-xs text-gray-300 space-y-1">
+              <div className="flex justify-between">
+                <span>Execution ID:</span>
+                <span className="font-mono text-gray-500">{executionId.split('-')[1] || executionId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total Steps:</span>
+                <span>{totalSteps}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Status:</span>
+                <span className={`capitalize ${isCompleted ? 'text-emerald-400' : isRunning ? 'text-purple-400' : 'text-gray-400'}`}>{status}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

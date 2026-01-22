@@ -70,6 +70,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [selectedToolCall, setSelectedToolCall] = useState<any | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [waitingForInput, setWaitingForInput] = useState<{ executionId: string; stepId: string; mode?: 'input' | 'confirmation' } | null>(null);
+  const isProcessingStep = useRef(false);
   
   // Refs
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -465,6 +466,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     step: WorkflowStep, 
     context: ExecutionContext
   ) => {
+    // Prevent overlapping step executions
+    if (isProcessingStep.current) {
+      console.warn('[ChatInterface] Already processing a step, queueing or ignoring...');
+      return; 
+    }
+    
+    isProcessingStep.current = true;
     console.log('[ChatInterface] Executing workflow step:', step.name);
     
     try {
@@ -476,16 +484,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         });
       }
 
-      // 2. Update progress UI (handled by event listeners), no text message needed here
-      
-      // Add the user prompt to the chat history so it's visible and part of context
+      // 2. Add user message FIRST and wait for UI to update
+      // We use a functional update to ensure we have the latest state
       setMessages(prev => [...prev, {
         id: `step-prompt-${Date.now()}-${step.id}`,
         role: 'user',
-        content: prompt, // The interpolated prompt
+        content: prompt, 
         type: 'text',
         timestamp: new Date()
       }]);
+
+      // Small delay to ensure the user message is rendered before we start processing
+      // This gives the visual cue that "User sent X" -> "AI is thinking"
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // 2.5 Check for Input Request (Interactive Step)
         if (step.inputRequest?.enabled) {
@@ -500,10 +511,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           
           setWaitingForInput({ executionId, stepId: step.id, mode: 'input' });
           setIsLoading(false); // Stop loading indicator while waiting for input
+          isProcessingStep.current = false; // Release lock
           return; // Stop execution loop (will resume via handleSend)
         }
 
       // 3. Execute prompt via AI
+      // We await this fully, ensuring strict sequential execution
       const { content: resultText, toolResults } = await handleWorkflowPromptExtended(prompt);
 
       // Display the output message for each step
@@ -516,8 +529,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }]);
 
       // 4. Determine decision result (if applicable)
-      // For now, simple boolean based on keywords if not explicit
-      // Ideally AI should return structured JSON with decision
+      // ... decision logic ...
       let decisionResult: boolean | undefined = undefined;
       if (step.decision) {
         // Check if output is JSON and has boolean fields
@@ -573,17 +585,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
          }
       }
 
-      const stepCompletion = await workflowService.executeStep(executionId, finalOutput, decisionResult, generatedFiles);
+      // This call will trigger 'workflow-step-next' if there is a next step
+      await workflowService.executeStep(executionId, finalOutput, decisionResult, generatedFiles);
       
-      // Stop local execution loop if workflow is completed (or loop finished)
-      // The event listener will handle the next step trigger
-      if (stepCompletion.completed) {
-         // No next step immediately available from this call
-      }
-
     } catch (error) {
       console.error('[ChatInterface] Step execution failed:', error);
-      // We could call workflowService.failExecution here
+      setMessages(prev => [...prev, {
+        id: `step-error-${Date.now()}`,
+        role: 'assistant',
+        content: `❌ Step failed: ${error instanceof Error ? error.message : String(error)}`,
+        type: 'text',
+        timestamp: new Date()
+      }]);
+      // Should likely fail execution here
+    } finally {
+      isProcessingStep.current = false;
     }
   }, [handleWorkflowPromptExtended]);
 

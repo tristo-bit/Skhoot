@@ -15,6 +15,23 @@ const BACKEND_URL = 'http://localhost:3001';
 // Types & Interfaces
 // ============================================================================
 
+import { AgentToolCall, ToolResult } from './agent/types';
+
+export interface AgentStatus {
+  state: 'ready' | 'pending' | 'error' | 'inactive';
+  provider: string;
+  model: string;
+  messageCount: number;
+}
+
+export interface AgentEventData {
+  sessionId: string;
+  message?: AgentMessage;
+  toolCall?: AgentToolCall;
+  toolResult?: ToolResult;
+  error?: string;
+}
+
 export type AgentState = 'on' | 'off' | 'sleeping' | 'failing';
 export type ExecutionStatus = 'running' | 'completed' | 'failed' | 'cancelled';
 export type MessageType = 'input' | 'output' | 'system';
@@ -149,6 +166,37 @@ class AgentService {
       // Initialize default agents if they don't exist
       this.initializeDefaultAgents();
     });
+  }
+
+  async getStatus(sessionId: string): Promise<AgentStatus | null> {
+    const execution = this.executions.get(sessionId);
+    if (!execution) {
+      // Check if it's a generic session
+      const session = this.sessions.get(sessionId);
+      if (session) {
+        return {
+          state: 'ready',
+          provider: 'system',
+          model: 'default',
+          messageCount: 0
+        };
+      }
+      return null;
+    }
+
+    // Determine state
+    let state: AgentStatus['state'] = 'pending';
+    if (execution.status === 'completed') state = 'ready';
+    if (execution.status === 'failed') state = 'error';
+    if (execution.status === 'cancelled') state = 'inactive';
+    if (execution.status === 'running') state = 'pending';
+
+    return {
+      state,
+      provider: execution.context?.provider || 'auto',
+      model: execution.context?.model || 'default',
+      messageCount: execution.messages.length
+    };
   }
 
   // ==========================================================================

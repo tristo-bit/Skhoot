@@ -28,39 +28,48 @@ export class ToolExecutor {
     toolCall: AgentToolCall,
     options: AgentChatOptions
   ): Promise<ToolResult> {
+    const startTime = Date.now();
     try {
       let output: string;
       let success = true;
 
       // Check specific handlers first
+      let result: ToolResult;
+
       if (this.isWorkflowTool(toolCall.name)) {
-        const result = await executeWorkflowTool(toolCall.name, toolCall.arguments);
-        return this.formatResult(toolCall, result.success, result.data, result.error);
+        const workflowResult = await executeWorkflowTool(toolCall.name, toolCall.arguments);
+        result = this.formatResult(toolCall, workflowResult.success, workflowResult.data, workflowResult.error);
+        return { ...result, durationMs: Date.now() - startTime };
       }
 
       if (this.isBackupTool(toolCall.name)) {
-        const result = await executeBackupTool(toolCall.name, toolCall.arguments);
-        return this.formatResult(toolCall, result.success, result.data, result.error);
+        const backupResult = await executeBackupTool(toolCall.name, toolCall.arguments);
+        result = this.formatResult(toolCall, backupResult.success, backupResult.data, backupResult.error);
+        return { ...result, durationMs: Date.now() - startTime };
       }
 
       if (this.isSystemTool(toolCall.name)) {
-        const result = await executeSystemTool(toolCall.name, toolCall.arguments);
-        return this.formatResult(toolCall, result.success, result.data, result.error);
+        const systemResult = await executeSystemTool(toolCall.name, toolCall.arguments);
+        result = this.formatResult(toolCall, systemResult.success, systemResult.data, systemResult.error);
+        return { ...result, durationMs: Date.now() - startTime };
       }
 
       if (this.isMemoryTool(toolCall.name)) {
-        const result = await executeMemoryTool(toolCall.name, toolCall.arguments, options.sessionId);
-        return this.formatResult(toolCall, result.success, result.data, result.error);
+        const memoryResult = await executeMemoryTool(toolCall.name, toolCall.arguments, options.sessionId);
+        result = this.formatResult(toolCall, memoryResult.success, memoryResult.data, memoryResult.error);
+        return { ...result, durationMs: Date.now() - startTime };
       }
 
       if (this.isBookmarkTool(toolCall.name)) {
-        const result = await executeBookmarkTool(toolCall.name, toolCall.arguments, options.sessionId);
-        return this.formatResult(toolCall, result.success, result.data, result.error);
+        const bookmarkResult = await executeBookmarkTool(toolCall.name, toolCall.arguments, options.sessionId);
+        result = this.formatResult(toolCall, bookmarkResult.success, bookmarkResult.data, bookmarkResult.error);
+        return { ...result, durationMs: Date.now() - startTime };
       }
 
       if (this.isOsTool(toolCall.name)) {
-        const result = await executeOsTool(toolCall.name, toolCall.arguments);
-        return this.formatResult(toolCall, result.success, result.data, result.error);
+        const osResult = await executeOsTool(toolCall.name, toolCall.arguments);
+        result = this.formatResult(toolCall, osResult.success, osResult.data, osResult.error);
+        return { ...result, durationMs: Date.now() - startTime };
       }
 
       // Handle Core Tools
@@ -228,6 +237,7 @@ export class ToolExecutor {
         toolCallName: toolCall.name,
         success,
         output,
+        durationMs: Date.now() - startTime
       };
     } catch (error) {
       return {
@@ -236,6 +246,7 @@ export class ToolExecutor {
         success: false,
         output: '',
         error: error instanceof Error ? error.message : String(error),
+        durationMs: Date.now() - startTime
       };
     }
   }
@@ -243,6 +254,14 @@ export class ToolExecutor {
   // --- Helper Methods ---
 
   private formatResult(toolCall: AgentToolCall, success: boolean, data: any, error?: string): ToolResult {
+    // Note: duration is not available here as it's measured in execute()
+    // However, execute() calls this helper inside the try/catch block where startTime is available if we passed it.
+    // But since execute() wraps the return of this helper, we should actually calculate duration in execute() and attach it.
+    // Or we modify formatResult to take duration.
+    // Actually, I should update execute() to attach duration after getting result from formatResult.
+    // BUT formatResult returns ToolResult.
+    
+    // Let's refactor execute to calculate duration at the end.
     return {
       toolCallId: toolCall.id,
       toolCallName: toolCall.name,

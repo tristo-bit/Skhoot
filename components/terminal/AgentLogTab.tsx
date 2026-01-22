@@ -31,7 +31,7 @@ import {
   AgentMessage, 
   AgentEventData 
 } from '../../services/agentService';
-import { AgentToolCall, ToolResult } from '../../services/agentChatService';
+import { AgentToolCall, ToolResult } from '../../services/agent/types';
 
 // ============================================================================
 // Types
@@ -241,14 +241,12 @@ export const AgentLogTab: React.FC<AgentLogTabProps> = ({ sessionId, isActive })
       if (data.sessionId !== sessionId || !data.message) return;
       
       const msg = data.message;
-      if (msg.role === 'user') {
+      if (msg.type === 'input') {
         addLog('message', `User: ${msg.content.slice(0, 100)}${msg.content.length > 100 ? '...' : ''}`);
-      } else if (msg.role === 'assistant') {
-        addLog('message', `Assistant: ${msg.content.slice(0, 100)}${msg.content.length > 100 ? '...' : ''}`, 
-          msg.toolCalls ? { toolCalls: msg.toolCalls } : undefined
-        );
-      } else if (msg.role === 'tool') {
-        addLog('info', `Tool result received`, { output: msg.content.slice(0, 500) });
+      } else if (msg.type === 'output') {
+        addLog('message', `Assistant: ${msg.content.slice(0, 100)}${msg.content.length > 100 ? '...' : ''}`);
+      } else if (msg.type === 'system') {
+        addLog('info', `System: ${msg.content.slice(0, 500)}`);
       }
     });
 
@@ -264,7 +262,7 @@ export const AgentLogTab: React.FC<AgentLogTabProps> = ({ sessionId, isActive })
       
       const tr = data.toolResult;
       if (tr.success) {
-        addLog('tool_complete', `Completed in ${tr.durationMs}ms`, 
+        addLog('tool_complete', `Completed in ${tr.durationMs || '?'}ms`, 
           { output: tr.output.slice(0, 1000) }
         );
       } else {

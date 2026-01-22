@@ -20,6 +20,7 @@ export interface ToolResult {
   success: boolean;
   output: string;
   error?: string;
+  durationMs?: number;
 }
 
 export interface AgentChatMessage {
