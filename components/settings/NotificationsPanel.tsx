@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Volume2, VolumeX, Clock, Settings as SettingsIcon, TestTube } from 'lucide-react';
+import { Bell, Volume2, VolumeX, Clock, Settings as SettingsIcon, TestTube, Layers } from 'lucide-react';
 import { BackButton } from '../buttonFormat';
 import { nativeNotifications, NotificationSettings, NotificationType } from '../../services/nativeNotifications';
 
@@ -86,7 +86,7 @@ const SliderRow: React.FC<SliderRowProps> = ({
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
       disabled={disabled}
-      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700"
+      className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#d4e4f1] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#d4e4f1] [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-md"
     />
     {description && <p className="text-xs text-text-secondary font-jakarta">{description}</p>}
   </div>
@@ -234,7 +234,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
       <div className="space-y-3">
         <SectionLabel 
           label="General Settings" 
-          icon={<Bell size={16} />}
+          icon={<SettingsIcon size={16} />}
           iconColor="text-[#C0B7C9]"
         />
         
@@ -250,7 +250,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
       <div className="space-y-3">
         <SectionLabel 
           label="Notification Types"
-          icon={<SettingsIcon size={16} />}
+          icon={<Layers size={16} />}
           iconColor="text-emerald-500"
         />
         

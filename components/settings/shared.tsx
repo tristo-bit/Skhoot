@@ -53,17 +53,19 @@ export const Slider: React.FC<SliderProps> = ({
   valueFormat = (v) => `${v}%`
 }) => (
   <div className="flex items-center gap-3">
-    <input
-      type="range"
-      min={min}
-      max={max}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="flex-1 h-2 bg-glass-border rounded-lg appearance-none cursor-pointer slider-accent"
-      aria-label={label}
-    />
+    <div className="relative flex-1">
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer border border-gray-300 dark:border-gray-600 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#d4e4f1] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#d4e4f1] [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-md"
+        aria-label={label}
+      />
+    </div>
     {showValue && (
-      <span className="text-xs font-bold font-jakarta text-text-secondary min-w-[3rem] text-right">
+      <span className="text-xs font-bold font-jakarta text-[#C0B7C9] min-w-[3rem] text-right">
         {valueFormat(value)}
       </span>
     )}
@@ -81,7 +83,7 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange, l
   <button
     onClick={() => onChange(!checked)}
     className={`w-12 h-6 rounded-full transition-all duration-300 relative cursor-pointer ${
-      checked ? 'bg-accent' : 'bg-gray-300 dark:bg-gray-600'
+      checked ? 'bg-[#C0B7C9]' : 'bg-gray-300 dark:bg-gray-600'
     }`}
     role="switch"
     aria-checked={checked}
@@ -135,7 +137,7 @@ export const RadioOption: React.FC<RadioOptionProps> = ({
     onClick={onSelect}
     className={`w-full p-4 rounded-xl transition-all flex items-center justify-between ${
       selected
-        ? 'bg-accent/20 border-2 border-accent'
+        ? 'bg-[#C0B7C9]/20 border-2 border-[#C0B7C9]'
         : 'glass-subtle hover:brightness-95 border-2 border-transparent'
     }`}
   >
@@ -145,7 +147,7 @@ export const RadioOption: React.FC<RadioOptionProps> = ({
     </div>
     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
       selected
-        ? 'border-accent bg-accent'
+        ? 'border-[#C0B7C9] bg-[#C0B7C9]'
         : 'border-gray-300 dark:border-gray-600'
     }`}>
       {selected && <div className="w-2 h-2 rounded-full bg-white" />}
