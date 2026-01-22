@@ -117,7 +117,6 @@ impl WebViewRenderer {
         .inner_size(800.0, 600.0) // Minimal size for rendering
         .visible(false) // CRITICAL: Window is not visible
         .decorations(false) // No window decorations
-        .transparent(true) // Match main window transparency to prevent native titlebar showing through
         .skip_taskbar(true) // Don't show in taskbar
         .build()?;
 

@@ -300,9 +300,11 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 <details>
 <summary><strong>⚙️ Settings & Privacy</strong></summary>
 
+- **User Profile**: Manage personal information including name and profile picture
 - **Audio Settings**: Configure microphone and speaker devices with real-time testing
 - **Volume Controls**: Independent input/output volume adjustment
 - **Sensitivity Settings**: Auto or manual microphone sensitivity configuration
+- **AI Configuration**: Comprehensive AI settings panel with API key management, model selection, and parameter tuning (accessed via AI Settings button)
 - **Privacy Controls**: Manage account settings and data export
 - **Activity Logging**: Track and review your interactions with export and clear options
   - Click on activity logs to navigate directly to the related conversation and message
@@ -316,6 +318,7 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 <details>
 <summary><strong>🔐 Secure API Key Management</strong></summary>
 
+- **Centralized Configuration**: All API key management consolidated in the AI Settings panel (accessed via AI Settings button in chat interface)
 - **Multi-Provider Support**: Manage API keys for OpenAI, Anthropic, Google AI, and custom endpoints
 - **Encrypted Storage**: AES-256-GCM encryption with platform keychain integration
   - **Linux**: libsecret integration
@@ -1293,8 +1296,7 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
   - Token display in chat interface for transparency
   - Cost estimation based on model pricing
 - **Event-Driven Architecture**: Comprehensive custom event system for cross-component communication
-  - `open-api-config`: Opens user panel and scrolls to API configuration
-  - `open-ai-settings`: Opens AI settings modal
+  - `open-ai-settings`: Opens AI settings modal with API configuration
   - `ai-terminal-created`: Auto-opens terminal panel when AI creates terminals
   - `open-terminal-panel`: Opens terminal panel from mini terminal view
   - `navigate-to-message`: Navigates to specific message in conversation
@@ -1832,7 +1834,7 @@ const agentResponse = await agentChatService.executeWithTools(
   - **Security First**: Keys never exposed in logs or error messages
   - **TypeScript Interfaces**: Full type safety with `APIProvider` and `ProviderInfo` types
   - **Singleton Pattern**: Single service instance for consistent state management
-- **UserPanel Integration**: Settings panel now uses `apiKeyService` for secure key management
+- **AI Settings Panel Integration**: Comprehensive AI settings panel uses `apiKeyService` for secure key management
   - Provider selection UI with support for OpenAI, Anthropic, Google AI, and custom endpoints
   - Real-time API key validation with model fetching
   - Automatic key loading when switching providers
@@ -1874,7 +1876,7 @@ const agentResponse = await agentChatService.executeWithTools(
   - Disabled state with proper visual feedback and cursor handling
   - Customizable via className prop for flexible integration
   - Follows embossed glassmorphic design system with border and shadow effects
-- **Enhanced Button System**: Comprehensive collection of specialized buttons (close, back, tab, save, upload, connection, premium, toggle, edit, icon)
+- **Enhanced Button System**: Comprehensive collection of specialized buttons (close, back, tab, save, upload, connection, toggle, edit, icon)
 - **Consistent Design Language**: All buttons follow the same design principles with 300ms transitions and theme-aware styling
 
 </details>
