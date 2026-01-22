@@ -12,7 +12,7 @@
  * sessions, execute commands, and receive real-time output.
  */
 
-import { terminalService, TerminalSession, TerminalOutput, SessionInfo, CommandHistory } from '../terminalService';
+import { terminalService, TerminalSession, TerminalOutput, SessionInfo, CommandHistory } from '../terminal/terminalService';
 
 // ============================================================================
 // Types & Interfaces

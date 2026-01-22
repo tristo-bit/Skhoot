@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { agentService, AgentSessionOptions } from '../services/agentService';
-import { terminalService } from '../services/terminalService';
+import { terminalService } from '../services/terminal/terminalService';
 import { terminalContextStore } from '../services/agentTools/terminalTools';
 import { isTauriApp } from '../services/tauriDetection';
 

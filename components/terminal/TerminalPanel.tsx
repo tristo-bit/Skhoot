@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Terminal, X, Plus, Search, Copy, Trash2, Bot } from 'lucide-react';
-import { terminalService } from '../../services/terminalService';
+import { terminalService } from '../../services/terminal/terminalService';
 import { terminalContextStore } from '../../services/agentTools/terminalTools';
 
 interface TerminalTab {

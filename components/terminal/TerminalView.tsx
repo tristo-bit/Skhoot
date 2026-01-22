@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import { Terminal, X, Plus, Copy, Trash2, GripHorizontal, Bot } from 'lucide-react';
-import { terminalService } from '../../services/terminalService';
+import { terminalService } from '../../services/terminal/terminalService';
 import { agentService } from '../../services/agentService';
 import { terminalContextStore } from '../../services/agentTools/terminalTools';
 // COMMENTED OUT: Old AgentLogTab - replaced by AI Terminal view

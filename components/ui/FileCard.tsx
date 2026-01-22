@@ -21,7 +21,8 @@ import {
   Trash2,
   RotateCcw,
   MessageSquarePlus,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 import { FileInfo } from '../../types';
 import { Button } from '../buttonFormat';
@@ -137,6 +138,7 @@ export interface FileCardProps {
   showActions?: boolean;
   showAddToChat?: boolean;
   onRestore?: (file: FileCardFile) => void;
+  isRestoring?: boolean;
   onDelete?: (file: FileCardFile) => void;
   onNavigate?: (path: string) => void; // For folder navigation
 }
@@ -192,6 +194,7 @@ export const FileCard = memo<FileCardProps>(({
   showActions = true,
   showAddToChat = true,
   onRestore,
+  isRestoring = false,
   onDelete,
   onNavigate,
 }) => {
@@ -410,15 +413,30 @@ export const FileCard = memo<FileCardProps>(({
           <div className="flex gap-2 mt-3">
             <button
               onClick={handleRestore}
-              className="flex-1 py-2 rounded-lg text-[10px] font-bold font-jakarta glass-subtle text-text-primary hover:glass-elevated transition-all flex items-center justify-center gap-1.5"
-              title={`Restore ${file.name}`}
+              disabled={isRestoring}
+              className={`flex-1 py-2 rounded-lg text-[10px] font-bold font-jakarta glass-subtle text-text-primary transition-all flex items-center justify-center gap-1.5 ${
+                isRestoring ? 'opacity-50 cursor-wait' : 'hover:glass-elevated'
+              }`}
+              title={isRestoring ? 'Restoring...' : `Restore ${file.name}`}
             >
-              <RotateCcw size={12} />
-              Restore
+              {isRestoring ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" />
+                  Restoring...
+                </>
+              ) : (
+                <>
+                  <RotateCcw size={12} />
+                  Restore
+                </>
+              )}
             </button>
             <button 
               onClick={handleDelete}
-              className="py-2 px-3 rounded-lg text-[10px] font-bold font-jakarta text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+              disabled={isRestoring}
+              className={`py-2 px-3 rounded-lg text-[10px] font-bold font-jakarta text-red-500 transition-all ${
+                isRestoring ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-50 dark:hover:bg-red-900/20'
+              }`}
               title={`Delete ${file.name}`}
             >
               <Trash2 size={12} />

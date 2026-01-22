@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { audioService } from '../../../services/audioService';
-import { sttService, SttSession } from '../../../services/sttService';
-import { sttConfigStore } from '../../../services/sttConfig';
+import { audioService } from '../../../services/audio/audioService';
+import { sttService, SttSession } from '../../../services/audio/sttService';
+import { sttConfigStore } from '../../../services/audio/sttConfig';
 import { activityLogger } from '../../../services/activityLogger';
 
 // Helper to show notifications (console + optional UI callback)

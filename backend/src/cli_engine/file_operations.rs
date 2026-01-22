@@ -281,11 +281,37 @@ impl FileOperations {
         let start_time = std::time::Instant::now();
 
         if create_backup && file_path.exists() {
-            let backup_path = file_path.with_extension(
-                format!("{}.backup", file_path.extension().unwrap_or_default().to_string_lossy())
-            );
-            fs::copy(file_path, &backup_path).await
-                .context("Failed to create backup")?;
+            let extension = file_path.extension().unwrap_or_default().to_string_lossy();
+            
+            // Try zstd compression first
+            let zstd_ext = format!("{}.backup.zst", extension);
+            let zstd_backup_path = file_path.with_extension(&zstd_ext);
+            let zstd_cmd = format!("zstd -q -f \"{}\" -o \"{}\"", file_path.display(), zstd_backup_path.display());
+            
+            let zstd_success = match self.executor.execute(&zstd_cmd, None).await {
+                Ok(res) => res.success,
+                Err(_) => false,
+            };
+
+            if !zstd_success {
+                // Fallback to gzip compression
+                let gzip_ext = format!("{}.backup.gz", extension);
+                let gzip_backup_path = file_path.with_extension(&gzip_ext);
+                let gzip_cmd = format!("gzip -c \"{}\" > \"{}\"", file_path.display(), gzip_backup_path.display());
+                
+                let gzip_success = match self.executor.execute(&gzip_cmd, None).await {
+                    Ok(res) => res.success,
+                    Err(_) => false,
+                };
+
+                if !gzip_success {
+                    // Fallback to simple copy
+                    let backup_ext = format!("{}.backup", extension);
+                    let backup_path = file_path.with_extension(&backup_ext);
+                    fs::copy(file_path, &backup_path).await
+                        .context("Failed to create backup")?;
+                }
+            }
         }
 
         let mut file = fs::File::create(file_path).await
@@ -293,6 +319,8 @@ impl FileOperations {
 
         file.write_all(content.as_bytes()).await
             .context("Failed to write file content")?;
+
+        file.flush().await.context("Failed to flush file")?;
 
         Ok(FileOpResult {
             success: true,
@@ -670,5 +698,33 @@ mod tests {
         let results = ops.advanced_file_search(&criteria).await.unwrap();
         assert!(!results.is_empty());
         assert!(results.iter().any(|r| r.path.contains("test.rs")));
+    }
+
+    #[tokio::test]
+    async fn test_write_file_content_backup_compression() {
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path().to_path_buf();
+        let ops = FileOperations::new(temp_path.clone());
+
+        let file_path = temp_path.join("test.txt");
+        let content = "Test content for backup compression";
+
+        // Create initial file
+        ops.write_file_content(&file_path, content, false).await.unwrap();
+
+        // Update file with backup enabled
+        let new_content = "New content";
+        ops.write_file_content(&file_path, new_content, true).await.unwrap();
+
+        // Check for backup files
+        // Since we might not have zstd/gzip in the test environment, we check for any of the 3 possibilities
+        let has_zst = temp_path.join("test.txt.backup.zst").exists();
+        let has_gz = temp_path.join("test.txt.backup.gz").exists();
+        let has_plain = temp_path.join("test.txt.backup").exists();
+
+        assert!(has_zst || has_gz || has_plain, "Backup file should be created");
+        
+        // Check content
+        assert_eq!(fs::read_to_string(&file_path).unwrap(), new_content);
     }
 }

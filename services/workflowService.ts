@@ -111,6 +111,7 @@ export interface StepResult {
   error?: string;
   durationMs: number;
   decisionResult?: boolean;
+  generatedFiles?: string[];
 }
 
 export interface LoopState {
@@ -826,6 +827,7 @@ class WorkflowService {
   constructor() {
     this.initDefaults();
     this.loadFromDisk();
+    this.loadExecutions();
   }
 
   private initDefaults(): void {
@@ -884,6 +886,62 @@ class WorkflowService {
       await fileOperations.delete(filePath);
     } catch (error) {
       // Ignore if file doesn't exist
+    }
+  }
+
+  // ==========================================================================
+  // Execution Persistence (LocalStorage)
+  // ==========================================================================
+
+  private loadExecutions(): void {
+    if (typeof localStorage === 'undefined') return;
+    
+    try {
+      const stored = localStorage.getItem('skhoot_workflow_executions');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          // Sort by date descending and keep last 50 to avoid storage limits
+          const recent = parsed
+            .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0))
+            .slice(0, 50);
+            
+          recent.forEach((ctx: ExecutionContext) => {
+             this.executions.set(ctx.executionId, ctx);
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[WorkflowService] Failed to load executions from storage:', e);
+    }
+  }
+
+  private saveExecutions(): void {
+    if (typeof localStorage === 'undefined') return;
+
+    try {
+       // Convert map to array
+       const all = Array.from(this.executions.values());
+       
+       // Filter: Keep active runs + last 50 completed
+       const active = all.filter(e => e.status === 'running');
+       const history = all
+         .filter(e => e.status !== 'running')
+         .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0))
+         .slice(0, 50);
+       
+       const toSave = [...active, ...history];
+       
+       localStorage.setItem('skhoot_workflow_executions', JSON.stringify(toSave));
+    } catch (e) {
+       console.warn('[WorkflowService] Failed to save executions to storage (quota exceeded?):', e);
+       // Try to save fewer items if it failed
+       try {
+         const active = Array.from(this.executions.values()).filter(e => e.status === 'running');
+         localStorage.setItem('skhoot_workflow_executions', JSON.stringify(active));
+       } catch (retryErr) {
+         console.error('[WorkflowService] Critical: Failed to save even active executions', retryErr);
+       }
     }
   }
 
@@ -1005,6 +1063,7 @@ class WorkflowService {
     await this.update(workflowId, { status: 'running' });
     
     this.emit('execution_started', { context, workflow });
+    this.saveExecutions();
     
     // Dispatch event to chat interface to start workflow execution
     window.dispatchEvent(new CustomEvent('workflow-execute', {
@@ -1022,7 +1081,8 @@ class WorkflowService {
   async executeStep(
     executionId: string,
     output: string,
-    decisionResult?: boolean
+    decisionResult?: boolean,
+    generatedFiles?: string[]
   ): Promise<{ nextStepId?: string; completed: boolean }> {
     const context = this.executions.get(executionId);
     if (!context) {
@@ -1041,6 +1101,17 @@ class WorkflowService {
 
     // Process Output & Capture Variables
     let processedOutput: any = output;
+    
+    // Auto-detect file paths if not provided explicitly
+    let detectedFiles = generatedFiles || [];
+    if (detectedFiles.length === 0 && currentStep.outputFormat === 'file') {
+       // Simple detection for file paths in output
+       // Matches absolute paths or relative paths in common formats
+       const pathMatch = output.match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t]+\.[a-zA-Z0-9]{1,5}/g);
+       if (pathMatch) {
+         detectedFiles = [...detectedFiles, ...pathMatch];
+       }
+    }
     
     if (currentStep.outputFormat === 'json') {
       try {
@@ -1064,6 +1135,7 @@ class WorkflowService {
       output, // Keep raw output for logs
       durationMs: 0,
       decisionResult,
+      generatedFiles: detectedFiles.length > 0 ? detectedFiles : undefined
     };
     context.stepResults[currentStep.id] = result;
 
@@ -1094,8 +1166,12 @@ class WorkflowService {
       } else {
         // Loop Finished: Clear state and proceed to nextStepId (already set above)
         console.log(`[WorkflowService] Loop finished for step ${currentStep.id}`);
-        // Optional: clear the item variable?
-        // delete context.variables[context.loopState.itemVar];
+        // IMPORTANT: The nextStepId was already determined by tree logic above (e.g. nextStep property)
+        // We must ensure it's not pointing back to self if loop is done
+        if (nextStepId === currentStep.id) {
+           nextStepId = currentStep.nextStep;
+        }
+        
         context.loopState = undefined;
       }
     }
@@ -1107,8 +1183,14 @@ class WorkflowService {
       // Handle skipping empty loops (simple 1-level skip for now)
       if (nextStepObj && nextStepObj.loop) {
         const sourceName = nextStepObj.loop.source;
-        const collection = context.variables[sourceName];
+        // Check variables, but also allow source to be a stringified array from previous step output
+        let collection = context.variables[sourceName];
         
+        // If variable is missing, check if it's the result of the previous step
+        if (!collection && sourceName === currentStep.outputVar) {
+           collection = context.variables[currentStep.outputVar];
+        }
+
         if (Array.isArray(collection) && collection.length > 0) {
           // Initialize Loop
           console.log(`[WorkflowService] Initializing loop for step ${nextStepId} with ${collection.length} items`);
@@ -1170,6 +1252,7 @@ class WorkflowService {
       }));
     }
 
+    this.saveExecutions();
     return { nextStepId, completed };
   }
 
@@ -1179,6 +1262,7 @@ class WorkflowService {
       context.status = 'cancelled';
       context.completedAt = Date.now();
       await this.update(context.workflowId, { status: 'idle' });
+      this.saveExecutions();
       this.emit('execution_cancelled', { context });
     }
   }
@@ -1190,6 +1274,12 @@ class WorkflowService {
   getActiveExecutions(): ExecutionContext[] {
     return Array.from(this.executions.values())
       .filter(e => e.status === 'running');
+  }
+
+  getHistory(): ExecutionContext[] {
+    return Array.from(this.executions.values())
+      .filter(e => e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled')
+      .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
   }
 
   // ==========================================================================

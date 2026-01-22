@@ -17,10 +17,10 @@ import {
   executeTerminalTool,
   cleanupAITerminals,
 } from '../terminalTools';
-import { terminalService } from '../../terminalService';
+import { terminalService } from '../../terminal/terminalService';
 
 // Mock the terminal service
-vi.mock('../../terminalService', () => ({
+vi.mock('../../terminal/terminalService', () => ({
   terminalService: {
     createSession: vi.fn(),
     writeToSession: vi.fn(),

@@ -1,9 +1,9 @@
 import React, { memo } from 'react';
 import { Mic } from 'lucide-react';
 import { IconButton } from '../buttonFormat';
-import { audioService } from '../../services/audioService';
-import { sttService } from '../../services/sttService';
-import { sttConfigStore } from '../../services/sttConfig';
+import { audioService } from '../../services/audio/audioService';
+import { sttService } from '../../services/audio/sttService';
+import { sttConfigStore } from '../../services/audio/sttConfig';
 
 interface RecordButtonProps {
   isRecording: boolean;

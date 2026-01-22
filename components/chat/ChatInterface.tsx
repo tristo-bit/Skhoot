@@ -409,69 +409,41 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const aiSettings = aiSettingsService.loadSettings();
     
     try {
-      // If agent mode is enabled, use agent chat service for tool access
-      if (isAgentMode && agentSessionId) {
-        console.log('[ChatInterface] Workflow using agent mode for tool access');
-        
-        // Convert history to agent chat format
-        const agentHistory = messages.map(m => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-          toolCalls: m.toolCalls,
-          toolResults: m.toolResults,
-        }));
-
-        const result = await agentChatService.executeWithTools(
-          prompt,
-          agentHistory,
-          {
-            sessionId: agentSessionId,
-            temperature: aiSettings.temperature,
-            maxTokens: aiSettings.maxTokens,
-            topP: aiSettings.topP,
-            frequencyPenalty: aiSettings.frequencyPenalty,
-            presencePenalty: aiSettings.presencePenalty,
-            systemPrompt: aiSettings.userInstructions,
-            onStatusUpdate: (status) => {
-              setSearchStatus(status);
-            },
-          }
-        );
-
-        return {
-          content: result.content || 'No response',
-          toolResults: result.toolResults
-        };
-      }
+      // Always use agent chat service for workflows to ensure tool access (terminal, files, etc.)
+      // If agent mode is not explicitly enabled, use a temporary session ID
+      const effectiveSessionId = agentSessionId || `workflow-${Date.now()}`;
+      const isTemporarySession = !agentSessionId;
       
-      // Fallback to regular AI service (no tool access)
-      console.log('[ChatInterface] Workflow using regular AI (no tool access)');
-      const history: AIMessage[] = messages.map(m => ({
+      console.log(`[ChatInterface] Workflow execution using ${isTemporarySession ? 'temporary' : 'active'} agent session:`, effectiveSessionId);
+      
+      // Convert history to agent chat format
+      const agentHistory = messages.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
+        toolCalls: m.toolCalls,
+        toolResults: m.toolResults,
       }));
 
-      const result = await aiService.chat(
+      const result = await agentChatService.executeWithTools(
         prompt,
-        history,
-        (status) => {
-          setSearchStatus(status);
-        },
-        undefined, // no images
-        getEffectiveChatId(), // chatId
-        undefined, // messageId
+        agentHistory,
         {
+          sessionId: effectiveSessionId,
           temperature: aiSettings.temperature,
           maxTokens: aiSettings.maxTokens,
           topP: aiSettings.topP,
           frequencyPenalty: aiSettings.frequencyPenalty,
           presencePenalty: aiSettings.presencePenalty,
           systemPrompt: aiSettings.userInstructions,
+          onStatusUpdate: (status) => {
+            setSearchStatus(status);
+          },
         }
       );
 
       return {
-        content: result.text || 'No response'
+        content: result.content || 'No response',
+        toolResults: result.toolResults
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -506,6 +478,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       // 2. Update progress UI (handled by event listeners), no text message needed here
       
+      // Add the user prompt to the chat history so it's visible and part of context
+      setMessages(prev => [...prev, {
+        id: `step-prompt-${Date.now()}-${step.id}`,
+        role: 'user',
+        content: prompt, // The interpolated prompt
+        type: 'text',
+        timestamp: new Date()
+      }]);
+
       // 2.5 Check for Input Request (Interactive Step)
         if (step.inputRequest?.enabled) {
           // Provide natural context and ask for input
@@ -518,6 +499,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           }]);
           
           setWaitingForInput({ executionId, stepId: step.id, mode: 'input' });
+          setIsLoading(false); // Stop loading indicator while waiting for input
           return; // Stop execution loop (will resume via handleSend)
         }
 
@@ -576,6 +558,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // 5. Report completion to service
       // If the step expected a file output, try to find it in tool results
       let finalOutput = resultText;
+      let generatedFiles: string[] = [];
+      
       if (step.outputFormat === 'file' && toolResults) {
          const writeTool = toolResults.find(r => r.success && r.toolCallName === 'write_file');
          if (writeTool) {
@@ -584,11 +568,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             const match = writeTool.output.match(/File written successfully: (.*)/);
             if (match) {
                finalOutput = match[1];
+               generatedFiles.push(finalOutput);
             }
          }
       }
 
-      await workflowService.executeStep(executionId, finalOutput, decisionResult);
+      const stepCompletion = await workflowService.executeStep(executionId, finalOutput, decisionResult, generatedFiles);
+      
+      // Stop local execution loop if workflow is completed (or loop finished)
+      // The event listener will handle the next step trigger
+      if (stepCompletion.completed) {
+         // No next step immediately available from this call
+      }
 
     } catch (error) {
       console.error('[ChatInterface] Step execution failed:', error);
@@ -689,6 +680,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             
             if (currentStep) {
                setWaitingForInput({ executionId, stepId: currentStep.id, mode: 'confirmation' });
+               setIsLoading(false); // Stop loading indicator while waiting for confirmation
             }
             return;
          }
@@ -724,7 +716,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const filesGenerated: Array<{ fileName: string; filePath: string }> = [];
       
       // Iterate through all steps to find file-format outputs
-      workflow.steps.forEach(s => {
+      workflow.steps.forEach((s: WorkflowStep) => {
         const result = context.stepResults[s.id];
         if (s.outputFormat === 'file' && result && result.output) {
           // Simple heuristic: if output looks like a path or just a filename
@@ -754,25 +746,67 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }
 
       // Find the most relevant output to display as the "result"
-      // Usually the last step's output, but we can be smart about it
       const lastStepId = context.currentStepId || workflow.steps[workflow.steps.length - 1].id;
       const lastResult = context.stepResults[lastStepId];
+      const resultOutput = lastResult?.output || '';
 
-      // If the last step has a significant output, use it. Otherwise, look for the previous step.
-      let resultOutput = lastResult?.output;
-      
-      // Fallback to a success message if no output was captured or if output was just a file path
-      if (!resultOutput || resultOutput.trim().length === 0 || (filesGenerated.length > 0 && resultOutput.trim() === filesGenerated[0].filePath)) {
-        resultOutput = `✅ Workflow **"${workflow.name}"** completed successfully.`;
-      }
+      // Generate natural language summary using AI
+      const generateSummary = async () => {
+        // Construct context for summary
+        const summaryContext = {
+           workflowName: workflow.name,
+           steps: workflow.steps.map((s: WorkflowStep) => ({
+              name: s.name,
+              output: context.stepResults[s.id]?.output,
+              success: context.stepResults[s.id]?.success
+           })),
+           finalOutput: resultOutput
+        };
+        
+        try {
+           const aiSettings = aiSettingsService.loadSettings();
+           const summaryPrompt = `The workflow "${workflow.name}" has completed. 
+           
+ Context:
+ ${JSON.stringify(summaryContext, null, 2)}
+ 
+ Please provide a natural language conclusion for the user. Summarize what was done and the result. Be concise and helpful.`;
+ 
+           // Use agentChatService
+           const response = await agentChatService.executeWithTools(
+              summaryPrompt,
+              [], 
+              {
+                 sessionId: agentSessionId || `summary-${Date.now()}`,
+                 temperature: 0.7,
+                 maxTokens: 500,
+                 onStatusUpdate: (status) => setSearchStatus(status)
+              }
+           );
+           
+           setMessages(prev => [...prev, {
+              id: `wf-summary-${Date.now()}`,
+              role: 'assistant',
+              content: response.content,
+              type: 'text',
+              timestamp: new Date()
+           }]);
+           setSearchStatus('');
+           
+        } catch (e) {
+           console.error('Failed to generate workflow summary', e);
+           // Fallback to static message
+           setMessages(prev => [...prev, {
+             id: `wf-complete-${Date.now()}`,
+             role: 'assistant',
+             content: resultOutput || `✅ Workflow **"${workflow.name}"** completed successfully.`,
+             type: 'text',
+             timestamp: new Date()
+           }]);
+        }
+      };
 
-      setMessages(prev => [...prev, {
-        id: `wf-complete-${Date.now()}`,
-        role: 'assistant',
-        content: resultOutput,
-        type: 'text',
-        timestamp: new Date()
-      }]);
+      generateSummary();
     };
 
     window.addEventListener('workflow-execute', handleWorkflowExecute as EventListener);
@@ -891,6 +925,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   // Stop the current AI generation and optionally send queued message
   const handleStop = useCallback(() => {
+    // If a workflow is waiting for input, cancel it
+    if (waitingForInput) {
+      workflowService.cancelExecution(waitingForInput.executionId);
+      setWaitingForInput(null);
+      setMessages(prev => [...prev, {
+        id: `wf-cancelled-${Date.now()}`,
+        role: 'assistant',
+        content: 'Workflow execution cancelled by user.',
+        type: 'text',
+        timestamp: new Date()
+      }]);
+    }
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -1653,9 +1700,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       try {
         // Check if we're in Tauri environment
         if (typeof window !== 'undefined' && (window as any).__TAURI__) {
-          const { readBinaryFile } = await import(/* @vite-ignore */ '@tauri-apps/plugin-fs');
+          const { readFile } = await import(/* @vite-ignore */ '@tauri-apps/plugin-fs');
           console.log(`[ChatInterface] Reading file with Tauri: ${filePath}`);
-          const contents = await readBinaryFile(filePath);
+          const contents = await readFile(filePath);
           return contents;
         }
         return null;
@@ -2057,6 +2104,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         ref={scrollRef}
         messages={messages}
         isLoading={isLoading}
+        sessionId={getEffectiveChatId()}
         searchType={searchType}
         searchStatus={searchStatus}
         isRecording={isRecording}
@@ -2136,8 +2184,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         activeColor={activeColor}
         audioLevels={audioLevels}
         audioStream={audioStream}
-        onInputChange={handleInputChange}
-        onKeyDown={handleKeyDown}
+        onInputChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+          }
+        }}
         onSend={handleSend}
         onStop={handleStop}
         onMicClick={handleMicClick}
@@ -2145,6 +2198,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         isTerminalOpen={isTerminalOpen}
         onToggleTerminal={onToggleTerminal}
         onToolCallSelected={handleToolCallSelected}
+        waitingForInput={!!waitingForInput}
       />
     </div>
   );

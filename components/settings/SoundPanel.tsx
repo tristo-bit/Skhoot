@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, VolumeX, Volume2, AlertCircle, Terminal, CheckCircle } from 'lucide-react';
-import { audioService, AudioDevice } from '../../services/audioService';
-import { linuxAudioSetup, LinuxAudioStatus } from '../../services/linuxAudioSetup';
-import { sttConfigStore, SttProvider } from '../../services/sttConfig';
-import { sttService } from '../../services/sttService';
+import { audioService, AudioDevice } from '../../services/audio/audioService';
+import { linuxAudioSetup, LinuxAudioStatus } from '../../services/audio/linuxAudioSetup';
+import { sttConfigStore, SttProvider } from '../../services/audio/sttConfig';
+import { sttService } from '../../services/audio/sttService';
 import { PanelHeader, SectionLabel } from './shared';
 import { Button, ToggleButton } from '../buttonFormat';
 

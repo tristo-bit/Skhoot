@@ -40,6 +40,7 @@ interface PromptAreaProps {
   isTerminalOpen?: boolean;
   onToggleTerminal?: () => void;
   onToolCallSelected?: (tool: ToolDefinition) => void;
+  waitingForInput?: boolean;
 }
 
 export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
@@ -60,18 +61,21 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
   isTerminalOpen = false,
   onToggleTerminal,
   onToolCallSelected,
+  waitingForInput = false,
 }, ref) => {
   const { resolvedTheme } = useTheme();
   const { illumination } = useSettings();
   const isDarkMode = resolvedTheme === 'dark';
   
   const hasContent = input.trim().length > 0;
-  const showQuickActions = !isRecording && !hasPendingVoiceMessage;
+  const showQuickActions = !isRecording && !hasPendingVoiceMessage && !waitingForInput;
   const placeholder = isTerminalOpen
     ? "Type command and press Enter..."
-    : hasPendingVoiceMessage 
+    : waitingForInput
+      ? "Enter your response here..."
+      : hasPendingVoiceMessage 
         ? "Send your message?" 
-        : "Skhoot is listening...";
+        : "Ask me anything... (Type / for quick actions)";
   
   // Handle terminal command sending
   const handleTerminalKeyDown = (e: React.KeyboardEvent) => {

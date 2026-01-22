@@ -32,7 +32,7 @@ import {
   WorkflowVariable
 } from '../../services/workflowService';
 
-type TabId = 'workflows' | 'running' | 'create' | 'import' | 'run';
+type TabId = 'workflows' | 'running' | 'create' | 'import' | 'run' | 'outputs';
 
 interface WorkflowsPanelProps {
   isOpen: boolean;
@@ -45,6 +45,7 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
   const [selectedWorkflow, setSelectedWorkflow] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [runningExecutions, setRunningExecutions] = useState<ExecutionContext[]>([]);
+  const [historyExecutions, setHistoryExecutions] = useState<ExecutionContext[]>([]);
   const [activeWorkflow, setActiveWorkflow] = useState<WorkflowType | null>(null);
 
   // Load workflows on mount
@@ -60,8 +61,12 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
     });
     const unsubExecComplete = workflowService.on('execution_completed', () => {
       setRunningExecutions(workflowService.getActiveExecutions());
+      setHistoryExecutions(workflowService.getHistory());
       loadWorkflows();
     });
+
+    // Initial history load
+    setHistoryExecutions(workflowService.getHistory());
 
     return () => {
       unsubCreate();
@@ -81,6 +86,7 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
   const tabs: SecondaryPanelTab[] = useMemo(() => [
     { id: 'workflows', title: 'Workflows', icon: <Workflow size={14} /> },
     { id: 'running', title: 'Running', icon: <Zap size={14} /> },
+    { id: 'outputs', title: 'Outputs', icon: <FileOutput size={14} /> },
     { id: 'create', title: 'Create', icon: <Plus size={14} /> },
   ], []);
 
@@ -252,6 +258,8 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
         <div className="w-1/3 border-r border-white/5 overflow-y-auto">
           {activeTab === 'running' ? (
             <RunningList executions={runningExecutions} workflows={workflows} />
+          ) : activeTab === 'outputs' ? (
+            <HistoryList executions={historyExecutions} workflows={workflows} selectedId={selectedWorkflow} onSelect={setSelectedWorkflow} />
           ) : (
             <WorkflowList
               workflows={workflows}
@@ -284,6 +292,18 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
                 <Zap size={32} className="mb-3" />
                 <p className="text-sm">Viewing running executions</p>
              </div>
+          ) : activeTab === 'outputs' ? (
+             selectedWorkflow ? (
+               <ExecutionDetail 
+                 execution={historyExecutions.find(e => e.executionId === selectedWorkflow)!} 
+                 workflow={workflows.find(w => w.id === historyExecutions.find(e => e.executionId === selectedWorkflow)?.workflowId)}
+               />
+             ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
+                   <FileOutput size={32} className="mb-3" />
+                   <p className="text-sm">Select an execution to view results</p>
+                </div>
+             )
           ) : selected ? (
             <WorkflowDetail
               workflow={selected}
@@ -306,6 +326,120 @@ WorkflowsPanel.displayName = 'WorkflowsPanel';
 // ============================================================================
 // Sub-components
 // ============================================================================
+
+// ============================================================================
+// History & Execution Components
+// ============================================================================
+
+const HistoryList = memo<{ 
+  executions: ExecutionContext[]; 
+  workflows: WorkflowType[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}>(({ executions, workflows, selectedId, onSelect }) => (
+  <div className="p-2 space-y-2">
+    {executions.length === 0 ? (
+      <div className="text-center py-8">
+        <FileOutput size={24} className="mx-auto mb-2 opacity-40" style={{ color: 'var(--text-secondary)' }} />
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>No history available</p>
+      </div>
+    ) : (
+      executions.map(exec => {
+        const wf = workflows.find(w => w.id === exec.workflowId);
+        return (
+          <div 
+            key={exec.executionId} 
+            onClick={() => onSelect(exec.executionId)}
+            className={`p-3 rounded-xl cursor-pointer transition-all ${
+              selectedId === exec.executionId ? 'bg-purple-500/20' : 'bg-white/5 hover:bg-white/10'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                {wf?.name || 'Unknown'}
+              </p>
+              <StatusBadge status={exec.status} />
+            </div>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {exec.completedAt ? new Date(exec.completedAt).toLocaleString() : 'Unknown date'}
+            </p>
+          </div>
+        );
+      })
+    )}
+  </div>
+));
+HistoryList.displayName = 'HistoryList';
+
+const ExecutionDetail = memo<{
+  execution: ExecutionContext;
+  workflow?: WorkflowType;
+}>(({ execution, workflow }) => {
+  if (!execution) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+            {workflow?.name || 'Unknown Workflow'}
+          </h3>
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+            ID: {execution.executionId}
+          </p>
+        </div>
+        <StatusBadge status={execution.status} />
+      </div>
+
+      <CollapsibleSection
+        title="Input Variables"
+        icon={<Code size={14} />}
+        isExpanded={true}
+        onToggle={() => {}}
+      >
+        <pre className="text-xs p-2 rounded-lg bg-black/20 overflow-x-auto font-mono" style={{ color: 'var(--text-secondary)' }}>
+          {JSON.stringify(execution.variables, null, 2)}
+        </pre>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Step Results"
+        icon={<CheckCircle size={14} />}
+        isExpanded={true}
+        onToggle={() => {}}
+      >
+        <div className="space-y-3">
+          {Object.entries(execution.stepResults).map(([stepId, result]) => {
+            const stepName = workflow?.steps.find(s => s.id === stepId)?.name || stepId;
+            return (
+              <div key={stepId} className="p-3 rounded-xl bg-white/5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {stepName}
+                  </span>
+                  {result.success ? (
+                    <span className="text-xs text-emerald-400">Success</span>
+                  ) : (
+                    <span className="text-xs text-red-400">Failed</span>
+                  )}
+                </div>
+                {result.output && (
+                  <div className="text-xs p-2 rounded bg-black/20 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto" style={{ color: 'var(--text-secondary)' }}>
+                    {result.output}
+                  </div>
+                )}
+                {result.error && (
+                  <p className="text-xs text-red-400 mt-2">{result.error}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </CollapsibleSection>
+    </div>
+  );
+});
+ExecutionDetail.displayName = 'ExecutionDetail';
 
 const EmptyState = memo<{ onCreateWorkflow: () => void }>(({ onCreateWorkflow }) => (
   <div className="flex flex-col items-center justify-center h-full text-center">

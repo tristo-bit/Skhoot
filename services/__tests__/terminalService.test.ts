@@ -5,7 +5,7 @@
  * Note: These are integration tests that require the Tauri backend to be running.
  */
 
-import { terminalService, TerminalSession, TerminalOutput } from '../terminalService';
+import { terminalService, TerminalSession, TerminalOutput } from '../terminal/terminalService';
 
 describe('TerminalService', () => {
   let testSessionId: string;

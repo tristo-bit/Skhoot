@@ -264,6 +264,8 @@ export const KNOWN_PROVIDERS: Record<string, ProviderConfig> = {
   },
 };
 
+import { AgentChatMessage, AgentChatResponse, AgentToolCall } from './agent/types';
+
 // ============================================================================
 // Provider Registry Class
 // ============================================================================
@@ -279,9 +281,363 @@ class ProviderRegistry {
     });
   }
 
+  // ... (existing methods remain)
+
   /**
-   * Get a provider configuration
+   * Execute chat request using the provider's API
+   * Currently, this logic resides in aiService.ts/agentChatService.ts but ideally belongs here
+   * or in a dedicated adapter layer.
+   * 
+   * For the refactor, we are adding this method to support the new AgentChatService architecture
+   * while maintaining backward compatibility by importing the existing logic.
    */
+  async chat(
+    providerId: string,
+    model: string,
+    apiKey: string,
+    message: string,
+    history: AgentChatMessage[],
+    systemPrompt: string,
+    tools?: any[],
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>
+  ): Promise<AgentChatResponse> {
+    // To avoid circular dependencies and huge refactors, we'll dynamically import the execution logic
+    // or use a simplified fetch implementation here tailored for the agent.
+    
+    // For this refactor, let's implement a clean adapter here for OpenAI/Anthropic/Gemini
+    // This removes the dependency on the old monoliths.
+    
+    const apiFormat = this.getApiFormat(providerId);
+    const baseUrl = this.getBaseUrl(providerId);
+    
+    switch (apiFormat) {
+      case 'openai':
+      case 'ollama':
+        return this.chatOpenAI(baseUrl, apiKey, model, message, history, systemPrompt, tools, images);
+      case 'anthropic':
+        return this.chatAnthropic(baseUrl, apiKey, model, message, history, systemPrompt, tools, images);
+      case 'google':
+        return this.chatGoogle(baseUrl, apiKey, model, message, history, systemPrompt, tools, images);
+      default:
+        throw new Error(`Unsupported API format: ${apiFormat}`);
+    }
+  }
+
+  // --- OpenAI Adapter ---
+  private async chatOpenAI(
+    baseUrl: string,
+    apiKey: string,
+    model: string,
+    message: string,
+    history: AgentChatMessage[],
+    systemPrompt: string,
+    tools?: any[],
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>
+  ): Promise<AgentChatResponse> {
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history.map(msg => {
+        if (msg.role === 'tool') {
+          return {
+            role: 'tool',
+            tool_call_id: msg.toolCallId,
+            content: msg.content
+          };
+        }
+        if (msg.toolCalls) {
+          return {
+            role: 'assistant',
+            content: msg.content || null,
+            tool_calls: msg.toolCalls.map(tc => ({
+              id: tc.id,
+              type: 'function',
+              function: {
+                name: tc.name,
+                arguments: JSON.stringify(tc.arguments)
+              }
+            }))
+          };
+        }
+        return { role: msg.role, content: msg.content };
+      })
+    ];
+
+    // Add current message with images if any
+    if (images && images.length > 0) {
+      const contentParts: any[] = [{ type: 'text', text: message }];
+      images.forEach(img => {
+        contentParts.push({
+          type: 'image_url',
+          image_url: { url: `data:${img.mimeType};base64,${img.base64}` }
+        });
+      });
+      messages.push({ role: 'user', content: contentParts as any });
+    } else {
+      messages.push({ role: 'user', content: message });
+    }
+
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        tools: tools,
+        tool_choice: tools ? 'auto' : undefined,
+        stream: false // Using non-streaming for simplicity in Agent mode
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`OpenAI API error: ${response.status} - ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    const choice = data.choices[0];
+    const toolCalls = choice.message.tool_calls?.map((tc: any) => ({
+      id: tc.id,
+      name: tc.function.name,
+      arguments: JSON.parse(tc.function.arguments)
+    }));
+
+    return {
+      content: choice.message.content || '',
+      toolCalls,
+      isComplete: choice.finish_reason !== 'length',
+      provider: 'openai',
+      model,
+      capabilities: this.inferCapabilities('openai', model)
+    };
+  }
+
+  // --- Anthropic Adapter ---
+  private async chatAnthropic(
+    baseUrl: string,
+    apiKey: string,
+    model: string,
+    message: string,
+    history: AgentChatMessage[],
+    systemPrompt: string,
+    tools?: any[],
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>
+  ): Promise<AgentChatResponse> {
+    // Anthropic specific message formatting
+    const messages = history
+      .filter(msg => msg.role !== 'system') // System prompt goes in top-level param
+      .map(msg => {
+        if (msg.role === 'tool') {
+          return {
+            role: 'user',
+            content: [
+              {
+                type: 'tool_result',
+                tool_use_id: msg.toolCallId,
+                content: msg.content
+              }
+            ]
+          };
+        }
+        if (msg.toolCalls) {
+          return {
+            role: 'assistant',
+            content: [
+              ...(msg.content ? [{ type: 'text', text: msg.content }] : []),
+              ...msg.toolCalls.map(tc => ({
+                type: 'tool_use',
+                id: tc.id,
+                name: tc.name,
+                input: tc.arguments
+              }))
+            ]
+          };
+        }
+        return { role: msg.role, content: msg.content };
+      });
+
+    // Add current message
+    if (images && images.length > 0) {
+      const contentParts: any[] = images.map(img => ({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: img.mimeType,
+          data: img.base64
+        }
+      }));
+      contentParts.push({ type: 'text', text: message });
+      messages.push({ role: 'user', content: contentParts });
+    } else {
+      messages.push({ role: 'user', content: message });
+    }
+
+    const response = await fetch(`${baseUrl}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        system: systemPrompt,
+        tools,
+        max_tokens: 4096,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Anthropic API error: ${response.status} - ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    const contentBlocks = data.content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join('\n');
+    const toolUseBlocks = data.content.filter((c: any) => c.type === 'tool_use').map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      arguments: c.input
+    }));
+
+    return {
+      content: contentBlocks,
+      toolCalls: toolUseBlocks.length > 0 ? toolUseBlocks : undefined,
+      isComplete: data.stop_reason !== 'max_tokens',
+      provider: 'anthropic',
+      model,
+      capabilities: this.inferCapabilities('anthropic', model)
+    };
+  }
+
+  // --- Google Gemini Adapter ---
+  private async chatGoogle(
+    baseUrl: string,
+    apiKey: string,
+    model: string,
+    message: string,
+    history: AgentChatMessage[],
+    systemPrompt: string,
+    tools?: any[],
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>
+  ): Promise<AgentChatResponse> {
+    // Gemini has a specific format with 'parts'
+    const contents = [
+      ...history.filter(h => h.role !== 'system').map(msg => {
+        const role = msg.role === 'assistant' ? 'model' : 'user';
+        
+        if (msg.role === 'tool') {
+          // Tool Response
+          return {
+            role: 'function', // Gemini uses specific role for function responses
+            parts: [{
+              functionResponse: {
+                name: msg.toolCallName || 'unknown_tool', // We need to track names for Gemini
+                response: {
+                  name: msg.toolCallName || 'unknown_tool',
+                  content: msg.content
+                }
+              }
+            }]
+          };
+        }
+
+        if (msg.toolCalls) {
+          // Model calling tools
+          return {
+            role: 'model',
+            parts: [
+              ...(msg.content ? [{ text: msg.content }] : []),
+              ...msg.toolCalls.map(tc => ({
+                functionCall: {
+                  name: tc.name,
+                  args: tc.arguments
+                }
+              }))
+            ]
+          };
+        }
+
+        return {
+          role,
+          parts: [{ text: msg.content }]
+        };
+      })
+    ];
+
+    // Add current message
+    const currentParts: any[] = [{ text: message }];
+    if (images && images.length > 0) {
+      images.forEach(img => {
+        currentParts.push({
+          inlineData: {
+            mimeType: img.mimeType,
+            data: img.base64
+          }
+        });
+      });
+    }
+    contents.push({ role: 'user', parts: currentParts });
+
+    // Note: System prompt in Gemini goes into 'systemInstruction' or prepended to first message
+    // Newer API versions support system_instruction
+    
+    const url = `${baseUrl}/models/${model}:generateContent?key=${apiKey}`;
+    
+    const body: any = {
+      contents,
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 8192
+      }
+    };
+
+    if (tools && tools.length > 0) {
+      body.tools = tools;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Google API error: ${response.status} - ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    const candidate = data.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
+    
+    const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text).join('\n');
+    const functionCalls = parts
+      .filter((p: any) => p.functionCall)
+      .map((p: any) => ({
+        id: `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, // Gemini doesn't give IDs, generate one
+        name: p.functionCall.name,
+        arguments: p.functionCall.args
+      }));
+
+    return {
+      content: textParts,
+      toolCalls: functionCalls.length > 0 ? functionCalls : undefined,
+      isComplete: candidate?.finishReason !== 'MAX_TOKENS',
+      provider: 'google',
+      model,
+      capabilities: this.inferCapabilities('google', model)
+    };
+  }
+
+  // ... (existing methods remain)
+
   getProvider(providerId: string): ProviderConfig | undefined {
     return this.providers.get(providerId);
   }
@@ -368,6 +724,7 @@ class ProviderRegistry {
       toolCalling: hasToolCalling,
       streaming: true,
       vision: hasVision,
+      ocr: hasVision, // Assume OCR if vision is supported
       jsonMode: hasToolCalling,
       contextWindow,
       maxOutputTokens: 4096,

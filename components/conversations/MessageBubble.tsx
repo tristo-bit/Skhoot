@@ -33,9 +33,10 @@ interface MessageBubbleProps {
   onSendPrompt?: (prompt: string) => Promise<string>;
   hasAgentMode?: boolean;
   isHighlighted?: boolean;
+  sessionId?: string;
 }
 
-export const MessageBubble = memo<MessageBubbleProps>(({ message, onEdit, onRegenerateFrom, onSendPrompt, hasAgentMode = false, isHighlighted = false }) => {
+export const MessageBubble = memo<MessageBubbleProps>(({ message, onEdit, onRegenerateFrom, onSendPrompt, hasAgentMode = false, isHighlighted = false, sessionId }) => {
   const isUser = message.role === 'user';
   const showApiConfigButton = !isUser && isApiConfigWarning(message.content);
   const [isEditing, setIsEditing] = useState(false);
@@ -97,7 +98,7 @@ export const MessageBubble = memo<MessageBubbleProps>(({ message, onEdit, onRege
       try {
         await bookmarkService.create({
           message_id: message.id,
-          session_id: null, // TODO: Add session tracking
+          session_id: sessionId || null,
           content: message.content,
           role: isUser ? 'user' : 'assistant',
         });

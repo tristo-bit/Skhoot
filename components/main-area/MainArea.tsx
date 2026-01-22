@@ -33,6 +33,7 @@ interface MainAreaProps {
   onEditMessage?: (messageId: string, newContent: string) => void;
   onRegenerateFromMessage?: (messageId: string, newContent: string) => void;
   onSendPrompt?: (prompt: string) => Promise<string>;
+  sessionId?: string;
 }
 
 /**
@@ -66,6 +67,7 @@ export const MainArea = memo(forwardRef<HTMLDivElement, MainAreaProps>(({
   onEditMessage,
   onRegenerateFromMessage,
   onSendPrompt,
+  sessionId,
 }, ref) => {
   const hasMessages = messages.length > 0;
   const showEmptyState = isEmptyStateVisible && !hasMessages && !isLoading && !hasPendingVoiceMessage && !isRecording;
@@ -170,6 +172,7 @@ export const MainArea = memo(forwardRef<HTMLDivElement, MainAreaProps>(({
               onSendPrompt={onSendPrompt}
               hasAgentMode={hasAgentMode}
               isHighlighted={highlightedMessageId === msg.id}
+              sessionId={sessionId}
             />
           ))}
         

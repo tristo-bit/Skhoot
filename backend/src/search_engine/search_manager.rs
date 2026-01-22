@@ -216,6 +216,26 @@ impl SearchManager {
             }
         };
 
+        // Check for cancellation before processing results
+        {
+            let active = self.active_searches.read().await;
+            if let Some(handle) = active.get(&search_id) {
+                if let SearchStatus::Cancelled = handle.status {
+                    // Search was cancelled, return cancelled result (handled by consumer)
+                    return Ok(UnifiedSearchResults {
+                        search_id,
+                        query: query.to_string(),
+                        mode,
+                        file_results: None,
+                        cli_results: None,
+                        merged_results: Vec::new(),
+                        total_execution_time_ms: start_time.elapsed().as_millis() as u64,
+                        suggestions: Vec::new(),
+                    });
+                }
+            }
+        }
+
         // Merge results
         let merged_results = self.merge_results(&file_results, &cli_results);
 
@@ -290,7 +310,9 @@ impl SearchManager {
         let mut active = self.active_searches.write().await;
         if let Some(handle) = active.get_mut(search_id) {
             handle.status = SearchStatus::Cancelled;
-            // TODO: Implement actual cancellation of underlying search operations
+            // Note: Actual cancellation of underlying search operations is handled by 
+            // checking the status before merging results.
+            // Future improvement: Pass a cancellation token to search engines.
         }
         Ok(())
     }

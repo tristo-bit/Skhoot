@@ -1,5 +1,5 @@
 import { audioService } from './audioService';
-import { apiKeyService } from './apiKeyService';
+import { apiKeyService } from '../apiKeyService';
 import { sttConfigStore, SttProvider } from './sttConfig';
 import { webAudioRecorder, WebAudioRecorderSession } from './webAudioRecorder';
 

@@ -244,7 +244,7 @@ impl ContentExtractionSystem {
             canonical_url: metadata.canonical_url,
             primary_image: metadata.primary_image,
             images: metadata.images,
-            links: Vec::new(), // TODO: Extract links from content
+            links: self.extract_links(&fetch_result.html, &fetch_result.final_url),
             confidence: final_confidence,
             extraction_method: final_method,
             fetch_time_ms: fetch_result.fetch_time_ms,
@@ -263,6 +263,53 @@ impl ContentExtractionSystem {
         Ok(page_extract)
     }
     
+    /// Extract links from HTML content
+    fn extract_links(&self, html: &str, base_url: &str) -> Vec<String> {
+        use scraper::{Html, Selector};
+        
+        // Parse HTML document
+        let document = Html::parse_document(html);
+        
+        // Create selector for anchor tags
+        let selector = match Selector::parse("a[href]") {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+        
+        // Parse base URL
+        let base = match Url::parse(base_url) {
+            Ok(u) => u,
+            Err(_) => return Vec::new(),
+        };
+        
+        let mut links = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        
+        // Extract and resolve links
+        for element in document.select(&selector) {
+            if let Some(href) = element.value().attr("href") {
+                // Skip empty links, anchors, and javascript
+                if href.is_empty() || href.starts_with('#') || href.starts_with("javascript:") {
+                    continue;
+                }
+                
+                // Resolve relative URLs
+                if let Ok(resolved) = base.join(href) {
+                    let resolved_str = resolved.to_string();
+                    
+                    // Add unique links
+                    if seen.insert(resolved_str.clone()) {
+                        links.push(resolved_str);
+                    }
+                }
+            }
+        }
+        
+        // Limit number of links to avoid bloat
+        links.truncate(100);
+        links
+    }
+
     /// Renders a page using WebView if needed (low confidence)
     /// 
     /// This method:
