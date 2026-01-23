@@ -135,6 +135,7 @@ export class ToolExecutor {
               search_path: toolCall.arguments.path,
               max_results: toolCall.arguments.max_results,
               file_types: toolCall.arguments.search_type === 'filename' ? undefined : toolCall.arguments.pattern,
+              unrestricted: toolCall.arguments.unrestricted
             }
           );
           output = JSON.stringify(searchResults, null, 2);

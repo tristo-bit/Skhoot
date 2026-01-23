@@ -1,6 +1,6 @@
 import React, { memo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, X, MessageSquare, LogIn, LogOut } from 'lucide-react';
+import { Search, Plus, X, MessageSquare, LogIn, LogOut, FolderOpen } from 'lucide-react';
 import { Chat, User } from '../../types';
 import { CloseButton, Button, IconButton } from '../buttonFormat';
 import { useTheme } from '../../src/contexts/ThemeContext';
@@ -16,6 +16,8 @@ interface SidebarProps {
   onSignIn: () => void;
   onSignOut: () => void;
   isOpen: boolean;
+  workingDirectory: string;
+  onSetWorkingDirectory: () => void;
 }
 
 const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
@@ -23,7 +25,20 @@ const SkhootLogo = memo(({ size = 24 }: { size?: number }) => (
 ));
 SkhootLogo.displayName = 'SkhootLogo';
 
-const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onDeleteChat, chats, currentChatId, user, onSignIn, onSignOut, isOpen }) => {
+const Sidebar: React.FC<SidebarProps> = ({ 
+  onNewChat, 
+  onClose, 
+  onSelectChat, 
+  onDeleteChat, 
+  chats, 
+  currentChatId, 
+  user, 
+  onSignIn, 
+  onSignOut, 
+  isOpen,
+  workingDirectory,
+  onSetWorkingDirectory
+}) => {
   const { showBranding } = useTheme();
   
   const sidebar = (
@@ -64,6 +79,26 @@ const Sidebar: React.FC<SidebarProps> = ({ onNewChat, onClose, onSelectChat, onD
     {/* New Chat Button */}
     <div className="relative z-10 px-5 mb-4 flex-shrink-0">
       <NewChatButton onClick={onNewChat} />
+    </div>
+
+    {/* Working Directory Selector */}
+    <div className="relative z-10 px-5 mb-6 flex-shrink-0">
+      <div className="px-2 mb-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.1em] font-jakarta text-text-primary opacity-60">
+          Working Directory
+        </p>
+      </div>
+      <Button
+        onClick={onSetWorkingDirectory}
+        variant="ghost"
+        size="sm"
+        className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-left border border-black/5 dark:border-white/5 transition-all group"
+      >
+        <FolderOpen size={14} className="text-text-secondary group-hover:text-fuku-brand transition-colors" />
+        <span className="text-xs font-medium text-text-secondary truncate flex-1 font-mono">
+          {workingDirectory === '~' ? '~/ (Home)' : workingDirectory}
+        </span>
+      </Button>
     </div>
 
     {/* Past Chats Header - Fixed */}

@@ -283,6 +283,28 @@ async fn start_audio_services() -> Result<String, String> {
     }
 }
 
+/// Open a native folder picker dialog from Rust
+#[tauri::command]
+async fn pick_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
+  use tauri_plugin_dialog::DialogExt;
+  
+  println!("[Skhoot] Opening folder picker via Rust...");
+  
+  let file_path = app.dialog().file().blocking_pick_folder();
+  
+  match file_path {
+      Some(path) => {
+          let path_str = path.to_string();
+          println!("[Skhoot] Folder selected: {}", path_str);
+          Ok(Some(path_str))
+      },
+      None => {
+          println!("[Skhoot] Folder selection cancelled");
+          Ok(None)
+      }
+  }
+}
+
 fn main() {
   tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
@@ -290,6 +312,15 @@ fn main() {
     .plugin(tauri_plugin_notification::init())
     .plugin(tauri_plugin_fs::init())
     .setup(|app| {
+      // Force initialization of GTK context on Linux for dialogs
+      #[cfg(target_os = "linux")]
+      {
+         use webkit2gtk::glib;
+         // Ensure the main loop is running for GTK dialogs
+         glib::source::timeout_add_local(std::time::Duration::from_millis(100), move || {
+             glib::ControlFlow::Continue
+         });
+      }
       // Initialize API key storage
       let app_data_dir = app.path().app_data_dir()
         .expect("Failed to get app data directory");
@@ -456,6 +487,7 @@ fn main() {
         agent::get_agent_config,
         disk_info::get_system_disks,
         webview_renderer::render_page,
+        pick_folder,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

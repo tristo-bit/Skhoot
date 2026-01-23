@@ -46,6 +46,7 @@ pub struct FileSearchQuery {
     pub file_types: Option<String>,   // Comma-separated file extensions
     pub exclude_dirs: Option<String>, // Comma-separated directories to exclude
     pub search_path: Option<String>,  // Custom search path (defaults to user home)
+    pub unrestricted: Option<bool>,   // Enable deep search (hidden files, ignore .gitignore)
 }
 
 /// Query parameters for content search
@@ -98,7 +99,20 @@ pub async fn search_files(
     
     // Use custom search path if provided, otherwise default to user's home directory
     let search_dir = if let Some(ref custom_path) = params.search_path {
-        PathBuf::from(custom_path)
+        // Handle tilde expansion for custom paths
+        if custom_path.starts_with("~/") || custom_path == "~" {
+            if let Some(home) = dirs::home_dir() {
+                if custom_path == "~" {
+                    home
+                } else {
+                    home.join(&custom_path[2..])
+                }
+            } else {
+                PathBuf::from(custom_path)
+            }
+        } else {
+            PathBuf::from(custom_path)
+        }
     } else {
         // Default to user's home directory for broader search
         dirs::home_dir()
@@ -128,7 +142,12 @@ pub async fn search_files(
     
     // For hybrid mode, run both fuzzy and CLI searches in parallel
     if matches!(mode, SearchMode::Hybrid | SearchMode::Auto) {
-        let cli_config = CliConfig::default();
+        let mut cli_config = CliConfig::default();
+        // Propagate unrestricted flag to CLI config
+        if params.unrestricted.unwrap_or(false) {
+            cli_config.unrestricted = true;
+        }
+
         let cli_engine = crate::search_engine::CliEngine::new(search_dir.clone());
         
         // Parse query for CLI search (split by comma for multiple terms)

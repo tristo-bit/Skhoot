@@ -12,6 +12,7 @@ pub mod instructions;
 pub mod response;
 pub mod session;
 pub mod tools;
+pub mod apply_patch;
 
 pub use agent::{Agent, AgentConfig, AgentState};
 pub use executor::{AgentExecutor, ExecutorConfig};

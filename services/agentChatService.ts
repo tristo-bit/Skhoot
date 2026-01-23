@@ -89,7 +89,7 @@ class AgentChatService {
       const systemPrompt = PromptBuilder.getSystemPrompt(
         provider,
         model,
-        options.workspaceRoot || '.', // Use current directory as default if not specified
+        options.workspaceRoot || '~', // Default to Home Directory for Agent Context
 
         modelInfo?.capabilities,
         options.systemPrompt,

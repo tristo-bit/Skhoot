@@ -1,7 +1,7 @@
 //! Terminal HTTP Routes
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, State, Query},
     http::StatusCode,
     response::Json,
     routing::{get, post, delete},
@@ -35,6 +35,13 @@ pub struct WriteRequest {
 #[derive(Debug, Serialize)]
 pub struct ReadResponse {
     pub output: Vec<String>,
+    pub next_cursor: usize,
+}
+
+/// Query parameters for reading output
+#[derive(Debug, Deserialize)]
+pub struct ReadQuery {
+    pub cursor: Option<usize>,
 }
 
 /// Error response
@@ -121,9 +128,12 @@ async fn write_to_session(
 async fn read_from_session(
     State(manager): State<TerminalManager>,
     Path(session_id): Path<String>,
+    Query(query): Query<ReadQuery>,
 ) -> Result<Json<ReadResponse>, (StatusCode, Json<ErrorResponse>)> {
-    match manager.read(&session_id).await {
-        Ok(output) => Ok(Json(ReadResponse { output })),
+    let start_index = query.cursor.unwrap_or(0);
+    
+    match manager.read_from(&session_id, start_index).await {
+        Ok((output, next_cursor)) => Ok(Json(ReadResponse { output, next_cursor })),
         Err(e) => Err((
             StatusCode::NOT_FOUND,
             Json(ErrorResponse { error: e }),

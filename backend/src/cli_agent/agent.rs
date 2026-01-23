@@ -28,6 +28,8 @@ pub struct AgentConfig {
     pub tool_timeout_ms: u64,
     /// Maximum number of tool calls per turn
     pub max_tool_calls_per_turn: u32,
+    /// Optional terminal session ID for persistent shell
+    pub terminal_session_id: Option<String>,
 }
 
 impl Default for AgentConfig {
@@ -37,12 +39,17 @@ impl Default for AgentConfig {
             model: "gemini-2.0-flash".to_string(),
             temperature: 0.7,
             max_tokens: 4096,
-            working_directory: std::env::current_dir()
+            working_directory: dirs::home_dir()
                 .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|_| ".".to_string()),
+                .unwrap_or_else(|| {
+                    std::env::current_dir()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_else(|_| ".".to_string())
+                }),
             enabled_tools: Tool::all(),
             tool_timeout_ms: 30000,
             max_tool_calls_per_turn: 10,
+            terminal_session_id: None,
         }
     }
 }
@@ -84,35 +91,19 @@ impl AgentState {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AgentEvent {
     /// Agent state changed
-    StateChanged { 
-        from: AgentState, 
-        to: AgentState 
-    },
+    StateChanged { from: AgentState, to: AgentState },
     /// Agent started processing a message
-    ProcessingStarted { 
-        message_id: String 
-    },
+    ProcessingStarted { message_id: String },
     /// Agent is executing a tool
-    ToolExecutionStarted { 
-        tool_call: ToolCall 
-    },
+    ToolExecutionStarted { tool_call: ToolCall },
     /// Tool execution completed
-    ToolExecutionCompleted { 
-        result: ToolResult 
-    },
+    ToolExecutionCompleted { result: ToolResult },
     /// Agent generated a text response
-    TextGenerated { 
-        text: String, 
-        is_complete: bool 
-    },
+    TextGenerated { text: String, is_complete: bool },
     /// Agent completed processing
-    ProcessingCompleted { 
-        message_id: String 
-    },
+    ProcessingCompleted { message_id: String },
     /// Agent encountered an error
-    ErrorOccurred { 
-        error: String 
-    },
+    ErrorOccurred { error: String },
 }
 
 /// Core agent structure
@@ -145,7 +136,7 @@ impl Agent {
     pub fn with_config(id: String, config: AgentConfig) -> Self {
         let tool_registry = ToolRegistry::with_tools(config.enabled_tools.clone());
         let now = Instant::now();
-        
+
         Self {
             id,
             config,
@@ -172,7 +163,7 @@ impl Agent {
                 to: AgentState::Ready,
             });
         }
-        
+
         self.transition_to(AgentState::Ready);
         Ok(())
     }
@@ -195,7 +186,8 @@ impl Agent {
     /// Build the complete system prompt with context
     pub fn build_system_prompt(&self) -> String {
         let os_info = std::env::consts::OS;
-        self.system_prompt.build_with_context(&self.config.working_directory, os_info)
+        self.system_prompt
+            .build_with_context(&self.config.working_directory, os_info)
     }
 
     /// Get agent uptime
@@ -218,7 +210,7 @@ impl Agent {
         let old_state = self.state;
         self.state = new_state;
         self.touch();
-        
+
         self.emit_event(AgentEvent::StateChanged {
             from: old_state,
             to: new_state,
@@ -237,7 +229,7 @@ impl Agent {
         if !self.state.can_accept_message() {
             return Err(AgentError::NotReady(self.state));
         }
-        
+
         self.transition_to(AgentState::Processing);
         self.emit_event(AgentEvent::ProcessingStarted { message_id });
         Ok(())
@@ -251,12 +243,12 @@ impl Agent {
                 to: AgentState::ExecutingTool,
             });
         }
-        
+
         // Validate tool is enabled
         if !self.tool_registry.is_enabled(&tool_call.name) {
             return Err(AgentError::ToolNotEnabled(tool_call.name));
         }
-        
+
         self.transition_to(AgentState::ExecutingTool);
         self.emit_event(AgentEvent::ToolExecutionStarted { tool_call });
         Ok(())
@@ -270,7 +262,7 @@ impl Agent {
                 to: AgentState::Processing,
             });
         }
-        
+
         self.emit_event(AgentEvent::ToolExecutionCompleted { result });
         self.transition_to(AgentState::Processing);
         Ok(())
@@ -289,7 +281,7 @@ impl Agent {
                 to: AgentState::Ready,
             });
         }
-        
+
         self.emit_event(AgentEvent::ProcessingCompleted { message_id });
         self.transition_to(AgentState::Ready);
         Ok(())
@@ -314,7 +306,7 @@ impl Agent {
                 to: AgentState::Ready,
             });
         }
-        
+
         self.transition_to(AgentState::Ready);
         Ok(())
     }
@@ -325,19 +317,19 @@ impl Agent {
 pub enum AgentError {
     #[error("Invalid state transition from {from:?} to {to:?}")]
     InvalidStateTransition { from: AgentState, to: AgentState },
-    
+
     #[error("Agent not ready, current state: {0:?}")]
     NotReady(AgentState),
-    
+
     #[error("Tool not enabled: {0}")]
     ToolNotEnabled(String),
-    
+
     #[error("Tool execution failed: {0}")]
     ToolExecutionFailed(String),
-    
+
     #[error("Configuration error: {0}")]
     ConfigError(String),
-    
+
     #[error("Internal error: {0}")]
     Internal(String),
 }
@@ -363,11 +355,11 @@ mod tests {
     fn test_state_transitions() {
         let mut agent = Agent::new("test-agent".to_string());
         agent.initialize().unwrap();
-        
+
         // Start processing
         agent.start_processing("msg-1".to_string()).unwrap();
         assert_eq!(agent.state(), AgentState::Processing);
-        
+
         // Complete processing
         agent.complete_processing("msg-1".to_string()).unwrap();
         assert_eq!(agent.state(), AgentState::Ready);
@@ -378,16 +370,16 @@ mod tests {
         let mut agent = Agent::new("test-agent".to_string());
         agent.initialize().unwrap();
         agent.start_processing("msg-1".to_string()).unwrap();
-        
+
         let tool_call = ToolCall {
             id: "call-1".to_string(),
             name: "shell".to_string(),
             arguments: serde_json::json!({"command": "echo hello"}),
         };
-        
+
         agent.start_tool_execution(tool_call).unwrap();
         assert_eq!(agent.state(), AgentState::ExecutingTool);
-        
+
         let result = ToolResult {
             tool_call_id: "call-1".to_string(),
             success: true,
@@ -395,7 +387,7 @@ mod tests {
             error: None,
             metadata: None,
         };
-        
+
         agent.complete_tool_execution(result).unwrap();
         assert_eq!(agent.state(), AgentState::Processing);
     }
@@ -404,10 +396,10 @@ mod tests {
     fn test_error_handling() {
         let mut agent = Agent::new("test-agent".to_string());
         agent.initialize().unwrap();
-        
+
         agent.set_error("Test error".to_string());
         assert_eq!(agent.state(), AgentState::Error);
-        
+
         agent.reset().unwrap();
         assert_eq!(agent.state(), AgentState::Ready);
     }

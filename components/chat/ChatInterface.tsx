@@ -35,6 +35,7 @@ interface ChatInterfaceProps {
   onToggleAgents?: () => void;
   /** Callback when agent mode changes */
   onAgentModeChange?: (isAgentMode: boolean) => void;
+  workingDirectory?: string;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
@@ -52,6 +53,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   isAgentsOpen = false,
   onToggleAgents,
   onAgentModeChange,
+  workingDirectory = '~',
 }) => {
   // State
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -431,6 +433,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         agentHistory,
         {
           sessionId: effectiveSessionId,
+          workspaceRoot: workingDirectory,
           temperature: aiSettings.temperature,
           maxTokens: aiSettings.maxTokens,
           topP: aiSettings.topP,

@@ -33,6 +33,7 @@ pub struct CliConfig {
     pub use_fzf: bool,
     pub timeout_seconds: u64,
     pub max_results: usize,
+    pub unrestricted: bool, // Enable deep search (hidden files, ignore .gitignore)
 }
 
 impl Default for CliConfig {
@@ -43,6 +44,7 @@ impl Default for CliConfig {
             use_fzf: false,
             timeout_seconds: 30,
             max_results: 1000,
+            unrestricted: false,
         }
     }
 }
@@ -146,7 +148,13 @@ impl CliEngine {
         cmd.arg("--files")
            .arg("--color").arg("never");
 
+        if config.unrestricted {
+            cmd.arg("--hidden") // Search hidden files
+               .arg("--no-ignore"); // Ignore .gitignore rules
+        }
+
         // Add extension globs
+
         for ext in extensions {
             cmd.arg("-g").arg(format!("*.{}", ext));
         }
@@ -204,7 +212,13 @@ impl CliEngine {
            .arg("--max-results").arg(config.max_results.to_string())
            .arg("--ignore-case");
 
+        if config.unrestricted {
+            cmd.arg("--hidden") // Search hidden files
+               .arg("--no-ignore"); // Ignore .gitignore rules
+        }
+
         // Add extension filters
+
         for ext in extensions {
             cmd.arg("-e").arg(ext);
         }

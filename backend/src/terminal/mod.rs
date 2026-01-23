@@ -9,4 +9,5 @@ mod routes;
 mod snapshot;
 
 pub use manager::TerminalManager;
+pub use session::SessionConfig;
 pub use routes::terminal_routes;

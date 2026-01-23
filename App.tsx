@@ -13,6 +13,7 @@ import { FileSearchTest } from './components/search-engine';
 import { Header, ResizeHandles, AppBackground } from './components/layout';
 import { Background3D } from './components/customization';
 import { useTauriWindow } from './hooks';
+import { invoke } from '@tauri-apps/api/core';
 import { chatStorage } from './services/chatStorage';
 import { authService } from './services/auth';
 import { initScaleManager, destroyScaleManager } from './services/scaleManager';
@@ -57,6 +58,7 @@ const AppContent: React.FC = () => {
   const [isAgentsOpen, setIsAgentsOpen] = useState(false);
   const [isAISettingsOpen, setIsAISettingsOpen] = useState(false);
   const [newChatSession, setNewChatSession] = useState(0);
+  const [workingDirectory, setWorkingDirectory] = useState<string>('~'); // Default to home
   
   // Track pending chat creation to avoid remounting during first message
   const pendingChatIdRef = useRef<string | null>(null);
@@ -460,6 +462,22 @@ const AppContent: React.FC = () => {
   }, []);
   const handleCloseAuth = useCallback(() => setAuthView('none'), []);
 
+  // Handle working directory change
+  const handleSetWorkingDirectory = useCallback(async () => {
+    try {
+      // Use our custom Rust command instead of the plugin JS API
+      // This is often more reliable on Linux/Tauri v2
+      const selected = await invoke<string | null>('pick_folder');
+      
+      if (selected) {
+        console.log('[App] Working directory changed:', selected);
+        setWorkingDirectory(selected);
+      }
+    } catch (error) {
+      console.error('[App] Failed to select directory:', error);
+    }
+  }, []);
+
   return (
     <div className="relative flex h-screen w-full items-center justify-center overflow-hidden">
       <ResizeHandles onResizeStart={handleResizeStart} />
@@ -494,6 +512,8 @@ const AppContent: React.FC = () => {
             onSignIn={handleSignIn}
             onSignOut={handleSignOut}
             isOpen={isSidebarOpen}
+            workingDirectory={workingDirectory}
+            onSetWorkingDirectory={handleSetWorkingDirectory}
           />
 
           {/* Panels */}
@@ -527,7 +547,7 @@ const AppContent: React.FC = () => {
             onMouseDown={handleBackgroundDrag}
           >
             <div className="flex-1 relative overflow-hidden" data-tauri-drag-region="false">
-              <ChatInterface 
+                <ChatInterface 
                 key={currentChatId ?? `new-chat-${newChatSession}`} 
                 chatId={currentChatId}
                 getPendingChatId={() => pendingChatIdRef.current}
@@ -542,8 +562,10 @@ const AppContent: React.FC = () => {
                 onToggleWorkflows={toggleWorkflows}
                 isAgentsOpen={isAgentsOpen}
                 onToggleAgents={toggleAgents}
+                workingDirectory={workingDirectory}
               />
             </div>
+
           </main>
         </div>
       </div>

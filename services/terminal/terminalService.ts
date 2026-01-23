@@ -10,6 +10,7 @@ export interface TerminalSession {
   id: string;
   type: 'shell' | 'codex' | 'skhoot-log';
   isActive: boolean;
+  cursor: number;
 }
 
 /**
@@ -19,6 +20,14 @@ export interface TerminalOutput {
   output_type: 'stdout' | 'stderr' | 'system';
   content: string;
   timestamp: number;
+}
+
+/**
+ * Result from read operation
+ */
+interface TerminalReadResult {
+  outputs: TerminalOutput[];
+  next_cursor: number;
 }
 
 /**
@@ -137,12 +146,13 @@ class TerminalService {
     try {
       const shell = type === 'codex' ? 'codex' : undefined;
       const sessionId = await terminalHttpService.createSession({ shell, cols, rows });
-      
       this.sessions.set(sessionId, {
         id: sessionId,
         type,
         isActive: true,
+        cursor: 0,
       });
+
       
       // Start polling via HTTP service
       terminalHttpService.startPolling(sessionId, this.POLLING_INTERVAL_MS);
@@ -180,6 +190,7 @@ class TerminalService {
         id: sessionId,
         type,
         isActive: true,
+        cursor: 0,
       });
       console.log('[TerminalService] Session stored locally');
 
@@ -245,6 +256,13 @@ class TerminalService {
    */
   async readFromSession(sessionId: string): Promise<TerminalOutput[]> {
     try {
+      const session = this.sessions.get(sessionId);
+      if (!session) {
+        // Session might not be initialized yet if HTTP, but we need it for cursor
+        // For HTTP sessions that are created remotely, we might need to fetch info first
+        return [];
+      }
+
       // Use HTTP backend if available
       if (await this.checkHttpBackend()) {
         const output = await terminalHttpService.read(sessionId);
@@ -257,10 +275,15 @@ class TerminalService {
       }
       
       // Fall back to Tauri IPC
-      const outputs = await invoke<TerminalOutput[]>('read_from_terminal', {
+      const result = await invoke<TerminalReadResult>('read_from_terminal', {
         sessionId,
+        cursor: session.cursor,
       });
-      return outputs;
+      
+      // Update cursor
+      session.cursor = result.next_cursor;
+      
+      return result.outputs;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       

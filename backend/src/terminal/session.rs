@@ -39,7 +39,8 @@ pub struct TerminalSession {
     pub last_activity: DateTime<Utc>,
     config: SessionConfig,
     writer: Arc<Mutex<Box<dyn Write + Send>>>,
-    output_rx: Arc<Mutex<mpsc::Receiver<String>>>,
+    // Store history in a shared buffer instead of consuming channel
+    history: Arc<tokio::sync::RwLock<Vec<String>>>,
     _reader_handle: JoinHandle<()>,
     _child: Box<dyn Child + Send + Sync>,
 }
@@ -81,11 +82,13 @@ impl TerminalSession {
         let mut reader = pair.master.try_clone_reader()
             .map_err(|e| format!("Failed to get PTY reader: {}", e))?;
         
-        // Create channel for output
-        let (output_tx, output_rx) = mpsc::channel::<String>(1000);
+        // Shared history buffer
+        let history = Arc::new(tokio::sync::RwLock::new(Vec::new()));
         
         // Spawn async task to read from PTY
         let session_id = id.clone();
+        let history_clone = history.clone();
+        
         let reader_handle = tokio::task::spawn_blocking(move || {
             let mut buf = [0u8; 4096];
             loop {
@@ -96,9 +99,15 @@ impl TerminalSession {
                     }
                     Ok(n) => {
                         let content = String::from_utf8_lossy(&buf[..n]).to_string();
-                        if output_tx.blocking_send(content).is_err() {
-                            tracing::debug!("Output channel closed for session {}", session_id);
-                            break;
+                        // Append to history
+                        let history = history_clone.blocking_write();
+                        let mut history = history; // satisfy borrow checker if needed
+                        history.push(content);
+                        
+                        // Limit history size (e.g. 5000 chunks)
+                        if history.len() > 5000 {
+                            let keep = history.len() - 4000;
+                            history.drain(0..keep);
                         }
                     }
                     Err(e) => {
@@ -115,7 +124,7 @@ impl TerminalSession {
             last_activity: now,
             config,
             writer: Arc::new(Mutex::new(writer)),
-            output_rx: Arc::new(Mutex::new(output_rx)),
+            history,
             _reader_handle: reader_handle,
             _child: child,
         })
@@ -131,17 +140,27 @@ impl TerminalSession {
         Ok(())
     }
     
-    /// Read available output (non-blocking)
-    pub async fn read(&self) -> Vec<String> {
-        let mut rx = self.output_rx.lock().await;
-        let mut output = Vec::new();
+    /// Read recent output
+    /// Returns lines since the last read index if provided, or the tail.
+    /// Returns (lines, new_index)
+    pub async fn read_from(&self, start_index: usize) -> (Vec<String>, usize) {
+        let history = self.history.read().await;
+        let len = history.len();
         
-        // Drain all available messages without blocking
-        while let Ok(msg) = rx.try_recv() {
-            output.push(msg);
+        if start_index >= len {
+            return (Vec::new(), len);
         }
         
-        output
+        let lines = history[start_index..].to_vec();
+        (lines, len)
+    }
+
+    /// Read recent output (legacy compatibility)
+    pub async fn read(&self) -> Vec<String> {
+        let history = self.history.read().await;
+        // Return last 100 chunks if history is large
+        let start = history.len().saturating_sub(100);
+        history[start..].to_vec()
     }
     
     /// Get session info

@@ -11,6 +11,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::RwLock;
 
+use skhoot_backend::cli_agent::{AgentExecutor, ExecutorConfig};
+use skhoot_backend::TerminalManager;
+
 /// Session state - lightweight, no PTY or complex types
 #[derive(Debug, Clone)]
 struct AgentSessionState {
@@ -24,6 +27,7 @@ struct AgentSessionState {
     state: String,
     created_at: u64,
     last_activity: u64,
+    terminal_session_id: Option<String>,
 }
 
 /// Stored message in session
@@ -154,6 +158,7 @@ pub async fn create_agent_session(
         state: "ready".to_string(),
         created_at: now,
         last_activity: now,
+        terminal_session_id: None, // Will be created on demand
     };
     
     let status = AgentStatusDto {
@@ -244,17 +249,36 @@ pub async fn get_agent_status(
 #[tauri::command]
 pub async fn execute_agent_tool(
     state: State<'_, AgentTauriState>,
+    terminal_state: State<'_, crate::terminal::TerminalState>,
     app_handle: AppHandle,
     session_id: String,
     request: ExecuteToolRequest,
 ) -> Result<ToolResultDto, String> {
     println!("[Agent] Executing tool {} for session {}", request.tool_name, session_id);
     
-    let working_dir = {
-        let sessions = state.sessions.read().await;
-        let session = sessions.get(&session_id)
+    // Get session context and ensure terminal exists if needed
+    let (working_dir, terminal_session_id) = {
+        let mut sessions = state.sessions.write().await;
+        let session = sessions.get_mut(&session_id)
             .ok_or_else(|| format!("Session not found: {}", session_id))?;
-        session.working_directory.clone()
+        
+        // Create persistent terminal session if it doesn't exist and tool is shell-related
+        if session.terminal_session_id.is_none() && (request.tool_name == "shell" || request.tool_name == "create_terminal") {
+            let config = skhoot_backend::SessionConfig {
+                shell: if cfg!(target_os = "windows") { "powershell.exe".to_string() } else { "/bin/bash".to_string() },
+                cols: 80,
+                rows: 24,
+                env: vec![("TERM".to_string(), "xterm-256color".to_string())],
+            };
+            
+            // Create terminal session
+            if let Ok(tid) = terminal_state.manager.create_session(Some(config)).await {
+                println!("[Agent] Created persistent terminal session {} for agent {}", tid, session_id);
+                session.terminal_session_id = Some(tid);
+            }
+        }
+        
+        (session.working_directory.clone(), session.terminal_session_id.clone())
     };
     
     let _ = app_handle.emit(&format!("agent:tool_start:{}", session_id), &ToolCallDto {
@@ -263,7 +287,35 @@ pub async fn execute_agent_tool(
         arguments: request.arguments.clone(),
     });
     
-    let result = execute_tool_direct(&request, &working_dir).await;
+    // Create executor with terminal manager
+    let executor_config = ExecutorConfig {
+        default_timeout_ms: 30000,
+        working_directory: working_dir.clone(),
+        max_output_size: 1024 * 1024,
+        allow_writes: true,
+        terminal_session_id: terminal_session_id.clone(),
+    };
+    
+    let executor = AgentExecutor::with_config(executor_config)
+        .with_terminal_manager(terminal_state.manager.clone());
+    
+    // Map request to ToolCall
+    let tool_call = skhoot_backend::cli_agent::ToolCall {
+        id: request.tool_call_id.clone(),
+        name: request.tool_name.clone(),
+        arguments: request.arguments.clone(),
+    };
+    
+    // Execute
+    let result = executor.execute(&tool_call).await;
+    
+    let result_dto = ToolResultDto {
+        tool_call_id: result.tool_call_id,
+        success: result.success,
+        output: result.output,
+        error: result.error,
+        duration_ms: result.metadata.and_then(|m| m.duration_ms),
+    };
     
     {
         let mut sessions = state.sessions.write().await;
@@ -271,8 +323,8 @@ pub async fn execute_agent_tool(
             let msg = StoredMessage {
                 id: generate_id(),
                 role: "tool".to_string(),
-                content: if result.success { result.output.clone() } else { 
-                    format!("Error: {}", result.error.as_deref().unwrap_or("Unknown error"))
+                content: if result_dto.success { result_dto.output.clone() } else { 
+                    format!("Error: {}", result_dto.error.as_deref().unwrap_or("Unknown error"))
                 },
                 tool_calls: None,
                 tool_call_id: Some(request.tool_call_id.clone()),
@@ -283,11 +335,13 @@ pub async fn execute_agent_tool(
         }
     }
     
-    let _ = app_handle.emit(&format!("agent:tool_complete:{}", session_id), &result);
-    println!("[Agent] Tool {} completed: success={}", request.tool_name, result.success);
-    Ok(result)
+    let _ = app_handle.emit(&format!("agent:tool_complete:{}", session_id), &result_dto);
+    println!("[Agent] Tool {} completed: success={}", request.tool_name, result_dto.success);
+    Ok(result_dto)
 }
 
+// Deprecated direct execution functions - kept only as fallbacks if needed, 
+// but execute_agent_tool now uses the proper AgentExecutor
 async fn execute_tool_direct(request: &ExecuteToolRequest, working_dir: &PathBuf) -> ToolResultDto {
     let start = std::time::Instant::now();
     

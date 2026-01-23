@@ -8,7 +8,10 @@ use std::time::{Duration, Instant};
 use tokio::time::timeout;
 
 use crate::cli_bridge::{CliBridge, CliError};
+use crate::terminal::TerminalManager;
 use super::tools::{Tool, ToolCall, ToolResult, ToolResultMetadata};
+use super::apply_patch::apply_patch;
+use std::sync::Arc;
 
 /// Tool execution configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,6 +24,8 @@ pub struct ExecutorConfig {
     pub max_output_size: usize,
     /// Whether to allow write operations
     pub allow_writes: bool,
+    /// Optional terminal session ID for persistent shell
+    pub terminal_session_id: Option<String>,
 }
 
 impl Default for ExecutorConfig {
@@ -30,6 +35,7 @@ impl Default for ExecutorConfig {
             working_directory: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             max_output_size: 1024 * 1024, // 1MB
             allow_writes: true,
+            terminal_session_id: None,
         }
     }
 }
@@ -38,6 +44,8 @@ impl Default for ExecutorConfig {
 pub struct AgentExecutor {
     /// CLI bridge for command execution
     cli_bridge: CliBridge,
+    /// Persistent Terminal Manager (Optional)
+    terminal_manager: Option<TerminalManager>,
     /// Executor configuration
     config: ExecutorConfig,
 }
@@ -47,6 +55,7 @@ impl AgentExecutor {
     pub fn new() -> Self {
         Self {
             cli_bridge: CliBridge::new(),
+            terminal_manager: None,
             config: ExecutorConfig::default(),
         }
     }
@@ -55,8 +64,15 @@ impl AgentExecutor {
     pub fn with_config(config: ExecutorConfig) -> Self {
         Self {
             cli_bridge: CliBridge::new(),
+            terminal_manager: None,
             config,
         }
+    }
+
+    /// Set the terminal manager for persistent shell support
+    pub fn with_terminal_manager(mut self, manager: TerminalManager) -> Self {
+        self.terminal_manager = Some(manager);
+        self
     }
 
     /// Set the working directory
@@ -74,6 +90,7 @@ impl AgentExecutor {
             "write_file" => Tool::WriteFile,
             "list_directory" => Tool::ListDirectory,
             "search_files" => Tool::SearchFiles,
+            "apply_patch" => Tool::ApplyPatch,
             _ => {
                 return ToolResult {
                     tool_call_id: tool_call.id.clone(),
@@ -91,6 +108,7 @@ impl AgentExecutor {
             Tool::WriteFile => self.execute_write_file(tool_call).await,
             Tool::ListDirectory => self.execute_list_directory(tool_call).await,
             Tool::SearchFiles => self.execute_search_files(tool_call).await,
+            Tool::ApplyPatch => self.execute_apply_patch(tool_call).await,
         };
 
         let duration_ms = start.elapsed().as_millis() as u64;
@@ -130,6 +148,39 @@ impl AgentExecutor {
             .and_then(|v| v.as_str())
             .ok_or_else(|| ExecutorError::MissingArgument("command".to_string()))?;
         
+        // If we have a terminal session and manager, use persistent shell
+        if let (Some(manager), Some(session_id)) = (&self.terminal_manager, &self.config.terminal_session_id) {
+            // Check if session is active/exists
+            if manager.get_session(session_id).await.is_some() {
+                // Get current history length to read only new output
+                let start_len = manager.get_history_len(session_id).await.unwrap_or(0);
+
+                // Write command to PTY (append newline)
+                let cmd_with_newline = format!("{}\n", command);
+                manager.write(session_id, &cmd_with_newline).await
+                    .map_err(|e| ExecutorError::FileOperation(format!("Failed to write to terminal: {}", e)))?;
+                
+                // Wait briefly for output (heuristic)
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                
+                // Read only new lines since we sent the command
+                let (output_lines, _) = manager.read_from(session_id, start_len).await
+                    .map_err(|e| ExecutorError::FileOperation(format!("Failed to read from terminal: {}", e)))?;
+                
+                // Filter out the echoed command if possible (heuristic)
+                // PTY usually echoes the command back as the first line(s).
+                // We'll join everything for now, but this specific read avoids the "history repeat" issue.
+                let output = output_lines.join("");
+                
+                return Ok((output, Some(ToolResultMetadata {
+                    working_directory: None, // We don't track CWD easily in PTY mode yet
+                    ..Default::default()
+                })));
+            }
+        }
+
+        // Fallback to ephemeral execution if no persistent session
+        
         let workdir = args.get("workdir")
             .and_then(|v| v.as_str())
             .map(PathBuf::from)
@@ -145,10 +196,11 @@ impl AgentExecutor {
             return Err(ExecutorError::InvalidArgument("Empty command".to_string()));
         }
 
+        // Use absolute path for shell to avoid PATH issues in some environments
         let (program, cmd_args) = if cfg!(target_os = "windows") {
             ("cmd".to_string(), vec!["/C".to_string(), command.to_string()])
         } else {
-            ("sh".to_string(), vec!["-c".to_string(), command.to_string()])
+            ("/bin/sh".to_string(), vec!["-c".to_string(), command.to_string()])
         };
 
         // Execute command with timeout
@@ -434,14 +486,104 @@ impl AgentExecutor {
         self.execute_shell(&search_call).await
     }
 
-    /// Resolve a path relative to working directory
-    fn resolve_path(&self, path_str: &str) -> PathBuf {
-        let path = Path::new(path_str);
-        if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            self.config.working_directory.join(path)
+    /// Execute apply_patch tool
+    async fn execute_apply_patch(
+        &self,
+        tool_call: &ToolCall,
+    ) -> Result<(String, Option<ToolResultMetadata>), ExecutorError> {
+        if !self.config.allow_writes {
+            return Err(ExecutorError::PermissionDenied("Write operations are disabled".to_string()));
         }
+
+        let args = &tool_call.arguments;
+        
+        let patch_content = args.get("patch")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| ExecutorError::MissingArgument("patch".to_string()))?;
+
+        // Switch to the working directory to apply the patch correctly
+        let original_dir = std::env::current_dir().map_err(|e| ExecutorError::FileOperation(e.to_string()))?;
+        std::env::set_current_dir(&self.config.working_directory)
+            .map_err(|e| ExecutorError::FileOperation(format!("Failed to set working directory: {}", e)))?;
+
+        let mut stdout = Vec::new();
+        let mut stderr = Vec::new();
+
+        let result = apply_patch(patch_content, &mut stdout, &mut stderr);
+
+        // Restore original directory
+        let _ = std::env::set_current_dir(original_dir);
+
+        let output_str = String::from_utf8_lossy(&stdout).to_string();
+        let error_str = String::from_utf8_lossy(&stderr).to_string();
+
+        match result {
+            Ok(_) => Ok((output_str, None)),
+            Err(e) => Err(ExecutorError::FileOperation(format!("Patch application failed: {}\nOutput: {}\nError: {}", e, output_str, error_str))),
+        }
+    }
+
+    /// Resolve a path relative to working directory
+    pub fn resolve_path(&self, path_str: &str) -> PathBuf {
+        let path = Path::new(path_str);
+
+        // 1. Handle absolute paths
+        if path.is_absolute() {
+            return path.to_path_buf();
+        }
+
+        // 2. Handle tilde expansion
+        if path_str.starts_with("~/") || path_str == "~" {
+            // Try standard dirs crate first
+            if let Some(home) = dirs::home_dir() {
+                if path_str == "~" {
+                    return home;
+                }
+                return home.join(&path_str[2..]);
+            }
+            
+            // Fallback: Check HOME env var directly (Linux/macOS) if dirs crate fails
+            // This happens in some sandboxed/bundled environments where user context is partial
+            if let Ok(home_str) = std::env::var("HOME") {
+                let home = PathBuf::from(home_str);
+                if path_str == "~" {
+                    return home;
+                }
+                return home.join(&path_str[2..]);
+            }
+        }
+
+        // 3. Heuristic for common absolute paths missing leading slash on Unix-like systems
+        #[cfg(unix)]
+        {
+            if path_str.starts_with("home/") || 
+               path_str.starts_with("usr/") || 
+               path_str.starts_with("etc/") || 
+               path_str.starts_with("var/") ||
+               path_str.starts_with("opt/") ||
+               path_str.starts_with("tmp/") ||
+               path_str.starts_with("Users/") ||
+               path_str.starts_with("mnt/") {
+                return PathBuf::from(format!("/{}", path_str));
+            }
+        }
+
+        // 4. Try relative to CWD first
+        let relative_path = self.config.working_directory.join(path);
+        if relative_path.exists() {
+            return relative_path;
+        }
+
+        // 5. Fallback: Try relative to User Home (e.g., "Desktop" -> "~/Desktop")
+        if let Some(home) = dirs::home_dir() {
+            let home_path = home.join(path);
+            if home_path.exists() {
+                return home_path;
+            }
+        }
+
+        // Default to CWD relative if nothing else matches (legacy behavior)
+        relative_path
     }
 }
 
@@ -505,5 +647,28 @@ mod tests {
         let executor = AgentExecutor::new();
         let path = executor.resolve_path("relative/path");
         assert!(path.ends_with("relative/path"));
+    }
+
+    #[test]
+    fn test_resolve_path_home_heuristic() {
+        let executor = AgentExecutor::new();
+        // This test only makes sense on Unix where we enabled the heuristic
+        #[cfg(unix)]
+        {
+            let path = executor.resolve_path("home/user/project");
+            assert_eq!(path, PathBuf::from("/home/user/project"));
+        }
+    }
+
+    #[test]
+    fn test_resolve_path_tilde() {
+        let executor = AgentExecutor::new();
+        if let Some(home) = dirs::home_dir() {
+            let path = executor.resolve_path("~/project");
+            assert_eq!(path, home.join("project"));
+            
+            let path_home = executor.resolve_path("~");
+            assert_eq!(path_home, home);
+        }
     }
 }

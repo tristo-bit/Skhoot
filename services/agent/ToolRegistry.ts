@@ -132,6 +132,7 @@ export const CORE_TOOLS: ToolDefinition[] = [
         path: { type: 'string', description: 'Directory to search in (default: current directory)' },
         search_type: { type: 'string', description: "Type of search: 'filename' or 'content'" },
         max_results: { type: 'number', description: 'Maximum results to return (default: 100)' },
+        unrestricted: { type: 'boolean', description: 'Enable deep search (hidden files, ignore .gitignore). Use if normal search fails.' },
       },
       required: ['pattern'],
     },

@@ -22,9 +22,15 @@ export interface CreateSessionRequest {
   rows?: number;
 }
 
+export interface ReadResponse {
+  output: string[];
+  next_cursor: number;
+}
+
 class TerminalHttpService {
   private pollingIntervals: Map<string, NodeJS.Timeout> = new Map();
   private outputBuffer: Map<string, string[]> = new Map(); // Buffer recent output per session
+  private cursors: Map<string, number> = new Map(); // Track read cursor per session
   private readonly MAX_BUFFER_SIZE = 100; // Keep last 100 lines per session
   
   /**
@@ -65,16 +71,15 @@ class TerminalHttpService {
   /**
    * Read output from a terminal session
    */
-  async read(sessionId: string): Promise<string[]> {
-    const response = await fetch(`${BACKEND_URL}/sessions/${sessionId}/read`);
+  async read(sessionId: string, cursor: number = 0): Promise<ReadResponse> {
+    const response = await fetch(`${BACKEND_URL}/sessions/${sessionId}/read?cursor=${cursor}`);
     
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Failed to read from session');
     }
     
-    const data = await response.json();
-    return data.output;
+    return response.json();
   }
   
   /**
@@ -123,7 +128,13 @@ class TerminalHttpService {
     
     const interval = setInterval(async () => {
       try {
-        const output = await this.read(sessionId);
+        const cursor = this.cursors.get(sessionId) || 0;
+        const response = await this.read(sessionId, cursor);
+        const output = response.output;
+        
+        // Update cursor
+        this.cursors.set(sessionId, response.next_cursor);
+        
         if (output.length > 0) {
           console.log('[TerminalHttpService] Received output for session:', sessionId, 'lines:', output.length);
           output.forEach(content => {
@@ -191,8 +202,9 @@ class TerminalHttpService {
       clearInterval(interval);
       this.pollingIntervals.delete(sessionId);
     }
-    // Clean up buffer when polling stops
+    // Clean up buffer and cursor when polling stops
     this.outputBuffer.delete(sessionId);
+    this.cursors.delete(sessionId);
   }
   
   /**

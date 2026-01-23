@@ -7,8 +7,8 @@ use super::error::CliError;
 use super::types::TerminalOutput;
 use portable_pty::{native_pty_system, CommandBuilder, PtySize, MasterPty, Child};
 use std::io::{Read, Write};
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::sync::{Arc, Mutex};
+// use tokio::sync::Mutex; // Replaced with std::sync::Mutex for synchronous access
 use tracing::{debug, warn, error};
 
 /// Default terminal size
@@ -18,13 +18,13 @@ const DEFAULT_ROWS: u16 = 24;
 /// PTY session wrapper for managing pseudo-terminal operations
 pub struct PtySession {
     /// The master PTY handle
-    master: Box<dyn MasterPty + Send>,
+    master: Arc<Mutex<Box<dyn MasterPty + Send>>>,
     /// The child process
     child: Box<dyn Child + Send + Sync>,
     /// Current terminal size
     size: PtySize,
     /// Output buffer for PTY data
-    output_buffer: Arc<Mutex<Vec<TerminalOutput>>>,
+    output_buffer: Arc<tokio::sync::Mutex<Vec<TerminalOutput>>>,
     /// Session ID for tracking
     session_id: String,
 }
@@ -78,10 +78,10 @@ impl PtySession {
         debug!("PTY session {} created successfully", session_id);
 
         Ok(Self {
-            master: pair.master,
+            master: Arc::new(Mutex::new(pair.master)),
             child,
             size,
-            output_buffer: Arc::new(Mutex::new(Vec::new())),
+            output_buffer: Arc::new(tokio::sync::Mutex::new(Vec::new())),
             session_id,
         })
     }
@@ -90,7 +90,12 @@ impl PtySession {
     pub fn write_input(&mut self, input: &str) -> Result<(), CliError> {
         debug!("Writing to PTY session {}: {}", self.session_id, input);
         
-        let writer = self.master.take_writer().map_err(|e| {
+        // Lock master (blocking)
+        let mut master = self.master.lock().map_err(|_| {
+            CliError::Internal("Failed to lock PTY master".to_string())
+        })?;
+        
+        let writer = master.take_writer().map_err(|e| {
             error!("Failed to get PTY writer: {}", e);
             CliError::Internal(format!("Failed to get PTY writer: {}", e))
         })?;
@@ -115,10 +120,15 @@ impl PtySession {
 
     /// Read output from the PTY (non-blocking)
     pub fn read_output(&mut self) -> Result<Vec<u8>, CliError> {
-        let mut reader = self.master.try_clone_reader().map_err(|e| {
+        let master = self.master.lock().map_err(|_| {
+            CliError::Internal("Failed to lock PTY master".to_string())
+        })?;
+        
+        let mut reader = master.try_clone_reader().map_err(|e| {
             error!("Failed to clone PTY reader: {}", e);
             CliError::Internal(format!("Failed to clone PTY reader: {}", e))
         })?;
+        drop(master); // Unlock immediately
 
         let mut buffer = vec![0u8; 8192]; // 8KB buffer
         let mut output = Vec::new();
@@ -160,7 +170,11 @@ impl PtySession {
             pixel_height: 0,
         };
 
-        self.master.resize(self.size).map_err(|e| {
+        let mut master = self.master.lock().map_err(|_| {
+            CliError::Internal("Failed to lock PTY master".to_string())
+        })?;
+        
+        master.resize(self.size).map_err(|e| {
             error!("Failed to resize PTY: {}", e);
             CliError::Internal(format!("Failed to resize PTY: {}", e))
         })?;
@@ -235,17 +249,23 @@ impl PtySession {
     pub fn start_output_reader(&self) -> tokio::task::JoinHandle<()> {
         let session_id = self.session_id.clone();
         let output_buffer = self.output_buffer.clone();
+        let master_clone = self.master.clone();
         
         // Clone the reader for the background task
-        let mut reader = match self.master.try_clone_reader() {
-            Ok(r) => r,
-            Err(e) => {
-                error!("Failed to clone PTY reader for background task: {}", e);
-                return tokio::spawn(async {});
-            }
-        };
-
         tokio::spawn(async move {
+            let reader_result = {
+                let master = master_clone.lock().unwrap(); // Use unwrap in thread/task context
+                master.try_clone_reader()
+            };
+
+            let mut reader = match reader_result {
+                Ok(r) => r,
+                Err(e) => {
+                    error!("Failed to clone PTY reader for background task: {}", e);
+                    return;
+                }
+            };
+
             let mut buffer = vec![0u8; 8192];
             
             loop {

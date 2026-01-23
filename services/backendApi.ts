@@ -305,6 +305,7 @@ export const backendApi = {
     file_types?: string;
     exclude_dirs?: string;
     search_path?: string;  // Custom search path (defaults to user home)
+    unrestricted?: boolean; // Enable deep search (hidden files, ignore .gitignore)
   }): Promise<FileSearchResults> {
     const params = new URLSearchParams({ q: query });
     
@@ -314,6 +315,7 @@ export const backendApi = {
     if (options?.file_types) params.append('file_types', options.file_types);
     if (options?.exclude_dirs) params.append('exclude_dirs', options.exclude_dirs);
     if (options?.search_path) params.append('search_path', options.search_path);
+    if (options?.unrestricted) params.append('unrestricted', 'true');
     
     const response = await fetch(`${BACKEND_URL}/api/v1/search/files?${params}`);
     if (!response.ok) {

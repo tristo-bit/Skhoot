@@ -65,6 +65,9 @@ hex = "0.4"
 
 # Lazy static for global state
 lazy_static = "1.4"
+similar = "2.7.0"
+tree-sitter = "0.26.3"
+tree-sitter-bash = "0.25.1"
 
 # Unix signal handling
 [target.'cfg(unix)'.dependencies]

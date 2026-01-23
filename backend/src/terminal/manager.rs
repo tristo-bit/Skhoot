@@ -262,6 +262,24 @@ impl TerminalManager {
         session.write(data).await
     }
     
+    /// Read from a session starting from an index
+    pub async fn read_from(&self, session_id: &str, start_index: usize) -> Result<(Vec<String>, usize), String> {
+        let session = self.get_session(session_id).await
+            .ok_or_else(|| format!("Session {} not found", session_id))?;
+        
+        Ok(session.read_from(start_index).await)
+    }
+
+    /// Get current history length
+    pub async fn get_history_len(&self, session_id: &str) -> Result<usize, String> {
+        let session = self.get_session(session_id).await
+            .ok_or_else(|| format!("Session {} not found", session_id))?;
+        
+        // We can cheat and read_from(usize::MAX) which returns ([], len)
+        let (_, len) = session.read_from(usize::MAX).await;
+        Ok(len)
+    }
+
     /// Read from a session
     pub async fn read(&self, session_id: &str) -> Result<Vec<String>, String> {
         // If hibernated, return history without restoring
