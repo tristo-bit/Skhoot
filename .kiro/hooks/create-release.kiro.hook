@@ -1,0 +1,15 @@
+{
+  "enabled": true,
+  "name": "Create Release with Changelog",
+  "description": "Automatically creates a new release with a feature-driven changelog organized into New Features, Improvements, Refactors, Bug Fixes, Discoveries, and What Comes Next sections. Includes the Skhoot origin story and follows the established release pattern with commit analysis, version bumping, tag creation, and GitHub release preparation.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Create a new release following this exact process:\n\n1. Determine the next version number by:\n   - Reading current version from package.json\n   - Incrementing patch version (e.g., 0.1.6 → 0.1.7)\n   - Ask user to confirm or specify different version\n\n2. Find the previous release tag:\n   - Run `git tag --sort=-version:refname | head -1` to get latest tag\n   - Analyze commits since that tag using `git log [previous-tag]..HEAD`\n\n3. Categorize commits into:\n   - New Features (feat: commits)\n   - Improvements (style:, perf:, feat: enhancements)\n   - Refactors (refactor: commits)\n   - Bug Fixes (fix: commits)\n   - Discoveries (interesting technical insights from commits)\n   - What Comes Next (fetch open issues from GitHub or ask user)\n\n4. Update version in:\n   - package.json\n   - src-tauri/tauri.conf.json\n   - src-tauri/Cargo.toml\n\n5. Create CHANGELOG-v[VERSION].md in documentation/private/ with:\n   - Feature-driven sections as listed above\n\n\n6. Commit changes with message: \"chore: bump version to v[VERSION]\"\n\n7. Create and push git tag:\n   - `git tag v[VERSION]`\n   - `git push origin main`\n   - `git push origin v[VERSION]`\n\n8. Update DEVLOG.md with release entry including:\n   - Release metadata (date, commit count since previous tag, new tag)\n   - Major features summary\n   - Key improvements\n   - Bug fixes\n   - Next steps and open issues\n   - Link to changelog file\n\n9. Provide instructions for creating GitHub release:\n   - URL: https://github.com/tristo-bit/Skhoot/releases/new\n   - Title: \"Skhoot v[VERSION]\"\n   - Tag: v[VERSION]\n   - Description: Content from CHANGELOG-v[VERSION].md\n   - Note that CI/CD will automatically attach build artifacts once builds complete\n\nFollow the exact pattern from previous releases (v0.1.5, v0.1.6)."
+  },
+  "workspaceFolderName": "Skhoot",
+  "shortName": "create-release"
+}

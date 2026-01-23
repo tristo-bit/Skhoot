@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Document Progress in DEVLOG",
+  "description": "Automatically documents significant development progress, merges, and feature/plan creation in DEVLOG.md with structured entries including context, changes, and verification.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Document the current development progress in DEVLOG.md following this process:\n\n1. Determine the type of progress to document:\n   - Significant development milestone (feature completion, major refactor, etc.)\n   - Git merge or branch integration\n   - New feature or plan creation\n   - Bug fix or issue resolution\n   - Architecture or design decision\n\n2. Gather context:\n   - Check recent git commits: `git log --oneline -10`\n   - Review current git status: `git status`\n   - Identify affected files and components\n   - Note any related issues or PRs\n\n3. Create a structured DEVLOG entry with:\n   - **Date**: Current date (YYYY-MM-DD format)\n   - **Type**: [Feature|Bugfix|Refactor|Merge|Architecture|Planning]\n   - **Title**: Clear, concise description of the progress\n   - **Context**: Why this work was needed\n   - **Changes**: What was implemented/modified\n     - List key files changed\n     - Describe technical approach\n     - Note any architectural decisions\n   - **Verification**: How to verify the changes work\n     - Manual testing steps\n     - Automated tests added/updated\n     - Expected behavior\n   - **Related**: Links to issues, PRs, or documentation\n   - **Next Steps**: What comes next (if applicable)\n\n4. Format the entry following existing DEVLOG.md patterns:\n   - Use markdown formatting\n   - Include code snippets for key changes\n   - Add file paths for reference\n   - Keep entries concise but informative\n\n5. Append the entry to DEVLOG.md:\n   - Add to the top of the file (most recent first)\n   - Maintain consistent formatting\n   - Separate entries with horizontal rules\n\n6. If this is a merge:\n   - Summarize what was merged (branch name, feature)\n   - List key commits included\n   - Note any conflicts resolved\n   - Mention integration testing performed\n\n7. If this is a new feature/plan:\n   - Link to feature documentation or plan file\n   - Describe the feature scope\n   - List implementation phases if applicable\n   - Note dependencies or prerequisites\n\nFollow the existing DEVLOG.md style and maintain consistency with previous entries."
+  }
+}

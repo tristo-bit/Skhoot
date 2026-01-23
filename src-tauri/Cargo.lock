@@ -5834,7 +5834,7 @@ dependencies = [
 
 [[package]]
 name = "src-tauri"
-version = "0.1.3"
+version = "0.1.6"
 dependencies = [
  "axum",
  "chrono",

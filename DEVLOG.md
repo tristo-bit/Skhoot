@@ -1,5 +1,66 @@
 # Development Log
 
+## January 23, 2026
+
+### v0.1.6 Release - Major Feature Update 🚀
+- **Status**: ✅ **RELEASED**
+- **Tag**: `v0.1.6`
+- **Commits**: 60 commits since v0.1.5
+- **Release Date**: January 23, 2026
+
+**Release Highlights**:
+
+This release represents a massive evolution of Skhoot with comprehensive agent system implementation, AI memory, web search capabilities, and extensive UI/UX improvements.
+
+**Major Features Added**:
+1. **Comprehensive Agent Framework** - Full agent system with tool execution, steering docs, and safe autonomous execution
+2. **AI Memory System** - Automatic memory extraction with user instructions and settings integration
+3. **Web Content Extraction** - Concurrent racing web search with content extraction and WebView-first architecture
+4. **Bookmark System** - Complete bookmark system with UI and AI integration
+5. **Interactive Workflows** - Step-by-step progress tracking and background workflow notifications
+6. **Image Gallery** - Centralized images tab with gallery display
+7. **AI-Powered Hyperlinks** - Intelligent hyperlink enrichment system
+
+**Key Improvements**:
+- Harmonized UI with unified fuku-brand color system across all panels
+- Consolidated API configuration in AI Settings
+- Dynamic model-aware max tokens (adapts to each model's capabilities)
+- File-type-specific color system for better visual hierarchy
+- Optimized message highlight performance (3x faster)
+- Window controls with maximize/restore functionality
+
+**Bug Fixes**:
+- Fixed Windows caption leak and titlebar transparency
+- Resolved z-index layering issues with panels
+- Fixed agent workspace root detection
+- Improved Linux audio recorder fallback detection
+- Fixed web search memo re-render issues
+
+**Documentation**:
+- Created comprehensive `CHANGELOG-v0.1.6.md` with feature-driven organization
+- Updated version numbers across all package files
+- Documented the origin story and project evolution
+
+**Release Assets**:
+- `skhoot_amd64.deb` - Linux Debian package
+- `Skhoot_x64.AppImage` - Linux AppImage
+- `Skhoot_x64-setup.exe` - Windows installer
+- `Skhoot_x64.msi` - Windows MSI
+- `Skhoot_x64.dmg` - macOS disk image
+
+**Next Steps**:
+- Continuous delivery system (#22)
+- Platform-specific credential management (Windows SafeScreen, macOS Keychain)
+- macOS release polishing (#30)
+- Windows terminal improvements (#38)
+- Enhanced onboarding experience
+
+**Links**:
+- Release: https://github.com/tristo-bit/Skhoot/releases/tag/v0.1.6
+- Full Changelog: https://github.com/tristo-bit/Skhoot/compare/v0.1.5...v0.1.6
+
+---
+
 ## January 22, 2026
 
 ### UserPanel Refactoring - API Configuration Moved to AI Settings 🔧
