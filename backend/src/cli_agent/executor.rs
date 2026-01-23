@@ -151,31 +151,52 @@ impl AgentExecutor {
         // If we have a terminal session and manager, use persistent shell
         if let (Some(manager), Some(session_id)) = (&self.terminal_manager, &self.config.terminal_session_id) {
             // Check if session is active/exists
-            if manager.get_session(session_id).await.is_some() {
-                // Get current history length to read only new output
-                let start_len = manager.get_history_len(session_id).await.unwrap_or(0);
+            // IMPORTANT: get_session returns Option<Arc<TerminalSession>>
+            // If the session is HIBERNATED, it returns None by default unless we restore it first.
+            // But manager.write() handles auto-restore!
+            // However, get_session() here is used as a check.
+            
+            // Fix: Use manager.is_known_session() or simply verify if we can write to it.
+            // Or better, just try to write! manager.write() handles restoration.
+            // If manager.write() fails with "Session not found", THEN we know it's gone.
+            
+            // Let's try to write directly.
+            // Write command to PTY (append newline)
+            let cmd_with_newline = format!("{}\n", command);
+            
+            // Get current history length to read only new output
+            // We do this before write to establish baseline
+            // Note: get_history_len might fail if hibernated, but let's try.
+            let start_len = manager.get_history_len(session_id).await.unwrap_or(0);
 
-                // Write command to PTY (append newline)
-                let cmd_with_newline = format!("{}\n", command);
-                manager.write(session_id, &cmd_with_newline).await
-                    .map_err(|e| ExecutorError::FileOperation(format!("Failed to write to terminal: {}", e)))?;
-                
-                // Wait briefly for output (heuristic)
-                tokio::time::sleep(Duration::from_millis(500)).await;
-                
-                // Read only new lines since we sent the command
-                let (output_lines, _) = manager.read_from(session_id, start_len).await
-                    .map_err(|e| ExecutorError::FileOperation(format!("Failed to read from terminal: {}", e)))?;
-                
-                // Filter out the echoed command if possible (heuristic)
-                // PTY usually echoes the command back as the first line(s).
-                // We'll join everything for now, but this specific read avoids the "history repeat" issue.
-                let output = output_lines.join("");
-                
-                return Ok((output, Some(ToolResultMetadata {
-                    working_directory: None, // We don't track CWD easily in PTY mode yet
-                    ..Default::default()
-                })));
+            match manager.write(session_id, &cmd_with_newline).await {
+                Ok(_) => {
+                    // Success! It was a valid session (or restored successfully)
+                    
+                    // Wait briefly for output (heuristic)
+                    tokio::time::sleep(Duration::from_millis(500)).await;
+                    
+                    // Read only new lines since we sent the command
+                    // Note: if session was restored, start_len might be 0 or small, 
+                    // but read_from handles bounds checks.
+                    let (output_lines, _) = manager.read_from(session_id, start_len).await
+                        .map_err(|e| ExecutorError::FileOperation(format!("Failed to read from terminal: {}", e)))?;
+                    
+                    let output = output_lines.join("");
+                    
+                    return Ok((output, Some(ToolResultMetadata {
+                        working_directory: None, 
+                        ..Default::default()
+                    })));
+                },
+                Err(e) => {
+                    // Write failed.
+                    // If error is "Session not found", it effectively means we can't use persistent shell.
+                    // Fallthrough to ephemeral? Or logging error?
+                    // "Not found" suggests the ID is wrong or session was deleted.
+                    // Let's log and fallthrough to ephemeral as fallback.
+                    eprintln!("[AgentExecutor] Failed to write to persistent session {}: {}", session_id, e);
+                }
             }
         }
 

@@ -89,13 +89,36 @@ export class ToolExecutor {
 
         // File and shell tools
         case 'shell':
-          const shellResult = await backendApi.executeShellCommand(
-            toolCall.arguments.command,
-            toolCall.arguments.workdir,
-            toolCall.arguments.timeout_ms
+          // Use terminal tools for shell execution to leverage persistent sessions
+          const shellTermResult = await terminalTools.executeTerminalTool(
+            'execute_command',
+            {
+              command: toolCall.arguments.command,
+              sessionId: toolCall.arguments.sessionId // Optional: allow explicit session ID
+            },
+            options.sessionId
           );
-          output = JSON.stringify(shellResult, null, 2);
-          success = true;
+          
+          if (!shellTermResult.success) {
+            // Fallback to legacy ephemeral shell if persistent shell fails
+            // This handles cases where terminal service is unavailable
+            console.warn('[ToolExecutor] Persistent shell failed, falling back to ephemeral:', shellTermResult.error);
+            const shellResult = await backendApi.executeShellCommand(
+              toolCall.arguments.command,
+              toolCall.arguments.workdir,
+              toolCall.arguments.timeout_ms
+            );
+            output = JSON.stringify(shellResult, null, 2);
+            success = true;
+          } else {
+            // Success with persistent shell
+            // ToolResult definition: success, data, error, metadata. 'output' is not a property.
+            // But execute() function returns { ..., output: string }.
+            // We need to extract the output from data or metadata.
+            const data = shellTermResult.data;
+            output = data && data.message ? data.message : 'Command executed successfully in terminal.';
+            success = true;
+          }
           break;
 
         case 'read_file':
