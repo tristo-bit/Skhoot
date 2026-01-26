@@ -97,6 +97,16 @@ class APIKeyService {
    * Save an API key for a provider
    */
   async saveKey(provider: string, apiKey: string, isActive: boolean = true): Promise<void> {
+    // Kiro logic: We do NOT want to save the bridge token to disk.
+    // It's dynamic/ephemeral and managed by kiro-cli.
+    // We only need to set it as active.
+    if (provider === 'kiro') {
+        if (isActive) {
+            await this.setActiveProvider(provider);
+        }
+        return; 
+    }
+
     // Clear cache for this provider
     this.cache.delete(provider);
 
