@@ -16,10 +16,10 @@
 - **Backend Bridge**: Reads the `kiro-cli` auth token directly from its SQLite database (`~/.local/share/kiro-cli/data.sqlite3`)
 - **Tauri Integration**: Added `get_kiro_token` command to securely pass this token to the frontend
 - **UI Update**:
-  - Added dedicated "Connect with Kiro" button in AI Settings
-  - Hides API key input when Kiro is selected
-  - Shows connection status verification
-  - Added Kiro branding/logo
+  - Added dedicated "Connect with Kiro" toggle button with official logo
+  - Toggle behavior: enabling Kiro disables other providers visually
+  - Connection test now specifically validates Kiro token when active
+  - Consistent glass-morphic UI styling across all settings
 - **Provider Support**: Added `kiro` as a first-class provider in the registry (proxies requests to `api.kiro.dev`)
 
 ### Smart Search Result Summarization 🔍

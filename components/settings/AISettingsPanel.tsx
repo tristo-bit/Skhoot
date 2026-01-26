@@ -4,10 +4,7 @@ import { BackButton, SaveButton, ConnectionButton, IconButton } from '../buttonF
 import { apiKeyService, PROVIDERS, type ProviderInfo } from '../../services/apiKeyService';
 
 const KiroLogo = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 128 128" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M64 128C99.3462 128 128 99.3462 128 64C128 28.6538 99.3462 0 64 0C28.6538 0 0 28.6538 0 64C0 99.3462 28.6538 128 64 128Z" fill="#7C3AED"/>
-    <path d="M92 40L56 88H44L36 40H48L52 72L60 40H72L80 72L84 40H92Z" fill="white"/>
-  </svg>
+  <img src="/assets/kiro-icon.svg" alt="Kiro Logo" className={className} />
 );
 
 import { providerRegistry } from '../../services/providerRegistry';
@@ -544,8 +541,11 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
         
         {/* Kiro Option */}
         <button
-          onClick={() => handleProviderChange('kiro')}
-          className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${
+          onClick={() => {
+            const newValue = selectedProvider === 'kiro' ? 'openai' : 'kiro'; // Toggle logic: if kiro, switch to default (openai), else switch to kiro
+            handleProviderChange(newValue);
+          }}
+          className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all relative group ${
             selectedProvider === 'kiro'
               ? 'bg-violet-500/10 border-violet-500/50 shadow-[0_0_15px_rgba(139,92,246,0.1)]'
               : 'glass-subtle border-transparent hover:bg-white/5'
@@ -555,15 +555,18 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
             <KiroLogo className="w-8 h-8" />
             <div className="text-left">
               <p className="font-bold font-jakarta text-text-primary">Connect with Kiro</p>
-              <p className="text-xs text-text-secondary">Use your CLI session (Zero Config)</p>
+              <p className="text-xs text-text-secondary">Use your Kiro subscription as provider</p>
             </div>
           </div>
-          {selectedProvider === 'kiro' && (
-            <div className="flex items-center gap-2 text-violet-400">
-              <span className="text-xs font-bold">Active</span>
-              <Check size={16} />
-            </div>
-          )}
+          
+          {/* Toggle Switch UI */}
+          <div className={`w-12 h-6 rounded-full transition-all relative ${
+            selectedProvider === 'kiro' ? 'bg-violet-500' : 'bg-gray-700'
+          }`}>
+            <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-200 ${
+              selectedProvider === 'kiro' ? 'left-[26px]' : 'left-0.5'
+            }`} />
+          </div>
         </button>
 
         {/* Divider */}
@@ -575,10 +578,10 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
         </div>
 
         {/* Other Providers Section */}
-        <div className={`p-4 rounded-xl transition-all ${
-          selectedProvider !== 'kiro' ? 'glass-subtle ring-1 ring-white/5' : 'opacity-60 grayscale-[0.5] hover:opacity-100 hover:grayscale-0'
+        <div className={`transition-all duration-300 ${
+          selectedProvider === 'kiro' ? 'opacity-50 pointer-events-none grayscale' : 'opacity-100'
         }`}>
-          <div className="space-y-4">
+          <div className="p-4 rounded-xl glass-subtle ring-1 ring-white/5 space-y-4">
             {/* Dropdown */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-text-secondary font-jakarta block">
@@ -588,7 +591,8 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
                 <select
                   value={selectedProvider === 'kiro' ? '' : selectedProvider}
                   onChange={(e) => handleProviderChange(e.target.value)}
-                  className="w-full p-3 pr-10 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 text-sm font-medium text-text-primary focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 appearance-none transition-all cursor-pointer"
+                  disabled={selectedProvider === 'kiro'}
+                  className="w-full p-3 pr-10 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 text-sm font-medium text-text-primary focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 appearance-none transition-all cursor-pointer disabled:cursor-not-allowed"
                 >
                   <option value="" disabled>Select a provider...</option>
                   {PROVIDERS.filter(p => p.id !== 'kiro').map(p => (
