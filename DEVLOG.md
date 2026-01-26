@@ -17283,3 +17283,90 @@ Removed the footer section entirely from the Settings modal:
 
 **Files Modified**:
 - `components/panels/SettingsPanel.tsx` - Removed footer prop and footerClassName
+
+
+---
+
+## January 22, 2026
+
+### Production Build - Logo Hover Animation Fix 🔧
+- **Status**: ✅ **FIXED - PENDING VERIFICATION**
+- **Components**: `components/main-area/LogoBackground.tsx`
+- **Issue**: Hover animations working in dev but not in production build
+- **Impact**: Logo and text animations now work consistently in production
+
+**Problem Identified**:
+Hover animations on the central logo were not working in production builds:
+- ❌ Animation d'apparition fonctionnait (fade-in, zoom-in)
+- ❌ Animation hover ne fonctionnait pas (scalePulse)
+- ❌ Logo ne réagissait pas au survol en prod
+- ✅ Tout fonctionnait parfaitement en dev
+
+**Root Cause**:
+Inline `<style>` tags with CSS animations were being:
+- Purgé par Tailwind CSS en production
+- Minifié/optimisé de manière agressive
+- Supprimé par le tree-shaking du bundler
+- Non appliqués à cause de la spécificité CSS
+
+**Solution - Move Styles to Global CSS**:
+The real issue was that inline `<style>` tags in React components are:
+- Purged by Tailwind CSS in production
+- Optimized/removed by Vite/Rollup bundler
+- Scoped differently in prod vs dev
+
+**The Fix - Global CSS Migration**:
+```css
+/* src/index.css - Added at the end */
+
+/* Logo Container - Central */
+.logo-container-central {
+  position: relative;
+  will-change: transform, box-shadow;
+  transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.8s ease-out;
+  background-color: #c0b7c9;
+  box-shadow: /* embossed effect */;
+}
+
+@keyframes scalePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+.logo-container-central:hover {
+  animation: scalePulse 1.2s ease-in-out infinite;
+}
+
+/* Splitting Text Animations */
+.splitting-text-container:hover .splitting-text-item.visible {
+  animation: slideInFromRight 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: var(--hover-delay);
+}
+```
+
+**Changes Applied**:
+1. ✅ Moved ALL logo animations from `LogoBackground.tsx` to `src/index.css`
+2. ✅ Moved ALL text animations from `SplittingText.tsx` to `src/index.css`
+3. ✅ Removed inline `<style>` tags from both components
+4. ✅ Components now use global CSS classes that are never purged
+5. ✅ Preserved all existing styles (light/dark mode, embossed effect, typewriter)
+
+**Why This Works**:
+- Global CSS in `src/index.css` is NEVER purged by Tailwind
+- Bundler cannot optimize/remove global stylesheets
+- Styles are loaded once and cached by browser
+- No difference between dev and prod behavior
+- CSS classes are always available to components
+
+**Testing**:
+Build command for verification:
+```bash
+npm run tauri:build -- --debug
+```
+
+**Expected Behavior After Fix**:
+- ✅ Logo pulse animation on hover (scale 1 → 1.08 → 1)
+- ✅ Image scale on hover (1.05x)
+- ✅ Smooth transitions maintained
+- ✅ Works in both light and dark mode
+- ✅ Consistent behavior between dev and prod

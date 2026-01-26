@@ -1105,3 +1105,108 @@ select.select-themed:focus {
 .highlight-flash {
   animation: highlight-flash 2s ease-in-out;
 }
+
+
+/* ============================================
+   LOGO CENTRAL & TEXT ANIMATIONS (Production Fix)
+   ============================================ */
+
+/* Logo Container - Central */
+.logo-container-central {
+  position: relative;
+  will-change: transform, box-shadow;
+  transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.8s ease-out;
+  background-color: #c0b7c9;
+  box-shadow: 
+    0 2px 4px -1px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(255, 255, 255, 0.5),
+    inset 0 1px 2px rgba(255, 255, 255, 0.4),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.logo-image-central {
+  transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.8s ease-out;
+  will-change: transform, filter;
+  filter: brightness(0) invert(1);
+  drop-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode - Logo central */
+.dark .logo-container-central {
+  background-color: rgba(75, 85, 99, 0.8);
+  box-shadow: none;
+}
+
+.dark .logo-image-central {
+  filter: none;
+}
+
+/* Animation hover - Scale Pulse */
+@keyframes scalePulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.logo-container-central:hover {
+  animation: scalePulse 1.2s ease-in-out infinite;
+}
+
+.logo-container-central:hover .logo-image-central {
+  transform: scale(1.05);
+}
+
+/* ============================================
+   SPLITTING TEXT ANIMATIONS (Production Fix)
+   ============================================ */
+
+.splitting-text-container {
+  display: inline-block;
+}
+
+.splitting-text-item {
+  display: inline-block;
+  white-space: pre;
+  opacity: 1;
+  transform: translateX(0);
+  will-change: transform, opacity;
+}
+
+.splitting-text-item.hidden {
+  opacity: 0;
+}
+
+.splitting-text-item.visible {
+  opacity: 1;
+}
+
+.typewriter-cursor {
+  display: inline-block;
+  margin-left: 0.125rem;
+  animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Hover effect on parent - only when typewriter is complete */
+.splitting-text-container:hover .splitting-text-item.visible {
+  animation: slideInFromRight 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: var(--hover-delay);
+}
+
+@keyframes slideInFromRight {
+  0% {
+    opacity: 0;
+    transform: translateX(80px);
+    filter: blur(4px);
+  }
+  60% {
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+    filter: blur(0px);
+  }
+}

@@ -77,61 +77,6 @@ export const SplittingText = memo<SplittingTextProps>(({
       {!isTypewriterComplete && (
         <span className="typewriter-cursor">|</span>
       )}
-      
-      <style>{`
-        .splitting-text-container {
-          display: inline-block;
-        }
-        
-        .splitting-text-item {
-          display: inline-block;
-          white-space: ${type === 'chars' ? 'pre' : 'normal'};
-          opacity: 1;
-          transform: translateX(0);
-          will-change: transform, opacity;
-        }
-        
-        .splitting-text-item.hidden {
-          opacity: 0;
-        }
-        
-        .splitting-text-item.visible {
-          opacity: 1;
-        }
-        
-        .typewriter-cursor {
-          display: inline-block;
-          margin-left: 0.125rem;
-          animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-        
-        /* Hover effect on parent - only when typewriter is complete */
-        .splitting-text-container:hover .splitting-text-item.visible {
-          animation: slideInFromRight 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-          animation-delay: var(--hover-delay);
-        }
-        
-        @keyframes slideInFromRight {
-          0% {
-            opacity: 0;
-            transform: translateX(80px);
-            filter: blur(4px);
-          }
-          60% {
-            filter: blur(0px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateX(0);
-            filter: blur(0px);
-          }
-        }
-      `}</style>
     </span>
   );
 });
