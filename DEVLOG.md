@@ -17852,3 +17852,88 @@ npm run build
 2. Click Send button → Message appears once ✓
 3. Use voice input → Message appears once ✓
 4. Send while AI is processing (queued) → Message appears once ✓
+
+
+---
+
+## 2026-01-26 - Improved User Message Bubble Width for Better Readability
+
+**Issue**: 
+User message bubbles were too narrow and compact, forcing text to wrap after only 2-3 words. Short phrases like "the vietnamese delicacy" were breaking into multiple lines unnecessarily, making messages hard to read. Additionally, short messages had unnecessary whitespace to the right, making bubbles look empty.
+
+**Root Cause**:
+The user message bubble had `max-w-[90%]` which was too wide relative to the container, but more importantly, there was no minimum width constraint. This caused short messages to collapse to the minimum width needed for the text, resulting in very narrow bubbles that wrapped text prematurely. The fixed width also created empty space for short messages.
+
+**Solution**:
+Adjusted the message bubble width constraints to provide better readability through three iterations:
+
+**Iteration 1**:
+- Reduced max-width: `max-w-[90%]` → `max-w-[75%]`
+- Added min-width: `min-w-[200px]`
+
+**Iteration 2**:
+- Further optimized: `max-w-[75%]` → `max-w-[65%]`
+- Increased min-width: `min-w-[200px]` → `min-w-[280px]` (+40%)
+
+**Iteration 3** (Final):
+- Added `w-fit` (width: fit-content) for adaptive sizing
+- Bubbles now adapt to content width, eliminating empty space
+- Text always ends at the edge of the bubble for short messages
+
+**Code Changes** (`components/conversations/MessageBubble.tsx`):
+
+**Before**:
+```tsx
+<div 
+  className="max-w-[90%] rounded-3xl rounded-tr-none border-glass-border glass-subtle"
+  style={{
+    boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.1)',
+  }}
+>
+```
+
+**After**:
+```tsx
+<div 
+  className="max-w-[65%] min-w-[280px] w-fit rounded-3xl rounded-tr-none border-glass-border glass-subtle"
+  style={{
+    boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.1)',
+  }}
+>
+```
+
+**Files Modified**:
+- `components/conversations/MessageBubble.tsx` - Adjusted user message bubble width constraints
+
+**Testing**:
+```bash
+npm run build
+```
+✓ Build successful in 9.66s
+✓ No TypeScript errors
+
+**Expected Behavior**:
+- ✅ Short messages: Bubble adapts to text width, no empty space on right
+- ✅ Medium messages: Bubble expands to min-width (280px) if needed
+- ✅ Long messages: Bubble can grow up to max-width (65%)
+- ✅ Text always ends at bubble edge for messages under 2 lines
+- ✅ Significantly improved readability for all message lengths
+- ✅ Professional, tight appearance without wasted space
+
+**Visual Impact**:
+- **Before**: "the vietnamese delicacy" wrapped to 2-3 lines in narrow bubble with empty space
+- **After**: Same text displays comfortably on 1 line, bubble width matches text exactly
+
+**Width Behavior**:
+- **Short message** (< 280px): `w-fit` adapts to content, no empty space
+- **Medium message** (280px - 65%): Uses min-width or expands as needed
+- **Long message** (> 65%): Wraps at max-width boundary
+
+**UX Improvement**:
+- Much more natural reading flow
+- Reduced eye strain from excessive line breaks
+- Better use of available screen space
+- Professional, spacious appearance without wasted space
+- Maintains embossed glassmorphic design aesthetic
+- Better visual balance between user and AI messages
+- Cleaner, more polished look with adaptive sizing

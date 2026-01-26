@@ -385,7 +385,7 @@ export const MessageBubble = memo<MessageBubbleProps>(({ message, onEdit, onRege
     >
       <div className="flex flex-col items-end">
         <div 
-          className="max-w-[90%] rounded-3xl rounded-tr-none border-glass-border glass-subtle"
+          className="max-w-[65%] min-w-[280px] w-fit rounded-3xl rounded-tr-none border-glass-border glass-subtle"
           style={{
             boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.1)',
           }}
