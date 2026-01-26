@@ -29,6 +29,11 @@ export interface ProviderInfo {
 
 export const PROVIDERS: APIProvider[] = [
   {
+    id: 'kiro',
+    name: 'Kiro (CLI)',
+    icon: '/providers/kiro.svg',
+  },
+  {
     id: 'openai',
     name: 'OpenAI',
     icon: '/providers/openai.svg',
@@ -130,6 +135,14 @@ class APIKeyService {
 
     if (await this.ensureTauri()) {
       try {
+        if (provider === 'kiro') {
+          // Special case for Kiro: fetch dynamic token from bridge
+          const token = await this.tauriInvoke('get_kiro_token');
+          // Don't cache long-term as tokens expire, but short cache is fine
+          this.cache.set(provider, { key: token, timestamp: Date.now() });
+          return token;
+        }
+        
         const apiKey = await this.tauriInvoke('load_api_key', { provider });
         this.cache.set(provider, { key: apiKey, timestamp: Date.now() });
         return apiKey;
@@ -237,6 +250,17 @@ class APIKeyService {
   async testKey(provider: string, apiKey: string): Promise<ProviderInfo> {
     if (await this.ensureTauri()) {
       try {
+        if (provider === 'kiro') {
+          // Verify we can get the token
+          const token = await this.tauriInvoke('get_kiro_token');
+          if (!token) throw new Error("No Kiro token found");
+          
+          return {
+            provider: 'kiro',
+            models: ['kiro-chat-beta', 'claude-3-5-sonnet-20241022']
+          };
+        }
+        
         const providerInfo = await this.tauriInvoke('test_api_key', { provider, apiKey });
         console.log(`[ApiKeyService] API key validated for ${provider}:`, providerInfo);
         return providerInfo;
@@ -283,6 +307,14 @@ class APIKeyService {
           return { 
             provider: 'anthropic', 
             models: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'] 
+          };
+        }
+        case 'kiro': {
+          // Kiro auth is handled via CLI bridge, so this is just a mock for web mode
+          // In Tauri mode, the backend handles the actual check
+          return {
+            provider: 'kiro',
+            models: ['kiro-chat-beta', 'claude-3-5-sonnet-20241022']
           };
         }
         case 'custom':

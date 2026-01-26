@@ -17,6 +17,7 @@ mod db;
 mod indexer;
 mod search;
 mod search_engine;
+mod kiro_bridge;
 mod config;
 mod error;
 mod terminal;

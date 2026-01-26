@@ -2,6 +2,26 @@
 
 ## January 26, 2026
 
+### Kiro CLI Authentication Bridge 🔑
+- **Status**: ✅ **COMPLETED**
+- **Components**: `AISettingsPanel.tsx`, `backend/src/kiro_bridge.rs`, `src-tauri/src/api_keys.rs`
+- **Change**: Added seamless "Zero Config" authentication using Kiro CLI session
+- **Impact**: Users logged into Kiro CLI can use Skhoot without copying API keys
+
+**Problem Solved**:
+- Users had to manually copy/paste OpenAI/Anthropic keys even if they had a Kiro subscription
+- Friction in onboarding for existing Kiro users
+
+**Solution**:
+- **Backend Bridge**: Reads the `kiro-cli` auth token directly from its SQLite database (`~/.local/share/kiro-cli/data.sqlite3`)
+- **Tauri Integration**: Added `get_kiro_token` command to securely pass this token to the frontend
+- **UI Update**:
+  - Added dedicated "Connect with Kiro" toggle button with official logo
+  - Toggle behavior: enabling Kiro disables other providers visually
+  - Connection test now specifically validates Kiro token when active
+  - Consistent glass-morphic UI styling across all settings
+- **Provider Support**: Added `kiro` as a first-class provider in the registry (proxies requests to `api.kiro.dev`)
+
 ### Smart Search Result Summarization 🔍
 - **Status**: ✅ **COMPLETED**
 - **Components**: `backend/src/cli_agent/executor.rs`

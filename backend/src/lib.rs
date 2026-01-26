@@ -8,6 +8,7 @@ pub mod disk_analyzer;
 pub mod terminal;
 pub mod api_key_storage;
 pub mod ai;
+pub mod kiro_bridge;
 pub mod error;
 pub mod workflows;
 pub mod content_extraction;
