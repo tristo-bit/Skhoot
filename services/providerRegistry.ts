@@ -17,7 +17,7 @@
 // Types
 // ============================================================================
 
-export type APIFormat = 'openai' | 'anthropic' | 'google' | 'ollama';
+export type APIFormat = 'openai' | 'anthropic' | 'google' | 'ollama' | 'kiro';
 
 export interface ModelCapabilities {
   /** Supports function/tool calling */
@@ -215,11 +215,35 @@ const LOCAL_MODELS: ModelInfo[] = [
   },
 ];
 
+const KIRO_MODELS: ModelInfo[] = [
+  {
+    id: 'kiro-chat-beta',
+    name: 'Kiro Chat (Beta)',
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, ocr: true, contextWindow: 128000, maxOutputTokens: 4096 },
+    description: 'Standard Kiro Chat model',
+  },
+  {
+    id: 'claude-3-5-sonnet-20241022',
+    name: 'Claude 3.5 Sonnet',
+    capabilities: { ...TOOL_CALLING_CAPABILITIES, vision: true, ocr: true, contextWindow: 200000, maxOutputTokens: 8192 },
+    description: 'Via Kiro Subscription',
+  },
+];
+
 // ============================================================================
 // Known Providers
 // ============================================================================
 
 export const KNOWN_PROVIDERS: Record<string, ProviderConfig> = {
+  kiro: {
+    id: 'kiro',
+    name: 'Kiro (CLI)',
+    apiFormat: 'openai', // Kiro uses OpenAI-compatible API
+    baseUrl: 'https://api.kiro.dev/v1',
+    defaultModel: 'kiro-chat-beta',
+    models: KIRO_MODELS,
+    isCustom: false,
+  },
   openai: {
     id: 'openai',
     name: 'OpenAI',
@@ -313,6 +337,7 @@ class ProviderRegistry {
     switch (apiFormat) {
       case 'openai':
       case 'ollama':
+      case 'kiro':
         return this.chatOpenAI(baseUrl, apiKey, model, message, history, systemPrompt, tools, images);
       case 'anthropic':
         return this.chatAnthropic(baseUrl, apiKey, model, message, history, systemPrompt, tools, images);

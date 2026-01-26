@@ -475,6 +475,7 @@ fn main() {
         api_keys::set_active_provider,
         api_keys::test_api_key,
         api_keys::fetch_provider_models,
+        api_keys::get_kiro_token,
         agent::create_agent_session,
         agent::send_agent_message,
         agent::get_agent_status,

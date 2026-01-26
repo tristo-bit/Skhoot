@@ -28,6 +28,14 @@ pub struct ProviderInfo {
     pub models: Vec<String>,
 }
 
+/// Get the Kiro access token from the CLI bridge
+#[tauri::command]
+pub async fn get_kiro_token() -> Result<String, String> {
+    skhoot_backend::kiro_bridge::get_access_token()
+        .await
+        .map_err(|e| format!("Failed to get Kiro token: {}", e))
+}
+
 /// Save an API key for a provider
 #[tauri::command]
 pub async fn save_api_key(
