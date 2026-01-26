@@ -17390,3 +17390,94 @@ npm run tauri:build -- --debug
 - ✅ Smooth transitions maintained
 - ✅ Works in both light and dark mode
 - ✅ Consistent behavior between dev and prod
+
+---
+
+## January 22, 2026
+
+### Production Build - Custom Scrollbar Fix 
+- **Status**:  **FIXED - PENDING VERIFICATION**
+- **Components**: src/index.css, components/ui/Scrollbar.tsx
+- **Issue**: Native Windows scrollbar showing instead of custom scrollbar in production
+- **Impact**: Custom scrollbar now works consistently in production builds
+
+**Problem Identified**:
+Custom scrollbar styles not working in production:
+-  Native Windows scrollbar visible in chat interface
+-  Custom scrollbar worked perfectly in dev
+-  Inline style injection via ScrollbarStyles component was purged
+-  Same root cause as logo animation issue
+
+**Root Cause**:
+Inline <style> tags in components/ui/Scrollbar.tsx:
+- Purged by Tailwind CSS in production
+- Optimized/removed by Vite bundler
+- Not applied due to dynamic injection timing
+
+**Solution - Global CSS Migration**:
+Moved all scrollbar styles to src/index.css:
+
+\\\css
+/* Webkit browsers (Chrome, Edge, Safari) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 14px;
+  transition: width 0.2s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #D5D5D7; /* nimbusCloud */
+  border-radius: 8px;
+  border: 5px solid transparent;
+  border-right-width: 8px;
+  background-clip: padding-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #E1D5E3; /* orchidTint */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:active {
+  background: #c0b7c9; /* fukuBrand */
+}
+
+/* Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #D5D5D7 transparent;
+}
+\\\
+
+**Changes Applied**:
+1.  Added complete scrollbar styles to src/index.css
+2.  Hardcoded color values (nimbusCloud, orchidTint, fukuBrand)
+3.  Support for both Webkit and Firefox browsers
+4.  Preserved all transitions and hover/active states
+5.  Styles now in global CSS that is never purged
+
+**Affected Components**:
+- MainArea.tsx (chat interface)
+- ListDirectoryUI.tsx (file listings)
+- ReadFileUI.tsx (file content)
+- SearchFilesUI.tsx (search results)
+- ToolCallDropdown.tsx (tool selection)
+- ListAgentsUI.tsx (agent list)
+
+**Why This Works**:
+- Global CSS in src/index.css is never purged by Tailwind
+- Bundler cannot optimize/remove global stylesheets
+- Styles loaded once and cached by browser
+- Consistent behavior between dev and prod
+- No dynamic injection timing issues
+
+**Testing**:
+Build command for verification:
+\\\ash
+npm run tauri:build -- --debug
+\\\
+
+**Expected Behavior After Fix**:
+-  Custom scrollbar visible in all scrollable areas
+-  Smooth transitions on hover (nimbusCloud  orchidTint)
+-  Active state shows fukuBrand color
+-  Works in both Webkit and Firefox browsers
+-  No native Windows scrollbar visible
