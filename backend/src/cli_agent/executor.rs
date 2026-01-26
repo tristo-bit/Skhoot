@@ -8,6 +8,8 @@ use std::time::{Duration, Instant};
 use tokio::time::timeout;
 
 use crate::cli_bridge::{CliBridge, CliError};
+use crate::search_engine::{CliEngine, CliConfig};
+use std::collections::HashMap;
 use crate::terminal::TerminalManager;
 use super::tools::{Tool, ToolCall, ToolResult, ToolResultMetadata};
 use super::apply_patch::apply_patch;
@@ -474,37 +476,99 @@ impl AgentExecutor {
             .unwrap_or(100) as usize;
 
         let path = self.resolve_path(path_str);
+        
+        // Use CliEngine for smarter search
+        let mut config = CliConfig::default();
+        // Fetch more results initially to allow for clustering analysis if needed
+        config.max_results = if max_results < 1000 { 1000 } else { max_results };
+        config.timeout_seconds = 15; // Reasonable timeout
 
-        // Use shell commands for search (more reliable cross-platform)
-        let command = match search_type {
-            "content" => {
-                if cfg!(target_os = "windows") {
-                    format!("findstr /s /n /i \"{}\" *", pattern)
-                } else {
-                    format!("grep -rn \"{}\" . 2>/dev/null | head -n {}", pattern, max_results)
-                }
-            }
-            _ => {
-                // filename search
-                if cfg!(target_os = "windows") {
-                    format!("dir /s /b *{}*", pattern)
-                } else {
-                    format!("find . -name \"{}\" 2>/dev/null | head -n {}", pattern, max_results)
-                }
-            }
+        let engine = CliEngine::new(path.clone());
+        
+        let result = match search_type {
+            "content" => engine.search_content(pattern, &config).await,
+            _ => engine.search_files(pattern, &config).await
         };
 
-        // Execute search command
-        let search_call = ToolCall {
-            id: format!("{}-search", tool_call.id),
-            name: "shell".to_string(),
-            arguments: serde_json::json!({
-                "command": command,
-                "workdir": path.to_string_lossy()
-            }),
-        };
-
-        self.execute_shell(&search_call).await
+        match result {
+            Ok(search_result) => {
+                let total = search_result.files.len();
+                // If the user requested a specific max_results (and it's small), we should probably respect it for the output list
+                // But the requirement says "if results exceed a threshold (e.g. 50), asking for refinement"
+                let summary_threshold = 50;
+                
+                let output = if total == 0 {
+                    format!("No files found matching '{}'", pattern)
+                } else if total <= summary_threshold {
+                    // Return raw list
+                    let mut out = format!("Found {} files:\n", total);
+                    for file in search_result.files.iter().take(max_results) {
+                         let line_info = if let Some(ln) = file.line_number {
+                             format!(":{}", ln)
+                         } else {
+                             String::new()
+                         };
+                         // File paths from CliEngine are relative to its working directory (which is 'path')
+                         // We present them as is
+                         out.push_str(&format!("{}{}\n", file.path, line_info));
+                    }
+                    out
+                } else {
+                    // Summary mode
+                    let mut out = format!("Found {} files matching '{}'. Displaying top results.\n", total, pattern);
+                    
+                    // Clustering logic
+                    let mut clusters: HashMap<String, usize> = HashMap::new();
+                    for file in &search_result.files {
+                        let path_parts: Vec<&str> = file.path.split('/').collect();
+                        let key = if path_parts.len() > 0 {
+                            if path_parts[0] == "." && path_parts.len() > 1 {
+                                path_parts[1].to_string()
+                            } else {
+                                path_parts[0].to_string()
+                            }
+                        } else {
+                            "root".to_string()
+                        };
+                        *clusters.entry(key).or_insert(0) += 1;
+                    }
+                    
+                    out.push_str("\nDistribution:\n");
+                    let mut sorted_clusters: Vec<(String, usize)> = clusters.into_iter().collect();
+                    sorted_clusters.sort_by(|a, b| b.1.cmp(&a.1));
+                    
+                    for (dir, count) in sorted_clusters.iter().take(5) {
+                        let percentage = (*count as f64 / total as f64) * 100.0;
+                        out.push_str(&format!("- {}/ : {} matches ({:.1}%)\n", dir, count, percentage));
+                    }
+                    
+                    out.push_str(&format!("\nTop {} results (ranked by relevance):\n", std::cmp::min(20, max_results)));
+                    // We take the top 20, or whatever max_results is if it's smaller than 20 (though default is 100)
+                    // The requirement says "return the top 20 most valuable results"
+                    let limit = std::cmp::min(20, max_results);
+                    
+                    for file in search_result.files.iter().take(limit) {
+                         let line_info = if let Some(ln) = file.line_number {
+                             format!(":{}", ln)
+                         } else {
+                             String::new()
+                         };
+                         out.push_str(&format!("{}{}\n", file.path, line_info));
+                    }
+                    
+                    out.push_str("\nTip: Too many results. Please refine your search query (e.g. use more specific keywords) or specify a subdirectory in the 'path' argument.");
+                    out
+                };
+                
+                Ok((output, Some(ToolResultMetadata {
+                    working_directory: Some(path.to_string_lossy().to_string()),
+                    ..Default::default()
+                })))
+            },
+            Err(e) => {
+                 Err(ExecutorError::FileOperation(format!("Search failed: {}", e)))
+            }
+        }
     }
 
     /// Execute apply_patch tool
