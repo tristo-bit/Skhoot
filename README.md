@@ -458,6 +458,7 @@ skhoot/
 │   ├── agentChatService.ts     # AI integration with tool calling (NEW)
 │   ├── apiKeyService.ts        # Secure API key management
 │   ├── tokenTrackingService.ts # Token usage tracking (NEW)
+│   ├── userProfileService.ts   # User profile data management (NEW)
 │   ├── diskService.ts          # System disk information
 │   ├── notificationService.ts  # Native desktop notifications
 │   ├── audioService.ts         # Audio management
@@ -1163,6 +1164,76 @@ console.log('Service state:', debugInfo);
 - **Action Handling**: Context-aware default actions based on notification type
 - **Permission Flow**: Automatic permission requests with graceful degradation
 - **Persistence**: Settings automatically saved to localStorage with migration support
+
+</details>
+
+<details>
+<summary><strong>User Profile Service API</strong></summary>
+
+```typescript
+import { userProfileService } from './services/userProfileService';
+import type { UserProfile } from './services/userProfileService';
+
+// Load user profile from localStorage
+const profile: UserProfile = userProfileService.loadProfile();
+console.log(profile);
+// {
+//   firstName: 'John',
+//   lastName: 'Doe',
+//   email: 'john.doe@example.com',
+//   profileImage: 'data:image/png;base64,...' or null,
+//   updatedAt: '2026-01-26T12:00:00.000Z'
+// }
+
+// Save complete profile (partial updates supported)
+userProfileService.saveProfile({
+  firstName: 'Jane',
+  lastName: 'Smith',
+  email: 'jane.smith@example.com'
+});
+
+// Save profile image only
+userProfileService.saveProfileImage('data:image/png;base64,...');
+// or remove image
+userProfileService.saveProfileImage(null);
+
+// Save user name (first and last)
+userProfileService.saveName('Jane', 'Smith');
+
+// Update email (typically from auth service)
+userProfileService.updateEmail('newemail@example.com');
+
+// Get profile image only
+const image: string | null = userProfileService.getProfileImage();
+
+// Get user full name
+const fullName: string = userProfileService.getFullName(); // "Jane Smith"
+
+// Clear all profile data
+userProfileService.clearProfile();
+```
+
+**UserProfile Interface:**
+- `firstName`: User's first name (string)
+- `lastName`: User's last name (string)
+- `email`: User's email address (string)
+- `profileImage`: Base64-encoded image data or null (string | null)
+- `updatedAt`: ISO timestamp of last update (string)
+
+**Features:**
+- **Persistent Storage**: Automatically saves to localStorage with key `skhoot_user_profile`
+- **Partial Updates**: `saveProfile()` accepts partial profile objects and merges with existing data
+- **Automatic Timestamps**: Updates `updatedAt` field on every save operation
+- **Default Values**: Returns default profile (John Doe) if no profile exists
+- **Error Handling**: Try-catch blocks with user-friendly error messages
+- **Type Safety**: Full TypeScript interfaces for all operations
+
+**UI Integration:**
+The User Panel (`components/settings/UserPanel.tsx`) provides a visual interface for managing profile data with:
+- **Profile Picture Upload**: Drag-and-drop or click to upload with preview
+- **Name Management**: Edit first and last name with save button
+- **Change Detection**: Visual indicators for unsaved changes
+- **Persistent State**: Profile data automatically loaded on mount and saved on user action
 
 </details>
 

@@ -1,4 +1,5 @@
 import { User, AuthState } from '../types';
+import { userProfileService } from './userProfileService';
 
 const AUTH_STORAGE_KEY = 'skhoot_auth';
 
@@ -19,6 +20,8 @@ export const authService = {
 
   saveAuth(user: User): void {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ user }));
+    // Sync email with user profile
+    userProfileService.updateEmail(user.email);
   },
 
   clearAuth(): void {

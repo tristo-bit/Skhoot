@@ -95,8 +95,8 @@ impl WebViewRenderer {
     /// 
     /// The window is configured to be:
     /// - Hidden (not visible to user)
-    /// - Offscreen (no screen position)
-    /// - No decorations
+    /// - Offscreen (positioned outside visible screen area)
+    /// - No decorations or titlebar
     /// - Minimal size
     fn create_hidden_window(
         &self,
@@ -115,9 +115,16 @@ impl WebViewRenderer {
         )
         .title("Skhoot Renderer") // Title won't be visible
         .inner_size(800.0, 600.0) // Minimal size for rendering
+        .position(-10000.0, -10000.0) // Position offscreen to prevent any visual artifacts
         .visible(false) // CRITICAL: Window is not visible
         .decorations(false) // No window decorations
+        .transparent(true) // Transparent window (helps prevent titlebar on Windows)
         .skip_taskbar(true) // Don't show in taskbar
+        .always_on_bottom(true) // Keep below all other windows if somehow visible
+        .resizable(false) // Not resizable
+        .minimizable(false) // Not minimizable
+        .maximizable(false) // Not maximizable
+        .closable(true) // Allow programmatic closing
         .build()?;
 
         Ok(window)

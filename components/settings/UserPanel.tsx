@@ -3,16 +3,20 @@ import { Camera, Key, Crown, User as UserIcon } from 'lucide-react';
 import { Modal } from '../ui';
 import { SaveButton, UploadButton, ConnectionButton, PremiumButton, Button, IconButton, PlanButton, BackButton } from '../buttonFormat';
 import { apiKeyService, PROVIDERS, type ProviderInfo } from '../../services/apiKeyService';
+import { userProfileService } from '../../services/userProfileService';
 
 interface UserPanelProps {
   onClose: () => void;
 }
 
 const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
-  const [firstName, setFirstName] = useState('John');
-  const [lastName, setLastName] = useState('Doe');
+  // Load profile from localStorage on mount
+  const [profile] = useState(() => userProfileService.loadProfile());
+  
+  const [firstName, setFirstName] = useState(profile.firstName);
+  const [lastName, setLastName] = useState(profile.lastName);
   const [plan, setPlan] = useState<'guest' | 'subscribed'>('guest');
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(profile.profileImage);
   
   // API Key state
   const [selectedProvider, setSelectedProvider] = useState<string>('openai');
@@ -22,14 +26,14 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
   const [selectedModel, setSelectedModel] = useState<string>('');
   
   // Track changes for save button
-  const [originalFirstName] = useState('John');
-  const [originalLastName] = useState('Doe');
-  const [originalProfileImage] = useState<string | null>(null);
+  const [originalFirstName] = useState(profile.firstName);
+  const [originalLastName] = useState(profile.lastName);
+  const [originalProfileImage] = useState<string | null>(profile.profileImage);
   const [hasProfileChanges, setHasProfileChanges] = useState(false);
   const [hasNameChanges, setHasNameChanges] = useState(false);
   const [showUpgradePanel, setShowUpgradePanel] = useState(false);
   const [showBillingPanel, setShowBillingPanel] = useState(false);
-  const [userEmail] = useState('john.doe@example.com');
+  const [userEmail] = useState(profile.email);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [connectionMessage, setConnectionMessage] = useState('');
@@ -127,13 +131,25 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
   }, []);
 
   const handleSaveProfile = useCallback(() => {
-    console.log('Saving profile image:', profileImage);
-    setHasProfileChanges(false);
+    try {
+      userProfileService.saveProfileImage(profileImage);
+      setHasProfileChanges(false);
+      console.log('[UserPanel] Profile image saved successfully');
+    } catch (error) {
+      console.error('[UserPanel] Failed to save profile image:', error);
+      alert('Failed to save profile image. Please try again.');
+    }
   }, [profileImage]);
 
   const handleSaveName = useCallback(() => {
-    console.log('Saving name:', { firstName, lastName });
-    setHasNameChanges(false);
+    try {
+      userProfileService.saveName(firstName, lastName);
+      setHasNameChanges(false);
+      console.log('[UserPanel] Name saved successfully:', { firstName, lastName });
+    } catch (error) {
+      console.error('[UserPanel] Failed to save name:', error);
+      alert('Failed to save name. Please try again.');
+    }
   }, [firstName, lastName]);
 
   const handlePlanChange = useCallback((newPlan: 'guest' | 'subscribed') => {
