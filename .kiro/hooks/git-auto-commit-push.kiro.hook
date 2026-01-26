@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Auto Git Commit & Push",
+  "description": "Automatically stages all changes, creates detailed commit messages, pushes to remote, and creates GitHub issues if needed",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Execute the following git workflow:\n\n1. Run `git add .` to stage all changes\n2. Analyze the staged changes with `git diff --cached` and create a detailed, descriptive commit message that:\n   - Summarizes the main changes in the first line (50 chars max)\n   - Provides detailed bullet points of what was changed\n   - Follows conventional commit format (feat:, fix:, docs:, etc.)\n3. Run `git commit -m \"your detailed message\"`\n4. Check if there are any issues or TODOs in the changes that should be tracked\n5. If issues are found, create GitHub issues for them using the GitHub CLI (`gh issue create`)\n6. Run `git push` to push the changes to remote\n7. Provide a summary of what was committed, pushed, and any issues created\n\nHandle errors gracefully and report if any step fails."
+  }
+}

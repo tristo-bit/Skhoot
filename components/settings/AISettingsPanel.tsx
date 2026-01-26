@@ -595,9 +595,9 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
                   disabled={selectedProvider === 'kiro'}
                   className="w-full p-3 pr-10 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 text-sm font-medium text-text-primary focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 appearance-none transition-all cursor-pointer disabled:cursor-not-allowed"
                 >
-                  <option value="" disabled>Select a provider...</option>
+                  <option value="" disabled className="bg-[#1a1a1a] text-text-secondary">Select a provider...</option>
                   {PROVIDERS.filter(p => p.id !== 'kiro').map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                    <option key={p.id} value={p.id} className="bg-[#1a1a1a] text-text-primary">{p.name}</option>
                   ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none group-hover:text-text-primary transition-colors" size={16} />
@@ -658,7 +658,7 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
               className="w-full p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-[#C0B7C9]"
             >
               {availableModels.map((model) => (
-                <option key={model} value={model}>{model}</option>
+                <option key={model} value={model} className="bg-[#1a1a1a] text-text-primary">{model}</option>
               ))}
             </select>
           </div>
