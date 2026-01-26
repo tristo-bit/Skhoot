@@ -29,11 +29,6 @@ export interface ProviderInfo {
 
 export const PROVIDERS: APIProvider[] = [
   {
-    id: 'kiro',
-    name: 'Kiro (CLI)',
-    icon: '/providers/kiro.svg',
-  },
-  {
     id: 'openai',
     name: 'OpenAI',
     icon: '/providers/openai.svg',
