@@ -2217,12 +2217,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         audioLevels={audioLevels}
         audioStream={audioStream}
         onInputChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-          }
-        }}
+        onKeyDown={handleKeyDown}
         onSend={handleSend}
         onStop={handleStop}
         onMicClick={handleMicClick}

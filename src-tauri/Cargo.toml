@@ -28,6 +28,10 @@ tracing = "0.1"
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = "2.0"
 
+# Windows-only: Windows API for window management
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.52", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
