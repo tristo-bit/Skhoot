@@ -312,15 +312,6 @@ fn main() {
     .plugin(tauri_plugin_notification::init())
     .plugin(tauri_plugin_fs::init())
     .setup(|app| {
-      // Force initialization of GTK context on Linux for dialogs
-      #[cfg(target_os = "linux")]
-      {
-         use webkit2gtk::glib;
-         // Ensure the main loop is running for GTK dialogs
-         glib::source::timeout_add_local(std::time::Duration::from_millis(100), move || {
-             glib::ControlFlow::Continue
-         });
-      }
       // Initialize API key storage
       let app_data_dir = app.path().app_data_dir()
         .expect("Failed to get app data directory");
