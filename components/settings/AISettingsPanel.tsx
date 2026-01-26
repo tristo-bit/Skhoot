@@ -209,7 +209,8 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
   }, []);
 
   const handleTestConnection = useCallback(async () => {
-    if (!apiKey.trim()) {
+    // If using Kiro, we don't need an API key check
+    if (selectedProvider !== 'kiro' && !apiKey.trim()) {
       setConnectionStatus('error');
       setConnectionMessage('Please enter an API key first');
       return;
