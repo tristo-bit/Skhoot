@@ -83,17 +83,6 @@ impl AIManager {
             embedding_model: Some("text-embedding-004".to_string()),
         });
 
-        // Add Kiro provider (CLI Bridge)
-        providers.insert("kiro".to_string(), ProviderConfig {
-            name: "Kiro (CLI)".to_string(),
-            base_url: "https://api.kiro.dev/v1".to_string(),
-            models: vec![
-                "kiro-chat-beta".to_string(),
-                "claude-3-5-sonnet-20241022".to_string(),
-            ],
-            embedding_model: None, 
-        });
-
         Self {
             client: Client::new(),
             providers,
@@ -117,9 +106,6 @@ impl AIManager {
             Ok("anthropic".to_string())
         } else if api_key.starts_with("AIza") {
             Ok("google".to_string())
-        } else if api_key.len() > 50 { 
-            // Kiro tokens are usually long JWTs or similar
-            Ok("kiro".to_string())
         } else {
             Err(AppError::BadRequest("Unknown API key format".to_string()))
         }
@@ -129,9 +115,9 @@ impl AIManager {
         match provider {
             "openai" => self.fetch_openai_models(api_key).await,
             "google" => self.fetch_google_models(api_key).await,
-            "anthropic" | "kiro" => {
-                // Anthropic and Kiro (CLI) don't have a public models endpoint we use here
-                Ok(self.providers[provider].models.clone())
+            "anthropic" => {
+                // Anthropic doesn't have a models endpoint, return predefined models
+                Ok(self.providers["anthropic"].models.clone())
             }
             _ => Err(AppError::BadRequest("Unsupported provider".to_string())),
         }

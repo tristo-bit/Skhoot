@@ -520,68 +520,27 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
         )}
       </div>
 
-      {/* API Configuration */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
-            <Key size={16} className="text-amber-500" />
-            API Configuration
-          </label>
-          {connectionStatus === 'success' && (
-            <SaveButton
-              onClick={handleSaveApiKey}
-              disabled={isApiKeySaved}
-              isSaved={isApiKeySaved}
-              saveText="Save"
-              savedText="Saved!"
-              variant="violet"
-              size="xs"
-            />
-          )}
-        </div>
-        
-        {/* Kiro Option */}
-        <button
-          onClick={() => {
-            const newValue = selectedProvider === 'kiro' ? 'openai' : 'kiro'; // Toggle logic: if kiro, switch to default (openai), else switch to kiro
-            handleProviderChange(newValue);
-          }}
-          className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all relative group ${
-            selectedProvider === 'kiro'
-              ? 'bg-violet-500/10 border-violet-500/50 shadow-[0_0_15px_rgba(139,92,246,0.1)]'
-              : 'glass-subtle border-transparent hover:bg-white/5'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <KiroLogo className="w-8 h-8" />
-            <div className="text-left">
-              <p className="font-bold font-jakarta text-text-primary">Connect with Kiro</p>
-              <p className="text-xs text-text-secondary">Use your Kiro subscription as provider</p>
-            </div>
+        {/* API Configuration */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
+              <Key size={16} className="text-amber-500" />
+              API Configuration
+            </label>
+            {connectionStatus === 'success' && (
+              <SaveButton
+                onClick={handleSaveApiKey}
+                disabled={isApiKeySaved}
+                isSaved={isApiKeySaved}
+                saveText="Save"
+                savedText="Saved!"
+                variant="violet"
+                size="xs"
+              />
+            )}
           </div>
           
-          {/* Toggle Switch UI */}
-          <div className={`w-12 h-6 rounded-full transition-all relative ${
-            selectedProvider === 'kiro' ? 'bg-violet-500' : 'bg-gray-700'
-          }`}>
-            <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-200 ${
-              selectedProvider === 'kiro' ? 'left-[26px]' : 'left-0.5'
-            }`} />
-          </div>
-        </button>
-
-        {/* Divider */}
-        <div className="relative flex items-center justify-center py-2">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/5"></div>
-          </div>
-          <span className="relative px-3 text-[10px] font-bold tracking-wider text-text-secondary bg-[#1a1a1a] uppercase">OR USE API KEY</span>
-        </div>
-
-        {/* Other Providers Section */}
-        <div className={`transition-all duration-300 ${
-          selectedProvider === 'kiro' ? 'opacity-50 pointer-events-none grayscale' : 'opacity-100'
-        }`}>
+          {/* Provider Selection */}
           <div className="p-4 rounded-xl glass-subtle ring-1 ring-white/5 space-y-4">
             {/* Dropdown */}
             <div className="space-y-2">
@@ -590,79 +549,78 @@ export const AISettingsPanel: React.FC<AISettingsPanelProps> = ({ onBack }) => {
               </label>
               <div className="relative group">
                 <select
-                  value={selectedProvider === 'kiro' ? '' : selectedProvider}
+                  value={selectedProvider}
                   onChange={(e) => handleProviderChange(e.target.value)}
-                  disabled={selectedProvider === 'kiro'}
-                  className="w-full p-3 pr-10 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 text-sm font-medium text-text-primary focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 appearance-none transition-all cursor-pointer disabled:cursor-not-allowed [&>option]:bg-[#1a1a1a] [&>option]:text-text-primary"
+                  className="w-full p-3 pr-10 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 text-sm font-medium text-text-primary focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 appearance-none transition-all cursor-pointer [&>option]:bg-[#1a1a1a] [&>option]:text-white"
                 >
-                  <option value="" disabled className="bg-[#1a1a1a] text-text-secondary">Select a provider...</option>
-                  {PROVIDERS.filter(p => p.id !== 'kiro').map(p => (
-                    <option key={p.id} value={p.id} className="bg-[#1a1a1a] text-text-primary">{p.name}</option>
+                  <option value="" disabled className="bg-[#1a1a1a] text-gray-400">Select a provider...</option>
+                  {PROVIDERS.map(p => (
+                    <option key={p.id} value={p.id} className="bg-[#1a1a1a] text-white">{p.name}</option>
                   ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none group-hover:text-text-primary transition-colors" size={16} />
               </div>
             </div>
 
-            {/* API Key Input (Only if not Kiro) */}
-            {selectedProvider !== 'kiro' && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                <label className="text-xs font-bold text-text-secondary font-jakarta block">
-                  API Key
-                </label>
-                <div className="relative">
-                  <input
-                    type={showApiKey ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={(e) => {
-                      setApiKey(e.target.value);
-                      if (connectionStatus !== 'idle') {
-                        setConnectionStatus('idle');
-                        setConnectionMessage('');
-                      }
-                      if (isApiKeySaved) setIsApiKeySaved(false);
-                    }}
-                    className="w-full p-3 pr-12 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 transition-all"
-                    placeholder={`Enter ${PROVIDERS.find(p => p.id === selectedProvider)?.name} API key`}
-                  />
-                  <IconButton
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    icon={<Key size={16} />}
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
-                  />
-                </div>
+            {/* API Key Input */}
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+              <label className="text-xs font-bold text-text-secondary font-jakarta block">
+                API Key
+              </label>
+              <div className="relative">
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={apiKey}
+                  onChange={(e) => {
+                    setApiKey(e.target.value);
+                    if (connectionStatus !== 'idle') {
+                      setConnectionStatus('idle');
+                      setConnectionMessage('');
+                    }
+                    if (isApiKeySaved) setIsApiKeySaved(false);
+                  }}
+                  className="w-full p-3 pr-12 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 transition-all"
+                  placeholder={`Enter ${PROVIDERS.find(p => p.id === selectedProvider)?.name} API key`}
+                />
+                <IconButton
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  icon={<Key size={16} />}
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                />
               </div>
-            )}
+            </div>
           </div>
-        </div>
-        
-        {/* Model Selection */}
-        {availableModels.length > 0 && (
-          <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-            <label className="text-xs font-medium text-text-secondary font-jakarta">
-              Model ({availableModels.length} available)
-            </label>
-            <select
-              value={selectedModel}
-              onChange={async (e) => {
-                const newModel = e.target.value;
-                setSelectedModel(newModel);
-                try {
-                  await apiKeyService.saveModel(selectedProvider, newModel);
-                } catch (error) {
-                  console.error('Failed to save model:', error);
-                }
-              }}
-              className="w-full p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-[#C0B7C9] [&>option]:bg-[#1a1a1a] [&>option]:text-text-primary"
-            >
-              {availableModels.map((model) => (
-                <option key={model} value={model} className="bg-[#1a1a1a] text-text-primary">{model}</option>
-              ))}
-            </select>
-          </div>
-        )}
+          
+          {/* Model Selection */}
+          {availableModels.length > 0 && (
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+              <label className="text-xs font-medium text-text-secondary font-jakarta">
+                Model ({availableModels.length} available)
+              </label>
+              <div className="relative group">
+                <select
+                  value={selectedModel}
+                  onChange={async (e) => {
+                    const newModel = e.target.value;
+                    setSelectedModel(newModel);
+                    try {
+                      await apiKeyService.saveModel(selectedProvider, newModel);
+                    } catch (error) {
+                      console.error('Failed to save model:', error);
+                    }
+                  }}
+                  className="w-full p-3 pr-10 rounded-xl glass-subtle text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:ring-2 focus:ring-[#C0B7C9] appearance-none cursor-pointer [&>option]:bg-[#1a1a1a] [&>option]:text-white"
+                >
+                  {availableModels.map((model) => (
+                    <option key={model} value={model} className="bg-[#1a1a1a] text-white">{model}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none group-hover:text-text-primary transition-colors" size={16} />
+              </div>
+            </div>
+          )}
 
         {/* Model Capabilities */}
         {modelCapabilities && (
