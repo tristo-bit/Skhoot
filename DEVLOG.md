@@ -2,6 +2,57 @@
 
 ## January 26, 2026
 
+### Image Gallery Modal Display Fix 🖼️
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/conversations/ImageGallery.tsx`
+- **Change**: Fixed image enlargement modal with clean borderless design, fixed close button positioning, and theme-aware blur backdrop
+- **Impact**: Users can now view full-size images in a clean modal with perfect close button alignment and no visual artifacts
+
+**Problem Solved**:
+- When clicking to enlarge an image in conversation, it displayed poorly with text overlaid on the image
+- Modal was using custom implementation instead of the reusable Modal component
+- Background was too dark in light mode
+- Close button was being cropped by wrapper boxes and panel borders
+- Unwanted borders/strokes appeared around the modal panel
+- Close button wasn't properly aligned in top-right corner
+
+**Solution**:
+- **Replaced custom modal with reusable `Modal` component** from `components/ui/Modal.tsx`
+- **Simplified structure**: Removed all wrapper divs that were causing cropping issues
+- **Completely borderless design**: 
+  - Added `!border-none !outline-none !ring-0 !rounded-none` to panelClassName
+  - Removes all default Modal borders, outlines, and rounded corners
+  - Ensures completely clean, transparent panel
+- **Fixed close button positioning**: 
+  - Changed to `fixed top-6 right-6` for viewport-relative positioning (not panel-relative)
+  - `z-[60]` ensures it's always on top and visible
+  - No longer affected by any container boundaries or cropping
+  - Theme-aware: white background in light mode, dark in dark mode
+  - Hover effects with scale animation
+- **Blur backdrop instead of dark overlay**: `backdrop-blur-xl bg-black/30 dark:bg-black/60` - blurs the rest of the interface
+- **Theme-aware styling**: Light background in light mode, dark in dark mode throughout
+- **Image display**:
+  - `max-h-[80vh]` for optimal viewport usage
+  - `object-contain` to preserve aspect ratio
+  - `rounded-lg` for polished corners on the image itself
+  - `shadow-2xl` for depth
+- **Filename label**:
+  - Theme-aware: `bg-white/80 dark:bg-black/60`
+  - `max-w-full truncate` to prevent cropping
+  - Positioned below image with proper spacing
+
+**Technical Details**:
+- Leverages existing Modal component for consistency across the app
+- Ultra-clean structure: transparent panel with no borders, just image, close button, and filename
+- Fixed positioning for close button ensures it's always visible and accessible at viewport level
+- Image automatically scales down to fit viewport while showing full content
+- Modal portal rendering ensures proper z-index stacking
+- Follows embossed glassmorphic design system guidelines
+- Blur effect creates focus on image without harsh dark overlay
+- All default Modal styling completely overridden for clean, borderless appearance
+
+## January 26, 2026 (Earlier)
+
 ### Kiro CLI Authentication Bridge 🔑
 - **Status**: ✅ **COMPLETED**
 - **Components**: `AISettingsPanel.tsx`, `backend/src/kiro_bridge.rs`, `src-tauri/src/api_keys.rs`
