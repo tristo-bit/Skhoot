@@ -176,7 +176,6 @@ class APIKeyService {
       try {
         await this.tauriInvoke('delete_api_key', { provider });
         console.log(`[ApiKeyService] Deleted API key for ${provider} (Tauri)`);
-        return;
       } catch (error) {
         console.warn(`[ApiKeyService] Tauri delete failed, using localStorage:`, error);
       }
@@ -238,7 +237,6 @@ class APIKeyService {
       try {
         await this.tauriInvoke('set_active_provider', { provider });
         console.log(`[ApiKeyService] Set active provider to ${provider} (Tauri)`);
-        return;
       } catch (error) {
         console.warn(`[ApiKeyService] Tauri setActive failed, using localStorage:`, error);
       }
