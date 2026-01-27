@@ -450,7 +450,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
       animationName="fileExplorerSlideUp"
     >
       <div className="h-full flex flex-col">
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
           {activeTab === 'recent' && <RecentTab files={recentFiles} viewMode={viewMode} isLoading={isLoading} />}
           {activeTab === 'images' && <ImagesTab viewMode={viewMode} isLoading={isLoading} />}
           {activeTab === 'disk' && <DiskTab />}

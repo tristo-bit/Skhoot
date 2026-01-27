@@ -103,6 +103,68 @@
 
 ---
 
+### Fixed File Explorer Panel Scrollbar in Dark Mode 📜
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/FileExplorerPanel.tsx`
+- **Change**: Applied Skhoot's custom scrollbar to File Explorer Panel
+- **Impact**: File Explorer now uses the elegant custom scrollbar instead of native system scrollbar in dark mode
+
+**Problem**:
+- File Explorer Panel was using the native system scrollbar in dark mode
+- User reported: "le dark mode utilise la scroll bar native"
+- Inconsistent with the rest of Skhoot's UI which uses custom styled scrollbars
+- Native scrollbar looked out of place with the glassmorphic design
+
+**Root Cause**:
+The scrollable container in FileExplorerPanel (`div` with `overflow-y-auto`) didn't have the `custom-scrollbar` class that applies Skhoot's custom scrollbar styling defined in `src/index.css`.
+
+**Solution**:
+Added `custom-scrollbar` class to the scrollable container in FileExplorerPanel.
+
+**Implementation**:
+```typescript
+// Before: Native scrollbar
+<div className="flex-1 overflow-y-auto p-4">
+  {/* Tab content */}
+</div>
+
+// After: Custom Skhoot scrollbar
+<div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+  {/* Tab content */}
+</div>
+```
+
+**Custom Scrollbar Styling** (from `src/index.css`):
+- **Default color**: `#D5D5D7` (nimbusCloud)
+- **Hover color**: `#E1D5E3` (orchidTint)
+- **Active color**: `#c0b7c9` (fukuBrand)
+- **Width**: 14px with rounded corners (8px border-radius)
+- **Track**: Transparent background
+- **Thumb**: Rounded with 3px transparent border for padding effect
+- **Firefox support**: `scrollbar-width: thin` with matching colors
+
+**Technical Details**:
+- Uses webkit scrollbar pseudo-elements for Chrome/Edge/Safari
+- Uses `scrollbar-width` and `scrollbar-color` for Firefox
+- Smooth transitions on hover and active states
+- Consistent with Skhoot's glassmorphic design system
+- Theme-aware styling that works in both light and dark modes
+
+**Verification**:
+- ✅ File Explorer Panel uses custom scrollbar instead of native
+- ✅ Scrollbar matches Skhoot's design system colors
+- ✅ Hover and active states work correctly
+- ✅ Consistent with other panels in the app
+- ✅ Works in both light and dark modes
+- ✅ Firefox compatibility maintained
+
+**User Acceptance Criteria Met**:
+- ✅ File Explorer Panel utilise la scrollbar personnalisée de Skhoot
+- ✅ Plus de scrollbar native en dark mode
+- ✅ Cohérence visuelle avec le reste de l'application
+
+---
+
 ## January 27, 2026
 
 ### Fixed Dropdown Width - Manual Sizing for All Tags 🎯
