@@ -109,6 +109,12 @@ class APIKeyService {
       try {
         await this.tauriInvoke('save_api_key', { provider, apiKey, isActive });
         console.log(`[ApiKeyService] Saved API key for ${provider} (Tauri)`);
+        
+        // Ensure backend state is consistent and localStorage is synced
+        if (isActive) {
+          await this.setActiveProvider(provider);
+        }
+        
         return;
       } catch (error) {
         console.error(`[ApiKeyService] Tauri save failed, using localStorage:`, error);
