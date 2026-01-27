@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Mail, Lock, FolderOpen } from 'lucide-react';
+import { Shield, Mail, Lock, FolderOpen, Trash2 } from 'lucide-react';
 import { BackButton } from '../buttonFormat';
 import { isTauriApp } from '../../services/tauriDetection';
 
@@ -148,6 +148,23 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ onBack }) => {
     }
   };
 
+  const handleEraseLocalData = async () => {
+    if (window.confirm('Are you sure you want to erase all local data? This will reset all settings and cannot be undone.')) {
+      try {
+        console.log('[PrivacyPanel] Erasing local data...');
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Also try to clear backend data if possible, but for now just frontend
+        // Reload to reset state
+        window.location.reload();
+      } catch (error) {
+        console.error('[PrivacyPanel] Failed to erase data:', error);
+        alert('Failed to erase data');
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -281,6 +298,26 @@ export const PrivacyPanel: React.FC<PrivacyPanelProps> = ({ onBack }) => {
             className="w-full px-4 py-2 rounded-lg text-sm font-medium font-jakarta bg-[#d4e4f1] text-gray-800 hover:bg-[#c4d4e1] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
             {isDownloading ? 'Opening...' : 'Open Local Storage'}
+          </button>
+        </div>
+      </div>
+
+      {/* Erase Local Data */}
+      <div className="space-y-3">
+        <SectionLabel 
+          label="Erase Local Data" 
+          icon={<Trash2 size={16} />}
+          iconColor="text-red-500"
+        />
+        <div className="p-3 rounded-xl glass-subtle">
+          <p className="text-xs text-text-secondary font-jakarta mb-3">
+            Clear all local data and settings. This action cannot be undone and will reset the application to its initial state.
+          </p>
+          <button
+            onClick={handleEraseLocalData}
+            className="w-full px-4 py-2 rounded-lg text-sm font-medium font-jakarta bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all border border-red-500/20 hover:border-red-500/30"
+          >
+            Erase Local Data
           </button>
         </div>
       </div>

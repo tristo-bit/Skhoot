@@ -251,9 +251,7 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
       )}
       footer={(
         <div className="flex justify-between items-center">
-          <p className="text-[10px] font-medium font-jakarta opacity-40 text-text-primary">
-            Profile v1.0
-          </p>
+          <div />
           <div className="flex gap-2">
             {(hasProfileChanges || hasNameChanges) ? (
               <span className="px-4 py-2 text-xs font-medium font-jakarta text-orange-600">
