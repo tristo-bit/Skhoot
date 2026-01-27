@@ -1133,6 +1133,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         let responseContent = '';
         let responseType: Message['type'] = 'text';
         let responseData = undefined;
+        let responseToolCalls: AgentToolCallData[] | undefined = undefined;
         
         if (isAgentMode && agentSessionId) {
              const agentHistory = messages.map(m => ({
@@ -1150,6 +1151,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 }
              );
              responseContent = response.content;
+             responseToolCalls = response.toolCalls as AgentToolCallData[] | undefined;
         } else {
              const history: AIMessage[] = messages.map(m => ({
                  role: m.role as 'user' | 'assistant',
@@ -1175,7 +1177,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             content: responseContent,
             type: responseType,
             data: responseData,
-            timestamp: new Date()
+            timestamp: new Date(),
+            toolCalls: responseToolCalls,
         }]);
 
     } catch (error) {
