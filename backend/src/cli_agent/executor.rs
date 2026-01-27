@@ -163,8 +163,23 @@ impl AgentExecutor {
             // If manager.write() fails with "Session not found", THEN we know it's gone.
             
             // Let's try to write directly.
+            
+            // Resolve workdir for the persistent session
+            let workdir = args.get("workdir")
+                .and_then(|v| v.as_str())
+                .map(|s| self.resolve_path(s))
+                .unwrap_or_else(|| self.config.working_directory.clone());
+
             // Write command to PTY (append newline)
-            let cmd_with_newline = format!("{}\n", command);
+            // We prepend a directory change to ensure we execute in the requested context
+            // Note: We use quotes to handle paths with spaces
+            let cmd_with_newline = if cfg!(target_os = "windows") {
+                // PowerShell (default for Skhoot on Windows) handles cd across drives fine
+                format!("cd \"{}\"; if ($?) {{ {} }}\n", workdir.display(), command)
+            } else {
+                // Bash/Sh - usage of && ensures we don't run if cd fails
+                format!("cd \"{}\" && {}\n", workdir.display(), command)
+            };
             
             // Get current history length to read only new output
             // We do this before write to establish baseline
@@ -206,7 +221,7 @@ impl AgentExecutor {
         
         let workdir = args.get("workdir")
             .and_then(|v| v.as_str())
-            .map(PathBuf::from)
+            .map(|s| self.resolve_path(s))
             .unwrap_or_else(|| self.config.working_directory.clone());
         
         let timeout_ms = args.get("timeout_ms")
@@ -229,7 +244,7 @@ impl AgentExecutor {
         // Execute command with timeout
         let handle = timeout(
             Duration::from_millis(timeout_ms),
-            self.cli_bridge.execute_command(program, cmd_args),
+            self.cli_bridge.execute_command(program, cmd_args, Some(workdir.clone())),
         )
         .await
         .map_err(|_| ExecutorError::Timeout(timeout_ms))?

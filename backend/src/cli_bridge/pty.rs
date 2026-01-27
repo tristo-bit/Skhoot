@@ -35,6 +35,7 @@ impl PtySession {
         session_id: String,
         cmd: &str,
         args: &[String],
+        cwd: Option<std::path::PathBuf>,
         cols: Option<u16>,
         rows: Option<u16>,
     ) -> Result<Self, CliError> {
@@ -49,8 +50,8 @@ impl PtySession {
         };
 
         debug!(
-            "Creating PTY session {} with size {}x{} for command: {} {:?}",
-            session_id, size.cols, size.rows, cmd, args
+            "Creating PTY session {} with size {}x{} for command: {} {:?} (cwd: {:?})",
+            session_id, size.cols, size.rows, cmd, args, cwd
         );
 
         // Create the PTY pair
@@ -64,6 +65,10 @@ impl PtySession {
         // Build the command
         let mut command = CommandBuilder::new(cmd);
         command.args(args);
+        
+        if let Some(dir) = cwd {
+            command.cwd(dir);
+        }
 
         // Spawn the child process in the PTY
         let child = pair.slave.spawn_command(command).map_err(|e| {
@@ -336,6 +341,7 @@ mod tests {
             "test-session".to_string(),
             "echo",
             &["hello".to_string()],
+            None,
             Some(80),
             Some(24),
         );
@@ -352,6 +358,7 @@ mod tests {
             "test-session".to_string(),
             "nonexistent_command_xyz",
             &[],
+            None,
             None,
             None,
         );
@@ -371,6 +378,7 @@ mod tests {
             "test-session".to_string(),
             "echo",
             &["test".to_string()],
+            None,
             Some(80),
             Some(24),
         ).unwrap();

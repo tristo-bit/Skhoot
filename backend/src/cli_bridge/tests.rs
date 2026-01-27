@@ -9,6 +9,7 @@ async fn test_cli_bridge_regular_command() {
     let result = bridge.execute_command(
         "echo".to_string(),
         vec!["hello".to_string()],
+        None,
     ).await;
     
     assert!(result.is_ok());
@@ -23,6 +24,7 @@ async fn test_cli_bridge_pty_command() {
     let result = bridge.execute_command_pty(
         "echo".to_string(),
         vec!["hello from PTY".to_string()],
+        None,
         Some(80),
         Some(24),
     ).await;
@@ -40,6 +42,7 @@ async fn test_cli_bridge_pty_resize() {
     let handle = bridge.execute_command_pty(
         "bash".to_string(),
         vec![],
+        None,
         Some(80),
         Some(24),
     ).await.unwrap();
@@ -60,6 +63,7 @@ async fn test_cli_bridge_write_to_pty() {
     let handle = bridge.execute_command_pty(
         "bash".to_string(),
         vec![],
+        None,
         Some(80),
         Some(24),
     ).await.unwrap();
@@ -87,12 +91,14 @@ async fn test_cli_bridge_mixed_sessions() {
     let regular_handle = bridge.execute_command(
         "echo".to_string(),
         vec!["regular".to_string()],
+        None,
     ).await.unwrap();
     
     // Create a PTY session
     let pty_handle = bridge.execute_command_pty(
         "echo".to_string(),
         vec!["pty".to_string()],
+        None,
         Some(80),
         Some(24),
     ).await.unwrap();
@@ -114,6 +120,7 @@ async fn test_pty_ansi_codes_preserved() {
     let handle = bridge.execute_command_pty(
         "echo".to_string(),
         vec!["-e".to_string(), "\\033[31mRed Text\\033[0m".to_string()],
+        None,
         Some(80),
         Some(24),
     ).await.unwrap();

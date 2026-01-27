@@ -134,10 +134,11 @@ impl CommandExecutor {
         session_id: String,
         cmd: String,
         args: Vec<String>,
+        cwd: Option<std::path::PathBuf>,
     ) -> Result<CommandHandle, CliError> {
         let config = self.security_config.read().await;
         
-        debug!("Spawning command: {} {:?} (sandbox_enabled={})", cmd, args, config.sandbox_enabled);
+        debug!("Spawning command: {} {:?} (sandbox_enabled={}, cwd={:?})", cmd, args, config.sandbox_enabled, cwd);
 
         // Create command with sandboxing
         let mut command = Command::new(&cmd);
@@ -146,6 +147,10 @@ impl CommandExecutor {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+
+        if let Some(dir) = cwd {
+            command.current_dir(dir);
+        }
 
         // Apply platform-specific sandboxing if enabled
         if config.sandbox_enabled {
@@ -251,15 +256,16 @@ impl CommandExecutor {
         session_id: String,
         cmd: String,
         args: Vec<String>,
+        cwd: Option<std::path::PathBuf>,
         cols: Option<u16>,
         rows: Option<u16>,
     ) -> Result<CommandHandle, CliError> {
         let config = self.security_config.read().await;
         
         debug!(
-            "Spawning PTY command: {} {:?} (sandbox_enabled={}, size={}x{})",
+            "Spawning PTY command: {} {:?} (sandbox_enabled={}, size={}x{}, cwd={:?})",
             cmd, args, config.sandbox_enabled,
-            cols.unwrap_or(80), rows.unwrap_or(24)
+            cols.unwrap_or(80), rows.unwrap_or(24), cwd
         );
 
         // Create PTY session
@@ -267,6 +273,7 @@ impl CommandExecutor {
             session_id.clone(),
             &cmd,
             &args,
+            cwd,
             cols,
             rows,
         )?;
@@ -491,6 +498,7 @@ mod tests {
             "test-session".to_string(),
             "echo".to_string(),
             vec!["hello".to_string()],
+            None,
         ).await;
         
         assert!(result.is_ok());

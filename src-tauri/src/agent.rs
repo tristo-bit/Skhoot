@@ -137,6 +137,7 @@ fn generate_id() -> String {
 #[tauri::command]
 pub async fn create_agent_session(
     state: State<'_, AgentTauriState>,
+    terminal_state: State<'_, crate::terminal::TerminalState>,
     session_id: String,
     options: Option<CreateAgentSessionOptions>,
 ) -> Result<AgentStatusDto, String> {
@@ -144,6 +145,20 @@ pub async fn create_agent_session(
     
     let opts = options.unwrap_or_default();
     let now = current_timestamp();
+
+    // Create persistent terminal session immediately (Codex-Main approach)
+    // This ensures consistent behavior and avoids lazy-init context traps
+    let terminal_config = skhoot_backend::SessionConfig {
+        shell: if cfg!(target_os = "windows") { "powershell.exe".to_string() } else { "/bin/bash".to_string() },
+        cols: 80,
+        rows: 24,
+        env: vec![("TERM".to_string(), "xterm-256color".to_string())],
+    };
+    
+    let terminal_id = terminal_state.manager.create_session(Some(terminal_config)).await
+        .map_err(|e| format!("Failed to create terminal: {}", e))?;
+    
+    println!("[Agent] Created persistent terminal session {} for agent {}", terminal_id, session_id);
     
     let session = AgentSessionState {
         id: session_id.clone(),
@@ -158,7 +173,7 @@ pub async fn create_agent_session(
         state: "ready".to_string(),
         created_at: now,
         last_activity: now,
-        terminal_session_id: None, // Will be created on demand
+        terminal_session_id: Some(terminal_id),
     };
     
     let status = AgentStatusDto {

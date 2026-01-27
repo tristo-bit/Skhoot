@@ -43,6 +43,7 @@ impl CliBridge {
         &self,
         cmd: String,
         args: Vec<String>,
+        cwd: Option<std::path::PathBuf>,
     ) -> Result<CommandHandle, CliError> {
         // Validate command
         self.executor.validate_command(&cmd, &args).await?;
@@ -54,7 +55,7 @@ impl CliBridge {
         };
 
         // Execute command with sandboxing
-        let handle = self.executor.spawn_command(session_id.clone(), cmd, args).await?;
+        let handle = self.executor.spawn_command(session_id.clone(), cmd, args, cwd).await?;
 
         // Register session
         {
@@ -70,6 +71,7 @@ impl CliBridge {
         &self,
         cmd: String,
         args: Vec<String>,
+        cwd: Option<std::path::PathBuf>,
         cols: Option<u16>,
         rows: Option<u16>,
     ) -> Result<CommandHandle, CliError> {
@@ -87,6 +89,7 @@ impl CliBridge {
             session_id.clone(),
             cmd,
             args,
+            cwd,
             cols,
             rows,
         ).await?;
