@@ -33,6 +33,15 @@ export interface SearchResponse {
   search_time_ms: number;
 }
 
+export type ActivityType = 'SearchSelection' | 'FileRead' | 'FileWrite' | 'FileCreated' | 'FileModified' | 'Downloaded';
+
+export interface HistoryEntry {
+  path: string;
+  activity_type: ActivityType;
+  timestamp: string;
+  metadata?: Record<string, string>;
+}
+
 // New file search types matching backend
 export interface FileSearchMatch {
   score: number;
@@ -284,6 +293,14 @@ export const backendApi = {
       throw new Error(`Search failed: ${response.statusText}`);
     }
     
+    return response.json();
+  },
+
+  async getRecentFiles(): Promise<HistoryEntry[]> {
+    const response = await fetch(`${BACKEND_URL}/api/v1/files/recent`);
+    if (!response.ok) {
+      throw new Error(`Failed to get recent files: ${response.statusText}`);
+    }
     return response.json();
   },
 

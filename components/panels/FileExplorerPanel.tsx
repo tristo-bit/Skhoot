@@ -8,10 +8,11 @@ import { createPortal } from 'react-dom';
 import { 
   Search, HardDrive, BarChart3, Trash2, 
   File, Folder, Clock, RefreshCw, Grid, List, MoreHorizontal,
-  ExternalLink, Copy, Scissors, Info, Archive, FolderOpen, MessageSquarePlus, Image
+  ExternalLink, Copy, Scissors, Info, Archive, FolderOpen, MessageSquarePlus, Image,
+  PenTool, Eye, Plus, Zap, Download // Added icons
 } from 'lucide-react';
 import { SecondaryPanel, SecondaryPanelTab } from '../ui/SecondaryPanel';
-import { backendApi } from '../../services/backendApi';
+import { backendApi, ActivityType } from '../../services/backendApi'; // Added ActivityType
 import { fileOperations } from '../../services/fileOperations';
 import { ImagesTab } from './ImagesTab';
 
@@ -268,6 +269,8 @@ interface FileItem {
   size: string;
   type: 'file' | 'folder';
   modified: string;
+  activityType?: ActivityType;
+  timestamp?: string;
 }
 
 interface FileExplorerPanelProps {
@@ -320,15 +323,33 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
   const loadRecentFiles = useCallback(async () => {
     setIsLoading(true);
     try {
-      const results = await backendApi.aiFileSearch('recent files', { mode: 'hybrid', max_results: 20 });
-      const files: FileItem[] = (results.merged_results || []).slice(0, 15).map((r: any, i: number) => ({
-        id: `file-${i}`,
-        name: r.path.split(/[/\\]/).pop() || r.path,
-        path: r.path,
-        size: r.size ? formatSize(r.size) : 'Unknown',
-        type: r.file_type === 'directory' ? 'folder' : 'file',
-        modified: r.modified || 'Unknown',
-      }));
+      const recentEntries = await backendApi.getRecentFiles();
+      const files: FileItem[] = recentEntries
+        .map((entry, i) => {
+          const fileName = entry.path.split(/[/\\]/).pop() || entry.path;
+          return {
+            id: `recent-${i}-${entry.timestamp}`,
+            name: fileName,
+            path: entry.path,
+            size: entry.metadata?.size || 'Unknown',
+            type: 'file' as const, // History tracks files mainly
+            modified: new Date(entry.timestamp).toLocaleString(),
+            activityType: entry.activity_type,
+            timestamp: entry.timestamp
+          };
+        })
+        .filter((file) => {
+          // Filter out temp files and incomplete downloads
+          if (file.name.endsWith('.crdownload') || file.name.endsWith('.part') || file.name.endsWith('.tmp') || file.name.endsWith('.opdownload')) {
+            return false;
+          }
+          // Filter out hidden temp files like .com.google.Chrome...
+          if (file.name.startsWith('.') && file.name.length > 2) {
+            return false;
+          }
+          return true;
+        });
+        
       setRecentFiles(files);
     } catch (error) {
       console.error('Failed to load recent files:', error);
@@ -336,6 +357,15 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
       setIsLoading(false);
     }
   }, []);
+
+  // Listen for preload event
+  useEffect(() => {
+    const handlePreload = () => {
+      loadRecentFiles();
+    };
+    window.addEventListener('preload-recent-files', handlePreload);
+    return () => window.removeEventListener('preload-recent-files', handlePreload);
+  }, [loadRecentFiles]);
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) return;
@@ -462,6 +492,18 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
   );
 });
 
+const ActivityIcon = ({ type }: { type?: ActivityType }) => {
+  if (!type) return null;
+  switch (type) {
+    case 'FileWrite': return <div className="p-1 rounded-full bg-orange-500/10"><PenTool size={10} className="text-orange-400" /></div>;
+    case 'FileRead': return <div className="p-1 rounded-full bg-blue-500/10"><Eye size={10} className="text-blue-400" /></div>;
+    case 'FileCreated': return <div className="p-1 rounded-full bg-green-500/10"><Plus size={10} className="text-green-400" /></div>;
+    case 'FileModified': return <div className="p-1 rounded-full bg-yellow-500/10"><Zap size={10} className="text-yellow-400" /></div>;
+    case 'Downloaded': return <div className="p-1 rounded-full bg-purple-500/10"><Download size={10} className="text-purple-400" /></div>;
+    default: return null;
+  }
+};
+
 const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading: boolean }>(({ files, viewMode, isLoading }) => {
   const [contextMenu, setContextMenu] = useState<{ file: FileItem; position: { x: number; y: number } } | null>(null);
   
@@ -515,8 +557,13 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
                 >
                   <MoreHorizontal size={12} className="text-text-secondary" />
                 </button>
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: `${colors.bg}20` }}>
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-2 relative" style={{ backgroundColor: `${colors.bg}20` }}>
                   {file.type === 'folder' ? <Folder size={20} style={{ color: colors.text }} /> : <File size={20} style={{ color: colors.text }} />}
+                  {file.activityType && (
+                    <div className="absolute -top-1 -right-1 scale-75">
+                      <ActivityIcon type={file.activityType} />
+                    </div>
+                  )}
                 </div>
                 <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
                 <p 
@@ -556,7 +603,10 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
                 {file.type === 'folder' ? <Folder size={16} style={{ color: colors.text }} /> : <File size={16} style={{ color: colors.text }} />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                  <ActivityIcon type={file.activityType} />
+                </div>
                 <p 
                   className="text-xs truncate cursor-pointer hover:underline hover:opacity-80 transition-opacity" 
                   style={{ color: 'var(--text-secondary)' }}
@@ -566,8 +616,13 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
                   {file.path}
                 </p>
               </div>
-            <div className="text-right flex-shrink-0">
+            <div className="text-right flex-shrink-0 flex flex-col items-end">
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{file.size}</p>
+              {file.timestamp && (
+                <p className="text-[10px] opacity-60" style={{ color: 'var(--text-secondary)' }}>
+                  {new Date(file.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              )}
             </div>
             <button 
               onClick={(e) => handleMoreClick(file, e)}

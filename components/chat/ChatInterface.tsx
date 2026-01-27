@@ -1098,435 +1098,135 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             workflowService.cancelExecution(waitingForInput.executionId);
             setWaitingForInput(null);
             return;
-         }
-
-         // Retrieve context to resume
-         const context = workflowService.getExecution(waitingForInput.executionId);
-         const workflow = context ? workflowService.getWorkflowSync(context.workflowId) : undefined;
-         const nextStep = workflow?.steps.find(s => s.id === waitingForInput.stepId);
-         
-         if (context && nextStep) {
-            executeWorkflowStep(waitingForInput.executionId, nextStep, context);
-         } else {
-            console.error('[ChatInterface] Failed to resume workflow after confirmation');
-         }
-      } else {
-         // Standard input request
-         // Resume workflow with user input as step output
-         workflowService.executeStep(waitingForInput.executionId, messageText).catch(err => {
-           console.error('[ChatInterface] Failed to resume workflow:', err);
-         });
-      }
-      
-      setWaitingForInput(null);
-      return;
-    }
-
-    stopRecording();
-    
-    // Clear pending voice message after capturing the text
-    if (voiceTranscript.trim()) {
-      discardVoice();
-    }
-
-    if (isEmptyStateVisible) {
-      setIsEmptyStateExiting(true);
-      setTimeout(() => {
-        setIsEmptyStateVisible(false);
-        setIsEmptyStateExiting(false);
-      }, 100);
-    }
-
-    // Load AI settings
-    const aiSettings = aiSettingsService.loadSettings();
-    console.log('[ChatInterface] Using AI settings:', aiSettings);
-
-    // Process attached files - load their contents to send to AI
-    let processedMessage = messageText;
-    let imageFiles: Array<{ fileName: string; base64: string; mimeType: string }> = [];
-    const fileRefMap = (window as any).__chatFileReferences as Map<string, string> | undefined;
-    
-    console.log('[ChatInterface] File references:', fileRefMap ? Array.from(fileRefMap.entries()) : 'none');
-    
-    if (fileRefMap && fileRefMap.size > 0) {
-      const files = Array.from(fileRefMap.entries()).map(([fileName, filePath]) => ({ fileName, filePath }));
-      console.log('[ChatInterface] Processing files:', files);
-      const result = await processAttachedFiles(files);
-      imageFiles = result.imageFiles;
-      console.log('[ChatInterface] Image files processed:', imageFiles.length, 'images');
-      
-      // Build message with file contents
-      if (result.fileContents.length > 0 || result.imageFiles.length > 0) {
-        const fileHeader = `\n\n[Attached files: ${result.attachedFileNames.join(', ')}]`;
-        processedMessage = messageText + fileHeader + result.fileContents.join('');
-        
-        // Remove the note about images since we now support vision
-        // Images will be sent to the AI for analysis
-      }
-    }
-
-    // Build attached files list for display
-    const attachedFilesForMessage = fileRefMap && fileRefMap.size > 0
-      ? Array.from(fileRefMap.entries()).map(([fileName, filePath]) => ({ fileName, filePath }))
-      : undefined;
-
-    // Convert base64 images to displayImages format for user messages
-    const displayImages = imageFiles.length > 0 
-      ? imageFiles.map(img => ({
-          url: `data:${img.mimeType};base64,${img.base64}`,
-          fileName: img.fileName,
-          alt: img.fileName
-        }))
-      : undefined;
-
-    // Store user images in image storage
-    if (displayImages && displayImages.length > 0) {
-      imageStorage.addImages(displayImages.map(img => ({
-        url: img.url,
-        fileName: img.fileName,
-        alt: img.alt,
-        source: 'user' as const,
-        messageId: Date.now().toString(),
-      })));
+          }
+       }
+       
+       // Resume execution with the input
+       await workflowService.resumeExecution(waitingForInput.executionId, messageText);
+       setWaitingForInput(null);
+       return;
     }
 
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: messageText, // Display original message without file contents
+      content: messageText,
       type: 'text',
       timestamp: new Date(),
-      attachedFiles: attachedFilesForMessage,
-      images: imageFiles.length > 0 ? imageFiles : undefined, // Store images for history
-      displayImages, // Images to display in chat
     };
-
+    
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
-    setActiveMode(null);
-    setSearchType(getSearchType(messageText));
+    window.dispatchEvent(new Event('chat-message-sent'));
+
+    if (isRecording) stopRecording();
+    if (voiceTranscript) discardVoice();
     
-    // Clear file reference chips by dispatching event
-    window.dispatchEvent(new CustomEvent('chat-message-sent'));
-    
-    // Clear the global file references map
-    if ((window as any).__chatFileReferences) {
-      (window as any).__chatFileReferences.clear();
+    // Check for search types
+    const detectedSearchType = getSearchType(messageText);
+    if (detectedSearchType) {
+        setSearchType(detectedSearchType);
     }
-
-    // Check for message hooks (async)
-    workflowService.checkMessageTriggers(messageText).then(triggered => {
-      triggered.forEach(wf => {
-        console.log('[ChatInterface] Triggered workflow:', wf.name);
-        // Execute workflow with message context
-        workflowService.execute(wf.id, { message: messageText }).catch(err => {
-          console.error('[ChatInterface] Failed to execute triggered workflow:', err);
-        });
-      });
-    });
-
+    
     try {
-      // Route based on agent mode
-      if (isAgentMode) {
-        // Agent mode: use agentChatService with tool execution loop
+        let responseContent = '';
+        let responseType: Message['type'] = 'text';
+        let responseData = undefined;
         
-        // Check if session is ready
-        let currentSessionId = agentSessionId;
-        
-        // Wait for session to be created if it's still loading
-        if (!currentSessionId && isAgentLoading) {
-          setSearchStatus('Waiting for agent session...');
-          // Wait up to 3 seconds for session to be created
-          for (let i = 0; i < 30; i++) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            // Re-check the session ID from the hook's current state
-            const sessionId = getSessionId();
-            if (sessionId) {
-              currentSessionId = sessionId;
-              break;
-            }
-          }
-        }
-        
-        // If still no session, show error
-        if (!currentSessionId) {
-          throw new Error('Agent session not ready. Please wait a moment and try again.');
-        }
-        
-        setSearchStatus('Connecting to agent...');
-        
-        // Convert history to agent chat format
-        const agentHistory = messages.map(m => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-          toolCalls: m.toolCalls,
-          toolResults: m.toolResults,
-          images: m.images, // Pass images from message history
-        }));
+        if (isAgentMode && agentSessionId) {
+             const agentHistory = messages.map(m => ({
+                role: m.role as 'user' | 'assistant',
+                content: m.content
+             }));
+             agentHistory.push({ role: 'user', content: messageText });
 
-        // Track tool calls for this message
-        const toolCalls: AgentToolCallData[] = [];
-        const toolResults: AgentToolResultData[] = [];
-
-        const result = await agentChatService.executeWithTools(
-          processedMessage, // Use processed message with file contents
-          agentHistory,
-          {
-            sessionId: currentSessionId,
-            images: imageFiles, // Pass current images for vision API
-            temperature: aiSettings.temperature,
-            maxTokens: aiSettings.maxTokens,
-            topP: aiSettings.topP,
-            frequencyPenalty: aiSettings.frequencyPenalty,
-            presencePenalty: aiSettings.presencePenalty,
-            onToolStart: (toolCall) => {
-              // Cast to AgentToolCallData - the name will be validated at runtime
-              toolCalls.push(toolCall as AgentToolCallData);
-              setSearchStatus(`Executing ${toolCall.name}...`);
-            },
-            onToolComplete: (result) => {
-              toolResults.push(result);
-              setSearchStatus(result.success ? 'Tool completed' : 'Tool failed');
-            },
-            onStatusUpdate: (status) => {
-              setSearchStatus(status);
-            },
-          }
-        );
-
-        setSearchType(null);
-        setSearchStatus('');
-
-        // Store web search images in image storage
-        if (result.displayImages && result.displayImages.length > 0) {
-          imageStorage.addImages(result.displayImages.map(img => ({
-            url: img.url,
-            fileName: img.fileName,
-            alt: img.alt,
-            source: 'web_search' as const,
-            messageId: (Date.now() + 1).toString(),
-          })));
-        }
-
-        // Create assistant message with tool calls and results
-        const assistantMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant' as const,
-          content: result.content || 'Task completed.',
-          type: toolCalls.length > 0 ? 'agent_action' : 'text',
-          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-          toolResults: toolResults.length > 0 ? toolResults : undefined,
-          displayImages: result.displayImages, // Add images from web search
-          timestamp: new Date()
-        };
-
-        setMessages(prev => {
-          const newMessages = [...prev, assistantMsg];
-
-          // Extract memories automatically after conversation completes
-          if (currentSessionId) {
-            (async () => {
-              try {
-                const { memorySettingsService } = await import('../../services/memorySettingsService');
-                const memorySettings = memorySettingsService.loadSettings();
-
-              if (memorySettings.autoSave) {
-                const { extractMemoriesFromConversation, shouldExtractMemories, generateSessionSummary, shouldSummarizeSession } = await import('../../services/memoryExtractor');
-
-                if (shouldExtractMemories(newMessages, turnCount)) {
-                  await extractMemoriesFromConversation(newMessages, {
-                    sessionId: currentSessionId || null,
-                    importance: memorySettings.importance,
-                    autoSave: true,
-                  });
+             const response = await agentChatService.chat(
+                messageText,
+                agentHistory,
+                { 
+                    sessionId: agentSessionId,
+                    onStatusUpdate: (status) => setSearchStatus(status)
                 }
-
-                if (shouldSummarizeSession(newMessages, turnCount)) {
-                  await generateSessionSummary(newMessages, currentSessionId);
-                }
-              }
-              } catch (error) {
-                console.warn('[ChatInterface] Automatic memory extraction failed:', error);
-              }
-            })();
-          }
-
-          return newMessages;
-        });
-
-        setTurnCount(prev => prev + 1);
-
-        // Log agent activity
-        activityLogger.log(
-          'Agent',
-          messageText.slice(0, 50) + (messageText.length > 50 ? '...' : ''),
-          `Completed with ${toolCalls.length} tool calls`,
-          'success',
-          undefined,
-          undefined,
-          getEffectiveChatId(),
-          userMsg.id // Log the USER message ID
-        );
-
-        // Send success notification
-        await nativeNotifications.success(
-          'Agent Response',
-          toolCalls.length > 0 
-            ? `Executed ${toolCalls.length} tool(s)` 
-            : 'Agent has responded',
-          {
-            tag: 'agent-response',
-            data: { messageId: assistantMsg.id, toolCount: toolCalls.length }
-          }
-        );
-      } else {
-        // Normal mode: send to AI service
-        // Convert history to AIMessage format with images
-        const history: AIMessage[] = messages.map(m => ({
-          role: m.role as 'user' | 'assistant',
-          content: m.content,
-          images: m.images // Include images from message history
-        }));
-
-        console.log('[ChatInterface] Sending to AI:', {
-          messageLength: processedMessage.length,
-          imageCount: imageFiles.length,
-          historyLength: history.length,
-          historyWithImages: history.filter(m => m.images && m.images.length > 0).length
-        });
-
-        const result = await aiService.chat(
-          processedMessage, 
-          history, 
-          (status) => {
-            setSearchStatus(status);
-            // Detect if AI is doing a file search and update searchType accordingly
-            if (status.toLowerCase().includes('search') || status.toLowerCase().includes('cherch')) {
-              setSearchType(prev => prev || 'files');
-            }
-          }, 
-          imageFiles, // Pass images for vision API
-          getEffectiveChatId(), // chatId
-          userMsg.id, // messageId
-          {
-            temperature: aiSettings.temperature,
-            maxTokens: aiSettings.maxTokens,
-            topP: aiSettings.topP,
-            frequencyPenalty: aiSettings.frequencyPenalty,
-            presencePenalty: aiSettings.presencePenalty,
-          }
-        );
-        setSearchType(null);
-        setSearchStatus('');
-        
-        const assistantMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant' as const,
-          content: (result.text || 'I received your message.').trim(),
-          type: (result.type as Message['type']) || 'text',
-          data: result.data || undefined,
-          searchInfo: result.searchInfo || undefined,
-          timestamp: new Date()
-        };
-        
-        setMessages(prev => [...prev, assistantMsg]);
-        
-        // Send success notification
-        await nativeNotifications.success(
-          'Response Received',
-          'AI assistant has responded to your message',
-          {
-            tag: 'chat-response',
-            data: { messageId: assistantMsg.id, type: result.type }
-          }
-        );
-        
-        // Log AI chat activity (only for non-search responses, searches are logged in gemini service)
-        if (result.type === 'text') {
-          activityLogger.log(
-            'AI Chat',
-            messageText.slice(0, 50) + (messageText.length > 50 ? '...' : ''),
-            'Response received',
-            'success',
-            undefined,
-            undefined,
-            getEffectiveChatId(),
-            userMsg.id // Log the USER message ID, not the assistant's
-          );
+             );
+             responseContent = response.content;
+        } else {
+             const history: AIMessage[] = messages.map(m => ({
+                 role: m.role as 'user' | 'assistant',
+                 content: m.content
+             }));
+             
+             const response = await aiService.chat(
+                 messageText,
+                 history,
+                 (status) => setSearchStatus(status),
+                 undefined,
+                 chatId || undefined
+             );
+             
+             responseContent = response.text;
+             responseType = response.type as Message['type'];
+             responseData = response.data;
         }
-      }
+        
+        setMessages(prev => [...prev, {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: responseContent,
+            type: responseType,
+            data: responseData,
+            timestamp: new Date()
+        }]);
+
     } catch (error) {
-      setSearchType(null);
-      setSearchStatus('');
-      
-      // Check if this was an abort
-      if (error instanceof Error && error.name === 'AbortError') {
-        // Already handled in handleStop
-        return;
-      }
-      
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      
-      // Send error notification
-      await nativeNotifications.error(
-        'Connection Failed',
-        `Unable to reach ${isAgentMode ? 'agent' : 'AI'} service: ${errorMessage}`,
-        {
-          tag: 'chat-error',
-          data: { error: errorMessage, retry: true }
-        }
-      );
-      
-      // Log failed chat
-      activityLogger.log(
-        isAgentMode ? 'Agent' : 'AI Chat',
-        messageText.slice(0, 50) + (messageText.length > 50 ? '...' : ''),
-        'Error: ' + errorMessage.slice(0, 30),
-        'error',
-        undefined,
-        undefined,
-        getEffectiveChatId(),
-        userMsg.id
-      );
-      
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `Sorry, I encountered an error: ${errorMessage}. ${isAgentMode ? 'Check the Agent Log for details.' : 'Please check your API key configuration.'}`,
-        type: 'text',
-        timestamp: new Date()
-      }]);
+       console.error('[ChatInterface] Error sending message:', error);
+       setMessages(prev => [...prev, {
+           id: (Date.now() + 1).toString(),
+           role: 'assistant',
+           content: `❌ Error: ${error instanceof Error ? error.message : String(error)}`,
+           type: 'text',
+           timestamp: new Date()
+       }]);
     } finally {
-      setIsLoading(false);
-      abortControllerRef.current = null;
-      partialResponseRef.current = '';
-      
-      // Note: Queued messages are now handled via the QueuedMessage UI component
-      // The user can click "Send Now" to interrupt, or wait for natural completion
+       setIsLoading(false);
+       setSearchType(null);
+       setSearchStatus('');
     }
-  }, [input, voiceTranscript, isLoading, messages, stopRecording, discardVoice, isEmptyStateVisible, isAgentMode, agentSessionId, queuedMessage]);
+  }, [input, voiceTranscript, waitingForInput, isRecording, agentSessionId, messages, isAgentMode, chatId, discardVoice, stopRecording]);
 
-  const handleQuickAction = useCallback((mode: string, _placeholder: string) => {
-    // Handle Terminal QuickAction - toggle terminal instead of setting mode
-    if (mode === 'Terminal') {
-      if (onToggleTerminal) {
-        onToggleTerminal();
-      }
-      return;
+  const handleQuickAction = useCallback((mode: string) => {
+    // Pre-refresh data if it's the Files panel
+    if (mode === 'Files') {
+        window.dispatchEvent(new CustomEvent('preload-recent-files'));
+    }
+
+    // Set active mode and open corresponding panel
+    setActiveMode(mode);
+    
+    // Close other panels and open the target one
+    if (mode === 'Files') {
+      if (!isFileExplorerOpen) onToggleFileExplorer?.();
+      if (isWorkflowsOpen) onToggleWorkflows?.();
+      if (isAgentsOpen) onToggleAgents?.();
+      if (isTerminalOpen) onToggleTerminal?.();
+    } else if (mode === 'Workflows') {
+      if (!isWorkflowsOpen) onToggleWorkflows?.();
+      if (isFileExplorerOpen) onToggleFileExplorer?.();
+      if (isAgentsOpen) onToggleAgents?.();
+      if (isTerminalOpen) onToggleTerminal?.();
+    } else if (mode === 'Agents') {
+      if (!isAgentsOpen) onToggleAgents?.();
+      if (isFileExplorerOpen) onToggleFileExplorer?.();
+      if (isWorkflowsOpen) onToggleWorkflows?.();
+      if (isTerminalOpen) onToggleTerminal?.();
+    } else if (mode === 'Terminal') {
+      if (!isTerminalOpen) onToggleTerminal?.();
+      // Don't necessarily close others for terminal
     }
     
-    // Handle other QuickActions - notify parent to open panels
-    if (activeMode === mode) {
-      setActiveMode(null);
-      onActiveModeChange?.(null);
-    } else {
-      setActiveMode(mode);
-      setPromptKey(prev => prev + 1);
-      onActiveModeChange?.(mode);
-    }
+    // Focus input after selecting a quick action
     inputRef.current?.focus();
-  }, [activeMode, onToggleTerminal, onActiveModeChange]);
+  }, [activeMode, isFileExplorerOpen, isWorkflowsOpen, isAgentsOpen, isTerminalOpen, onToggleFileExplorer, onToggleWorkflows, onToggleAgents, onToggleTerminal]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
