@@ -401,16 +401,14 @@ const MemoryCard = memo<MemoryCardProps>(({ memory, onDelete, onUpdateNotes, onU
           : '0 1px 3px rgba(0, 0, 0, 0.08), inset 0 0.5px 1px rgba(255, 255, 255, 0.15)'
       }}
     >
-      {/* Chevron Button - Top Right Corner */}
+      {/* Chevron Button - Aligned with badge text center */}
       <button
         onClick={(e) => {
           e.stopPropagation();
           setExpanded(!expanded);
         }}
-        className="absolute top-3 right-3 p-1.5 rounded transition-all duration-200 hover:bg-white/10 z-10"
-        style={{
-          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04), inset 0 0.5px 1px rgba(255, 255, 255, 0.2)'
-        }}
+        className="absolute right-3 p-1 rounded transition-all duration-200 hover:bg-white/10 flex items-center"
+        style={{ top: '19px' }}
         title={expanded ? 'Collapse' : 'Expand'}
       >
         {expanded ? (
@@ -434,11 +432,11 @@ const MemoryCard = memo<MemoryCardProps>(({ memory, onDelete, onUpdateNotes, onU
           </div>
 
           {/* Content */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex flex-col justify-center" style={{ minHeight: '36px' }}>
             {/* Category Badge */}
             {memory.metadata.category && (
-              <div className="mb-2">
-                <span className="inline-block text-[9px] text-text-secondary uppercase px-2 py-1 rounded bg-white/5 whitespace-nowrap">
+              <div className="mb-1.5">
+                <span className="inline-flex items-center text-[9px] text-text-secondary uppercase px-2 py-1 rounded bg-white/5 whitespace-nowrap" style={{ height: '20px' }}>
                   {memory.metadata.category}
                 </span>
               </div>
