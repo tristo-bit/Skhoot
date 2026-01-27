@@ -97,7 +97,7 @@ export const ImageGallery = memo<ImageGalleryProps>(({
         <Modal
           onClose={() => setSelectedImage(null)}
           showClose={false}
-          overlayClassName="backdrop-blur-xl bg-black/30 dark:bg-black/60"
+          overlayClassName="backdrop-blur-xl bg-black/30 dark:bg-black/60 rounded-[var(--app-radius)]"
           panelClassName="!bg-transparent !shadow-none !border-none !outline-none !ring-0 !p-0 !rounded-none max-w-[90vw] max-h-[90vh]"
           bodyClassName="!p-0 !border-none !outline-none flex flex-col items-center justify-center gap-3 relative"
         >

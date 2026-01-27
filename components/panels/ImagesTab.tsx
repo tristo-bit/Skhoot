@@ -5,6 +5,7 @@ import {
   MessageSquarePlus, Download, ExternalLink, Filter, X, ChevronDown
 } from 'lucide-react';
 import { imageStorage, StoredImage, ImageFilter, ImageSortOrder } from '../../services/imageStorage';
+import { Modal } from '../ui/Modal';
 
 interface ImagesTabProps {
   viewMode: 'list' | 'grid';
@@ -352,32 +353,38 @@ export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: 
       
       {/* Full-size image modal */}
       {selectedImage && (
-        <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={() => setSelectedImage(null)}
+        <Modal
+          onClose={() => setSelectedImage(null)}
+          showClose={false}
+          overlayClassName="backdrop-blur-xl bg-black/30 dark:bg-black/60 rounded-[var(--app-radius)]"
+          panelClassName="!bg-transparent !shadow-none !border-none !outline-none !ring-0 !p-0 rounded-2xl max-w-[85vw] max-h-[85vh] overflow-hidden"
+          bodyClassName="!p-0 !border-none !outline-none flex flex-col items-center justify-center gap-3 relative"
         >
+          {/* Close button - fixed to top right of viewport */}
           <button
             onClick={() => setSelectedImage(null)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all"
+            className="fixed top-6 right-6 z-[60] p-2.5 rounded-full bg-white/90 dark:bg-black/80 hover:bg-white dark:hover:bg-black/90 transition-all shadow-lg group"
+            aria-label="Close image"
           >
-            <X size={24} className="text-white" />
+            <X size={20} className="text-gray-800 dark:text-white group-hover:scale-110 transition-transform" />
           </button>
           
-          <div className="max-w-[90vw] max-h-[90vh] overflow-auto">
+          {/* Image container with rounded corners */}
+          <div className="w-full h-full flex items-center justify-center p-4">
             <img
               src={selectedImage.url}
               alt={selectedImage.alt || selectedImage.fileName || 'Full size image'}
-              className="max-w-full max-h-full object-contain"
-              onClick={(e) => e.stopPropagation()}
+              className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
             />
-            
-            {selectedImage.fileName && (
-              <div className="mt-4 text-center text-white text-sm">
-                {selectedImage.fileName}
-              </div>
-            )}
           </div>
-        </div>
+          
+          {/* Image filename label */}
+          {selectedImage.fileName && (
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-xl bg-white/80 dark:bg-black/60 text-gray-900 dark:text-white text-sm backdrop-blur-sm shadow-md max-w-[80%] truncate">
+              {selectedImage.fileName}
+            </div>
+          )}
+        </Modal>
       )}
     </>
   );

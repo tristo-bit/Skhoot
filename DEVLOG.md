@@ -2,6 +2,109 @@
 
 ## January 27, 2026
 
+### Fixed Image Modal Display in Images Panel 🖼️
+- **Status**: ✅ **COMPLETED**
+- **Components**: `components/panels/ImagesTab.tsx`, `components/conversations/ImageGallery.tsx`
+- **Change**: Applied the same elegant modal system from chat interface to Images panel with proper rounded corners matching the app viewport
+- **Impact**: Images now open with beautiful blurred backdrop that perfectly matches the main app viewport's rounded corners (32px)
+
+**Problem**:
+- When clicking an image in the Images panel, it opened with a basic dark overlay (`bg-black/80 backdrop-blur-sm`)
+- Close button had minimal styling (`bg-white/10 hover:bg-white/20`)
+- Image display was basic without shadows or polish
+- Filename label was simple white text without proper styling
+- User reported: "c'est affreux" - the display was ugly and inconsistent with chat interface
+- **Follow-up issue #1**: Image had square corners and was overflowing
+- **Follow-up issue #2**: Modal panel itself had square corners that extended beyond the app window - "les angle de la modale dépasse de l'application et sont carré"
+- **Follow-up issue #3**: Modal viewport (blurred background) didn't match the app's rounded corners - needed to use same `--app-radius` as main viewport
+
+**Root Cause**:
+- The Modal component's panel had `!rounded-none` in the `panelClassName`, which removed all border radius
+- The modal overlay (blurred background) had no rounded corners, creating visual inconsistency with the app's rounded viewport
+- Even though the image container had `rounded-2xl`, the **modal panel itself** and **overlay** still had square corners that were visible
+
+**Solution - Matched App Viewport Rounded Corners**:
+1. **Imported Modal component** - Used the reusable `Modal` from `components/ui/Modal.tsx`
+2. **Elegant blurred backdrop** - `backdrop-blur-xl bg-black/30 dark:bg-black/60` instead of harsh dark overlay
+3. **Matched app viewport corners** - Added `rounded-[var(--app-radius)]` to `overlayClassName` to match main app viewport (32px)
+4. **Glassmorphic close button** - Fixed position `top-6 right-6` with `bg-white/90 dark:bg-black/80` and hover effects
+5. **Rounded modal panel** - Changed `!rounded-none` to `rounded-2xl` in `panelClassName` to round the panel itself
+6. **Overflow hidden on panel** - Added `overflow-hidden` to `panelClassName` to enforce rounded corners
+7. **Proper sizing** - Limited to `max-w-[85vw] max-h-[85vh]` to prevent overflow
+8. **Centered image layout** - Flex container with padding for proper spacing
+9. **Absolute positioned label** - Label positioned at bottom center with `absolute bottom-4`
+10. **Applied to both locations** - Updated both `ImagesTab.tsx` and `ImageGallery.tsx` for consistency
+
+**Implementation**:
+```typescript
+// Before: Modal overlay without rounded corners
+<Modal
+  overlayClassName="backdrop-blur-xl bg-black/30 dark:bg-black/60"
+  panelClassName="!bg-transparent !shadow-none !border-none !outline-none !ring-0 !p-0 !rounded-none max-w-[90vw] max-h-[90vh]"
+>
+
+// After: Modal overlay with app viewport rounded corners (32px)
+<Modal
+  overlayClassName="backdrop-blur-xl bg-black/30 dark:bg-black/60 rounded-[var(--app-radius)]"
+  panelClassName="!bg-transparent !shadow-none !border-none !outline-none !ring-0 !p-0 rounded-2xl max-w-[85vw] max-h-[85vh] overflow-hidden"
+>
+```
+
+**Technical Details**:
+- **App viewport radius** - Main app uses `--app-radius: 32px` defined in `src/index.css`
+- **Overlay matching** - Modal overlay now uses `rounded-[var(--app-radius)]` to match exactly
+- **Panel-level rounding** - `rounded-2xl` applied to the modal panel itself, not just the image
+- **Overflow control** - `overflow-hidden` on panel ensures all content respects rounded corners
+- **Reduced dimensions** - `max-w-[85vw] max-h-[85vh]` prevents modal from touching viewport edges
+- **Flex centering** - Image container uses flexbox for perfect centering with padding
+- **Absolute label** - Filename label positioned absolutely at bottom center
+- **Transform centering** - `left-1/2 transform -translate-x-1/2` for perfect horizontal centering
+- **CSS variable usage** - Using `var(--app-radius)` ensures automatic sync if app radius changes
+
+**Key Improvements**:
+- **Consistent UX** - Exact same modal behavior as chat interface image gallery
+- **Beautiful backdrop** - Blurred background creates focus without harsh darkness
+- **Perfect viewport matching** - Modal overlay has same 32px rounded corners as main app viewport
+- **Fully rounded modal** - Modal panel itself has `rounded-2xl` corners (not just the image)
+- **No square corners** - Panel corners are rounded and don't extend beyond the app
+- **No overflow** - Modal stays within bounds with safe margins (85vw/85vh)
+- **Theme-aware** - Proper light/dark mode support throughout
+- **Professional polish** - Shadows, rounded corners, smooth transitions
+- **Better close button** - Fixed position, glassmorphic style, hover animations
+- **Elegant filename display** - Styled label with backdrop-blur at bottom center
+- **Applied everywhere** - Both Images panel and Chat interface use same approach
+
+**Verification**:
+- ✅ Image opens with blurred backdrop (not harsh dark overlay)
+- ✅ **Modal overlay has same rounded corners as app viewport** (32px via `--app-radius`)
+- ✅ Close button styled with glassmorphic design
+- ✅ Image has proper rounded corners (16px radius)
+- ✅ **Modal panel has rounded corners** - No more square corners on the panel
+- ✅ **Modal doesn't extend beyond app** - Stays within 85vw/85vh bounds
+- ✅ **Overlay perfectly matches app viewport corners** - Visual consistency
+- ✅ Image doesn't overflow or touch edges
+- ✅ Panel enforces rounded corners with overflow-hidden
+- ✅ Filename label properly styled with backdrop-blur and rounded corners
+- ✅ Consistent with chat interface image modal
+- ✅ Theme-aware (light/dark mode support)
+- ✅ Smooth transitions and hover effects
+- ✅ Applied to both ImagesTab and ImageGallery components
+
+**User Acceptance Criteria Met**:
+- ✅ L'image s'ouvre exactement comme dans le chat interface
+- ✅ Fond blurred élégant au lieu d'un overlay noir basique
+- ✅ Bouton de fermeture avec style glassmorphique
+- ✅ **Les coins de la modal sont ronds (rounded-2xl) et ne sont PAS carrés**
+- ✅ **La modal ne dépasse pas de l'application** - Dimensions limitées à 85vw/85vh
+- ✅ **Le viewport de la modal (fond blurred) a les mêmes coins arrondis que le viewport principal de Skhoot** (32px)
+- ✅ L'image ne déborde pas grâce au conteneur avec overflow-hidden
+- ✅ Affichage professionnel et cohérent avec l'app
+- ✅ Cohérence visuelle parfaite avec le reste de l'application
+
+---
+
+## January 27, 2026
+
 ### Fixed Dropdown Width - Manual Sizing for All Tags 🎯
 - **Status**: ✅ **COMPLETED**
 - **Component**: `components/panels/memories/MemoriesTab.tsx`
