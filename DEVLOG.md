@@ -1,5 +1,82 @@
 # Development Log
 
+## January 27, 2026
+
+### Memories Panel Complete Redesign 🧠
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/memories/MemoriesTab.tsx`
+- **Change**: Complete redesign of memory cards with wider layout, horizontal text display, and improved UX
+- **Impact**: Memory cards are now more readable, spacious, and provide better at-a-glance understanding
+
+**Problems Solved**:
+- Cards were too compact (3-column grid) with insufficient space for content
+- Category labels ("OTHER", "PROJECT") displayed vertically (one word per line)
+- Labels overlapped/chevauched the chevron expand button
+- Text content was cropped and difficult to read
+- Blue star icon cluttered the collapsed view
+- Chevron button wasn't consistently visible
+- Text preview was too long (150 chars) showing full paragraphs
+- "View more" button only showed 2-3 additional items instead of all remaining
+
+**Complete Redesign Solution**:
+
+**Layout Changes**:
+- **Wider cards**: Changed from 3-column to 2-column grid (`grid-cols-1 md:grid-cols-2`)
+- **More breathing room**: Increased padding to `p-4`, adjusted `minHeight` to `110px`
+- **Larger icons**: Role icons increased to `w-9 h-9` for better visibility
+- **Optimized spacing**: `gap-4` between cards for clean separation
+
+**Chevron Positioning**:
+- **Absolute positioning**: `absolute top-3 right-3` with `z-10` for consistent visibility
+- **Always visible**: No longer affected by content layout or text wrapping
+- **Proper spacing**: Content has `pr-10` to avoid overlap with chevron
+- **Clear interaction**: Hover state with `hover:bg-white/10`
+
+**Text Display**:
+- **Shorter preview**: Reduced from 150 to 60 characters for ultra-concise at-a-glance view
+- **First sentence priority**: Tries to show complete first sentence if under 60 chars
+- **Smart truncation**: `truncateText()` finds sentence end (. ! ?) or last space before limit
+- **Horizontal layout**: Text displays horizontally with intelligent truncation
+- **Better readability**: `text-[11px]` with `leading-relaxed` for comfortable reading
+- **Quick understanding**: Users can grasp memory content without reading full paragraphs
+
+**Visual Cleanup**:
+- **Removed blue star**: Importance indicator removed from collapsed view for cleaner look
+- **Category badge**: Displays horizontally above text with `whitespace-nowrap`
+- **Simplified collapsed view**: Just icon + category + text + chevron
+- **Clear hierarchy**: Visual flow from left to right, top to bottom
+
+**View More Behavior**:
+- **Show all at once**: Changed from incremental loading (1 row at a time) to showing all remaining memories
+- **Single click**: One click on "View 13 more" now displays all 13 remaining items
+- **Better UX**: No need to click multiple times to see all memories
+
+**Expanded View**:
+- **Full content display**: Complete text shown without truncation
+- **Organized metadata**: Tags, notes, importance, and actions in separate sections
+- **Clear hierarchy**: Border separators (`border-dashed border-glass-border`) between sections
+- **Inline editing**: Click notes to edit, importance buttons for quick updates
+- **Action buttons**: Delete button with icon + text label for clarity
+
+**Technical Implementation**:
+- **Conditional rendering**: Separate JSX for collapsed vs expanded states (cleaner than conditional classes)
+- **Event propagation**: `e.stopPropagation()` on all interactive elements to prevent unwanted card expansion
+- **Hover states**: Subtle `hover:bg-white/5` on cards for interactivity feedback
+- **Theme-aware**: All colors use CSS variables for light/dark mode support
+- **Performance**: Component wrapped in `React.memo` for optimization
+- **Truncation function**: `truncateText(text, maxLength = 60)` with first-sentence detection and word-boundary fallback
+- **View more logic**: `setShowAll(true)` instead of incremental `setVisibleRows(prev => prev + 1)`
+
+**User Experience Improvements**:
+- **Quick scanning**: 60-character preview (or first sentence) allows rapid scanning of multiple memories
+- **At-a-glance understanding**: Truncated text provides essence of memory without overwhelming
+- **Easy expansion**: Chevron always visible and clickable in top-right corner
+- **No visual clutter**: Removed unnecessary icons from collapsed view
+- **Spacious layout**: 2-column grid provides ample space for content
+- **Clear actions**: Delete button with icon + text label in expanded view
+- **Smooth transitions**: `transition-all duration-200` for polished interactions
+- **Efficient browsing**: View all remaining memories (e.g., 13 items) with single click
+
 ## January 26, 2026
 
 ### Image Gallery Modal Display Fix 🖼️
@@ -17988,3 +18065,363 @@ npm run build
 - Maintains embossed glassmorphic design aesthetic
 - Better visual balance between user and AI messages
 - Cleaner, more polished look with adaptive sizing
+
+
+---
+
+## 2026-01-26 - Fixed Memories Panel UI/UX Issues
+
+**Issue**: 
+Multiple UI/UX problems in the Memories panel:
+1. Cards too compact with insufficient spacing
+2. Clicking chevron to expand one card would expand all cards simultaneously
+3. Delete button poorly aligned and difficult to interact with
+4. Text content cropped and cut off mid-word in preview cards
+5. Overall cramped appearance not utilizing available space effectively
+
+**Root Cause**:
+1. **Spacing**: Minimal padding (`p-2`, `p-3`) and small gaps (`gap-2`, `gap-3`) made cards feel cramped
+2. **Event Propagation**: Chevron button click propagated to parent card, triggering expand on all cards
+3. **Delete Button**: Missing `stopPropagation`, no padding, and poor visual hierarchy
+4. **Text Truncation**: `line-clamp-3` with `text-[12px]` caused words to be cut mid-character
+5. **Icon Sizes**: Too small (`w-5 h-5`, `size={12}`) for comfortable viewing
+
+**Solution**:
+Comprehensive UI overhaul with better spacing, proper event handling, improved text rendering, and enhanced visual hierarchy.
+
+**Changes Applied** (`components/panels/memories/MemoriesTab.tsx`):
+
+1. **Improved Spacing**:
+```tsx
+// Container padding
+<div className="space-y-4 p-4">  // Was: space-y-3 p-3
+
+// Card grid gap
+<div className="grid ... gap-4">  // Was: gap-3
+
+// Card minimum height
+style={{ minHeight: expanded ? 'auto' : '120px' }}
+```
+
+2. **Fixed Chevron Behavior**:
+```tsx
+// Added stopPropagation to prevent parent click
+<button
+  onClick={(e) => {
+    e.stopPropagation();
+    setExpanded(!expanded);
+  }}
+  className="... hover:bg-white/10"  // Added hover state
+>
+  {expanded ? (
+    <ChevronDown size={14} />  // Dynamic icon
+  ) : (
+    <ChevronRight size={14} />
+  )}
+</button>
+```
+
+3. **Enhanced Delete Button**:
+```tsx
+<button
+  onClick={(e) => {
+    e.stopPropagation();  // Prevent card collapse
+    onDelete(memory.id, e);
+  }}
+  className="flex items-center gap-1.5 text-[11px] ... px-2 py-1 rounded hover:bg-red-500/10"
+>
+  <Trash2 size={11} />
+  <span>Delete</span>  // Added text label
+</button>
+```
+
+4. **Fixed Text Truncation**:
+```tsx
+// Before: line-clamp-3 with text-[12px] - words cut mid-character
+// After: Proper webkit box with word-break
+<p className="text-[11px] ... break-words overflow-hidden" style={{ 
+  display: '-webkit-box',
+  WebkitLineClamp: 4,  // Show 4 lines instead of 3
+  WebkitBoxOrient: 'vertical',
+  wordBreak: 'break-word'  // Break at word boundaries
+}}>
+  {memory.content}
+</p>
+```
+
+5. **Increased Sizes**:
+- Role icon: `w-7 h-7` (was `w-5 h-5`)
+- Content text: `text-[11px]` (optimized for readability)
+- Chevron: `size={14}` (was `size={12}`)
+- All internal elements scaled proportionally
+- Line clamp: 4 lines (was 3)
+
+6. **Better Visual Hierarchy**:
+- Added border-top separator before delete button
+- Increased padding: `pl-9` (was `pl-7`)
+- Consistent spacing: `space-y-2.5`, `gap-1.5`
+- Improved button states with hover effects
+
+**Files Modified**:
+- `components/panels/memories/MemoriesTab.tsx` - Complete UI/UX overhaul
+
+**Expected Behavior**:
+- ✓ Cards have comfortable spacing and breathing room
+- ✓ Clicking chevron expands only that specific card
+- ✓ Chevron icon changes between right (collapsed) and down (expanded)
+- ✓ Delete button clearly visible with text label
+- ✓ Delete button doesn't collapse card when clicked
+- ✓ Text displays 4 lines without cutting words mid-character
+- ✓ Words break at proper boundaries, not in the middle
+- ✓ Hover states provide clear interactive feedback
+- ✓ Better use of available space
+- ✓ Improved readability with optimized text size
+
+**Platform Impact**:
+- **All platforms**: Improved UI/UX consistency
+- **No breaking changes**: Maintains all existing functionality
+- **Performance**: No impact (same component structure)
+- **Text rendering**: Better cross-browser compatibility with webkit-box
+
+
+---
+
+## 2026-01-26 - Fixed Memories & Backup Panel UI/UX Issues
+
+**Issue**: 
+Multiple UI/UX problems in the Memories tab of the Backup panel:
+1. Cards were too compact with insufficient spacing
+2. Chevron button opened all cards simultaneously instead of individual cards
+3. Delete button was poorly aligned and hard to click
+4. Overall layout felt cramped and difficult to use
+
+**Root Cause**:
+- Insufficient gap between grid items (`gap-3` too small)
+- Card padding too minimal (`p-2` insufficient)
+- Chevron icon didn't change state (always `ChevronRight`)
+- Delete button lacked proper padding and hover states
+- Content in expanded state had inconsistent spacing
+
+**Solution**:
+Comprehensive UI improvements to the `MemoriesTab` component with better spacing, visual feedback, and interaction patterns.
+
+**Changes Applied** (`components/panels/memories/MemoriesTab.tsx`):
+
+1. **Grid Spacing**:
+```tsx
+// Before: gap-3
+// After: gap-4
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+```
+
+2. **Card Dimensions**:
+```tsx
+// Before: p-2, no min-height
+// After: p-3, min-h-[120px]
+className="rounded-lg glass-subtle p-3 transition-all duration-200 flex flex-col min-h-[120px]"
+```
+
+3. **Icon Sizes**:
+```tsx
+// Role icon: w-5 h-5 → w-6 h-6
+// Chevron: size={12} → size={14}
+// All content icons: increased by 1-2px
+```
+
+4. **Chevron State Indicator**:
+```tsx
+// Before: Always ChevronRight
+// After: Dynamic based on state
+{expanded ? (
+  <ChevronDown size={14} className="text-text-secondary" />
+) : (
+  <ChevronRight size={14} className="text-text-secondary" />
+)}
+```
+
+5. **Delete Button Enhancement**:
+```tsx
+// Before: Small icon only, no padding
+<button className="flex items-center gap-1 text-red-400">
+  <Trash2 size={9} />
+  Delete
+</button>
+
+// After: Larger, with padding and hover state
+<button 
+  onClick={(e) => {
+    e.stopPropagation();
+    onDelete(memory.id, e);
+  }}
+  className="flex items-center gap-1.5 text-[11px] text-red-400 hover:text-red-300 
+             transition-colors px-2 py-1 rounded hover:bg-red-500/10"
+>
+  <Trash2 size={11} />
+  <span>Delete</span>
+</button>
+```
+
+6. **Expanded Content Layout**:
+```tsx
+// Improved spacing and structure
+<div className="pl-9 pr-2 pt-3 border-t border-dashed border-glass-border space-y-2.5">
+  {/* Tags with better spacing */}
+  <div className="flex items-center gap-1.5 flex-wrap">
+    <Tag size={10} />
+    {/* tags */}
+  </div>
+  
+  {/* Notes with larger input */}
+  <input className="text-[10px] px-2 py-1" />
+  
+  {/* Importance buttons with better padding */}
+  <button className="text-[9px] px-2 py-1" />
+  
+  {/* Footer with clear separation */}
+  <div className="pt-2 mt-2 border-t border-dashed" />
+</div>
+```
+
+**Files Modified**:
+- `components/panels/memories/MemoriesTab.tsx` - Complete UI/UX overhaul
+
+**Visual Improvements**:
+- ✓ Cards have breathing room with `gap-4` grid spacing
+- ✓ Larger touch targets for better usability
+- ✓ Chevron clearly indicates expand/collapse state
+- ✓ Delete button is prominent and has clear hover feedback
+- ✓ Expanded content is well-organized with consistent spacing
+- ✓ All text sizes increased for better readability
+- ✓ Icons scaled appropriately for visual hierarchy
+
+**User Experience**:
+- Cards feel less cramped and more professional
+- Chevron behavior is intuitive (changes icon on expand)
+- Delete action is clear and has proper click handling
+- Hover states provide visual feedback throughout
+- Expanded state shows content in organized sections
+- Overall layout follows glassmorphic design system
+
+**Testing**:
+- Verify cards display with proper spacing
+- Test chevron expand/collapse on individual cards
+- Confirm delete button works and has hover effect
+- Check responsive grid behavior (1/2/3 columns)
+- Validate all interactive elements have proper click handling
+
+
+---
+
+## 2026-01-26 - Fixed Text Clipping in Memories Panel
+
+**Issue**: 
+Text content in memory cards was heavily cropped with excessive ellipses, making it difficult to read the memory content without expanding each card.
+
+**Root Cause**:
+- `WebkitLineClamp: 4` was too restrictive for the card height
+- Card minimum height of `120px` didn't provide enough space for text
+- No minimum height set for the text paragraph itself
+
+**Solution**:
+Increased visible text lines and card height to show more content before truncation.
+
+**Changes Applied** (`components/panels/memories/MemoriesTab.tsx`):
+
+```tsx
+// Increased line clamp from 4 to 5
+<p style={{ 
+  display: '-webkit-box',
+  WebkitLineClamp: 5,  // Was: 4
+  WebkitBoxOrient: 'vertical',
+  wordBreak: 'break-word',
+  minHeight: '60px'  // Added minimum height for text
+}}>
+
+// Increased card height
+style={{ minHeight: expanded ? 'auto' : '140px' }}  // Was: 120px
+```
+
+**Files Modified**:
+- `components/panels/memories/MemoriesTab.tsx` - Text display improvements
+
+**Expected Behavior**:
+- ✓ Memory cards show 5 lines of text (was 4)
+- ✓ Less aggressive text truncation
+- ✓ Better preview of memory content
+- ✓ Card height increased to accommodate more text
+- ✓ Minimum text height ensures consistent layout
+
+
+## January 27, 2026
+
+### Memories Panel - Text Display & Layout Fixes 📝
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/memories/MemoriesTab.tsx`
+- **Change**: Fixed vertical text display, category label overlapping, and improved card layout
+- **Impact**: Memory cards now display properly with horizontal text and clean spacing
+
+**Problems Solved**:
+1. **Vertical Text Display**: Text was displaying one word per line instead of flowing horizontally
+2. **Category Label Overlapping**: "PROJECT" and "OTHER" labels were overlapping the chevron button
+3. **Text Cropping**: Despite multiple attempts, text was still being truncated improperly
+
+**Root Causes**:
+- `WebkitBoxOrient: 'vertical'` was interfering with normal text flow
+- Category badges and chevron button were in the same flex row without proper spacing
+- Line clamping wasn't conditional based on expanded state
+- Missing `whiteSpace: 'normal'` to ensure horizontal text flow
+
+**Solution Implemented**:
+
+1. **Fixed Text Flow**:
+   - Added `whiteSpace: 'normal'` to ensure horizontal text display
+   - Made `WebkitLineClamp` conditional: 4 lines when collapsed, `unset` when expanded
+   - Removed `minHeight` that was causing layout issues
+   - Kept `WebkitBoxOrient: 'vertical'` but balanced with proper whitespace handling
+
+2. **Fixed Layout Structure**:
+   - Changed content container to `flex flex-col gap-1.5` for vertical stacking
+   - Category/importance badges now in their own row with `flex-wrap`
+   - Text content in separate row below badges
+   - Chevron button aligned to top with `self-start`
+
+3. **Improved Spacing**:
+   - Added `whitespace-nowrap` to category badges to prevent internal wrapping
+   - Badges can wrap to new line if needed without overlapping chevron
+   - Proper gap between all elements
+
+**Code Changes**:
+```tsx
+// Before: Single flex row causing overlap
+<div className="flex-1 min-w-0">
+  <div className="flex items-center gap-1.5 mb-1.5">
+    {/* badges */}
+  </div>
+  <p>{/* text with vertical orientation */}</p>
+</div>
+
+// After: Vertical stack with proper flow
+<div className="flex-1 min-w-0 flex flex-col gap-1.5">
+  <div className="flex items-center gap-1.5 flex-wrap">
+    {/* badges with whitespace-nowrap */}
+  </div>
+  <p style={{ whiteSpace: 'normal', WebkitLineClamp: expanded ? 'unset' : 4 }}>
+    {/* text flows horizontally */}
+  </p>
+</div>
+```
+
+**User Experience**:
+- ✅ Text displays horizontally with proper word wrapping
+- ✅ Category labels stay in their own row, never overlap chevron
+- ✅ 4 lines of text visible when collapsed, full text when expanded
+- ✅ Clean visual hierarchy with proper spacing
+- ✅ Chevron button always accessible in top-right corner
+- ✅ Badges wrap to new line if too many, maintaining layout integrity
+
+**Testing Verified**:
+- Memory cards with long text display properly
+- Category badges don't overlap chevron
+- Text flows horizontally across multiple lines
+- Expand/collapse works smoothly
+- All previous spacing improvements maintained

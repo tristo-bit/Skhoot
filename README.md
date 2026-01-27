@@ -298,6 +298,40 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 </details>
 
 <details>
+<summary><strong>🧠 AI Memory Management</strong></summary>
+
+**Persistent Long-Term Memory**: Give your AI agents the ability to remember important context across conversations.
+
+- **Memory Storage**: Create and manage persistent memories that the AI can reference
+  - **Manual Memory Creation**: Add memories manually with custom content, categories, and tags
+  - **Session-Specific or Global**: Memories can be tied to specific conversations or available globally
+  - **Importance Levels**: Mark memories as low, medium, or high importance for prioritization
+  - **Rich Metadata**: Organize with categories, tags, notes, and timestamps
+- **Memory Management Interface**: Intuitive card-based UI with expandable details
+  - **Collapsed View**: Compact horizontal cards showing role icon, category, and content preview
+  - **Expanded View**: Full content display with metadata, tags, notes, and importance controls
+  - **Inline Editing**: Click to edit notes, update importance, or modify metadata
+  - **Visual Organization**: Color-coded role icons (User, Assistant, System) and category badges
+- **Search & Filtering**: Find relevant memories quickly
+  - **Full-Text Search**: Search across content, categories, tags, and notes with relevance scoring
+  - **Category Filtering**: Filter memories by category with dropdown selector
+  - **Tag Filtering**: Filter by tags to find related memories
+  - **Smart Scoring**: Importance-weighted search results with exact match bonuses
+- **Memory Operations**:
+  - **Create**: Add new memories with content, category, and tags
+  - **Read**: View memory details with expandable cards
+  - **Update**: Edit notes, change importance, modify metadata
+  - **Delete**: Remove memories with confirmation
+  - **Search**: Find memories by content, category, or tags
+- **Inspired by AgentSmith's Trace Model**: Implements persistent, searchable memory architecture for AI agents
+- **LocalStorage Backend**: Memories stored locally with automatic persistence (up to 1000 memories)
+- **Performance Optimized**: React memo and efficient rendering for smooth scrolling
+
+**Why This Matters**: Enable AI agents to maintain context across sessions. Build up a knowledge base of project-specific information, preferences, and important facts that persist beyond individual conversations.
+
+</details>
+
+<details>
 <summary><strong>⚙️ Settings & Privacy</strong></summary>
 
 - **User Profile**: Manage personal information including name and profile picture
@@ -439,8 +473,13 @@ skhoot/
 │   ├── panels/          # Floating panel components
 │   │   ├── FileExplorerPanel.tsx # File explorer with search and disk analysis
 │   │   ├── WorkflowsPanel.tsx    # Workflow automation management (NEW)
+│   │   ├── BackupPanel.tsx       # Files, memories, and bookmarks management (NEW)
 │   │   ├── SettingsPanel.tsx     # Application settings
-│   │   └── AISettingsModal.tsx   # AI configuration modal
+│   │   ├── AISettingsModal.tsx   # AI configuration modal
+│   │   ├── bookmarks/            # Bookmark management components
+│   │   │   └── BookmarksTab.tsx  # Bookmarks tab UI
+│   │   └── memories/             # Memory management components (NEW)
+│   │       └── MemoriesTab.tsx   # AI memory management UI
 │   ├── terminal/        # Terminal and agent log UI
 │   │   ├── TerminalPanel.tsx
 │   │   ├── AgentLogTab.tsx      # Agent monitoring interface (NEW)
@@ -458,6 +497,7 @@ skhoot/
 │   ├── agentChatService.ts     # AI integration with tool calling (NEW)
 │   ├── apiKeyService.ts        # Secure API key management
 │   ├── tokenTrackingService.ts # Token usage tracking (NEW)
+│   ├── memoryService.ts        # AI long-term memory management (NEW)
 │   ├── userProfileService.ts   # User profile data management (NEW)
 │   ├── diskService.ts          # System disk information
 │   ├── notificationService.ts  # Native desktop notifications
@@ -763,6 +803,88 @@ const costStr = TokenTrackingService.formatCost(0.0025); // "0.0025"
 // Unsubscribe when done
 unsubscribe();
 unsubscribeHistory();
+```
+
+**Memory Service API:**
+```typescript
+import { memoryService } from './services/memoryService';
+import type { Memory, CreateMemoryRequest, MemoryMetadata } from './services/memoryService';
+
+// Create a new memory
+const memory = await memoryService.create({
+  content: 'User prefers TypeScript over JavaScript for new projects',
+  role: 'assistant',
+  session_id: 'conv-123', // Optional: tie to specific conversation
+  metadata: {
+    category: 'preferences',
+    tags: ['typescript', 'coding-style'],
+    importance: 'high',
+    source: 'agent'
+  },
+  notes: 'Mentioned during project setup discussion'
+});
+
+// List all memories (optionally filtered by session)
+const allMemories = await memoryService.list();
+const sessionMemories = await memoryService.list('conv-123');
+const limitedMemories = await memoryService.list(undefined, 10);
+
+// Get a specific memory by ID
+const memory = await memoryService.get('memory_123');
+
+// Search memories with relevance scoring
+const results = await memoryService.search('typescript preferences', 5);
+// Searches across content, category, tags, and notes
+// Returns results sorted by relevance score and recency
+
+// Get recent memories
+const recent = await memoryService.recent(10);
+const recentForSession = await memoryService.recent(10, 'conv-123');
+
+// Update a memory
+const updated = await memoryService.update('memory_123', {
+  content: 'Updated content',
+  metadata: { importance: 'medium' },
+  notes: 'Updated notes'
+});
+
+// Update just the notes
+const withNotes = await memoryService.updateNotes('memory_123', 'New notes');
+
+// Update just the metadata
+const withMetadata = await memoryService.updateMetadata('memory_123', {
+  importance: 'high',
+  tags: ['typescript', 'preferences', 'best-practices']
+});
+
+// Delete a memory
+await memoryService.delete('memory_123');
+
+// Get memories by category
+const categoryMemories = await memoryService.getByCategory('preferences', 10);
+
+// Get memories by tag
+const taggedMemories = await memoryService.getByTag('typescript', 10);
+
+// Get all unique categories
+const categories = await memoryService.getAllCategories();
+
+// Get all unique tags
+const tags = await memoryService.getAllTags();
+
+// Memory metadata options
+interface MemoryMetadata {
+  importance?: 'low' | 'medium' | 'high';
+  category?: string;
+  tags?: string[];
+  source?: 'user' | 'agent' | 'system';
+  tokens_used?: number;
+  embedding?: string;
+}
+
+// Memory roles: 'user' | 'assistant' | 'system'
+// Storage: localStorage with 1000 memory limit
+// Inspired by AgentSmith's Trace model for persistent AI memory
 ```
 
 **Token Tracking Features:**
