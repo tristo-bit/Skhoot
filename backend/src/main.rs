@@ -29,7 +29,7 @@ use db::Database;
 use ai::AIManager;
 use indexer::FileIndexer;
 use search::SearchEngine;
-use search_engine::{SearchManager, SearchManagerFactory};
+use search_engine::{SearchManager, SearchManagerFactory, HistoryManager, FileWatcher, ActivityType};
 use terminal::TerminalManager;
 use content_extraction::ContentExtractionSystem;
 
@@ -42,6 +42,7 @@ pub struct AppState {
     indexer: FileIndexer,
     search_engine: SearchEngine,
     file_search_manager: SearchManager,
+    history_manager: Arc<HistoryManager>,
     content_extraction_system: Arc<tokio::sync::Mutex<ContentExtractionSystem>>,
 }
 
@@ -113,7 +114,22 @@ async fn main() -> anyhow::Result<()> {
     
     // Initialize the new file search manager
     let working_dir = std::env::current_dir()?;
-    let file_search_manager = SearchManagerFactory::create_ai_optimized(working_dir);
+    let file_search_manager = SearchManagerFactory::create_ai_optimized(working_dir.clone());
+    
+    // Initialize history manager
+    let history_manager = Arc::new(HistoryManager::new(None));
+
+    // Initialize file watcher for working directory
+    let _watcher = FileWatcher::new(working_dir, history_manager.clone(), None);
+
+    // Initialize file watcher for Downloads directory (if it exists)
+    let _downloads_watcher = if let Some(download_dir) = dirs::download_dir() {
+        info!("Watching downloads directory: {:?}", download_dir);
+        // We use a separate watcher instance for simplicity
+        FileWatcher::new(download_dir, history_manager.clone(), Some(ActivityType::Downloaded)).ok()
+    } else {
+        None
+    };
     
     // Initialize content extraction system
     let content_extraction_system = Arc::new(tokio::sync::Mutex::new(ContentExtractionSystem::new()));
@@ -140,6 +156,7 @@ async fn main() -> anyhow::Result<()> {
         indexer,
         search_engine,
         file_search_manager,
+        history_manager,
         content_extraction_system,
     };
 

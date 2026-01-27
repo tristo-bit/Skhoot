@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use crate::search_engine::{
     SearchContext, SearchIntent, UnifiedSearchResults,
     SearchMode, MergedSearchResult,
+    HistoryEntry, ActivityType,
 };
 use crate::error::AppError;
 
@@ -31,6 +32,8 @@ pub fn search_routes() -> Router<crate::AppState> {
         .route("/files/properties", post(show_file_properties))
         .route("/files/open-with", post(open_with_dialog))
         .route("/files/read", get(read_file_content))
+        .route("/files/write", post(write_file))
+        .route("/files/recent", get(get_recent_files))
         .route("/files/image", get(read_image_file))
 }
 
@@ -650,6 +653,13 @@ pub struct OpenFileRequest {
     pub path: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct WriteFileRequest {
+    pub path: String,
+    pub content: String,
+    pub append: Option<bool>,
+}
+
 /// Open file location in the system file explorer
 pub async fn open_file_location(
     Json(request): Json<OpenFileRequest>,
@@ -928,8 +938,65 @@ pub async fn open_with_dialog(
     }
 }
 
+/// Write file content
+pub async fn write_file(
+    State(state): State<crate::AppState>,
+    Json(request): Json<WriteFileRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let path = PathBuf::from(&request.path);
+    
+    let absolute_path = if path.is_absolute() {
+        path
+    } else {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+            .join(&path)
+    };
+
+    if let Some(parent) = absolute_path.parent() {
+        tokio::fs::create_dir_all(parent).await
+            .map_err(|e| AppError::Internal(format!("Failed to create directories: {}", e)))?;
+    }
+
+    if request.append.unwrap_or(false) {
+        use tokio::io::AsyncWriteExt;
+        let mut file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&absolute_path)
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to open file for appending: {}", e)))?;
+        
+        file.write_all(request.content.as_bytes()).await
+            .map_err(|e| AppError::Internal(format!("Failed to append to file: {}", e)))?;
+    } else {
+        tokio::fs::write(&absolute_path, &request.content).await
+            .map_err(|e| AppError::Internal(format!("Failed to write file: {}", e)))?;
+    }
+
+    // Log to history
+    state.history_manager.add_entry(
+        absolute_path.display().to_string(),
+        ActivityType::FileWrite
+    ).await;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": format!("File written: {}", absolute_path.display())
+    })))
+}
+
+/// Get recent files from history
+pub async fn get_recent_files(
+    State(state): State<crate::AppState>,
+) -> Result<Json<Vec<HistoryEntry>>, AppError> {
+    let recent = state.history_manager.get_recent(50).await;
+    Ok(Json(recent))
+}
+
 /// Read file content endpoint
 pub async fn read_file_content(
+    State(state): State<crate::AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let path_str = params.get("path")
@@ -960,6 +1027,12 @@ pub async fn read_file_content(
     // Read file content
     match tokio::fs::read_to_string(&absolute_path).await {
         Ok(content) => {
+            // Log to history
+            state.history_manager.add_entry(
+                absolute_path.display().to_string(),
+                ActivityType::FileRead
+            ).await;
+
             Ok(Json(serde_json::json!({
                 "success": true,
                 "path": absolute_path.display().to_string(),
