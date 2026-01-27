@@ -483,10 +483,13 @@ const AppContent: React.FC = () => {
       <ResizeHandles onResizeStart={handleResizeStart} />
 
       <div className="app-shell relative z-10 w-full h-full flex flex-col shadow-2xl overflow-hidden bg-bg-primary rounded-[var(--app-radius)]">
-        <div className="app-glass relative z-10 w-full h-full flex flex-col overflow-hidden glass-elevated rounded-[var(--app-radius)]">
+        <div className="app-glass relative z-50 w-full h-full flex flex-col overflow-hidden glass-elevated rounded-[var(--app-radius)]">
           {/* Background layers */}
           <Background3D />
           <AppBackground activeMode={activeQuickAction} />
+          
+          {/* Modal container - for portals to render inside app bounds */}
+          <div id="modal-root" className="pointer-events-none" />
           
           <Header
             isSidebarOpen={isSidebarOpen}
@@ -500,7 +503,16 @@ const AppContent: React.FC = () => {
             onMaximize={handleMaximize}
           />
 
-          {/* Sidebar - rendered via portal */}
+          {/* Panels */}
+          {isSettingsOpen && <SettingsPanel onClose={closeSettings} />}
+          {isActivityOpen && <ActivityPanel onClose={closeActivity} />}
+          {isFilesPanelOpen && <FilesPanel onClose={closeFilesPanel} />}
+          {isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
+          {isFileSearchTestOpen && <FileSearchTest onClose={closeFileSearchTest} />}
+          {isAISettingsOpen && <AISettingsModal onClose={closeAISettings} />}
+          {isAgentsOpen && <AgentsPanel isOpen={isAgentsOpen} onClose={closeAgents} />}
+
+          {/* Sidebar - rendered AFTER panels to appear on top */}
           <Sidebar 
             onNewChat={handleNewChat} 
             onClose={toggleSidebar}
@@ -515,15 +527,6 @@ const AppContent: React.FC = () => {
             workingDirectory={workingDirectory}
             onSetWorkingDirectory={handleSetWorkingDirectory}
           />
-
-          {/* Panels */}
-          {isSettingsOpen && <SettingsPanel onClose={closeSettings} />}
-          {isActivityOpen && <ActivityPanel onClose={closeActivity} />}
-          {isFilesPanelOpen && <FilesPanel onClose={closeFilesPanel} />}
-          {isUserPanelOpen && <UserPanel onClose={closeUserPanel} />}
-          {isFileSearchTestOpen && <FileSearchTest onClose={closeFileSearchTest} />}
-          {isAISettingsOpen && <AISettingsModal onClose={closeAISettings} />}
-          {isAgentsOpen && <AgentsPanel isOpen={isAgentsOpen} onClose={closeAgents} />}
 
           {/* Auth Views */}
           {authView === 'login' && (
