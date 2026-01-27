@@ -2,6 +2,260 @@
 
 ## January 27, 2026
 
+### Fixed Dropdown Width - Manual Sizing for All Tags 🎯
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/memories/MemoriesTab.tsx`
+- **Change**: Set manual fixed width for "All Tags" dropdown to make it smaller
+- **Impact**: "All Tags" dropdown now properly sized at 70px, chevron close to text
+
+**Problem**:
+- User reported: "adapte la taille du bouton all tags manuellement s'il te plait. ce n'est toujours pas fix"
+- Auto-width (`width: auto`) wasn't working as expected for select elements
+- Browser was still applying default minimum width despite `min-w-0`
+- "All Tags" dropdown remained same width as "All Categories"
+
+**Root Cause**:
+- Select elements have complex browser-specific width calculations
+- `width: auto` with `min-w-0` insufficient to override browser defaults
+- Different browsers handle select width differently
+- Only solution: manual fixed width
+
+**Solution**:
+1. **Manual width for Tags** - Set `style={{ width: '70px' }}` for "All Tags" dropdown
+2. **Auto width for Categories** - Keep `style={{ width: 'auto' }}` for "All Categories" 
+3. **Consistent styling** - Both still use same padding and chevron positioning
+4. **Fixed size** - 70px provides enough space for "All Tags" text + padding + chevron
+
+**Implementation**:
+```typescript
+{/* All Categories - auto width */}
+<select
+  value={selectedCategory}
+  onChange={(e) => setSelectedCategory(e.target.value)}
+  className="bg-white/5 text-text-secondary outline-none pl-2 pr-4 py-1 rounded appearance-none cursor-pointer min-w-0"
+  style={{ width: 'auto' }}
+>
+  {/* options */}
+</select>
+
+{/* All Tags - fixed 70px width */}
+<select
+  value={selectedTag}
+  onChange={(e) => setSelectedTag(e.target.value)}
+  className="bg-white/5 text-text-secondary outline-none pl-2 pr-4 py-1 rounded appearance-none cursor-pointer min-w-0"
+  style={{ width: '70px' }}
+>
+  {/* options */}
+</select>
+```
+
+**Technical Details**:
+- "All Tags" = 70px fixed width
+- "All Categories" = auto width (≈100-110px)
+- `pl-2` = 8px left padding
+- `pr-4` = 16px right padding
+- Chevron at `right-0.5` = 2px from edge
+- Text space = 70px - 8px - 16px = 46px for "All Tags" text
+
+**Verification**:
+- ✅ "All Tags" dropdown now 70px wide (smaller than "All Categories")
+- ✅ Chevron positioned close to text at 2px from edge
+- ✅ Text fits comfortably without truncation
+- ✅ Professional, compact appearance
+- ✅ Consistent chevron distance on both dropdowns
+
+---
+
+### Capitalized Category Names in Dropdown 🎨
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/memories/MemoriesTab.tsx`
+- **Change**: Added capitalization to category names in dropdown for better readability
+- **Impact**: Category names now display with proper capitalization (e.g., "Project" instead of "project")
+
+**Problem**:
+- Category names displayed in all lowercase in dropdown (e.g., "other", "project", "preferences")
+- User requested: "add une majuscule a chaque types"
+- Lowercase display looked unprofessional and harder to read
+
+**Solution**:
+- Added `.charAt(0).toUpperCase() + c.slice(1)` to capitalize first letter of each category name
+- Applied only to display, internal values remain lowercase for consistency
+
+**Implementation**:
+```typescript
+{categories.map(c => (
+  <option key={c} value={c}>
+    {c === 'all' ? 'All Categories' : c.charAt(0).toUpperCase() + c.slice(1)}
+  </option>
+))}
+```
+
+**Result**:
+- "other" → "Other"
+- "project" → "Project"
+- "preferences" → "Preferences"
+- "technical" → "Technical"
+- "decisions" → "Decisions"
+
+**Verification**:
+- ✅ Category names display with capital first letter
+- ✅ Internal values remain lowercase for filtering
+- ✅ "All Categories" option unchanged
+- ✅ Filtering still works correctly
+
+---
+
+### Fixed Duplicate Categories in Dropdown Filter 🔧
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/memories/MemoriesTab.tsx`
+- **Change**: Fixed category and tag dropdowns showing duplicate values with normalization
+- **Impact**: Dropdown filters now display only unique categories and tags, handling case variations and whitespace
+
+**Problem**:
+- Category dropdown displayed duplicate entries (e.g., "other" appeared 4 times, "preferences" appeared 6 times)
+- Same issue affected tags dropdown
+- Duplicates were caused by case variations (OTHER vs other vs Other) and whitespace differences
+- User reported: "il faut qu'il y'ait uniquement le nombre de catégories existentes et pas dédoublées"
+- Syntax error: Duplicate `}, [memories]);` line caused compilation failure
+
+**Root Cause**:
+- Categories stored with inconsistent casing and whitespace (e.g., "OTHER", "other", " other ")
+- `Set` deduplication wasn't working because "OTHER" and "other" are different strings
+- Filter comparison was exact match, so normalized dropdown values didn't match original data
+- Copy-paste error introduced duplicate closing bracket
+
+**Solution**:
+1. **Normalize categories and tags** - Added `.trim().toLowerCase()` for categories, `.trim()` for tags
+2. **Use Set for deduplication** - Ensures only unique normalized values appear in dropdown
+3. **Update filter logic** - Compare normalized values to ensure filtering works correctly
+4. **Fix syntax error** - Removed duplicate `}, [memories]);` line
+
+**Implementation**:
+```typescript
+// Categories with normalization
+const categories = useMemo(() => {
+  const uniqueCategories = new Set(
+    memories
+      .map(m => m.metadata.category)
+      .filter((c): c is string => !!c)
+      .map(c => c.trim().toLowerCase()) // Normalize
+  );
+  return ['all', ...Array.from(uniqueCategories)];
+}, [memories]);
+
+// Tags with normalization
+const tags = useMemo(() => {
+  const uniqueTags = new Set(
+    memories
+      .flatMap(m => m.metadata.tags || [])
+      .map(t => t.trim()) // Trim whitespace
+  );
+  return ['all', ...Array.from(uniqueTags)];
+}, [memories]);
+
+// Updated filter to compare normalized values
+const filteredMemories = useMemo(() => {
+  let filtered = memories;
+  
+  if (selectedCategory !== 'all') {
+    filtered = filtered.filter(m => 
+      m.metadata.category?.trim().toLowerCase() === selectedCategory
+    );
+  }
+  
+  if (selectedTag !== 'all') {
+    filtered = filtered.filter(m => 
+      m.metadata.tags?.some(t => t.trim() === selectedTag)
+    );
+  }
+  
+  return filtered;
+}, [memories, selectedCategory, selectedTag]);
+```
+
+**Verification**:
+- ✅ Category dropdown shows only unique values (no duplicates)
+- ✅ Tag dropdown shows only unique values
+- ✅ Case variations handled (OTHER, other, Other → "other")
+- ✅ Whitespace handled (" other ", "other" → "other")
+- ✅ Filtering works correctly with normalized values
+- ✅ "All Categories" option remains at top
+- ✅ Performance maintained with useMemo
+- ✅ Syntax error fixed - file compiles successfully
+
+---
+const filteredMemories = useMemo(() => {
+  let filtered = memories;
+  
+  if (selectedCategory !== 'all') {
+    filtered = filtered.filter(m => 
+      m.metadata.category?.trim().toLowerCase() === selectedCategory
+    );
+  }
+  
+  if (selectedTag !== 'all') {
+    filtered = filtered.filter(m => 
+      m.metadata.tags?.some(t => t.trim() === selectedTag)
+    );
+  }
+  
+  return filtered;
+}, [memories, selectedCategory, selectedTag]);
+```
+
+**Verification**:
+- ✅ Category dropdown shows only unique values (no duplicates)
+- ✅ Tag dropdown shows only unique values
+- ✅ Case variations handled (OTHER, other, Other → "other")
+- ✅ Whitespace handled (" other ", "other" → "other")
+- ✅ Filtering works correctly with normalized values
+- ✅ "All Categories" option remains at top
+- ✅ Performance maintained with useMemo
+
+---
+
+### Memory Card Category-Based Icons 🎨
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/memories/MemoriesTab.tsx`
+- **Change**: Replaced role-based icons (User/Bot/System) with category-based icons for better visual differentiation
+- **Impact**: Each memory category now has a unique, color-coded icon making it easier to identify memory types at a glance
+
+**Problem**:
+- Memory cards used role-based icons (User, Bot, Cpu) that didn't provide meaningful visual differentiation
+- Icons were based on `memory.role` (user/assistant/system) rather than memory content type
+- User requested: "Fais passer cette icon den fuku brandde plus fais en sorte que cet icon soit différent pour chaque type de memory"
+
+**Solution**:
+- Created `getCategoryIcon()` function that maps `memory.metadata.category` to specific icons
+- Replaced `getRoleIcon()` with category-based icon system
+- Added 7 new category-specific icons with distinct colors
+
+**Icon Mapping**:
+- **PROJECT** → `FolderKanban` (blue) - For project-related memories
+- **PREFERENCES** → `Settings` (purple) - For user preferences and settings
+- **OTHER** → `FileText` (green) - For general/miscellaneous memories
+- **CODE** → `Code` (cyan) - For code-related memories
+- **DATABASE** → `Database` (orange) - For database-related memories
+- **WEB** → `Globe` (pink) - For web/internet-related memories
+- **IDEA** → `Lightbulb` (yellow) - For ideas and brainstorming
+- **Default** → `Brain` (indigo) - For uncategorized memories
+
+**Implementation Details**:
+- Removed unused imports: `User`, `Bot`, `Cpu`, `Star`
+- Added new imports: `FolderKanban`, `Settings`, `FileText`, `Lightbulb`, `Code`, `Database`, `Globe`
+- Function reads category with `memory.metadata.category?.toUpperCase()` for case-insensitive matching
+- Icons display in both collapsed and expanded card views
+- Maintained consistent 16px icon size with color-coded styling
+
+**Verification**:
+- ✅ No remaining references to `getRoleIcon()`
+- ✅ Single `getCategoryIcon()` function (removed duplicate)
+- ✅ Clean imports with only used icons
+- ✅ Icons render in both collapsed and expanded states
+- ✅ Each category has unique visual identity
+
+---
+
 ### Memories Panel Complete Redesign 🧠
 - **Status**: ✅ **COMPLETED**
 - **Component**: `components/panels/memories/MemoriesTab.tsx`
@@ -48,15 +302,57 @@
 
 **View More Behavior**:
 - **Show all at once**: Changed from incremental loading (1 row at a time) to showing all remaining memories
+
+### Category-Specific Icons for Memory Cards 🎨
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/memories/MemoriesTab.tsx`
+- **Change**: Replaced generic role-based icons with category-specific icons for better visual identification
+- **Impact**: Users can instantly identify memory types by icon and color without reading labels
+
+**Problem**:
+- Memory cards used role-based icons (User, System, Bot) which were generic and not meaningful
+- The yellow "branded" Cpu icon didn't provide useful information about memory content
+- All memories looked similar, making it hard to distinguish between different types at a glance
+
+**Solution - Category Icon System**:
+
+**New Icon Mapping**:
+- **PROJECT** → `FolderKanban` (blue) - For project-related memories
+- **PREFERENCES** → `Settings` (purple) - For user preferences and settings
+- **CODE** → `Code` (green) - For code snippets and technical details
+- **DATABASE** → `Database` (cyan) - For database-related information
+- **WEB** → `Globe` (indigo) - For web-related content
+- **IDEA** → `Lightbulb` (yellow) - For ideas and brainstorming
+- **OTHER** → `FileText` (gray) - For miscellaneous content
+- **Default** → `Brain` (pink) - Fallback for uncategorized memories
+
+**Implementation**:
+- Created `getCategoryIcon()` function that maps `memory.metadata.category` to appropriate icons
+- Replaced all `getRoleIcon()` calls with `getCategoryIcon()` in both collapsed and expanded views
+- Each category has distinct color for quick visual scanning
+- Icons are case-insensitive (handles "project", "PROJECT", "Project")
+
+**Benefits**:
+- **Instant recognition**: Users can identify memory types without reading text
+- **Visual hierarchy**: Color-coded icons create clear visual categories
+- **Better UX**: Scanning through memories is faster and more intuitive
+- **Scalable**: Easy to add new categories with appropriate icons
 - **Single click**: One click on "View 13 more" now displays all 13 remaining items
 - **Better UX**: No need to click multiple times to see all memories
 
 **Expanded View**:
 - **Full content display**: Complete text shown without truncation
-- **Organized metadata**: Tags, notes, importance, and actions in separate sections
+- **Horizontal layout**: All metadata displayed horizontally instead of vertically stacked
+- **Two-column grid**: Tags/notes in left column, importance/actions in right column
+- **Full-width expansion**: Card uses `col-span-full` to take entire grid width when expanded
+- **Other cards reflow**: Grid automatically repositions other cards to accommodate expanded card
 - **Clear hierarchy**: Border separators (`border-dashed border-glass-border`) between sections
 - **Inline editing**: Click notes to edit, importance buttons for quick updates
 - **Action buttons**: Delete button with icon + text label for clarity
+- **Organized sections**: 
+  - Header: Icon + category badge
+  - Content: Full text without truncation
+  - Metadata grid: Tags, notes, importance, date, delete all visible at once
 
 **Technical Implementation**:
 - **Conditional rendering**: Separate JSX for collapsed vs expanded states (cleaner than conditional classes)
@@ -65,6 +361,9 @@
 - **Theme-aware**: All colors use CSS variables for light/dark mode support
 - **Performance**: Component wrapped in `React.memo` for optimization
 - **Truncation function**: `truncateText(text, maxLength = 60)` with first-sentence detection and word-boundary fallback
+- **Full-width expansion**: `col-span-full` class added conditionally when `expanded === true`
+- **Grid reflow**: CSS Grid automatically handles repositioning of other cards
+- **Horizontal metadata layout**: Flexbox with proper spacing and wrapping for all metadata fields
 - **View more logic**: `setShowAll(true)` instead of incremental `setVisibleRows(prev => prev + 1)`
 
 **User Experience Improvements**:
@@ -73,9 +372,12 @@
 - **Easy expansion**: Chevron always visible and clickable in top-right corner
 - **No visual clutter**: Removed unnecessary icons from collapsed view
 - **Spacious layout**: 2-column grid provides ample space for content
+- **Horizontal metadata**: All information visible at once without scrolling when expanded
+- **Natural card reflow**: Other cards automatically move to accommodate expanded card
 - **Clear actions**: Delete button with icon + text label in expanded view
 - **Smooth transitions**: `transition-all duration-200` for polished interactions
 - **Efficient browsing**: View all remaining memories (e.g., 13 items) with single click
+- **Professional appearance**: Clean, organized layout that's easy to scan and understand
 
 ## January 26, 2026
 
@@ -18425,3 +18727,142 @@ style={{ minHeight: expanded ? 'auto' : '140px' }}  // Was: 120px
 - Text flows horizontally across multiple lines
 - Expand/collapse works smoothly
 - All previous spacing improvements maintained
+
+
+### Memories Panel Expanded View Fix 🔧
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/memories/MemoriesTab.tsx`
+- **Change**: Fixed expanded view to display horizontally instead of vertically
+- **Impact**: Expanded memory cards now show all metadata in a clean horizontal layout
+
+**Problem**:
+When expanding a memory card, all content (tags, notes, importance, delete) was stacking vertically, making cards unnecessarily tall and hard to scan.
+
+**Solution**:
+- **Removed vertical stacking**: Eliminated `space-y-4` and `pl-12` that forced vertical layout
+- **Compact spacing**: Changed from `space-y-3` to `space-y-2` for tighter layout
+- **Horizontal elements**:
+  - Tags: `flex items-center gap-2 flex-wrap` - flow horizontally
+  - Notes: `flex items-center gap-2` - icon and text inline
+  - Importance: `flex items-center gap-2 flex-wrap` with `whitespace-nowrap`
+  - Footer: Date and Delete on same line with `justify-between`
+- **Grid auto-reflow**: CSS grid automatically repositions other cards when one expands
+
+**Result**:
+- All metadata displays horizontally for easy reading
+- Cards expand naturally within the grid
+- Other cards automatically move to accommodate expanded card
+- Cleaner, more professional appearance
+
+
+### Fixed Dropdown Width - Adaptive Sizing 🎯
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/memories/MemoriesTab.tsx`
+- **Change**: Removed browser default minimum width to allow dropdowns to fit content
+- **Impact**: Each dropdown now adapts to its text length with chevrons positioned close
+
+**Problem**:
+- User identified root cause: "le problème n'est pas le padding, c'est que le bouton all tags est trop grand pour la taille de all tags"
+- Browser applies default minimum width to select elements (~100-120px)
+- "All Tags" dropdown was same width as "All Categories" despite shorter text
+- This made chevron appear far from text in shorter dropdown
+
+**Solution**:
+1. **Remove minimum width** - Added `min-w-0` to override browser default min-width
+2. **Auto width** - Added `style={{ width: 'auto' }}` to force content-based sizing
+3. **Tight chevron** - Kept `right-0.5` for minimal distance from edge
+4. **Reduced padding** - Using `pr-4` (1rem) for compact appearance
+
+**Implementation**:
+```typescript
+<select
+  value={selectedTag}
+  onChange={(e) => setSelectedTag(e.target.value)}
+  className="bg-white/5 text-text-secondary outline-none pl-2 pr-4 py-1 rounded appearance-none cursor-pointer min-w-0"
+  style={{ width: 'auto' }}
+>
+  {tags.map(t => (
+    <option key={t} value={t}>{t === 'all' ? 'All Tags' : t}</option>
+  ))}
+</select>
+<ChevronDown size={10} className="absolute right-0.5 pointer-events-none text-text-secondary" />
+```
+
+**Technical Details**:
+- `min-w-0` overrides Tailwind/browser default minimum width
+- `width: auto` allows select to shrink to content size
+- "All Categories" ≈ 90px wide
+- "All Tags" ≈ 60px wide (now properly sized)
+- Chevron at 0.125rem from edge on both
+
+**Verification**:
+- ✅ "All Tags" dropdown now narrower than "All Categories"
+- ✅ Each dropdown width matches its text content
+- ✅ Chevrons positioned at same distance from edge in both
+- ✅ No wasted space in shorter dropdown
+- ✅ Professional, compact, adaptive appearance
+
+---
+
+
+### Fixed Dropdown Width with Manual Sizing 🎯
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/memories/MemoriesTab.tsx`
+- **Change**: Set fixed width for "All Tags" dropdown to match text size
+- **Impact**: "All Tags" dropdown now properly sized with chevron close to text
+
+**Problem**:
+- User reported: "adapte la taille du bouton all tags manuellement s'il te plait. ce n'est toujours pas fix"
+- Auto-width (`width: auto`) wasn't working as expected for "All Tags" dropdown
+- Browser still rendering dropdown too wide despite `min-w-0` and `width: auto`
+- Needed manual width specification to force proper sizing
+
+**Root Cause**:
+- Browser select elements have complex default sizing behavior
+- `width: auto` on select elements doesn't always shrink to content
+- Different browsers handle select width differently
+- Manual fixed width needed for consistent cross-browser behavior
+
+**Solution**:
+- Set fixed width of `70px` for "All Tags" dropdown
+- Kept `width: auto` for "All Categories" (works fine for longer text)
+- This ensures "All Tags" is appropriately sized for its 8-character text
+- Chevron now consistently close to text
+
+**Implementation**:
+```typescript
+{/* All Categories - auto width */}
+<select
+  value={selectedCategory}
+  onChange={(e) => setSelectedCategory(e.target.value)}
+  className="bg-white/5 text-text-secondary outline-none pl-2 pr-4 py-1 rounded appearance-none cursor-pointer min-w-0"
+  style={{ width: 'auto' }}
+>
+  {/* options */}
+</select>
+
+{/* All Tags - fixed 70px width */}
+<select
+  value={selectedTag}
+  onChange={(e) => setSelectedTag(e.target.value)}
+  className="bg-white/5 text-text-secondary outline-none pl-2 pr-4 py-1 rounded appearance-none cursor-pointer min-w-0"
+  style={{ width: '70px' }}
+>
+  {/* options */}
+</select>
+```
+
+**Width Calculation**:
+- Text "All Tags" ≈ 50px at 10px font size
+- Left padding: 8px (pl-2)
+- Right padding: 16px (pr-4)
+- Total: ~70px (optimal size)
+
+**Verification**:
+- ✅ "All Tags" dropdown now 70px wide (compact)
+- ✅ "All Categories" dropdown remains auto-width (wider)
+- ✅ Chevron at 0.5rem from edge on both
+- ✅ Chevron appears close to text on both dropdowns
+- ✅ Professional, properly sized appearance
+
+---

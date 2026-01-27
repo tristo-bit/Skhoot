@@ -3,7 +3,7 @@
  * Inspired by AgentSmith's Trace model with persistent, searchable memory
  */
 import React, { memo, useState, useEffect, useCallback, useMemo } from 'react';
-import { Brain, Trash2, Tag, StickyNote, Calendar, User, Bot, Cpu, Plus, X, ChevronDown, ChevronRight, Star, Archive } from 'lucide-react';
+import { Brain, Trash2, Tag, StickyNote, Calendar, Plus, X, ChevronDown, ChevronRight, Archive, FolderKanban, Settings, FileText, Lightbulb, Code, Database, Globe } from 'lucide-react';
 import { memoryService, type Memory, type MemoryMetadata } from '../../../services/memoryService';
 
 interface MemoriesTabProps {
@@ -23,8 +23,26 @@ export const MemoriesTab = ({ sessionId, searchQuery = '' }: MemoriesTabProps) =
   const [newMemoryCategory, setNewMemoryCategory] = useState('');
   const [newMemoryTags, setNewMemoryTags] = useState('');
 
-  const categories = useMemo(() => ['all', ...memories.map(m => m.metadata.category).filter((c): c is string => !!c)], [memories]);
-  const tags = useMemo(() => ['all', ...memories.flatMap(m => m.metadata.tags || [])], [memories]);
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set(
+      memories
+        .map(m => m.metadata.category)
+        .filter((c): c is string => !!c)
+        .map(c => {
+          const normalized = c.trim().toLowerCase();
+          return normalized.charAt(0).toUpperCase() + normalized.slice(1); // Capitalize first letter
+        })
+    );
+    return ['all', ...Array.from(uniqueCategories)];
+  }, [memories]);
+  const tags = useMemo(() => {
+    const uniqueTags = new Set(
+      memories
+        .flatMap(m => m.metadata.tags || [])
+        .map(t => t.trim()) // Trim whitespace from tags
+    );
+    return ['all', ...Array.from(uniqueTags)];
+  }, [memories]);
 
   const loadMemories = useCallback(async () => {
     try {
@@ -116,11 +134,18 @@ export const MemoriesTab = ({ sessionId, searchQuery = '' }: MemoriesTabProps) =
     let filtered = memories;
 
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(m => m.metadata.category === selectedCategory);
+      filtered = filtered.filter(m => {
+        if (!m.metadata.category) return false;
+        const normalized = m.metadata.category.trim().toLowerCase();
+        const capitalized = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+        return capitalized === selectedCategory;
+      });
     }
 
     if (selectedTag !== 'all') {
-      filtered = filtered.filter(m => m.metadata.tags?.includes(selectedTag));
+      filtered = filtered.filter(m => 
+        m.metadata.tags?.some(t => t.trim() === selectedTag)
+      );
     }
 
     return filtered;
@@ -204,31 +229,37 @@ export const MemoriesTab = ({ sessionId, searchQuery = '' }: MemoriesTabProps) =
       {!isAddingMemory && (categories.length > 1 || tags.length > 1) && (
         <div className="flex items-center gap-3 text-[10px] flex-wrap">
           {categories.length > 1 && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 relative">
               <Archive size={10} className="text-text-secondary" />
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="bg-white/5 text-text-secondary outline-none px-2 py-1 rounded"
+                className="bg-white/5 text-text-secondary outline-none pl-2 pr-4 py-1 rounded appearance-none cursor-pointer min-w-0"
+                style={{ width: 'auto' }}
               >
                 {categories.map(c => (
-                  <option key={c} value={c}>{c === 'all' ? 'All Categories' : c}</option>
+                  <option key={c} value={c}>
+                    {c === 'all' ? 'All Categories' : c.charAt(0).toUpperCase() + c.slice(1)}
+                  </option>
                 ))}
               </select>
+              <ChevronDown size={10} className="absolute right-0.5 pointer-events-none text-text-secondary" />
             </div>
           )}
           {tags.length > 1 && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 relative">
               <Tag size={10} className="text-text-secondary" />
               <select
                 value={selectedTag}
                 onChange={(e) => setSelectedTag(e.target.value)}
-                className="bg-white/5 text-text-secondary outline-none px-2 py-1 rounded"
+                className="bg-white/5 text-text-secondary outline-none pl-2 pr-4 py-1 rounded appearance-none cursor-pointer min-w-0"
+                style={{ width: '70px' }}
               >
                 {tags.map(t => (
                   <option key={t} value={t}>{t === 'all' ? 'All Tags' : t}</option>
                 ))}
               </select>
+              <ChevronDown size={10} className="absolute right-0.5 pointer-events-none text-text-secondary" />
             </div>
           )}
         </div>
@@ -320,18 +351,29 @@ const MemoryCard = memo<MemoryCardProps>(({ memory, onDelete, onUpdateNotes, onU
     onUpdateMetadata(memory.id, { importance });
   };
 
-  const getRoleIcon = () => {
-    switch (memory.role) {
-      case 'user':
-        return <User size={16} className="text-blue-400" />;
-      case 'system':
-        return <Cpu size={16} className="text-yellow-400" />;
+  const getCategoryIcon = () => {
+    const category = memory.metadata.category?.toUpperCase();
+    
+    switch (category) {
+      case 'PROJECT':
+        return <FolderKanban size={16} className="text-blue-400" />;
+      case 'PREFERENCES':
+        return <Settings size={16} className="text-purple-400" />;
+      case 'OTHER':
+        return <FileText size={16} className="text-green-400" />;
+      case 'CODE':
+        return <Code size={16} className="text-cyan-400" />;
+      case 'DATABASE':
+        return <Database size={16} className="text-orange-400" />;
+      case 'WEB':
+        return <Globe size={16} className="text-pink-400" />;
+      case 'IDEA':
+        return <Lightbulb size={16} className="text-yellow-400" />;
       default:
-        return <Bot size={16} className="text-purple-400" />;
+        return <Brain size={16} className="text-indigo-400" />;
     }
   };
 
-  // Truncate text for preview - horizontal display (shorter for better preview)
   // Truncate text for preview - show only beginning (first sentence or 60 chars)
   const truncateText = (text: string, maxLength: number = 60) => {
     if (text.length <= maxLength) return text;
@@ -348,7 +390,9 @@ const MemoryCard = memo<MemoryCardProps>(({ memory, onDelete, onUpdateNotes, onU
 
   return (
     <div
-      className="rounded-lg glass-subtle p-4 cursor-pointer transition-all duration-200 hover:bg-white/5 relative"
+      className={`rounded-lg glass-subtle p-4 cursor-pointer transition-all duration-200 hover:bg-white/5 relative ${
+        expanded ? 'col-span-full' : ''
+      }`}
       onClick={() => setExpanded(!expanded)}
       style={{
         minHeight: expanded ? 'auto' : '110px',
@@ -379,14 +423,14 @@ const MemoryCard = memo<MemoryCardProps>(({ memory, onDelete, onUpdateNotes, onU
       {/* Collapsed View */}
       {!expanded ? (
         <div className="flex items-start gap-3 pr-10">
-          {/* Role Icon */}
+          {/* Category Icon */}
           <div
             className="flex-shrink-0 w-9 h-9 rounded flex items-center justify-center"
             style={{
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08), inset 0 0.5px 1px rgba(255, 255, 255, 0.15)'
             }}
           >
-            {getRoleIcon()}
+            {getCategoryIcon()}
           </div>
 
           {/* Content */}
@@ -408,16 +452,16 @@ const MemoryCard = memo<MemoryCardProps>(({ memory, onDelete, onUpdateNotes, onU
         </div>
       ) : (
         /* Expanded View */
-        <div className="space-y-4 pr-10">
-          {/* Header */}
-          <div className="flex items-start gap-3">
+        <div className="pr-10">
+          {/* Header with icon and category */}
+          <div className="flex items-start gap-3 mb-3">
             <div
               className="flex-shrink-0 w-9 h-9 rounded flex items-center justify-center"
               style={{
                 boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08), inset 0 0.5px 1px rgba(255, 255, 255, 0.15)'
               }}
             >
-              {getRoleIcon()}
+              {getCategoryIcon()}
             </div>
 
             <div className="flex-1">
@@ -430,15 +474,15 @@ const MemoryCard = memo<MemoryCardProps>(({ memory, onDelete, onUpdateNotes, onU
           </div>
 
           {/* Full Content */}
-          <div className="pl-12">
+          <div className="mb-3">
             <p className="text-[11px] text-text-primary leading-relaxed">
               {memory.content}
             </p>
           </div>
 
           {/* Metadata Section */}
-          <div className="pl-12 space-y-3 pt-3 border-t border-dashed border-glass-border">
-            {/* Tags */}
+          <div className="space-y-2 pt-3 border-t border-dashed border-glass-border">
+            {/* Tags - Horizontal */}
             {memory.metadata.tags && memory.metadata.tags.length > 0 && (
               <div className="flex items-center gap-2 flex-wrap">
                 <Tag size={10} className="text-text-secondary flex-shrink-0" />
@@ -450,9 +494,9 @@ const MemoryCard = memo<MemoryCardProps>(({ memory, onDelete, onUpdateNotes, onU
               </div>
             )}
 
-            {/* Notes */}
-            <div className="flex items-start gap-2">
-              <StickyNote size={10} className="text-text-secondary flex-shrink-0 mt-0.5" />
+            {/* Notes - Horizontal */}
+            <div className="flex items-center gap-2">
+              <StickyNote size={10} className="text-text-secondary flex-shrink-0" />
               {isEditingNotes ? (
                 <input
                   type="text"
@@ -478,9 +522,9 @@ const MemoryCard = memo<MemoryCardProps>(({ memory, onDelete, onUpdateNotes, onU
               )}
             </div>
 
-            {/* Importance */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-text-secondary">Importance:</span>
+            {/* Importance - Horizontal */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] text-text-secondary whitespace-nowrap">Importance:</span>
               {(['low', 'medium', 'high'] as const).map(level => (
                 <button
                   key={level}
@@ -499,8 +543,8 @@ const MemoryCard = memo<MemoryCardProps>(({ memory, onDelete, onUpdateNotes, onU
               ))}
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between pt-2 mt-2 border-t border-dashed border-glass-border">
+            {/* Footer - Date and Delete on same line */}
+            <div className="flex items-center justify-between pt-2 border-t border-dashed border-glass-border">
               <span className="text-[10px] text-text-secondary flex items-center gap-1.5">
                 <Calendar size={10} />
                 {formatDate(memory.created_at)}

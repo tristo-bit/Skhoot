@@ -308,10 +308,10 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
   - **Importance Levels**: Mark memories as low, medium, or high importance for prioritization
   - **Rich Metadata**: Organize with categories, tags, notes, and timestamps
 - **Memory Management Interface**: Intuitive card-based UI with expandable details
-  - **Collapsed View**: Compact horizontal cards showing role icon, category, and content preview
+  - **Collapsed View**: Compact horizontal cards showing category icon, badge, and content preview
   - **Expanded View**: Full content display with metadata, tags, notes, and importance controls
   - **Inline Editing**: Click to edit notes, update importance, or modify metadata
-  - **Visual Organization**: Color-coded role icons (User, Assistant, System) and category badges
+  - **Visual Organization**: Color-coded category icons (Project, Preferences, Code, Database, Web, Idea, Other) and badges
 - **Search & Filtering**: Find relevant memories quickly
   - **Full-Text Search**: Search across content, categories, tags, and notes with relevance scoring
   - **Category Filtering**: Filter memories by category with dropdown selector
