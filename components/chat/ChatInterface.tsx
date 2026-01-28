@@ -1142,59 +1142,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
              }));
              agentHistory.push({ role: 'user', content: messageText });
 
-             // Use executeWithTools to handle the full agent loop (Model -> Tool -> Execution -> Model)
-             const response = await agentChatService.executeWithTools(
+             const response = await agentChatService.chat(
                 messageText,
                 agentHistory,
                 { 
                     sessionId: agentSessionId,
-                    onStatusUpdate: (status) => setSearchStatus(status),
-                    // Update UI with intermediate tool calls
-                    onToolStart: (toolCall) => {
-                        setMessages(prev => [...prev, {
-                            id: `tool-call-${toolCall.id}`,
-                            role: 'assistant',
-                            content: '', // Empty content for tool call message
-                            type: 'agent_action',
-                            toolCalls: [{
-                                id: toolCall.id,
-                                name: toolCall.name as any,
-                                arguments: toolCall.arguments
-                            }],
-                            timestamp: new Date()
-                        }]);
-                    },
-                    onToolComplete: (result) => {
-                        // Update the last tool call message with the result
-                        setMessages(prev => {
-                            const newMessages = [...prev];
-                            const toolMsgIndex = newMessages.findIndex(m => 
-                                m.toolCalls?.some(tc => tc.id === result.toolCallId)
-                            );
-                            
-                            if (toolMsgIndex !== -1) {
-                                const toolMsg = newMessages[toolMsgIndex];
-                                newMessages[toolMsgIndex] = {
-                                    ...toolMsg,
-                                    toolResults: [{
-                                        toolCallId: result.toolCallId,
-                                        toolCallName: result.toolCallName,
-                                        success: result.success,
-                                        output: result.output,
-                                        error: result.error,
-                                        durationMs: result.durationMs
-                                    }]
-                                };
-                            }
-                            return newMessages;
-                        });
-                    }
+                    onStatusUpdate: (status) => setSearchStatus(status)
                 }
              );
-             
              responseContent = response.content;
-             // toolCalls are handled via callbacks, final response usually doesn't have pending calls
-             responseToolCalls = undefined;
+             responseToolCalls = response.toolCalls as AgentToolCallData[] | undefined;
         } else {
              const history: AIMessage[] = messages.map(m => ({
                  role: m.role as 'user' | 'assistant',
