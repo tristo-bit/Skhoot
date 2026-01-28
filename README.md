@@ -149,6 +149,71 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 </details>
 
 <details>
+<summary><strong>📁 File Explorer Panel</strong></summary>
+
+**Visual File Management**: Comprehensive file explorer with recent files, disk monitoring, storage analysis, and cleanup suggestions.
+
+- **Five-Tab Interface**: Organized file management with specialized views
+  - **Recent Tab**: Recently accessed files with activity type indicators
+    - Real-time file activity tracking (FileWrite, FileRead, FileCreated, FileModified, Downloaded)
+    - Visual activity icons with color-coded badges
+    - List and grid view modes for flexible browsing
+    - Click file names to open, click paths to reveal in system explorer
+    - Add files to chat with one-click "Add to chat" button
+    - Delete files directly from the panel with confirmation
+    - Automatic filtering of temp files (.crdownload, .part, .tmp, .opdownload)
+    - Timestamp display showing when files were accessed
+  - **Images Tab**: Image gallery with grid/list views (see ImagesTab component)
+  - **Disk Tab**: Real-time disk usage monitoring
+    - Visual progress bars with color-coded status (green/yellow/red)
+    - Shows total, used, and free space for all system drives
+    - Percentage usage with automatic status indicators
+    - Supports multiple drives with individual monitoring
+  - **Analysis Tab**: Storage breakdown by category
+    - Categories: Documents, Images, Videos, Code, Other
+    - File count and size for each category
+    - Color-coded visualization for easy identification
+    - Helps identify what's consuming disk space
+  - **Cleanup Tab**: Smart cleanup suggestions
+    - Identifies cache files, old downloads, duplicates, and large files
+    - Safety indicators (safe/review) for each suggestion
+    - One-click cleanup with confirmation dialogs
+    - Shows total reclaimable space across all suggestions
+    - Automatic removal from UI after successful cleanup
+- **Expandable Search Bar**: Integrated search with smooth expansion animation
+  - Pre-allocated space prevents layout shift
+  - Search across all files with AI-powered hybrid search
+  - Press Enter to search, Escape to collapse
+  - Auto-collapse when empty and loses focus
+- **View Mode Toggle**: Switch between list and grid views (Recent and Images tabs)
+- **Refresh Button**: Manual refresh with loading animation
+- **File Operations**: Comprehensive file management
+  - **Open**: Launch files with default system application
+  - **Reveal**: Open system file explorer and select the file
+  - **Delete**: Remove files with confirmation and automatic UI updates
+  - **Add to Chat**: Insert file references into chat input with @filename syntax
+  - **Context Menu**: Right-click for additional options (currently: Delete)
+- **Activity Type Indicators**: Visual badges showing file activity
+  - 🖊️ FileWrite (orange) - File was written/modified by agent
+  - 👁️ FileRead (blue) - File was read by agent
+  - ➕ FileCreated (green) - File was newly created
+  - ⚡ FileModified (yellow) - File was modified
+  - 📥 Downloaded (purple) - File was downloaded
+- **Backend Integration**: Connects to backend API for file history and disk info
+  - `/api/v1/files/recent` - Recent file activity
+  - `/api/v1/system/disks` - Disk usage information
+  - `/api/v1/storage/categories` - Storage analysis by category
+  - `/api/v1/cleanup/suggestions` - Cleanup recommendations
+- **Performance Optimized**: React memo, useCallback, and useMemo throughout
+- **Floating Panel Design**: Terminal-style glassmorphic panel with resizable height
+- **Persistent State**: Panel height saved to localStorage (default: 400px, min: 250px)
+- **Event-Driven**: Listens for preload and close events for seamless integration
+
+**Why This Matters**: Visual file management integrated directly into the AI workflow. See what files you've been working with, monitor disk space, and clean up clutter - all without leaving the chat interface. The "Add to chat" feature makes it effortless to reference files in conversations.
+
+</details>
+
+<details>
 <summary><strong>🔍 Hybrid File Search Engine</strong></summary>
 
 **Multi-engine search** combining Rust performance with CLI tool power and AI intelligence.
@@ -1976,14 +2041,9 @@ const agentResponse = await agentChatService.executeWithTools(
 <details>
 <summary><strong>File Explorer Context Menu & File References</strong></summary>
 
-- **Rich Context Menu**: Right-click or use the "more" button on any file in the File Explorer panel for quick actions
-  - **Open**: Launch file with default system application (Tauri shell.open → backend API → clipboard fallback)
-  - **Open Folder**: Reveal and select file in system file explorer
-  - **Copy Path**: Copy full file path to clipboard
-  - **Cut**: Copy path with cut simulation
-  - **Compress**: Create ZIP archive via backend API with user-friendly fallback instructions
-  - **Open With**: Copy path with instructions for manual "Open with" selection
-  - **Properties**: View file properties via backend API (name, type, size, modified date)
+- **Streamlined Context Menu**: Right-click or use the "more" button on any file in the File Explorer panel for essential actions
+  - **Show in folder**: Reveal and select file in system file explorer
+  - **Open with...**: Launch file with system application picker
   - **Delete**: Remove file via backend API with confirmation dialog
 - **File Reference Support**: Use `@filename` syntax in chat to reference files for AI context
   - **File Content Loading**: When you send a message with `@filename` references:

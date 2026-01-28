@@ -31,6 +31,7 @@ pub fn search_routes() -> Router<crate::AppState> {
         .route("/files/reveal", post(reveal_file_in_explorer))
         .route("/files/properties", post(show_file_properties))
         .route("/files/open-with", post(open_with_dialog))
+        .route("/files/delete", post(delete_file))
         .route("/files/read", get(read_file_content))
         .route("/files/write", post(write_file))
         .route("/files/recent", get(get_recent_files))
@@ -660,7 +661,7 @@ pub struct WriteFileRequest {
     pub append: Option<bool>,
 }
 
-/// Open file location in the system file explorer
+/// Open file with its default application
 pub async fn open_file_location(
     Json(request): Json<OpenFileRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
@@ -676,13 +677,20 @@ pub async fn open_file_location(
             .join(&path)
     };
     
-    tracing::info!("Opening file location: {:?}", absolute_path);
+    // Canonicalize to get the real path
+    let absolute_path = absolute_path.canonicalize().unwrap_or(absolute_path);
     
-    // Platform-specific file explorer command
+    tracing::info!("Opening file with default application: {:?}", absolute_path);
+    
+    // Platform-specific command to open file with default application
     #[cfg(target_os = "windows")]
-    let result = tokio::process::Command::new("explorer")
-        .arg(absolute_path.display().to_string())
-        .spawn();
+    let result = {
+        // On Windows, use cmd /c start "" "<path>" to open with default app
+        let path_str = absolute_path.display().to_string();
+        tokio::process::Command::new("cmd")
+            .args(["/c", "start", "", &path_str])
+            .spawn()
+    };
     
     #[cfg(target_os = "macos")]
     let result = tokio::process::Command::new("open")
@@ -690,37 +698,16 @@ pub async fn open_file_location(
         .spawn();
     
     #[cfg(target_os = "linux")]
-    let result = {
-        // Try xdg-open first, then fall back to common file managers
-        let xdg_result = tokio::process::Command::new("xdg-open")
-            .arg(&absolute_path)
-            .spawn();
-        
-        if xdg_result.is_err() {
-            // Try nautilus (GNOME)
-            let nautilus_result = tokio::process::Command::new("nautilus")
-                .arg(&absolute_path)
-                .spawn();
-            
-            if nautilus_result.is_err() {
-                // Try dolphin (KDE)
-                tokio::process::Command::new("dolphin")
-                    .arg(&absolute_path)
-                    .spawn()
-            } else {
-                nautilus_result
-            }
-        } else {
-            xdg_result
-        }
-    };
+    let result = tokio::process::Command::new("xdg-open")
+        .arg(&absolute_path)
+        .spawn();
     
     match result {
         Ok(_) => Ok(Json(serde_json::json!({
             "success": true,
-            "message": format!("Opened file location: {}", absolute_path.display())
+            "message": format!("Opened file: {}", absolute_path.display())
         }))),
-        Err(e) => Err(AppError::Internal(format!("Failed to open file location: {}", e)))
+        Err(e) => Err(AppError::Internal(format!("Failed to open file: {}", e)))
     }
 }
 
@@ -730,7 +717,7 @@ pub async fn reveal_file_in_explorer(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let path = PathBuf::from(&request.path);
     
-    // Ensure we have an absolute path and normalize it
+    // Ensure we have an absolute path
     let absolute_path = if path.is_absolute() {
         path
     } else {
@@ -744,13 +731,18 @@ pub async fn reveal_file_in_explorer(
     
     tracing::info!("Revealing file in explorer: {:?}", absolute_path);
     
+    // Verify the file exists
+    if !absolute_path.exists() {
+        return Err(AppError::Internal(format!("File does not exist: {}", absolute_path.display())));
+    }
+    
     // Platform-specific command to reveal and select file
     #[cfg(target_os = "windows")]
     let result = {
         // On Windows, use explorer.exe /select,<path>
-        // The path must use backslashes and be passed as a single argument with /select,
-        let path_str = absolute_path.display().to_string().replace("/", "\\");
-        tracing::info!("Windows explorer command: explorer /select,{}", path_str);
+        let path_str = absolute_path.display().to_string();
+        tracing::info!("Windows explorer command: explorer /select,\"{}\"", path_str);
+        
         tokio::process::Command::new("explorer")
             .arg(format!("/select,{}", path_str))
             .spawn()
@@ -764,13 +756,8 @@ pub async fn reveal_file_in_explorer(
     
     #[cfg(target_os = "linux")]
     let result = {
-        // On Linux, most file managers don't support selecting a file
-        // We'll open the parent directory instead
-        let parent = absolute_path.parent()
-            .unwrap_or(&absolute_path)
-            .to_path_buf();
-        
-        // Try dbus method first (works with Nautilus, Dolphin, etc.)
+        // On Linux, try dbus method first (works with Nautilus, Dolphin, etc.)
+        let path_str = absolute_path.display().to_string();
         let dbus_result = tokio::process::Command::new("dbus-send")
             .args([
                 "--session",
@@ -778,13 +765,16 @@ pub async fn reveal_file_in_explorer(
                 "--type=method_call",
                 "/org/freedesktop/FileManager1",
                 "org.freedesktop.FileManager1.ShowItems",
-                &format!("array:string:file://{}", absolute_path.display()),
+                &format!("array:string:file://{}", path_str),
                 "string:",
             ])
             .spawn();
         
         if dbus_result.is_err() {
-            // Fallback: just open parent directory
+            // Fallback: open parent directory with xdg-open
+            let parent = absolute_path.parent()
+                .unwrap_or(&absolute_path)
+                .to_path_buf();
             tokio::process::Command::new("xdg-open")
                 .arg(&parent)
                 .spawn()
@@ -816,27 +806,20 @@ pub async fn show_file_properties(
             .join(&path)
     };
     
+    // Canonicalize to get the real path
+    let absolute_path = absolute_path.canonicalize().unwrap_or(absolute_path);
+    
     tracing::info!("Showing properties for: {:?}", absolute_path);
     
     #[cfg(target_os = "windows")]
     let result = {
-        // Windows: Use shell32.dll to show properties
-        // Don't use canonicalize() as it adds \\?\ prefix which breaks PowerShell
-        let path_str = absolute_path.display().to_string()
-            .replace("/", "\\")
-            .replace("\\\\?\\", ""); // Remove UNC prefix if present
+        // Windows: Use shell32.dll Properties_RunDLL to show actual properties dialog
+        let path_str = absolute_path.display().to_string();
         
         tracing::info!("Windows properties path: {}", path_str);
         
-        // Use a simpler approach with explorer.exe properties
-        tokio::process::Command::new("cmd")
-            .args([
-                "/c",
-                "start",
-                "",
-                "explorer.exe",
-                &format!("/select,\"{}\"", path_str)
-            ])
+        tokio::process::Command::new("rundll32")
+            .args(["shell32.dll,Properties_RunDLL", &path_str])
             .spawn()
     };
     
@@ -895,28 +878,31 @@ pub async fn open_with_dialog(
             .join(&path)
     };
     
+    // Canonicalize to get the real path
+    let absolute_path = absolute_path.canonicalize().unwrap_or(absolute_path);
+    
     tracing::info!("Opening 'Open with' dialog for: {:?}", absolute_path);
     
     #[cfg(target_os = "windows")]
     let result = {
         // Windows: Use rundll32 to show "Open with" dialog
-        let path_str = absolute_path.display().to_string()
-            .replace("/", "\\")
-            .replace("\\\\?\\", ""); // Remove UNC prefix if present
+        let path_str = absolute_path.display().to_string();
         
         tracing::info!("Windows open-with path: {}", path_str);
         
+        // Important: shell32.dll,OpenAs_RunDLL and path must be separate arguments
         tokio::process::Command::new("rundll32")
-            .args(["shell32.dll,OpenAs_RunDLL", &path_str])
+            .arg("shell32.dll,OpenAs_RunDLL")
+            .arg(&path_str)
             .spawn()
     };
     
     #[cfg(target_os = "macos")]
     let result = {
-        // macOS: Reveal in Finder (user can then right-click and choose "Open With")
+        // macOS: Use open -a to show application chooser
         let path_str = absolute_path.display().to_string();
         tokio::process::Command::new("open")
-            .args(["-R", &path_str])
+            .args(["-a", "Finder", &path_str])
             .spawn()
     };
     
@@ -935,6 +921,53 @@ pub async fn open_with_dialog(
             "message": format!("Opened 'Open with' dialog for: {}", absolute_path.display())
         }))),
         Err(e) => Err(AppError::Internal(format!("Failed to open 'Open with' dialog: {}", e)))
+    }
+}
+
+/// Delete a file or directory
+pub async fn delete_file(
+    Json(request): Json<OpenFileRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let path = PathBuf::from(&request.path);
+    
+    // Ensure we have an absolute path
+    let absolute_path = if path.is_absolute() {
+        path
+    } else {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+            .join(&path)
+    };
+    
+    // Canonicalize to get the real path
+    let absolute_path = absolute_path.canonicalize().unwrap_or(absolute_path);
+    
+    tracing::info!("Deleting file: {:?}", absolute_path);
+    
+    // Verify the file exists
+    if !absolute_path.exists() {
+        return Err(AppError::Internal(format!("File does not exist: {}", absolute_path.display())));
+    }
+    
+    // Delete the file or directory
+    let result = if absolute_path.is_dir() {
+        tokio::fs::remove_dir_all(&absolute_path).await
+    } else {
+        tokio::fs::remove_file(&absolute_path).await
+    };
+    
+    match result {
+        Ok(_) => {
+            tracing::info!("Successfully deleted: {:?}", absolute_path);
+            Ok(Json(serde_json::json!({
+                "success": true,
+                "message": format!("Deleted: {}", absolute_path.display())
+            })))
+        }
+        Err(e) => {
+            tracing::error!("Failed to delete {:?}: {}", absolute_path, e);
+            Err(AppError::Internal(format!("Failed to delete file: {}", e)))
+        }
     }
 }
 

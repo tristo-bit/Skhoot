@@ -25,48 +25,10 @@ const formatBytes = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
 
-// Helper function to get file color based on extension
+// Helper function to get file color - unified violet theme
 const getFileColor = (fileName: string, isFolder: boolean): { bg: string; text: string } => {
-  if (isFolder) {
-    return { bg: '#8B5CF6', text: '#A78BFA' }; // Violet for folders
-  }
-  
-  const ext = fileName.split('.').pop()?.toLowerCase() || '';
-  
-  // Color mapping based on file type
-  const colorMap: Record<string, { bg: string; text: string }> = {
-    // Images - Light purple/lavender
-    'jpg': { bg: '#C4B5FD', text: '#A78BFA' },
-    'jpeg': { bg: '#C4B5FD', text: '#A78BFA' },
-    'png': { bg: '#C4B5FD', text: '#A78BFA' },
-    'gif': { bg: '#C4B5FD', text: '#A78BFA' },
-    'svg': { bg: '#C4B5FD', text: '#A78BFA' },
-    'webp': { bg: '#C4B5FD', text: '#A78BFA' },
-    
-    // Documents - Green
-    'md': { bg: '#86EFAC', text: '#4ADE80' },
-    'txt': { bg: '#86EFAC', text: '#4ADE80' },
-    'doc': { bg: '#86EFAC', text: '#4ADE80' },
-    'docx': { bg: '#86EFAC', text: '#4ADE80' },
-    'pdf': { bg: '#86EFAC', text: '#4ADE80' },
-    
-    // Code - Blue
-    'js': { bg: '#93C5FD', text: '#60A5FA' },
-    'ts': { bg: '#93C5FD', text: '#60A5FA' },
-    'jsx': { bg: '#93C5FD', text: '#60A5FA' },
-    'tsx': { bg: '#93C5FD', text: '#60A5FA' },
-    'py': { bg: '#93C5FD', text: '#60A5FA' },
-    'java': { bg: '#93C5FD', text: '#60A5FA' },
-    
-    // Data - Yellow
-    'json': { bg: '#FDE047', text: '#FACC15' },
-    'xml': { bg: '#FDE047', text: '#FACC15' },
-    'csv': { bg: '#FDE047', text: '#FACC15' },
-    'yaml': { bg: '#FDE047', text: '#FACC15' },
-    'yml': { bg: '#FDE047', text: '#FACC15' },
-  };
-  
-  return colorMap[ext] || { bg: '#8B5CF6', text: '#A78BFA' }; // Default violet
+  // All files and folders use violet color for consistency
+  return { bg: '#8B5CF6', text: '#A78BFA' };
 };
 
 // File action handlers - using fileOperations service
@@ -90,18 +52,14 @@ const fileActions = {
   },
   
   delete: async (filePath: string): Promise<boolean> => {
-    if (!confirm(`⚠️ Delete this file?\n\n${filePath}\n\nThis cannot be undone.`)) {
+    // This only removes from Recent list, does NOT delete the actual file
+    if (!confirm(`⚠️ Remove this file from Recent?\n\n${filePath}\n\nThe file will remain on your disk.`)) {
       return false;
     }
     
-    const success = await fileOperations.delete(filePath);
-    if (success) {
-      alert('✅ File deleted');
-    } else {
-      await navigator.clipboard.writeText(filePath);
-      alert(`❌ Could not delete automatically.\n\nPath copied - delete manually.`);
-    }
-    return success;
+    // Just return true - the file will be removed from the UI list
+    // The actual file on disk is NOT touched
+    return true;
   },
   
   properties: async (filePath: string): Promise<boolean> => {
@@ -180,24 +138,6 @@ const FileContextMenu: React.FC<{
   if (!isOpen) return null;
   
   const menuItems = [
-    { icon: <ExternalLink size={14} />, label: 'Open', action: async () => { await fileActions.open(file.path); } },
-    { icon: <FolderOpen size={14} />, label: 'Show in folder', action: async () => { await fileActions.revealInExplorer(file.path); } },
-    { divider: true },
-    { icon: <Copy size={14} />, label: 'Copy path', action: async () => { 
-      const success = await fileActions.copy(file.path);
-      if (success) {
-        alert('✅ Path copied to clipboard!');
-      }
-    }},
-    { icon: <Scissors size={14} />, label: 'Cut (copy path)', action: async () => { 
-      await fileActions.copy(file.path);
-      alert('✅ Path copied (cut)');
-    }},
-    { divider: true },
-    { icon: <Archive size={14} />, label: 'Compress to ZIP', action: async () => { await fileActions.compress(file.path); } },
-    { icon: <ExternalLink size={14} />, label: 'Open with...', action: async () => { await fileActions.openWith(file.path); } },
-    { divider: true },
-    { icon: <Info size={14} />, label: 'Properties', action: async () => { await fileActions.properties(file.path); } },
     { icon: <Trash2 size={14} />, label: 'Delete', action: async () => { await fileActions.delete(file.path); }, danger: true },
   ];
   
@@ -461,7 +401,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
     >
       <div className="h-full flex flex-col">
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          {activeTab === 'recent' && <RecentTab files={recentFiles} viewMode={viewMode} isLoading={isLoading} />}
+          {activeTab === 'recent' && <RecentTab files={recentFiles} viewMode={viewMode} isLoading={isLoading} onFileDeleted={(fileId) => setRecentFiles(prev => prev.filter(f => f.id !== fileId))} />}
           {activeTab === 'images' && <ImagesTab viewMode={viewMode} isLoading={isLoading} />}
           {activeTab === 'disk' && <DiskTab />}
           {activeTab === 'analysis' && <AnalysisTab />}
@@ -484,7 +424,7 @@ const ActivityIcon = ({ type }: { type?: ActivityType }) => {
   }
 };
 
-const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading: boolean }>(({ files, viewMode, isLoading }) => {
+const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading: boolean; onFileDeleted: (fileId: string) => void }>(({ files, viewMode, isLoading, onFileDeleted }) => {
   const [contextMenu, setContextMenu] = useState<{ file: FileItem; position: { x: number; y: number } } | null>(null);
   
   const handleOpenFolder = async (path: string, e: React.MouseEvent) => {
@@ -529,6 +469,20 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
     console.log(`[FileExplorer] Dispatched add-file-reference: @${fileName} -> ${file.path}`);
   };
 
+  const handleDeleteFile = async (file: FileItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const confirmed = await fileActions.delete(file.path);
+    if (confirmed) {
+      // Remove from Recent list only - file stays on disk
+      onFileDeleted(file.id);
+    }
+  };
+
+  const handleOpenFile = async (file: FileItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await fileActions.open(file.path);
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-full">
       <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--text-secondary)' }} />
@@ -561,10 +515,11 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
                     <MessageSquarePlus size={12} className="text-purple-400" />
                   </button>
                   <button
-                    onClick={(e) => handleMoreClick(file, e)}
-                    className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
+                    onClick={(e) => handleDeleteFile(file, e)}
+                    className="p-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-all"
+                    title="Delete"
                   >
-                    <MoreHorizontal size={12} className="text-text-secondary" />
+                    <Trash2 size={12} className="text-red-400" />
                   </button>
                 </div>
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-2 relative" style={{ backgroundColor: `${colors.bg}20` }}>
@@ -575,7 +530,14 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
                     </div>
                   )}
                 </div>
-                <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                <p 
+                  className="text-xs font-medium truncate cursor-pointer hover:underline" 
+                  style={{ color: 'var(--text-primary)' }}
+                  onClick={(e) => handleOpenFile(file, e)}
+                  title="Click to open"
+                >
+                  {file.name}
+                </p>
                 <p 
                   className="text-[10px] mt-1 cursor-pointer hover:underline hover:opacity-80 transition-opacity truncate" 
                   style={{ color: 'var(--text-secondary)' }}
@@ -614,7 +576,14 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                  <p 
+                    className="text-sm font-medium truncate cursor-pointer hover:underline" 
+                    style={{ color: 'var(--text-primary)' }}
+                    onClick={(e) => handleOpenFile(file, e)}
+                    title="Click to open"
+                  >
+                    {file.name}
+                  </p>
                   <ActivityIcon type={file.activityType} />
                 </div>
                 <p 
@@ -643,12 +612,11 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
                 <MessageSquarePlus size={14} className="text-purple-400" />
               </button>
               <button 
-                onClick={(e) => handleMoreClick(file, e)}
-                className="p-1.5 rounded-lg hover:bg-white/10 transition-all"
-                title="More actions"
-                style={{ backgroundColor: `${colors.bg}10` }}
+                onClick={(e) => handleDeleteFile(file, e)}
+                className="p-1.5 rounded-lg hover:bg-red-500/20 transition-all"
+                title="Delete"
               >
-                <MoreHorizontal size={14} style={{ color: colors.text }} />
+                <Trash2 size={14} className="text-red-400" />
               </button>
             </div>
           </div>
