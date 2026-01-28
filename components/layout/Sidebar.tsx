@@ -44,26 +44,18 @@ const Sidebar: React.FC<SidebarProps> = ({
   const sidebar = (
     <div 
       data-sidebar
-      className={`fixed top-0 left-0 bottom-0 z-[100] w-64 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] pointer-events-none ${
+      className={`fixed top-0 left-0 bottom-0 z-[70] w-64 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] pointer-events-none ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
       style={{
-        borderTopLeftRadius: 'var(--app-radius)',
-        borderBottomLeftRadius: 'var(--app-radius)',
         borderTopRightRadius: 'var(--app-radius)',
         borderBottomRightRadius: 'var(--app-radius)',
         overflow: 'hidden',
-        clipPath: 'inset(0 0 0 0 round var(--app-radius))',
+        clipPath: 'inset(0 0 0 0 round 0 var(--app-radius) var(--app-radius) 0)',
       }}
     >
       <div 
         className="w-full h-full border-r border-black/5 flex flex-col relative glass pointer-events-auto"
-        style={{
-          borderTopLeftRadius: 'var(--app-radius)',
-          borderBottomLeftRadius: 'var(--app-radius)',
-          borderTopRightRadius: 'var(--app-radius)',
-          borderBottomRightRadius: 'var(--app-radius)',
-        }}
       >
       
       {/* Sidebar Header */}
@@ -147,7 +139,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     </div>
   );
 
-  // Render via portal to document.body to be in same context as panels
+  // Render via portal to document.body to be above all panels
   return createPortal(sidebar, document.body);
 };
 
