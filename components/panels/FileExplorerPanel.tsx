@@ -103,83 +103,6 @@ const fileActions = {
   },
 };
 
-// File context menu dropdown component - rendered as portal to avoid overflow issues
-const FileContextMenu: React.FC<{
-  file: FileItem;
-  isOpen: boolean;
-  onClose: () => void;
-  position: { x: number; y: number };
-}> = ({ file, isOpen, onClose, position }) => {
-  const menuRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleEscape);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen, onClose]);
-  
-  if (!isOpen) return null;
-  
-  const menuItems = [
-    { icon: <Trash2 size={14} />, label: 'Delete', action: async () => { await fileActions.delete(file.path); }, danger: true },
-  ];
-  
-  const menu = (
-    <div
-      ref={menuRef}
-      className="fixed z-[99999] min-w-[180px] py-1.5 rounded-xl backdrop-blur-xl border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
-      style={{ 
-        top: Math.min(position.y, window.innerHeight - 320),
-        left: Math.min(position.x, window.innerWidth - 200),
-        backgroundColor: 'var(--bg-primary)',
-      }}
-    >
-      {menuItems.map((item, i) => 
-        item.divider ? (
-          <div key={i} className="my-1 border-t border-white/10" />
-        ) : (
-          <button
-            key={i}
-            onClick={async (e) => {
-              e.stopPropagation();
-              await item.action?.();
-              onClose();
-            }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs font-medium transition-all hover:bg-white/10 ${
-              item.danger ? 'text-red-400 hover:bg-red-500/10' : 
-              (item as any).highlight ? 'bg-purple-500/10 hover:bg-purple-500/20' : ''
-            }`}
-            style={{ color: item.danger ? undefined : (item as any).highlight ? '#a78bfa' : 'var(--text-primary)' }}
-          >
-            <span className={item.danger ? 'text-red-400' : (item as any).highlight ? 'text-purple-400' : 'text-text-secondary'}>{item.icon}</span>
-            {item.label}
-          </button>
-        )
-      )}
-    </div>
-  );
-  
-  // Render as portal to avoid overflow issues
-  return createPortal(menu, document.body);
-};
-
 type TabId = 'recent' | 'images' | 'disk' | 'analysis' | 'cleanup';
 
 interface FileItem {
@@ -425,8 +348,21 @@ const ActivityIcon = ({ type }: { type?: ActivityType }) => {
 };
 
 const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading: boolean; onFileDeleted: (fileId: string) => void }>(({ files, viewMode, isLoading, onFileDeleted }) => {
-  const [contextMenu, setContextMenu] = useState<{ file: FileItem; position: { x: number; y: number } } | null>(null);
-  
+  const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
+  const [clickedButton, setClickedButton] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToast({ message, visible: true });
+    setTimeout(() => {
+      setToast({ message: '', visible: false });
+    }, 2000);
+  };
+
+  const handleButtonClick = (buttonId: string) => {
+    setClickedButton(buttonId);
+    setTimeout(() => setClickedButton(null), 200);
+  };
+
   const handleOpenFolder = async (path: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const success = await fileOperations.reveal(path);
@@ -435,21 +371,11 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
       alert(`📋 Path copied!\n\n${path}`);
     }
   };
-  
-  const handleContextMenu = (file: FileItem, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setContextMenu({ file, position: { x: e.clientX, y: e.clientY } });
-  };
-  
-  const handleMoreClick = (file: FileItem, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
-    setContextMenu({ file, position: { x: rect.left, y: rect.bottom + 4 } });
-  };
 
   const handleAddToChat = (file: FileItem, e: React.MouseEvent) => {
     e.stopPropagation();
+    handleButtonClick(`add-${file.id}`);
+    
     // Add file reference to chat via custom event
     const fileName = file.path.split(/[/\\]/).pop() || file.path;
     
@@ -469,8 +395,33 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
     console.log(`[FileExplorer] Dispatched add-file-reference: @${fileName} -> ${file.path}`);
   };
 
+  const handleDownloadFile = async (file: FileItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleButtonClick(`download-${file.id}`);
+    
+    if (file.type === 'folder') {
+      // For folders, copy the path to clipboard
+      await navigator.clipboard.writeText(file.path);
+      alert(`📋 Folder path copied!\n\n${file.path}`);
+      return;
+    }
+
+    // For files, use the fileOperations service to download
+    const success = await fileOperations.download(file.path, file.name);
+    
+    if (success) {
+      showToast(`✓ Downloaded: ${file.name}`);
+    } else {
+      // Fallback: copy path to clipboard
+      await navigator.clipboard.writeText(file.path);
+      alert(`❌ Download failed\n\n📋 File path copied to clipboard:\n${file.path}`);
+    }
+  };
+
   const handleDeleteFile = async (file: FileItem, e: React.MouseEvent) => {
     e.stopPropagation();
+    handleButtonClick(`delete-${file.id}`);
+    
     const confirmed = await fileActions.delete(file.path);
     if (confirmed) {
       // Remove from Recent list only - file stays on disk
@@ -497,6 +448,13 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
   if (viewMode === 'grid') {
     return (
       <>
+        {/* Toast notification */}
+        {toast.visible && (
+          <div className="fixed top-4 right-4 z-50 px-4 py-2 rounded-lg bg-green-500/90 text-white text-sm font-medium shadow-lg animate-fade-in">
+            {toast.message}
+          </div>
+        )}
+        
         <div className="grid grid-cols-4 gap-3">
           {files.map(file => {
             const colors = getFileColor(file.name, file.type === 'folder');
@@ -504,19 +462,25 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
               <div 
                 key={file.id} 
                 className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer relative group"
-                onContextMenu={(e) => handleContextMenu(file, e)}
               >
                 <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100">
                   <button
                     onClick={(e) => handleAddToChat(file, e)}
-                    className="p-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-all"
+                    className={`p-1 rounded-lg hover:bg-white/10 transition-all ${clickedButton === `add-${file.id}` ? 'scale-90' : 'scale-100'}`}
                     title="Add to chat"
                   >
                     <MessageSquarePlus size={12} className="text-purple-400" />
                   </button>
                   <button
+                    onClick={(e) => handleDownloadFile(file, e)}
+                    className={`p-1 rounded-lg hover:bg-white/10 transition-all ${clickedButton === `download-${file.id}` ? 'scale-90' : 'scale-100'}`}
+                    title="Download"
+                  >
+                    <Download size={12} className="text-gray-700 dark:text-gray-300" />
+                  </button>
+                  <button
                     onClick={(e) => handleDeleteFile(file, e)}
-                    className="p-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-all"
+                    className={`p-1 rounded-lg hover:bg-white/10 transition-all ${clickedButton === `delete-${file.id}` ? 'scale-90' : 'scale-100'}`}
                     title="Delete"
                   >
                     <Trash2 size={12} className="text-red-400" />
@@ -549,19 +513,18 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
             );
           })}
         </div>
-        {contextMenu && (
-          <FileContextMenu
-            file={contextMenu.file}
-            isOpen={true}
-            onClose={() => setContextMenu(null)}
-            position={contextMenu.position}
-          />
-        )}
       </>
     );
   }
   return (
     <>
+      {/* Toast notification */}
+      {toast.visible && (
+        <div className="fixed top-4 right-4 z-50 px-4 py-2 rounded-lg bg-green-500/90 text-white text-sm font-medium shadow-lg animate-fade-in">
+          {toast.message}
+        </div>
+      )}
+      
       <div className="space-y-1">
         {files.map(file => {
           const colors = getFileColor(file.name, file.type === 'folder');
@@ -569,7 +532,6 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
             <div 
               key={file.id} 
               className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all cursor-pointer group"
-              onContextMenu={(e) => handleContextMenu(file, e)}
             >
               <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${colors.bg}10` }}>
                 {file.type === 'folder' ? <Folder size={16} style={{ color: colors.text }} /> : <File size={16} style={{ color: colors.text }} />}
@@ -606,14 +568,21 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
             <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100">
               <button 
                 onClick={(e) => handleAddToChat(file, e)}
-                className="p-1.5 rounded-lg hover:bg-purple-500/20 transition-all"
+                className={`p-1.5 rounded-lg hover:bg-white/10 transition-all ${clickedButton === `add-${file.id}` ? 'scale-90' : 'scale-100'}`}
                 title="Add to chat"
               >
                 <MessageSquarePlus size={14} className="text-purple-400" />
               </button>
               <button 
+                onClick={(e) => handleDownloadFile(file, e)}
+                className={`p-1.5 rounded-lg hover:bg-white/10 transition-all ${clickedButton === `download-${file.id}` ? 'scale-90' : 'scale-100'}`}
+                title="Download"
+              >
+                <Download size={14} className="text-gray-700 dark:text-gray-300" />
+              </button>
+              <button 
                 onClick={(e) => handleDeleteFile(file, e)}
-                className="p-1.5 rounded-lg hover:bg-red-500/20 transition-all"
+                className={`p-1.5 rounded-lg hover:bg-white/10 transition-all ${clickedButton === `delete-${file.id}` ? 'scale-90' : 'scale-100'}`}
                 title="Delete"
               >
                 <Trash2 size={14} className="text-red-400" />
@@ -623,14 +592,6 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
           );
         })}
       </div>
-      {contextMenu && (
-        <FileContextMenu
-          file={contextMenu.file}
-          isOpen={true}
-          onClose={() => setContextMenu(null)}
-          position={contextMenu.position}
-        />
-      )}
     </>
   );
 });

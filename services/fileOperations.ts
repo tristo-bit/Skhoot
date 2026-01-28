@@ -153,4 +153,47 @@ export const fileOperations = {
       return null;
     }
   },
+
+  /**
+   * Download a file - reads file content and triggers browser download
+   */
+  download: async (filePath: string, fileName: string): Promise<boolean> => {
+    try {
+      // Use the read endpoint to get file content
+      const response = await fetch(`${BACKEND_URL}/files/read?path=${encodeURIComponent(filePath)}`);
+      
+      if (!response.ok) {
+        console.error('[FileOperations] Download failed: HTTP', response.status);
+        return false;
+      }
+
+      const result = await response.json();
+      
+      if (!result.success || !result.content) {
+        console.error('[FileOperations] Download failed: Invalid response');
+        return false;
+      }
+
+      // Create a blob from the content
+      const blob = new Blob([result.content], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create download link and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('[FileOperations] Download successful:', fileName);
+      return true;
+    } catch (error) {
+      console.error('[FileOperations] Download failed:', error);
+      return false;
+    }
+  },
 };

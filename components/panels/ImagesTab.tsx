@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { 
-  Image as ImageIcon, RefreshCw, MoreHorizontal, Trash2, 
-  MessageSquarePlus, Download, ExternalLink, Filter, X, ChevronDown
+  Image as ImageIcon, RefreshCw, Trash2, 
+  MessageSquarePlus, Download, Filter, X, ChevronDown
 } from 'lucide-react';
 import { imageStorage, StoredImage, ImageFilter, ImageSortOrder } from '../../services/imageStorage';
 import { Modal } from '../ui/Modal';
@@ -12,145 +11,27 @@ interface ImagesTabProps {
   isLoading?: boolean;
 }
 
-// Image context menu component
-const ImageContextMenu: React.FC<{
-  image: StoredImage;
-  isOpen: boolean;
-  onClose: () => void;
-  position: { x: number; y: number };
-  onDelete: (id: string) => void;
-}> = ({ image, isOpen, onClose, position, onDelete }) => {
-  const menuRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleEscape);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen, onClose]);
-  
-  if (!isOpen) return null;
-  
-  const handleAddToChat = () => {
-    // Dispatch event to add image to chat
-    const event = new CustomEvent('add-image-to-chat', {
-      detail: { imageUrl: image.url, fileName: image.fileName || 'image' }
-    });
-    window.dispatchEvent(event);
-    
-    // Focus the textarea
-    const textarea = document.querySelector('textarea.file-mention-input') as HTMLTextAreaElement;
-    if (textarea) {
-      textarea.focus();
-    }
-    
-    console.log(`[ImagesTab] Added image to chat: ${image.fileName || image.url}`);
-  };
-  
-  const handleDownload = async () => {
-    try {
-      const link = document.createElement('a');
-      link.href = image.url;
-      link.download = image.fileName || `image_${Date.now()}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('Failed to download image:', error);
-      alert('❌ Failed to download image');
-    }
-  };
-  
-  const handleViewDetails = () => {
-    const details = [
-      `Name: ${image.fileName || 'Unknown'}`,
-      `Source: ${image.source === 'user' ? 'User Upload' : 'Web Search'}`,
-      `Date: ${new Date(image.timestamp).toLocaleString()}`,
-      image.searchQuery ? `Search: ${image.searchQuery}` : null,
-      `URL: ${image.url.substring(0, 100)}${image.url.length > 100 ? '...' : ''}`,
-    ].filter(Boolean).join('\n\n');
-    
-    alert(`🖼️ Image Details\n\n${details}`);
-  };
-  
-  const handleDelete = () => {
-    if (confirm(`⚠️ Delete this image?\n\n${image.fileName || 'Image'}\n\nThis cannot be undone.`)) {
-      onDelete(image.id);
-      onClose();
-    }
-  };
-  
-  const menuItems = [
-    { icon: <MessageSquarePlus size={14} />, label: 'Add to chat', action: handleAddToChat, highlight: true },
-    { divider: true },
-    { icon: <ExternalLink size={14} />, label: 'View details', action: handleViewDetails },
-    { icon: <Download size={14} />, label: 'Download', action: handleDownload },
-    { divider: true },
-    { icon: <Trash2 size={14} />, label: 'Delete', action: handleDelete, danger: true },
-  ];
-  
-  const menu = (
-    <div
-      ref={menuRef}
-      className="fixed z-[99999] min-w-[180px] py-1.5 rounded-xl backdrop-blur-xl border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
-      style={{ 
-        top: Math.min(position.y, window.innerHeight - 250),
-        left: Math.min(position.x, window.innerWidth - 200),
-        backgroundColor: 'var(--bg-primary)',
-      }}
-    >
-      {menuItems.map((item, i) => 
-        item.divider ? (
-          <div key={i} className="my-1 border-t border-white/10" />
-        ) : (
-          <button
-            key={i}
-            onClick={async (e) => {
-              e.stopPropagation();
-              await item.action?.();
-              onClose();
-            }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs font-medium transition-all hover:bg-white/10 ${
-              item.danger ? 'text-red-400 hover:bg-red-500/10' : 
-              (item as any).highlight ? 'bg-purple-500/10 hover:bg-purple-500/20' : ''
-            }`}
-            style={{ color: item.danger ? undefined : (item as any).highlight ? '#a78bfa' : 'var(--text-primary)' }}
-          >
-            <span className={item.danger ? 'text-red-400' : (item as any).highlight ? 'text-purple-400' : 'text-text-secondary'}>{item.icon}</span>
-            {item.label}
-          </button>
-        )
-      )}
-    </div>
-  );
-  
-  return createPortal(menu, document.body);
-};
-
 export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: externalLoading }) => {
   const [images, setImages] = useState<StoredImage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ image: StoredImage; position: { x: number; y: number } } | null>(null);
   const [selectedImage, setSelectedImage] = useState<StoredImage | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filter, setFilter] = useState<ImageFilter>({ source: 'all' });
   const [sortOrder, setSortOrder] = useState<ImageSortOrder>('recent');
+  const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
+  const [clickedButton, setClickedButton] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToast({ message, visible: true });
+    setTimeout(() => {
+      setToast({ message: '', visible: false });
+    }, 2000);
+  };
+
+  const handleButtonClick = (buttonId: string) => {
+    setClickedButton(buttonId);
+    setTimeout(() => setClickedButton(null), 200);
+  };
   
   const loadImages = useCallback(() => {
     setIsLoading(true);
@@ -171,25 +52,86 @@ export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: 
     loadImages();
   }, [loadImages]);
   
-  const handleContextMenu = (image: StoredImage, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setContextMenu({ image, position: { x: e.clientX, y: e.clientY } });
-  };
-  
-  const handleMoreClick = (image: StoredImage, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
-    setContextMenu({ image, position: { x: rect.left, y: rect.bottom + 4 } });
-  };
-  
   const handleDelete = (id: string) => {
+    // Only remove from Images panel storage, not from disk
     imageStorage.deleteImage(id);
     loadImages();
   };
   
   const handleImageClick = (image: StoredImage) => {
     setSelectedImage(image);
+  };
+  
+  const handleAddToChat = (image: StoredImage, e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleButtonClick(`add-${image.id}`);
+    
+    // Dispatch event to add image to chat - using same event as FileExplorer
+    const fileName = image.fileName || `image_${Date.now()}.jpg`;
+    
+    console.log('[ImagesTab] Adding image to chat:', {
+      fileName,
+      url: image.url,
+      source: image.source
+    });
+    
+    const event = new CustomEvent('add-file-reference', {
+      detail: { fileName, filePath: image.url }
+    });
+    window.dispatchEvent(event);
+    
+    console.log('[ImagesTab] Event dispatched: add-file-reference');
+    
+    // Focus the textarea
+    const textarea = document.querySelector('textarea.file-mention-input') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.focus();
+      console.log('[ImagesTab] Textarea focused');
+    } else {
+      console.warn('[ImagesTab] Textarea not found');
+    }
+  };
+  
+  const handleDownloadImage = async (image: StoredImage, e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleButtonClick(`download-${image.id}`);
+    
+    try {
+      // Fetch the image as a blob to trigger actual download
+      const response = await fetch(image.url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = image.fileName || `image_${Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      URL.revokeObjectURL(blobUrl);
+      
+      console.log('[ImagesTab] Download successful:', image.fileName);
+      showToast(`✓ Downloaded: ${image.fileName || 'image'}`);
+    } catch (error) {
+      console.error('[ImagesTab] Download failed:', error);
+      alert(`❌ Download failed\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+  
+  const handleDeleteDirect = (image: StoredImage, e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleButtonClick(`delete-${image.id}`);
+    
+    if (confirm(`⚠️ Remove this image from Images panel?\n\n${image.fileName || 'Image'}\n\nThe file will remain on your disk.`)) {
+      handleDelete(image.id);
+    }
   };
   
   const stats = imageStorage.getStats();
@@ -212,6 +154,13 @@ export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: 
   
   return (
     <>
+      {/* Toast notification */}
+      {toast.visible && (
+        <div className="fixed top-4 right-4 z-50 px-4 py-2 rounded-lg bg-green-500/90 text-white text-sm font-medium shadow-lg animate-fade-in">
+          {toast.message}
+        </div>
+      )}
+      
       {/* Stats and filters bar */}
       <div className="mb-3 space-y-2">
         <div className="flex items-center justify-between">
@@ -264,7 +213,6 @@ export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: 
             <div 
               key={image.id} 
               className="relative rounded-xl overflow-hidden bg-white/5 hover:bg-white/10 transition-all cursor-pointer group aspect-square"
-              onContextMenu={(e) => handleContextMenu(image, e)}
               onClick={() => handleImageClick(image)}
             >
               <img
@@ -281,16 +229,30 @@ export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: 
                 {image.source === 'user' ? 'USER' : 'WEB'}
               </div>
               
-              {/* More button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleMoreClick(image, e);
-                }}
-                className="absolute top-2 right-2 p-1 rounded-lg bg-black/50 hover:bg-black/70 transition-all opacity-0 group-hover:opacity-100"
-              >
-                <MoreHorizontal size={12} className="text-white" />
-              </button>
+              {/* Action buttons - Add to chat, Download, and Delete */}
+              <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={(e) => handleAddToChat(image, e)}
+                  className={`p-1 rounded-lg hover:bg-white/10 transition-all ${clickedButton === `add-${image.id}` ? 'scale-90' : 'scale-100'}`}
+                  title="Add to chat"
+                >
+                  <MessageSquarePlus size={12} className="text-purple-400" />
+                </button>
+                <button
+                  onClick={(e) => handleDownloadImage(image, e)}
+                  className={`p-1 rounded-lg hover:bg-white/10 transition-all ${clickedButton === `download-${image.id}` ? 'scale-90' : 'scale-100'}`}
+                  title="Download"
+                >
+                  <Download size={12} className="text-gray-700 dark:text-gray-300" />
+                </button>
+                <button
+                  onClick={(e) => handleDeleteDirect(image, e)}
+                  className={`p-1 rounded-lg hover:bg-white/10 transition-all ${clickedButton === `delete-${image.id}` ? 'scale-90' : 'scale-100'}`}
+                  title="Delete"
+                >
+                  <Trash2 size={12} className="text-red-400" />
+                </button>
+              </div>
               
               {/* Filename overlay */}
               {image.fileName && (
@@ -307,7 +269,6 @@ export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: 
             <div 
               key={image.id} 
               className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all cursor-pointer group"
-              onContextMenu={(e) => handleContextMenu(image, e)}
               onClick={() => handleImageClick(image)}
             >
               <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/5 flex-shrink-0">
@@ -328,27 +289,32 @@ export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: 
                 </p>
               </div>
               
-              <button 
-                onClick={(e) => handleMoreClick(image, e)}
-                className="p-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 transition-all opacity-60 group-hover:opacity-100"
-                title="More actions"
-              >
-                <MoreHorizontal size={14} className="text-purple-400" />
-              </button>
+              <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100">
+                <button 
+                  onClick={(e) => handleAddToChat(image, e)}
+                  className={`p-1.5 rounded-lg hover:bg-white/10 transition-all ${clickedButton === `add-${image.id}` ? 'scale-90' : 'scale-100'}`}
+                  title="Add to chat"
+                >
+                  <MessageSquarePlus size={14} className="text-purple-400" />
+                </button>
+                <button 
+                  onClick={(e) => handleDownloadImage(image, e)}
+                  className={`p-1.5 rounded-lg hover:bg-white/10 transition-all ${clickedButton === `download-${image.id}` ? 'scale-90' : 'scale-100'}`}
+                  title="Download"
+                >
+                  <Download size={14} className="text-gray-700 dark:text-gray-300" />
+                </button>
+                <button 
+                  onClick={(e) => handleDeleteDirect(image, e)}
+                  className={`p-1.5 rounded-lg hover:bg-white/10 transition-all ${clickedButton === `delete-${image.id}` ? 'scale-90' : 'scale-100'}`}
+                  title="Delete"
+                >
+                  <Trash2 size={14} className="text-red-400" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
-      )}
-      
-      {/* Context menu */}
-      {contextMenu && (
-        <ImageContextMenu
-          image={contextMenu.image}
-          isOpen={true}
-          onClose={() => setContextMenu(null)}
-          position={contextMenu.position}
-          onDelete={handleDelete}
-        />
       )}
       
       {/* Full-size image modal */}
