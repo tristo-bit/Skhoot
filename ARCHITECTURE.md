@@ -1,4 +1,4 @@
-# Skhoot Architecture & Advanced Features
+# Skhoot Architecture & Advanced Features of Skhoot
 
 > **For Hackathon Evaluators**: This document provides deep technical insight into Skhoot's architecture, innovative features, and engineering decisions.
 
