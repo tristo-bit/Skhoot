@@ -180,26 +180,6 @@ const FileContextMenu: React.FC<{
   if (!isOpen) return null;
   
   const menuItems = [
-    { icon: <MessageSquarePlus size={14} />, label: 'Add to chat', action: async () => { 
-      // Add file reference to chat via custom event
-      const fileName = file.path.split(/[/\\]/).pop() || file.path;
-      
-      // Dispatch custom event for PromptArea to handle
-      const event = new CustomEvent('add-file-reference', {
-        detail: { fileName, filePath: file.path }
-      });
-      window.dispatchEvent(event);
-      
-      // Focus the textarea
-      const textarea = document.querySelector('textarea.file-mention-input') as HTMLTextAreaElement;
-      if (textarea) {
-        textarea.focus();
-      }
-      
-      // Visual feedback
-      console.log(`[FileExplorer] Dispatched add-file-reference: @${fileName} -> ${file.path}`);
-    }, highlight: true },
-    { divider: true },
     { icon: <ExternalLink size={14} />, label: 'Open', action: async () => { await fileActions.open(file.path); } },
     { icon: <FolderOpen size={14} />, label: 'Show in folder', action: async () => { await fileActions.revealInExplorer(file.path); } },
     { divider: true },
@@ -528,6 +508,27 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
     setContextMenu({ file, position: { x: rect.left, y: rect.bottom + 4 } });
   };
 
+  const handleAddToChat = (file: FileItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Add file reference to chat via custom event
+    const fileName = file.path.split(/[/\\]/).pop() || file.path;
+    
+    // Dispatch custom event for PromptArea to handle
+    const event = new CustomEvent('add-file-reference', {
+      detail: { fileName, filePath: file.path }
+    });
+    window.dispatchEvent(event);
+    
+    // Focus the textarea
+    const textarea = document.querySelector('textarea.file-mention-input') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.focus();
+    }
+    
+    // Visual feedback
+    console.log(`[FileExplorer] Dispatched add-file-reference: @${fileName} -> ${file.path}`);
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-full">
       <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--text-secondary)' }} />
@@ -551,12 +552,21 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
                 className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer relative group"
                 onContextMenu={(e) => handleContextMenu(file, e)}
               >
-                <button
-                  onClick={(e) => handleMoreClick(file, e)}
-                  className="absolute top-2 right-2 p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all opacity-0 group-hover:opacity-100"
-                >
-                  <MoreHorizontal size={12} className="text-text-secondary" />
-                </button>
+                <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                  <button
+                    onClick={(e) => handleAddToChat(file, e)}
+                    className="p-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-all"
+                    title="Add to chat"
+                  >
+                    <MessageSquarePlus size={12} className="text-purple-400" />
+                  </button>
+                  <button
+                    onClick={(e) => handleMoreClick(file, e)}
+                    className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
+                  >
+                    <MoreHorizontal size={12} className="text-text-secondary" />
+                  </button>
+                </div>
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-2 relative" style={{ backgroundColor: `${colors.bg}20` }}>
                   {file.type === 'folder' ? <Folder size={20} style={{ color: colors.text }} /> : <File size={20} style={{ color: colors.text }} />}
                   {file.activityType && (
@@ -624,14 +634,23 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
                 </p>
               )}
             </div>
-            <button 
-              onClick={(e) => handleMoreClick(file, e)}
-              className="p-1.5 rounded-lg hover:bg-white/10 transition-all opacity-60 group-hover:opacity-100"
-              title="More actions"
-              style={{ backgroundColor: `${colors.bg}10` }}
-            >
-              <MoreHorizontal size={14} style={{ color: colors.text }} />
-            </button>
+            <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100">
+              <button 
+                onClick={(e) => handleAddToChat(file, e)}
+                className="p-1.5 rounded-lg hover:bg-purple-500/20 transition-all"
+                title="Add to chat"
+              >
+                <MessageSquarePlus size={14} className="text-purple-400" />
+              </button>
+              <button 
+                onClick={(e) => handleMoreClick(file, e)}
+                className="p-1.5 rounded-lg hover:bg-white/10 transition-all"
+                title="More actions"
+                style={{ backgroundColor: `${colors.bg}10` }}
+              >
+                <MoreHorizontal size={14} style={{ color: colors.text }} />
+              </button>
+            </div>
           </div>
           );
         })}

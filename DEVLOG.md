@@ -20034,3 +20034,118 @@ return createPortal(sidebar, document.body);
 
 ---
 
+
+
+## January 28, 2026
+
+### Improved File Explorer "Add to Chat" Button Discoverability 🎯
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/FileExplorerPanel.tsx`
+- **Change**: Moved "Add to chat" button from hidden dropdown menu to visible position next to the three-dot menu button
+- **Impact**: Users can now immediately see and access the "Add to chat" feature without needing to open the dropdown menu
+
+**Problem**:
+- The "Add to chat" button was hidden inside the three-dot dropdown menu
+- Users had to click the "..." button to discover this important feature
+- Poor discoverability meant users might not know the feature exists
+- User feedback: "le bouton add to chat doit être sorti de ce dropdown pour être ajouté a coté de ce dropdown afin que les utilisateurs puisse savoir que la feature existe sans avoir a appyer sur les 3 petits points"
+
+**Solution - Extracted Button to Visible Position**:
+1. **Removed from dropdown** - Deleted "Add to chat" menu item from `FileContextMenu` component
+2. **Created dedicated handler** - Added `handleAddToChat()` function in `RecentTab` component
+3. **Added to grid view** - Button appears next to "..." button in top-right corner of each file card
+4. **Added to list view** - Button appears to the right of file info, before the "..." button
+5. **Maintained functionality** - Same event dispatch mechanism (`add-file-reference` custom event)
+6. **Consistent styling** - Purple glassmorphic design (`bg-purple-500/20 hover:bg-purple-500/30`)
+7. **Proper spacing** - Used flexbox with `gap-1` for clean layout
+
+**Implementation Details**:
+
+**Grid View**:
+```typescript
+<div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100">
+  <button
+    onClick={(e) => handleAddToChat(file, e)}
+    className="p-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-all"
+    title="Add to chat"
+  >
+    <MessageSquarePlus size={12} className="text-purple-400" />
+  </button>
+  <button
+    onClick={(e) => handleMoreClick(file, e)}
+    className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
+  >
+    <MoreHorizontal size={12} className="text-text-secondary" />
+  </button>
+</div>
+```
+
+**List View**:
+```typescript
+<div className="flex items-center gap-1 opacity-60 group-hover:opacity-100">
+  <button 
+    onClick={(e) => handleAddToChat(file, e)}
+    className="p-1.5 rounded-lg hover:bg-purple-500/20 transition-all"
+    title="Add to chat"
+  >
+    <MessageSquarePlus size={14} className="text-purple-400" />
+  </button>
+  <button 
+    onClick={(e) => handleMoreClick(file, e)}
+    className="p-1.5 rounded-lg hover:bg-white/10 transition-all"
+    title="More actions"
+  >
+    <MoreHorizontal size={14} style={{ color: colors.text }} />
+  </button>
+</div>
+```
+
+**Handler Function**:
+```typescript
+const handleAddToChat = (file: FileItem, e: React.MouseEvent) => {
+  e.stopPropagation();
+  const fileName = file.path.split(/[/\\]/).pop() || file.path;
+  
+  // Dispatch custom event for PromptArea to handle
+  const event = new CustomEvent('add-file-reference', {
+    detail: { fileName, filePath: file.path }
+  });
+  window.dispatchEvent(event);
+  
+  // Focus the textarea
+  const textarea = document.querySelector('textarea.file-mention-input') as HTMLTextAreaElement;
+  if (textarea) {
+    textarea.focus();
+  }
+  
+  console.log(`[FileExplorer] Dispatched add-file-reference: @${fileName} -> ${file.path}`);
+};
+```
+
+**Key Improvements**:
+- **Better discoverability** - Button is immediately visible on hover
+- **Consistent placement** - Same position in both grid and list views
+- **Visual hierarchy** - Purple color distinguishes it from other actions
+- **Maintained behavior** - Same functionality as before (event dispatch, textarea focus)
+- **Clean design** - Glassmorphic style matches app design system
+- **Proper spacing** - Flexbox layout with gap ensures clean alignment
+- **Hover states** - Smooth transitions and hover effects
+- **Accessibility** - Title attributes for tooltips
+
+**Verification**:
+- ✅ Button moved out of dropdown menu
+- ✅ Button visible next to three-dot menu in grid view
+- ✅ Button visible next to three-dot menu in list view
+- ✅ Functionality preserved (dispatches `add-file-reference` event)
+- ✅ Design intact (purple glassmorphic style)
+- ✅ Proper spacing with flexbox gap-1
+- ✅ Hover states work correctly
+- ✅ No TypeScript errors or diagnostics
+- ✅ Event propagation handled correctly (stopPropagation)
+- ✅ Textarea focus works after adding file reference
+
+**User Acceptance Criteria Met**:
+- ✅ Le bouton est déplacé à côté des trois points
+- ✅ Le comportement du bouton est toujours fonctionnel
+- ✅ Le design du bouton est intact
+- ✅ Le display est bon et l'espace est bien attribué

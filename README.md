@@ -1977,19 +1977,6 @@ const agentResponse = await agentChatService.executeWithTools(
 <summary><strong>File Explorer Context Menu & File References</strong></summary>
 
 - **Rich Context Menu**: Right-click or use the "more" button on any file in the File Explorer panel for quick actions
-  - **Add to chat**: Insert file reference into chat input for AI context (e.g., `@config.json`)
-    - Simplified reference format: `@filename` (changed from `@file:filename` for cleaner syntax)
-    - Automatically focuses chat textarea and appends file reference
-    - Stores file path mapping in global registry for retrieval
-    - Triggers React input event for proper state synchronization
-    - **File Content Loading**: When you send a message with `@filename` references:
-      - Backend automatically reads the file content via `/api/v1/files/read` endpoint
-      - File contents are appended to your message in a structured format
-      - AI receives both your message and the complete file contents for context
-      - Works in both normal AI mode and agent mode
-      - Original message displayed in chat UI (without file contents for readability)
-      - Full message with file contents sent to AI/agent for processing
-    - Console logging for debugging: `[ChatInterface] Loaded file content for @filename`
   - **Open**: Launch file with default system application (Tauri shell.open → backend API → clipboard fallback)
   - **Open Folder**: Reveal and select file in system file explorer
   - **Copy Path**: Copy full file path to clipboard
@@ -1998,11 +1985,20 @@ const agentResponse = await agentChatService.executeWithTools(
   - **Open With**: Copy path with instructions for manual "Open with" selection
   - **Properties**: View file properties via backend API (name, type, size, modified date)
   - **Delete**: Remove file via backend API with confirmation dialog
+- **File Reference Support**: Use `@filename` syntax in chat to reference files for AI context
+  - **File Content Loading**: When you send a message with `@filename` references:
+    - Backend automatically reads the file content via `/api/v1/files/read` endpoint
+    - File contents are appended to your message in a structured format
+    - AI receives both your message and the complete file contents for context
+    - Works in both normal AI mode and agent mode
+    - Original message displayed in chat UI (without file contents for readability)
+    - Full message with file contents sent to AI/agent for processing
+  - Console logging for debugging: `[ChatInterface] Loaded file content for @filename`
 - **Backend API Integration**: File actions use backend endpoints for reliable cross-platform support
   - `/api/v1/files/delete` - Delete files
   - `/api/v1/files/info` - Get file properties
   - `/api/v1/files/compress` - Create ZIP archives
-  - `/api/v1/files/read` - Read file contents for AI context
+  - `/api/v1/files/read` - Read file contents for AI context (used with `@filename` syntax)
 - **Graceful Fallbacks**: All actions provide helpful clipboard + instructions fallback when APIs unavailable
 - **Glassmorphic Design**: Context menu follows the embossed glassmorphic design system with smooth animations
 - **Smart Positioning**: Menu automatically adjusts position to stay within viewport bounds
