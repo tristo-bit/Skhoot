@@ -21,7 +21,8 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'memories', label: 'Memories', icon: <Brain size={14} /> },
     { id: 'bookmarks', label: 'Bookmarks', icon: <Bookmark size={14} /> },
-    { id: 'archive', label: 'Archive', icon: <Archive size={14} /> },
+    // Archive tab commented out - UI update
+    // { id: 'archive', label: 'Archive', icon: <Archive size={14} /> },
   ];
 
   // Load backups when tab changes to archive
@@ -66,12 +67,12 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
 
   return (
     <Modal
-      title="Backup"
+      title="Data"
       onClose={onClose}
       panelClassName="files-panel"
       headerClassName="files-panel-header"
       bodyClassName="files-panel-body-wrapper"
-      closeAriaLabel="Close backup"
+      closeAriaLabel="Close data panel"
     >
       {/* Tabs Section - Fixed at top */}
       <div className="files-panel-tabs-container flex-shrink-0 border-b border-glass-border">
@@ -92,7 +93,8 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
       <div className="files-panel-content flex-1 overflow-y-auto no-scrollbar px-6 py-4">
         {activeTab === 'memories' && <MemoriesTab />}
         {activeTab === 'bookmarks' && <BookmarksTab viewMode="list" searchQuery="" />}
-        {activeTab === 'archive' && (
+        {/* Archive tab content commented out - UI update */}
+        {/* {activeTab === 'archive' && (
           <ArchiveTab 
             files={archivedFiles} 
             onDelete={deleteArchive} 
@@ -100,7 +102,7 @@ const FilesPanel: React.FC<FilesPanelProps> = ({ onClose }) => {
             restoringFiles={restoringFiles}
             isLoading={isLoading}
           />
-        )}
+        )} */}
       </div>
     </Modal>
   );
