@@ -604,11 +604,11 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
               setSttTestStatus('idle');
               setSttTestMessage('');
             }}
-            className="w-full px-3 py-2 bg-transparent text-sm font-medium font-jakarta text-text-primary rounded-lg glass-subtle focus:outline-none focus:ring-2 focus:ring-[#C0B7C9]"
+            className="w-full p-3 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:border-fuku-brand/50 focus:ring-1 focus:ring-fuku-brand/20 transition-all [&>option]:bg-black [&>option]:text-white"
           >
-            <option value="auto">Auto (preferred)</option>
-            <option value="web-speech">Web Speech API</option>
-            <option value="openai">OpenAI Whisper (cloud)</option>
+            <option value="auto" className="!bg-black !text-white">Auto (preferred)</option>
+            <option value="web-speech" className="!bg-black !text-white">Web Speech API</option>
+            <option value="openai" className="!bg-black !text-white">OpenAI Whisper (cloud)</option>
           </select>
           <p className="text-xs text-text-secondary font-jakarta">
             Choose how speech is transcribed. Auto uses Web Speech when available, then OpenAI cloud.
@@ -653,10 +653,10 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
                 <select
                   value={selectedInputDevice}
                   onChange={(e) => handleInputDeviceChange(e.target.value)}
-                  className="w-full px-3 py-2 bg-transparent text-sm font-medium font-jakarta text-text-primary rounded-lg glass-subtle focus:outline-none focus:ring-2 focus:ring-[#C0B7C9]"
+                  className="w-full p-3 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:border-fuku-brand/50 focus:ring-1 focus:ring-fuku-brand/20 transition-all [&>option]:bg-black [&>option]:text-white"
                 >
                   {inputDevices.map(device => (
-                    <option key={device.deviceId} value={device.deviceId}>
+                    <option key={device.deviceId} value={device.deviceId} className="!bg-black !text-white">
                       {device.label}{device.isDefault ? ' (Default)' : ''}
                     </option>
                   ))}
@@ -681,10 +681,10 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
                 <select
                   value={selectedOutputDevice}
                   onChange={(e) => handleOutputDeviceChange(e.target.value)}
-                  className="w-full px-3 py-2 bg-transparent text-sm font-medium font-jakarta text-text-primary rounded-lg glass-subtle focus:outline-none focus:ring-2 focus:ring-[#C0B7C9]"
+                  className="w-full p-3 rounded-lg bg-black/20 border border-white/5 hover:border-white/10 text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:border-fuku-brand/50 focus:ring-1 focus:ring-fuku-brand/20 transition-all [&>option]:bg-black [&>option]:text-white"
                 >
                   {outputDevices.map(device => (
-                    <option key={device.deviceId} value={device.deviceId}>
+                    <option key={device.deviceId} value={device.deviceId} className="!bg-black !text-white">
                       {device.label}{device.isDefault ? ' (Default)' : ''}
                     </option>
                   ))}
