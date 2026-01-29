@@ -2515,16 +2515,24 @@ This project is private and proprietary.
 
 ## 📄 Version
 
-v0.2.1 - Enhanced Architecture & Context Management
+v0.1.7 - Cross-Platform Polish & Enhanced AI Integration
+
+**Release Date:** January 29, 2026
 
 **Major Features:**
-- Full CLI agent mode with visual tool execution
-- Agent Log terminal tab for real-time monitoring
-- Multi-provider tool calling support (OpenAI, Anthropic, Google AI)
-- 5 agent tools: shell, read_file, write_file, list_directory, search_files
-- Rich UI components for agent actions and command output
-- Theme and settings context providers for centralized state management
-- Enhanced token tracking with conversation-level monitoring
+- **Kiro CLI Authentication Bridge**: Full integration with Kiro CLI for seamless authentication and backend connectivity
+- **Gemini 3 Support**: Robust reasoning & tool-calling loop compatible with Gemini 3 Pro and Flash models
+- **Custom STT Provider**: Groq integration for high-speed, free voice transcription (Linux-friendly alternative to OpenAI STT)
+- **Smart Search Summarization**: AI-powered search result summarization for enhanced agent decision-making
+- **Native File Picker**: Improved file attachment workflow with Tauri dialog plugin integration
+- **User Profile Persistence**: LocalStorage-based profile management that survives app restarts
+- **Dynamic Working Directory**: CLI bridge supports working directory specification for better multi-project workflows
+- **Portal-Based Rendering**: Complete refactor of modal and sidebar rendering for perfect corner rounding across all UI elements
+- **Cross-Platform UI Polish**: Unified glassmorphic aesthetic across macOS, Windows, and Linux with platform-specific fixes
+- **Dynamic Model Discovery**: Automatic model list updates from AI providers with capability inference
+- **Enhanced Dark Mode**: Refined dropdown styling, custom scrollbars, and semantic color improvements
+
+**Full Changelog:** [v0.1.6...v0.1.7](https://github.com/tristo-bit/Skhoot/compare/v0.1.6...v0.1.7)
 
 ---
 

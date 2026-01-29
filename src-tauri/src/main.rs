@@ -290,7 +290,13 @@ async fn pick_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
   
   println!("[Skhoot] Opening folder picker via Rust...");
   
-  let file_path = app.dialog().file().blocking_pick_folder();
+  let (tx, rx) = tokio::sync::oneshot::channel();
+  
+  app.dialog().file().pick_folder(move |path| {
+      let _ = tx.send(path);
+  });
+  
+  let file_path = rx.await.map_err(|e| e.to_string())?;
   
   match file_path {
       Some(path) => {
@@ -312,7 +318,13 @@ async fn pick_files(app: tauri::AppHandle) -> Result<Option<Vec<String>>, String
   
   println!("[Skhoot] Opening file picker via Rust...");
   
-  let file_paths = app.dialog().file().blocking_pick_files();
+  let (tx, rx) = tokio::sync::oneshot::channel();
+  
+  app.dialog().file().pick_files(move |paths| {
+      let _ = tx.send(paths);
+  });
+  
+  let file_paths = rx.await.map_err(|e| e.to_string())?;
   
   match file_paths {
       Some(paths) => {

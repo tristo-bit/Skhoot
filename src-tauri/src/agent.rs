@@ -12,7 +12,6 @@ use tauri::{AppHandle, Emitter, State};
 use tokio::sync::RwLock;
 
 use skhoot_backend::cli_agent::{AgentExecutor, ExecutorConfig};
-use skhoot_backend::TerminalManager;
 
 /// Session state - lightweight, no PTY or complex types
 #[derive(Debug, Clone)]
