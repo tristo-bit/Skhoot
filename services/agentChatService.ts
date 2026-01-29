@@ -14,6 +14,8 @@ import { ToolRegistry } from './agent/ToolRegistry';
 import { ToolExecutor } from './agent/ToolExecutor';
 import { PromptBuilder } from './agent/PromptBuilder';
 
+export type { AgentChatOptions };
+
 class AgentChatService {
   private maxToolIterations = 10;
   private toolExecutor = new ToolExecutor();

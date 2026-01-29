@@ -31,6 +31,9 @@ pub fn search_routes() -> Router<crate::AppState> {
         .route("/files/properties", post(show_file_properties))
         .route("/files/open-with", post(open_with_dialog))
         .route("/files/read", get(read_file_content))
+        .route("/files/list", get(list_directory_content))
+        .route("/files/write", post(write_file_content))
+        .route("/shell/execute", post(execute_shell_command))
         .route("/files/image", get(read_image_file))
 }
 
@@ -99,20 +102,7 @@ pub async fn search_files(
     
     // Use custom search path if provided, otherwise default to user's home directory
     let search_dir = if let Some(ref custom_path) = params.search_path {
-        // Handle tilde expansion for custom paths
-        if custom_path.starts_with("~/") || custom_path == "~" {
-            if let Some(home) = dirs::home_dir() {
-                if custom_path == "~" {
-                    home
-                } else {
-                    home.join(&custom_path[2..])
-                }
-            } else {
-                PathBuf::from(custom_path)
-            }
-        } else {
-            PathBuf::from(custom_path)
-        }
+        resolve_path(custom_path)
     } else {
         // Default to user's home directory for broader search
         dirs::home_dir()
@@ -271,7 +261,7 @@ pub async fn search_documents(
     
     // Use custom search path if provided, otherwise default to user's home directory
     let search_dir = if let Some(ref custom_path) = params.search_path {
-        PathBuf::from(custom_path)
+        resolve_path(custom_path)
     } else {
         dirs::home_dir()
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
@@ -407,7 +397,7 @@ pub async fn search_content(
 ) -> Result<Json<UnifiedSearchResults>, AppError> {
     // Use custom search path if provided, otherwise default to user's home directory
     let search_dir = if let Some(ref custom_path) = params.search_path {
-        PathBuf::from(custom_path)
+        resolve_path(custom_path)
     } else {
         dirs::home_dir()
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
@@ -654,17 +644,7 @@ pub struct OpenFileRequest {
 pub async fn open_file_location(
     Json(request): Json<OpenFileRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let path = PathBuf::from(&request.path);
-    
-    // Ensure we have an absolute path
-    let absolute_path = if path.is_absolute() {
-        path
-    } else {
-        // If relative, try to resolve from home directory
-        dirs::home_dir()
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
-            .join(&path)
-    };
+    let absolute_path = resolve_path(&request.path);
     
     tracing::info!("Opening file location: {:?}", absolute_path);
     
@@ -718,16 +698,7 @@ pub async fn open_file_location(
 pub async fn reveal_file_in_explorer(
     Json(request): Json<OpenFileRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let path = PathBuf::from(&request.path);
-    
-    // Ensure we have an absolute path and normalize it
-    let absolute_path = if path.is_absolute() {
-        path
-    } else {
-        dirs::home_dir()
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
-            .join(&path)
-    };
+    let absolute_path = resolve_path(&request.path);
     
     // Canonicalize to get the real path (resolves symlinks, normalizes separators)
     let absolute_path = absolute_path.canonicalize().unwrap_or(absolute_path);
@@ -796,29 +767,19 @@ pub async fn reveal_file_in_explorer(
 pub async fn show_file_properties(
     Json(request): Json<OpenFileRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let path = PathBuf::from(&request.path);
-    
-    let absolute_path = if path.is_absolute() {
-        path
-    } else {
-        dirs::home_dir()
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
-            .join(&path)
-    };
+    let absolute_path = resolve_path(&request.path);
     
     tracing::info!("Showing properties for: {:?}", absolute_path);
     
     #[cfg(target_os = "windows")]
     let result = {
-        // Windows: Use shell32.dll to show properties
-        // Don't use canonicalize() as it adds \\?\ prefix which breaks PowerShell
+        // Windows: Use a simpler approach with explorer.exe properties
         let path_str = absolute_path.display().to_string()
             .replace("/", "\\")
             .replace("\\\\?\\", ""); // Remove UNC prefix if present
         
         tracing::info!("Windows properties path: {}", path_str);
         
-        // Use a simpler approach with explorer.exe properties
         tokio::process::Command::new("cmd")
             .args([
                 "/c",
@@ -875,15 +836,7 @@ pub async fn show_file_properties(
 pub async fn open_with_dialog(
     Json(request): Json<OpenFileRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let path = PathBuf::from(&request.path);
-    
-    let absolute_path = if path.is_absolute() {
-        path
-    } else {
-        dirs::home_dir()
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
-            .join(&path)
-    };
+    let absolute_path = resolve_path(&request.path);
     
     tracing::info!("Opening 'Open with' dialog for: {:?}", absolute_path);
     
@@ -935,15 +888,7 @@ pub async fn read_file_content(
     let path_str = params.get("path")
         .ok_or_else(|| AppError::BadRequest("Missing 'path' parameter".to_string()))?;
     
-    let path = PathBuf::from(path_str);
-    
-    let absolute_path = if path.is_absolute() {
-        path
-    } else {
-        dirs::home_dir()
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
-            .join(&path)
-    };
+    let absolute_path = resolve_path(path_str);
     
     tracing::info!("Reading file content: {:?}", absolute_path);
     
@@ -974,6 +919,186 @@ pub async fn read_file_content(
     }
 }
 
+/// Helper function to resolve paths with tilde expansion
+fn resolve_path(path_str: &str) -> PathBuf {
+    let path = PathBuf::from(path_str);
+    if path.is_absolute() {
+        return path;
+    }
+
+    if path_str.starts_with("~/") || path_str == "~" {
+        if let Some(home) = dirs::home_dir() {
+            if path_str == "~" {
+                return home;
+            }
+            return home.join(&path_str[2..]);
+        }
+    }
+
+    dirs::home_dir()
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+        .join(path)
+}
+
+/// Request parameters for listing directory content
+#[derive(Debug, Deserialize)]
+pub struct ListDirectoryQuery {
+    pub path: String,
+    pub depth: Option<usize>,
+    pub include_hidden: Option<bool>,
+}
+
+/// List directory content endpoint
+pub async fn list_directory_content(
+    Query(params): Query<ListDirectoryQuery>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let absolute_path = resolve_path(&params.path);
+    
+    tracing::info!("Listing directory: {:?}", absolute_path);
+    
+    if !absolute_path.exists() {
+        return Err(AppError::NotFound(format!("Directory not found: {}", absolute_path.display())));
+    }
+    
+    if !absolute_path.is_dir() {
+        return Err(AppError::BadRequest(format!("Path is not a directory: {}", absolute_path.display())));
+    }
+
+    let _depth = params.depth.unwrap_or(1);
+    let include_hidden = params.include_hidden.unwrap_or(false);
+
+    // Use a simple non-recursive listing for now
+    let mut entries = Vec::new();
+    let mut read_dir = tokio::fs::read_dir(&absolute_path).await
+        .map_err(|e| AppError::Internal(format!("Failed to read directory: {}", e)))?;
+
+    while let Some(entry) = read_dir.next_entry().await
+        .map_err(|e| AppError::Internal(format!("Failed to read entry: {}", e)))? 
+    {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !include_hidden && name.starts_with('.') {
+            continue;
+        }
+
+        let metadata = entry.metadata().await
+            .map_err(|e| AppError::Internal(format!("Failed to get metadata: {}", e)))?;
+
+        entries.push(serde_json::json!({
+            "name": name,
+            "path": entry.path().display().to_string(),
+            "is_dir": metadata.is_dir(),
+            "size": metadata.len(),
+            "modified": metadata.modified().ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs()),
+        }));
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "path": absolute_path.display().to_string(),
+        "entries": entries
+    })))
+}
+
+/// Request body for writing file content
+#[derive(Debug, Deserialize)]
+pub struct WriteFileRequest {
+    pub path: String,
+    pub content: String,
+    pub append: Option<bool>,
+}
+
+/// Write file content endpoint
+pub async fn write_file_content(
+    Json(request): Json<WriteFileRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let absolute_path = resolve_path(&request.path);
+    
+    tracing::info!("Writing to file: {:?}", absolute_path);
+    
+    // Ensure parent directory exists
+    if let Some(parent) = absolute_path.parent() {
+        tokio::fs::create_dir_all(parent).await
+            .map_err(|e| AppError::Internal(format!("Failed to create directory: {}", e)))?;
+    }
+
+    if request.append.unwrap_or(false) {
+        use tokio::io::AsyncWriteExt;
+        let mut file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&absolute_path)
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to open file: {}", e)))?;
+        
+        file.write_all(request.content.as_bytes()).await
+            .map_err(|e| AppError::Internal(format!("Failed to write: {}", e)))?;
+    } else {
+        tokio::fs::write(&absolute_path, &request.content).await
+            .map_err(|e| AppError::Internal(format!("Failed to write file: {}", e)))?;
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "path": absolute_path.display().to_string(),
+        "size": request.content.len()
+    })))
+}
+
+/// Request body for shell execution
+#[derive(Debug, Deserialize)]
+pub struct ShellExecuteRequest {
+    pub command: String,
+    pub workdir: Option<String>,
+    pub timeout_ms: Option<u64>,
+}
+
+/// Execute shell command endpoint
+pub async fn execute_shell_command(
+    State(state): State<crate::AppState>,
+    Json(request): Json<ShellExecuteRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let workdir = request.workdir
+        .map(|s| resolve_path(&s))
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+    
+    let timeout_ms = request.timeout_ms.unwrap_or(30000);
+
+    tracing::info!("Executing shell command: {} in {:?}", request.command, workdir);
+
+    // Use CliBridge logic via AgentExecutor for consistent behavior
+    use crate::cli_agent::{AgentExecutor, ExecutorConfig};
+    
+    let executor_config = ExecutorConfig {
+        default_timeout_ms: timeout_ms,
+        working_directory: workdir,
+        max_output_size: 1024 * 1024,
+        allow_writes: true,
+        terminal_session_id: None,
+    };
+    
+    let executor = AgentExecutor::with_config(executor_config)
+        .with_terminal_manager(state.terminal_manager.clone());
+    
+    let tool_call = crate::cli_agent::ToolCall {
+        id: "http-shell".to_string(),
+        name: "shell".to_string(),
+        arguments: serde_json::json!({
+            "command": request.command
+        }),
+    };
+    
+    let result = executor.execute(&tool_call).await;
+
+    Ok(Json(serde_json::json!({
+        "success": result.success,
+        "output": result.output,
+        "error": result.error,
+        "duration_ms": result.metadata.and_then(|m| m.duration_ms),
+    })))
+}
+
 /// Read image file as binary data
 pub async fn read_image_file(
     Query(params): Query<HashMap<String, String>>,
@@ -984,15 +1109,7 @@ pub async fn read_image_file(
     let path_str = params.get("path")
         .ok_or_else(|| AppError::BadRequest("Missing 'path' parameter".to_string()))?;
     
-    let path = PathBuf::from(path_str);
-    
-    let absolute_path = if path.is_absolute() {
-        path
-    } else {
-        dirs::home_dir()
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
-            .join(&path)
-    };
+    let absolute_path = resolve_path(path_str);
     
     tracing::info!("Reading image file: {:?}", absolute_path);
     
