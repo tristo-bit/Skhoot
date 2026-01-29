@@ -617,6 +617,33 @@
     padding: calc(var(--scale-space-2) * var(--spacing-scale));
   }
 
+  /* User Panel specific styles - optimized spacing */
+  .user-panel-body {
+    padding: calc(var(--scale-space-3) * var(--spacing-scale)) !important;
+  }
+
+  .user-panel-footer {
+    padding: calc(var(--scale-space-2) * var(--spacing-scale)) !important;
+  }
+
+  .compact-mode .user-panel-body {
+    padding: calc(var(--scale-space-2) * var(--spacing-scale)) !important;
+  }
+
+  .compact-mode .user-panel-footer {
+    padding: calc(var(--scale-space-1-5) * var(--spacing-scale)) !important;
+  }
+
+  .mobile-mode .user-panel-body,
+  .micro-mode .user-panel-body {
+    padding: calc(var(--scale-space-2) * var(--spacing-scale)) !important;
+  }
+
+  .mobile-mode .user-panel-footer,
+  .micro-mode .user-panel-footer {
+    padding: calc(var(--scale-space-1-5) * var(--spacing-scale)) !important;
+  }
+
   .settings-item {
     padding: calc(var(--scale-space-4) * var(--spacing-scale));
     border-radius: calc(16px * var(--component-scale) * var(--scale));
