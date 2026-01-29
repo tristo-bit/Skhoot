@@ -14,7 +14,7 @@ import { ImageGallery } from './ImageGallery';
 import { Button } from '../buttonFormat';
 import { ArrowRight, FileText, Paperclip, Edit2, Check, X, MessageSquarePlus, Copy, Bookmark } from 'lucide-react';
 import { workflowService } from '../../services/workflowService';
-import { addToChat } from '../ui/FileCard';
+import { chatAttachmentService } from '../../services/chatAttachmentService';
 
 // Check if message is the "No AI provider configured" warning
 const isApiConfigWarning = (content: string): boolean => {
@@ -83,7 +83,10 @@ export const MessageBubble = memo<MessageBubbleProps>(({ message, onEdit, onRege
 
   // Handle add to chat
   const handleAddToChat = useCallback(() => {
-    addToChat(`Message from ${isUser ? 'user' : 'AI'}`, message.content);
+    chatAttachmentService.addToChat({
+      fileName: `Message from ${isUser ? 'user' : 'AI'}`,
+      filePath: message.content
+    });
     setAddedToChat(true);
     setTimeout(() => setAddedToChat(false), 2000);
   }, [message.content, isUser]);

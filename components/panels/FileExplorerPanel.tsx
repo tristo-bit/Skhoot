@@ -12,6 +12,7 @@ import {
 import { SecondaryPanel, SecondaryPanelTab } from '../ui/SecondaryPanel';
 import { backendApi } from '../../services/backendApi';
 import { fileOperations } from '../../services/fileOperations';
+import { chatAttachmentService } from '../../services/chatAttachmentService';
 import { ImagesTab } from './ImagesTab';
 import { useToast, ToastContainer } from '../ui/Toast';
 
@@ -407,20 +408,15 @@ const RecentTab = memo<{
     
     const fileName = file.path.split(/[/\\]/).pop() || file.path;
     
-    // Dispatch custom event for PromptArea to handle
-    const event = new CustomEvent('add-file-reference', {
-      detail: { fileName, filePath: file.path }
+    // Use centralized service
+    chatAttachmentService.addToChat({
+      fileName,
+      filePath: file.path,
+      source: 'file_system'
     });
-    window.dispatchEvent(event);
-    
-    // Focus the textarea
-    const textarea = document.querySelector('textarea.file-mention-input') as HTMLTextAreaElement;
-    if (textarea) {
-      textarea.focus();
-    }
     
     // Visual feedback
-    console.log(`[FileExplorer] Dispatched add-file-reference: @${fileName} -> ${file.path}`);
+    console.log(`[FileExplorer] Added to chat: ${fileName} -> ${file.path}`);
   };
   
   const handleMoreClick = (file: FileItem, e: React.MouseEvent) => {

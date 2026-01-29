@@ -9,6 +9,7 @@ import { activityLogger } from '../../services/activityLogger';
 import { nativeNotifications } from '../../services/nativeNotifications';
 import { imageStorage } from '../../services/imageStorage';
 import { aiSettingsService } from '../../services/aiSettingsService';
+import { chatAttachmentService } from '../../services/chatAttachmentService';
 import { MainArea } from '../main-area';
 import { PromptArea } from './PromptArea';
 import { ToolCallInput } from './ToolCallInput';
@@ -1151,7 +1152,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (fileRefMap && fileRefMap.size > 0) {
       const files = Array.from(fileRefMap.entries()).map(([fileName, filePath]) => ({ fileName, filePath }));
       console.log('[ChatInterface] Processing files:', files);
-      const result = await processAttachedFiles(files);
+      const result = await chatAttachmentService.processAttachedFiles(files);
       imageFiles = result.imageFiles;
       console.log('[ChatInterface] Image files processed:', imageFiles.length, 'images');
       
@@ -1159,9 +1160,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (result.fileContents.length > 0 || result.imageFiles.length > 0) {
         const fileHeader = `\n\n[Attached files: ${result.attachedFileNames.join(', ')}]`;
         processedMessage = messageText + fileHeader + result.fileContents.join('');
-        
-        // Remove the note about images since we now support vision
-        // Images will be sent to the AI for analysis
       }
     }
 
@@ -1694,169 +1692,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, []);
 
   // Helper function to process attached files (text and images)
-  const processAttachedFiles = useCallback(async (files: Array<{ fileName: string; filePath: string }>) => {
-    const fileContents: string[] = [];
-    const attachedFileNames: string[] = [];
-    const imageFiles: Array<{ fileName: string; base64: string; mimeType: string }> = [];
-    
-    // Helper to check if file is an image
-    const isImageFile = (fileName: string): boolean => {
-      const ext = fileName.split('.').pop()?.toLowerCase() || '';
-      const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext);
-      console.log(`[ChatInterface] Checking if "${fileName}" is image: ext="${ext}", isImage=${isImage}`);
-      return isImage;
-    };
-    
-    // Helper to get MIME type
-    const getMimeType = (fileName: string): string => {
-      const ext = fileName.split('.').pop()?.toLowerCase() || '';
-      const mimeTypes: Record<string, string> = {
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'png': 'image/png',
-        'gif': 'image/gif',
-        'bmp': 'image/bmp',
-        'webp': 'image/webp'
-      };
-      return mimeTypes[ext] || 'application/octet-stream';
-    };
-    
-    // Helper to check if file is binary (non-text)
-    const isBinaryFile = (fileName: string): boolean => {
-      const ext = fileName.split('.').pop()?.toLowerCase() || '';
-      return ['pdf', 'zip', 'rar', '7z', 'tar', 'gz', 'exe', 'dll', 'so', 'dylib'].includes(ext);
-    };
-    
-    // Helper to read file using Tauri API
-    const readFileWithTauri = async (filePath: string): Promise<Uint8Array | null> => {
-      try {
-        // Check if we're in Tauri environment
-        if (typeof window !== 'undefined' && (window as any).__TAURI__) {
-          const { readFile } = await import(/* @vite-ignore */ '@tauri-apps/plugin-fs');
-          console.log(`[ChatInterface] Reading file with Tauri: ${filePath}`);
-          const contents = await readFile(filePath);
-          return contents;
-        }
-        return null;
-      } catch (error) {
-        console.error(`[ChatInterface] Tauri file read failed:`, error);
-        return null;
-      }
-    };
-    
-    // Helper to convert Uint8Array to base64
-    const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
-      let binary = '';
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return btoa(binary);
-    };
-    
-    for (const file of files) {
-      if (isImageFile(file.fileName)) {
-        // Handle image files - try Tauri first, then backend
-        try {
-          console.log(`[ChatInterface] Loading image: ${file.fileName} from ${file.filePath}`);
-          
-          // Try Tauri API first (works in desktop app)
-          const tauriBytes = await readFileWithTauri(file.filePath);
-          
-          if (tauriBytes) {
-            // Successfully read with Tauri
-            const base64 = uint8ArrayToBase64(tauriBytes);
-            console.log(`[ChatInterface] ✅ Loaded image via Tauri: ${file.fileName}, base64 length: ${base64.length}`);
-            
-            imageFiles.push({
-              fileName: file.fileName,
-              base64,
-              mimeType: getMimeType(file.fileName)
-            });
-            attachedFileNames.push(file.fileName);
-          } else {
-            // Fallback to backend API (for web version or if Tauri fails)
-            console.log(`[ChatInterface] Falling back to backend API for: ${file.fileName}`);
-            const response = await fetch(`http://localhost:3001/api/v1/files/image?path=${encodeURIComponent(file.filePath)}`);
-            console.log(`[ChatInterface] Image fetch response:`, { 
-              ok: response.ok, 
-              status: response.status, 
-              statusText: response.statusText,
-              contentType: response.headers.get('content-type')
-            });
-            
-            if (response.ok) {
-              const blob = await response.blob();
-              console.log(`[ChatInterface] Image blob size: ${blob.size} bytes, type: ${blob.type}`);
-              
-              const base64 = await new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  const result = reader.result as string;
-                  // Extract base64 data (remove data:image/...;base64, prefix)
-                  const base64Data = result.split(',')[1] || result;
-                  console.log(`[ChatInterface] Base64 length: ${base64Data.length} chars`);
-                  resolve(base64Data);
-                };
-                reader.readAsDataURL(blob);
-              });
-              
-              imageFiles.push({
-                fileName: file.fileName,
-                base64,
-                mimeType: getMimeType(file.fileName)
-              });
-              attachedFileNames.push(file.fileName);
-              console.log(`[ChatInterface] ✅ Successfully loaded image file: ${file.fileName}`);
-            } else {
-              const errorText = await response.text();
-              console.error(`[ChatInterface] ❌ Failed to read image: ${file.filePath}`, {
-                status: response.status,
-                statusText: response.statusText,
-                error: errorText
-              });
-              fileContents.push(`\n\n[Note: Could not read image ${file.fileName} - ${response.statusText}]`);
-            }
-          }
-        } catch (error) {
-          console.error(`[ChatInterface] ❌ Error reading image ${file.filePath}:`, error);
-          fileContents.push(`\n\n[Note: Error reading image ${file.fileName}: ${error instanceof Error ? error.message : 'Unknown error'}]`);
-        }
-      } else if (isBinaryFile(file.fileName)) {
-        // Skip other binary files
-        console.log(`[ChatInterface] Skipping binary file: ${file.fileName}`);
-        attachedFileNames.push(file.fileName);
-        fileContents.push(`\n\n[Note: ${file.fileName} is a binary file and cannot be read as text]`);
-      } else {
-        // Handle text files
-        try {
-          console.log(`[ChatInterface] Loading text file: ${file.fileName} from ${file.filePath}`);
-          const response = await fetch(`http://localhost:3001/api/v1/files/read?path=${encodeURIComponent(file.filePath)}`);
-          if (response.ok) {
-            const data = await response.json();
-            const content = data.content || '';
-            fileContents.push(`\n\n--- File: ${file.fileName} (${file.filePath}) ---\n${content}\n--- End of ${file.fileName} ---`);
-            attachedFileNames.push(file.fileName);
-            console.log(`[ChatInterface] ✅ Successfully loaded text file: ${file.fileName}`);
-          } else {
-            const errorText = await response.text();
-            console.error(`[ChatInterface] ❌ Failed to read file: ${file.filePath}`, {
-              status: response.status,
-              statusText: response.statusText,
-              error: errorText
-            });
-            fileContents.push(`\n\n[Note: Could not read file ${file.fileName} - ${response.statusText}]`);
-          }
-        } catch (error) {
-          console.error(`[ChatInterface] ❌ Error reading file ${file.filePath}:`, error);
-          fileContents.push(`\n\n[Note: Error reading file ${file.fileName}: ${error instanceof Error ? error.message : 'Unknown error'}]`);
-        }
-      }
-    }
-    
-    return { fileContents, attachedFileNames, imageFiles };
-  }, []);
-
   const handleEditMessage = useCallback((messageId: string, newContent: string) => {
     setMessages(prev => prev.map(msg => 
       msg.id === messageId ? { ...msg, content: newContent } : msg
@@ -1895,16 +1730,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     let imageFiles: Array<{ fileName: string; base64: string; mimeType: string }> = [];
     
     if (editedMessage.attachedFiles && editedMessage.attachedFiles.length > 0) {
-      const result = await processAttachedFiles(editedMessage.attachedFiles);
+      const result = await chatAttachmentService.processAttachedFiles(editedMessage.attachedFiles);
       imageFiles = result.imageFiles;
       
       // Build message with file contents
       if (result.fileContents.length > 0 || result.imageFiles.length > 0) {
         const fileHeader = `\n\n[Attached files: ${result.attachedFileNames.join(', ')}]`;
         processedMessage = newContent + fileHeader + result.fileContents.join('');
-        
-        // Remove the note about images since we now support vision
-        // Images will be sent to the AI for analysis
       }
     }
 

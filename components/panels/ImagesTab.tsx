@@ -4,6 +4,7 @@ import {
   MessageSquarePlus, Filter, X, ChevronDown
 } from 'lucide-react';
 import { imageStorage, StoredImage, ImageFilter, ImageSortOrder } from '../../services/imageStorage';
+import { chatAttachmentService } from '../../services/chatAttachmentService';
 import { Modal } from '../ui/Modal';
 import { useToast, ToastContainer } from '../ui/Toast';
 
@@ -55,19 +56,14 @@ export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: 
     
     const fileName = image.fileName || 'image';
     
-    // Dispatch custom event for PromptArea to handle (same as Recent Files Panel)
-    const event = new CustomEvent('add-file-reference', {
-      detail: { fileName, filePath: image.url }
+    // Use centralized service
+    chatAttachmentService.addToChat({ 
+      fileName, 
+      filePath: image.url,
+      source: image.source
     });
-    window.dispatchEvent(event);
     
-    // Focus the textarea
-    const textarea = document.querySelector('textarea.file-mention-input') as HTMLTextAreaElement;
-    if (textarea) {
-      textarea.focus();
-    }
-    
-    console.log(`[ImagesTab] Dispatched add-file-reference: @${fileName} -> ${image.url}`);
+    console.log(`[ImagesTab] Added to chat: ${fileName} -> ${image.url.startsWith('data:') ? 'data-url' : image.url}`);
   };
   
   const handleDelete = (image: StoredImage, e: React.MouseEvent) => {

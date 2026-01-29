@@ -177,6 +177,7 @@ Use 'browse' tool when you need to:
 - Extract full content from a known article
 - Get detailed information from a specific source
 - Enable 'render: true' for JavaScript-heavy sites or if content seems incomplete
+- NOTE: Avoid browsing video platforms (YouTube, Netflix, etc.) unless specifically asked for video-related information.
 
 EXAMPLES:
 • "What's the weather?" → depth: 1 (quick fact)

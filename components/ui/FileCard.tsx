@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { FileInfo } from '../../types';
 import { Button } from '../buttonFormat';
+import { chatAttachmentService } from '../../services/chatAttachmentService';
 
 // ============================================================================
 // Helper Functions
@@ -106,10 +107,7 @@ export const openFolder = async (filePath: string): Promise<boolean> => {
  * Add a file or folder to chat context
  */
 export const addToChat = (fileName: string, filePath: string): void => {
-  const event = new CustomEvent('add-file-reference', {
-    detail: { fileName, filePath }
-  });
-  window.dispatchEvent(event);
+  chatAttachmentService.addToChat({ fileName, filePath });
 };
 
 // ============================================================================

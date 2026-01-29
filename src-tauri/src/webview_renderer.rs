@@ -117,6 +117,71 @@ impl WebViewRenderer {
         .inner_size(800.0, 600.0) // Minimal size for rendering
         .position(-10000.0, -10000.0) // Position offscreen to prevent any visual artifacts
         .visible(false) // CRITICAL: Window is not visible
+        .initialization_script(r#"
+            (function() {
+                // Aggressively disable all media playback and audio
+                const blockMedia = (elem) => {
+                    try {
+                        elem.muted = true;
+                        elem.pause();
+                        elem.autoplay = false;
+                        elem.volume = 0;
+                        // Prevent loading
+                        elem.src = '';
+                        elem.load();
+                        // Disable controls and autoplay
+                        elem.setAttribute('autoplay', 'false');
+                        elem.setAttribute('muted', 'true');
+                    } catch (e) {}
+                };
+
+                // Override play prototype to prevent playback from starting
+                if (window.HTMLMediaElement) {
+                    window.HTMLMediaElement.prototype.play = function() {
+                        console.log('Media.play() blocked by Skhoot');
+                        return Promise.resolve();
+                    };
+                }
+
+                // Block Web Audio API
+                const dummyContext = {
+                    resume: () => Promise.resolve(),
+                    suspend: () => Promise.resolve(),
+                    close: () => Promise.resolve(),
+                    createBufferSource: () => ({ connect: () => {}, start: () => {} }),
+                    createGain: () => ({ connect: () => {}, gain: { value: 0 } }),
+                    decodeAudioData: () => Promise.resolve(),
+                };
+                window.AudioContext = function() { return dummyContext; };
+                window.webkitAudioContext = window.AudioContext;
+
+                // Initial block
+                document.querySelectorAll('video, audio').forEach(blockMedia);
+
+                // Observe for new media elements
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        mutation.addedNodes.forEach((node) => {
+                            if (node.nodeName === 'VIDEO' || node.nodeName === 'AUDIO') {
+                                blockMedia(node);
+                            } else if (node.querySelectorAll) {
+                                node.querySelectorAll('video, audio').forEach(blockMedia);
+                            }
+                        });
+                    });
+                });
+
+                observer.observe(document.documentElement, {
+                    childList: true,
+                    subtree: true
+                });
+
+                // Periodic check for stubborn players (like YouTube's custom ones)
+                setInterval(() => {
+                    document.querySelectorAll('video, audio').forEach(blockMedia);
+                }, 500);
+            })();
+        "#)
         .decorations(false) // No window decorations
         .transparent(true) // Transparent window (helps prevent titlebar on Windows)
         .skip_taskbar(true) // Don't show in taskbar
