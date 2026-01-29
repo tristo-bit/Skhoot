@@ -342,6 +342,9 @@ const AuthButton = memo<{ user: User | null; onSignIn: () => void; onSignOut: ()
       );
     }
 
+    // Sign In button commented out - UI update
+    return null;
+    /*
     return (
       <Button
         onClick={onSignIn}
@@ -354,6 +357,7 @@ const AuthButton = memo<{ user: User | null; onSignIn: () => void; onSignOut: ()
         <span className="text-sm font-black tracking-tight font-jakarta">Sign In</span>
       </Button>
     );
+    */
   }
 );
 AuthButton.displayName = 'AuthButton';
