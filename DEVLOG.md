@@ -20359,3 +20359,132 @@ const handleDeleteFile = (file: FileItem, e: React.MouseEvent) => {
 - ✅ Bouton Download supprimé de l'Image Panel
 - ✅ Aucun impact sur les autres fonctionnalités
 - ✅ UI simplifiée avec seulement les actions essentielles
+
+
+---
+
+## January 29, 2026
+
+### Fixed Image Panel "Add to Chat" Button 🔧
+
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/ImagesTab.tsx`
+- **Change**: Fixed "Add to chat" button to use the same event as Recent Files Panel
+- **Impact**: Images can now be added to chat correctly
+
+**Problem**:
+- "Add to chat" button in Image Panel was not working correctly
+- Used different event (`add-image-to-chat`) than Recent Files Panel (`add-file-reference`)
+- PromptArea was listening for `add-file-reference` event, not `add-image-to-chat`
+
+**Root Cause**:
+- Image Panel dispatched: `new CustomEvent('add-image-to-chat', { detail: { imageUrl, fileName } })`
+- Recent Files Panel dispatched: `new CustomEvent('add-file-reference', { detail: { fileName, filePath } })`
+- Event name mismatch caused Image Panel button to fail
+
+**Solution**:
+✅ Changed Image Panel to use same event as Recent Files Panel:
+- Event name: `add-image-to-chat` → `add-file-reference`
+- Detail structure: `{ imageUrl, fileName }` → `{ fileName, filePath }`
+- Now uses `filePath: image.url` to pass image URL
+- Console log updated to match Recent Files Panel format
+
+**Implementation Details**:
+```typescript
+// Before (not working):
+const event = new CustomEvent('add-image-to-chat', {
+  detail: { imageUrl: image.url, fileName: image.fileName || 'image' }
+});
+
+// After (working):
+const fileName = image.fileName || 'image';
+const event = new CustomEvent('add-file-reference', {
+  detail: { fileName, filePath: image.url }
+});
+```
+
+**Technical Notes**:
+- Only changed event dispatch logic in `handleAddToChat` function
+- No UI changes, no other button modifications
+- Button feedback animation unchanged
+- Focus behavior unchanged
+- Aligned with Recent Files Panel implementation
+
+**Verification**:
+- ✅ "Add to chat" button in Image Panel now works
+- ✅ Image reference added to chat input with @filename syntax
+- ✅ Textarea receives focus after click
+- ✅ Button feedback animation works correctly
+- ✅ Console log shows correct event dispatch
+- ✅ Behavior matches Recent Files Panel exactly
+
+**User Acceptance Criteria Met**:
+- ✅ Add to chat fonctionne correctement dans l'Image Panel
+- ✅ Comportement aligné sur le Recent Files Panel
+- ✅ Aucune modification UI supplémentaire
+- ✅ Aucun impact sur les autres boutons ou panels
+
+
+---
+
+## January 29, 2026
+
+### Fixed Image Panel "Add to Chat" Button 🔧
+
+- **Status**: ✅ **COMPLETED**
+- **Component**: `components/panels/ImagesTab.tsx`
+- **Change**: Fixed Add to Chat button to use same event as Recent Files Panel
+- **Impact**: Add to Chat now works correctly in Image Panel
+
+**Problem**:
+- Add to Chat button in Image Panel was not working correctly
+- Used different custom event (`add-image-to-chat`) than Recent Files Panel
+- Recent Files Panel uses `add-file-reference` event which works correctly
+
+**Root Cause**:
+- Image Panel dispatched `add-image-to-chat` event with `{ imageUrl, fileName }` payload
+- Recent Files Panel dispatched `add-file-reference` event with `{ fileName, filePath }` payload
+- PromptArea component only listens for `add-file-reference` event
+
+**Solution**:
+✅ Changed Image Panel to use same event as Recent Files Panel:
+- Event name: `add-image-to-chat` → `add-file-reference`
+- Payload structure: `{ imageUrl, fileName }` → `{ fileName, filePath }`
+- `filePath` now contains `image.url` (image URL)
+- Console log updated to match Recent Files Panel format
+
+**Implementation Details**:
+```typescript
+// Before (broken):
+const event = new CustomEvent('add-image-to-chat', {
+  detail: { imageUrl: image.url, fileName: image.fileName || 'image' }
+});
+
+// After (fixed):
+const fileName = image.fileName || 'image';
+const event = new CustomEvent('add-file-reference', {
+  detail: { fileName, filePath: image.url }
+});
+```
+
+**Technical Notes**:
+- Aligned with Recent Files Panel implementation exactly
+- No UI changes - only event dispatch logic
+- Button feedback animation unchanged
+- Focus behavior unchanged
+- Only modified `handleAddToChat` function in ImagesTab
+
+**Verification**:
+- ✅ Add to Chat button dispatches `add-file-reference` event
+- ✅ Event payload matches Recent Files Panel format
+- ✅ PromptArea receives and processes event correctly
+- ✅ Image reference added to chat input
+- ✅ Textarea receives focus after click
+- ✅ Console log shows correct format
+- ✅ No impact on Delete button or other functionality
+
+**User Acceptance Criteria Met**:
+- ✅ Add to Chat fonctionne correctement dans l'Image Panel
+- ✅ Comportement aligné sur le Recent Files Panel
+- ✅ Aucune modification UI supplémentaire
+- ✅ Aucun impact sur les autres boutons ou panels

@@ -53,9 +53,11 @@ export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: 
       return next;
     }), 300);
     
-    // Dispatch event to add image to chat
-    const event = new CustomEvent('add-image-to-chat', {
-      detail: { imageUrl: image.url, fileName: image.fileName || 'image' }
+    const fileName = image.fileName || 'image';
+    
+    // Dispatch custom event for PromptArea to handle (same as Recent Files Panel)
+    const event = new CustomEvent('add-file-reference', {
+      detail: { fileName, filePath: image.url }
     });
     window.dispatchEvent(event);
     
@@ -65,7 +67,7 @@ export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: 
       textarea.focus();
     }
     
-    console.log(`[ImagesTab] Added image to chat: ${image.fileName || image.url}`);
+    console.log(`[ImagesTab] Dispatched add-file-reference: @${fileName} -> ${image.url}`);
   };
   
   const handleDelete = (image: StoredImage, e: React.MouseEvent) => {
