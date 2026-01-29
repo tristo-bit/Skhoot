@@ -133,6 +133,7 @@ class AgentChatService {
   ): Promise<{ content: string; toolResults: ToolResult[]; displayImages?: Array<{ url: string; alt?: string; fileName?: string }> }> {
     const allToolResults: ToolResult[] = [];
     const displayImages: Array<{ url: string; alt?: string; fileName?: string }> = [];
+    // Start with initial history
     let currentHistory = [...history];
     let iterations = 0;
 
@@ -158,15 +159,24 @@ class AgentChatService {
       return this.formatDirectExecutionResult(toolCall, result, allToolResults, displayImages);
     }
 
-    // Add user message
-    currentHistory.push({ role: 'user', content: message });
+    // currentMessage will hold the input for each turn. 
+    // On first turn, it's the original prompt. On subsequent turns, it's empty (continuation).
+    let currentMessage = message;
 
     while (iterations < this.maxToolIterations) {
       iterations++;
       options.onStatusUpdate?.(`Processing (iteration ${iterations})...`);
 
       // Get AI response
-      const response = await this.chat(message, currentHistory, options);
+      // Pass the new message and existing history separately. 
+      // providerRegistry.chat will combine them correctly.
+      const response = await this.chat(currentMessage, currentHistory, options);
+
+      // After first call, add the original user message to currentHistory 
+      // so it becomes part of the permanent context for subsequent iterations.
+      if (iterations === 1 && currentMessage) {
+        currentHistory.push({ role: 'user', content: currentMessage });
+      }
 
       // If no tool calls, we're done
       if (!response.toolCalls || response.toolCalls.length === 0) {
@@ -204,7 +214,7 @@ class AgentChatService {
       }
 
       // Continue the loop to get next response
-      message = ''; // Empty message for continuation
+      currentMessage = ''; // Empty message for continuation
     }
 
     return {

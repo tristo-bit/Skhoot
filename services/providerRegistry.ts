@@ -388,17 +388,20 @@ class ProviderRegistry {
     ];
 
     // Add current message with images if any
-    if (images && images.length > 0) {
-      const contentParts: any[] = [{ type: 'text', text: message }];
-      images.forEach(img => {
-        contentParts.push({
-          type: 'image_url',
-          image_url: { url: `data:${img.mimeType};base64,${img.base64}` }
+    // ONLY add if message is not empty OR if history is empty (to ensure at least one user message)
+    if (message || history.length === 0) {
+      if (images && images.length > 0) {
+        const contentParts: any[] = [{ type: 'text', text: message || '' }];
+        images.forEach(img => {
+          contentParts.push({
+            type: 'image_url',
+            image_url: { url: `data:${img.mimeType};base64,${img.base64}` }
+          });
         });
-      });
-      messages.push({ role: 'user', content: contentParts as any });
-    } else {
-      messages.push({ role: 'user', content: message });
+        messages.push({ role: 'user', content: contentParts as any });
+      } else {
+        messages.push({ role: 'user', content: message || '' });
+      }
     }
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -484,19 +487,22 @@ class ProviderRegistry {
       });
 
     // Add current message
-    if (images && images.length > 0) {
-      const contentParts: any[] = images.map(img => ({
-        type: 'image',
-        source: {
-          type: 'base64',
-          media_type: img.mimeType,
-          data: img.base64
-        }
-      }));
-      contentParts.push({ type: 'text', text: message });
-      messages.push({ role: 'user', content: contentParts });
-    } else {
-      messages.push({ role: 'user', content: message });
+    // ONLY add if message is not empty OR if history is empty
+    if (message || history.length === 0) {
+      if (images && images.length > 0) {
+        const contentParts: any[] = images.map(img => ({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: img.mimeType,
+            data: img.base64
+          }
+        }));
+        contentParts.push({ type: 'text', text: message || '' });
+        messages.push({ role: 'user', content: contentParts });
+      } else {
+        messages.push({ role: 'user', content: message || '' });
+      }
     }
 
     const response = await fetch(`${baseUrl}/messages`, {
@@ -596,18 +602,21 @@ class ProviderRegistry {
     ];
 
     // Add current message
-    const currentParts: any[] = [{ text: message }];
-    if (images && images.length > 0) {
-      images.forEach(img => {
-        currentParts.push({
-          inlineData: {
-            mimeType: img.mimeType,
-            data: img.base64
-          }
+    // ONLY add if message is not empty OR if history is empty
+    if (message || history.length === 0) {
+      const currentParts: any[] = [{ text: message || '' }];
+      if (images && images.length > 0) {
+        images.forEach(img => {
+          currentParts.push({
+            inlineData: {
+              mimeType: img.mimeType,
+              data: img.base64
+            }
+          });
         });
-      });
+      }
+      contents.push({ role: 'user', parts: currentParts });
     }
-    contents.push({ role: 'user', parts: currentParts });
 
     // Note: System prompt in Gemini goes into 'systemInstruction' or prepended to first message
     // Newer API versions support system_instruction
