@@ -1262,3 +1262,25 @@ select.select-themed:focus {
 .custom-scrollbar:hover {
   scrollbar-color: #E1D5E3 transparent; /* orchidTint */
 }
+
+/* ============================================
+   SELECT DROPDOWN DARK MODE FIX
+   ============================================ */
+
+/* Force black background for select dropdowns in dark mode */
+.dark select {
+  color-scheme: dark;
+}
+
+.dark select option {
+  background-color: #111827 !important; /* gray-900 */
+  color: #ffffff !important;
+}
+
+/* Ensure dropdown list background is black */
+.dark select:focus option,
+.dark select option:hover,
+.dark select option:checked {
+  background-color: #1f2937 !important; /* gray-800 for hover/selected */
+  color: #ffffff !important;
+}
