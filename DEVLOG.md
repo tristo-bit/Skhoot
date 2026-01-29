@@ -1,5 +1,49 @@
 # Development Log
 
+## January 29, 2026 - Release v0.1.7 🚀
+
+### Release Metadata
+- **Version**: v0.1.7
+- **Release Date**: January 29, 2026
+- **Commits Since v0.1.6**: 60
+- **Tag**: v0.1.7
+- **Changelog**: [documentation/CHANGELOG-v0.1.7.md](documentation/CHANGELOG-v0.1.7.md)
+
+### Major Features
+- **Kiro CLI Authentication Bridge**: Full integration with Kiro CLI for seamless authentication and backend connectivity
+- **Smart Search Summarization**: AI-powered search result summarization for enhanced agent decision-making
+- **Custom STT Provider Support**: Groq integration for high-speed, free voice transcription
+- **Native File Picker**: Improved file attachment workflow with native dialog integration
+- **User Profile Persistence**: LocalStorage-based profile management across sessions
+
+### Key Improvements
+- **Portal-Based UI Architecture**: Complete refactor of modal and sidebar rendering for perfect corner rounding
+- **Dark Mode Polish**: Comprehensive dark mode refinements across all panels and components
+- **Memory System Redesign**: Improved layout, normalized filters, and pixel-perfect alignment
+- **AI Model Updates**: Latest model support with thought process tracking
+- **Cross-Platform Shell Compatibility**: Better terminal handling across Linux/macOS/Windows
+
+### Bug Fixes
+- Fixed first message registry causing display and tool call issues
+- Fixed OCR/Vision functionality
+- Fixed missing Axum backend endpoints
+- Fixed dark mode dropdowns and production animation styles
+- Fixed Kiro connection test validation
+
+### Documentation
+- Added comprehensive system design documentation for all core modules
+- Added `leftout-todos.md` for tracking known limitations and dev/release gaps
+- Added Business Source License 1.1 to project
+
+### Next Steps
+- Multi-workspace support for managing multiple projects
+- Plugin system for extensible tool integrations
+- Workflow templates marketplace
+- Enhanced memory system with semantic search
+- Collaborative features for team-based workflows
+
+---
+
 ## January 29, 2026
 
 ### Robust Gemini 3 reasoning & tool-calling loop ✅
