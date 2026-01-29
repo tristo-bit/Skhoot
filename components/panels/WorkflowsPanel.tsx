@@ -255,7 +255,7 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
     >
       <div className="h-full flex">
         {/* Left Column - Always visible */}
-        <div className="w-1/3 border-r border-white/5 overflow-y-auto">
+        <div className="w-1/3 border-r border-white/5 overflow-y-auto custom-scrollbar">
           {activeTab === 'running' ? (
             <RunningList executions={runningExecutions} workflows={workflows} />
           ) : activeTab === 'outputs' ? (
@@ -276,7 +276,7 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
         </div>
 
         {/* Right Column - Context switch */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
           {activeTab === 'create' ? (
             <WorkflowCreator onSave={handleSaveNewWorkflow} onCancel={() => setActiveTab('workflows')} />
           ) : activeTab === 'import' ? (
@@ -424,7 +424,7 @@ const ExecutionDetail = memo<{
                   )}
                 </div>
                 {result.output && (
-                  <div className="text-xs p-2 rounded bg-black/20 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto" style={{ color: 'var(--text-secondary)' }}>
+                  <div className="text-xs p-2 rounded bg-black/20 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar" style={{ color: 'var(--text-secondary)' }}>
                     {result.output}
                   </div>
                 )}
@@ -1519,7 +1519,7 @@ const ImportView = memo<{
   const [text, setText] = useState('');
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col h-full">
+    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 flex flex-col h-full">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Import Workflow</h3>
         <div className="flex items-center gap-2">

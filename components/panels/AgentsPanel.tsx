@@ -203,7 +203,7 @@ export const AgentsPanel = memo<AgentsPanelProps>(({ isOpen, onClose }) => {
         ) : (
           <>
             {/* Agent List */}
-            <div className="w-1/3 border-r border-white/5 overflow-y-auto flex flex-col">
+            <div className="w-1/3 border-r border-white/5 overflow-y-auto custom-scrollbar flex flex-col">
               {activeTab === 'agents' && (
                 <>
                   {/* Search Bar */}
@@ -233,7 +233,7 @@ export const AgentsPanel = memo<AgentsPanelProps>(({ isOpen, onClose }) => {
             </div>
 
             {/* Agent Detail */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
               {selectedAgent ? (
                 <AgentDetail
                   agent={selectedAgent}
@@ -300,7 +300,7 @@ const AgentList = memo<{
   const stateOrder: AgentState[] = ['on', 'sleeping', 'failing', 'off'];
 
   return (
-    <div className="flex-1 p-2 space-y-2 overflow-y-auto">
+    <div className="flex-1 p-2 space-y-2 overflow-y-auto custom-scrollbar">
       {stateOrder.map(state => {
         const stateAgents = groupedAgents[state];
         if (stateAgents.length === 0) return null;
@@ -761,7 +761,7 @@ const AgentCreator = memo<{
   const canSave = name.trim() && masterPrompt.trim();
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Create Agent</h3>
         <div className="flex items-center gap-2">
