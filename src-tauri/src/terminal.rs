@@ -53,7 +53,13 @@ pub async fn create_terminal_session(
         #[cfg(target_os = "windows")]
         { "powershell.exe".to_string() }
         #[cfg(not(target_os = "windows"))]
-        { "/bin/bash".to_string() }
+        {
+            if std::path::Path::new("/bin/bash").exists() {
+                "/bin/bash".to_string()
+            } else {
+                "/bin/sh".to_string()
+            }
+        }
     });
     
     println!("[Terminal] Creating session with shell: {}, size: {}x{}", shell_cmd, cols, rows);

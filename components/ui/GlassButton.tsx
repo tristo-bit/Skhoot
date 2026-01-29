@@ -41,7 +41,6 @@ export const GlassButton = memo<GlassButtonProps>(({
     <button 
       onClick={onClick}
       disabled={disabled}
-      data-tauri-drag-region="false"
       data-no-drag
       aria-label={ariaLabel}
       title={title ?? ariaLabel}

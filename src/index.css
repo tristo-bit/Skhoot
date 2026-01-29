@@ -756,26 +756,47 @@
     border-color: var(--glass-border);
   }
 
+  html {
+    width: 100%;
+    height: 100%;
+    background-color: transparent !important;
+    font-size: calc(16px * var(--scale-text));
+    overflow: hidden;
+  }
+
   body {
     margin: 0;
     width: 100%;
     height: 100%;
-    background-color: transparent;
+    background-color: transparent !important;
     color: var(--text-primary);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  }
-
-  html {
-    width: 100%;
-    height: 100%;
-    background-color: transparent;
-    font-size: calc(16px * var(--scale-text));
+    overflow: hidden;
   }
 
   #root {
     width: 100%;
     height: 100%;
-    background-color: transparent;
+    background-color: transparent !important;
+  }
+
+  /* macOS WebKit fixes for rounded corners and clipping */
+  .app-shell {
+    isolation: isolate;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    /* Force WebKit to create a new stacking context for clipping */
+    transform: translateZ(0);
+    /* Ensure child layers don't bleed out */
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
+  }
+
+  .app-glass {
+    border-radius: inherit;
+    overflow: hidden;
+    /* Prevent backdrop-filter artifacts on corners */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
   }
 
   /* Subtle dither to reduce blur banding */
@@ -796,8 +817,8 @@
   /* Advanced Glassmorphic Components with Dynamic Blur */
   .glass {
     background-color: var(--glass-bg);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    backdrop-filter: var(--blur-medium);
+    -webkit-backdrop-filter: var(--blur-medium);
     border: 1px solid var(--glass-border);
     box-shadow: none;
     position: relative;
@@ -816,8 +837,8 @@
 
   .glass-elevated {
     background-color: var(--glass-bg);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    backdrop-filter: var(--blur-heavy);
+    -webkit-backdrop-filter: var(--blur-heavy);
     border: 1px solid var(--glass-border);
     box-shadow: none;
     position: relative;
@@ -836,8 +857,8 @@
 
   .glass-subtle {
     background-color: rgba(255, 255, 255, var(--glass-opacity-light));
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    backdrop-filter: var(--blur-light);
+    -webkit-backdrop-filter: var(--blur-light);
     border: 1px solid var(--glass-border);
     box-shadow: none;
     position: relative;

@@ -19,14 +19,24 @@ pub struct SessionConfig {
 
 impl Default for SessionConfig {
     fn default() -> Self {
-        // Use plain bash without user's custom config
+        let shell = if cfg!(target_os = "windows") {
+            "powershell.exe".to_string()
+        } else {
+            // Check if bash exists, fallback to sh
+            if std::path::Path::new("/bin/bash").exists() {
+                "/bin/bash".to_string()
+            } else {
+                "/bin/sh".to_string()
+            }
+        };
+
         Self {
-            shell: "/bin/bash".to_string(),
+            shell,
             cols: 80,
             rows: 24,
             env: vec![
                 ("PS1".to_string(), "$ ".to_string()),  // Simple prompt
-                ("TERM".to_string(), "dumb".to_string()), // Disable fancy sequences
+                ("TERM".to_string(), "xterm-256color".to_string()), // More standard than 'dumb'
             ],
         }
     }

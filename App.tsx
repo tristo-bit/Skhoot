@@ -482,7 +482,7 @@ const AppContent: React.FC = () => {
     <div className="relative flex h-screen w-full items-center justify-center overflow-hidden">
       <ResizeHandles onResizeStart={handleResizeStart} />
 
-      <div className="app-shell relative z-10 w-full h-full flex flex-col shadow-2xl overflow-hidden bg-bg-primary rounded-[var(--app-radius)]">
+      <div className="app-shell relative z-10 w-full h-full flex flex-col shadow-2xl overflow-hidden bg-bg-primary rounded-[var(--app-radius)] isolation-isolate">
         <div className="app-glass relative z-10 w-full h-full flex flex-col overflow-hidden glass-elevated rounded-[var(--app-radius)]">
           {/* Background layers */}
           <Background3D />
@@ -546,7 +546,7 @@ const AppContent: React.FC = () => {
             className="flex-1 relative overflow-hidden flex flex-col p-2"
             onMouseDown={handleBackgroundDrag}
           >
-            <div className="flex-1 relative overflow-hidden" data-tauri-drag-region="false">
+            <div className="flex-1 relative overflow-hidden">
                 <ChatInterface 
                 key={currentChatId ?? `new-chat-${newChatSession}`} 
                 chatId={currentChatId}

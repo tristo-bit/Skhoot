@@ -231,9 +231,10 @@ mod tests {
     
     #[test]
     fn test_priority_score() {
+        let shell = if cfg!(target_os = "windows") { "cmd.exe" } else { "/bin/bash" };
         let mut snapshot = SessionSnapshot::new(
             "test".to_string(),
-            "/bin/bash".to_string(),
+            shell.to_string(),
             "/home/user".to_string(),
             80,
             24,
@@ -252,9 +253,10 @@ mod tests {
     
     #[test]
     fn test_should_hibernate() {
+        let shell = if cfg!(target_os = "windows") { "cmd.exe" } else { "/bin/bash" };
         let snapshot = SessionSnapshot::new(
             "test".to_string(),
-            "/bin/bash".to_string(),
+            shell.to_string(),
             "/home/user".to_string(),
             80,
             24,

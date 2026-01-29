@@ -72,7 +72,17 @@ async fn create_session(
     
     let config = SessionConfig {
         shell: req.shell.unwrap_or_else(|| {
-            std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string())
+            if cfg!(target_os = "windows") {
+                "powershell.exe".to_string()
+            } else {
+                std::env::var("SHELL").unwrap_or_else(|_| {
+                    if std::path::Path::new("/bin/bash").exists() {
+                        "/bin/bash".to_string()
+                    } else {
+                        "/bin/sh".to_string()
+                    }
+                })
+            }
         }),
         cols: req.cols.unwrap_or(80),
         rows: req.rows.unwrap_or(24),

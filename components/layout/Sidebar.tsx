@@ -44,6 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const sidebar = (
     <div 
       data-sidebar
+      data-no-drag
       className={`fixed top-0 bottom-0 z-[70] w-64 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
