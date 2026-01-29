@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Volume2, VolumeX, Clock, Settings as SettingsIcon, TestTube, Layers } from 'lucide-react';
+import { Bell, Volume2, VolumeX, Clock, Settings as SettingsIcon, Layers } from 'lucide-react';
 import { BackButton } from '../buttonFormat';
-import { nativeNotifications, NotificationSettings, NotificationType } from '../../services/nativeNotifications';
+import { nativeNotifications, NotificationSettings } from '../../services/nativeNotifications';
 
 interface NotificationsPanelProps {
   onBack: () => void;
@@ -184,41 +184,6 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
       const savedSettings = nativeNotifications.getSettings();
       console.log('[NotificationsPanel] Verified saved settings:', savedSettings);
     }, 100);
-  };
-
-  const handleTestNotification = async (type: NotificationType) => {
-    console.log('[NotificationsPanel] ========== TEST BUTTON CLICKED ==========');
-    console.log('[NotificationsPanel] Testing notification type:', type);
-    console.log('[NotificationsPanel] Current settings state:', settings);
-    console.log('[NotificationsPanel] Settings enabled:', settings.enabled);
-    console.log('[NotificationsPanel] Type enabled:', settings.types[type]);
-    
-    try {
-      // Show immediate feedback
-      console.log('[NotificationsPanel] Calling nativeNotifications.testNotification...');
-      await nativeNotifications.testNotification(type);
-      console.log('[NotificationsPanel] ✅ Test notification sent successfully');
-      
-      // Show success feedback to user
-      alert(`✅ Test ${type} notification sent! Check your system notifications.`);
-    } catch (error) {
-      console.error('[NotificationsPanel] ❌ Test notification failed:', error);
-      alert(`❌ Test notification failed: ${error}`);
-    }
-    
-    console.log('[NotificationsPanel] ========== TEST BUTTON END ==========');
-  };
-
-  const handleResetSettings = () => {
-    console.log('[NotificationsPanel] Resetting settings to defaults');
-    nativeNotifications.resetSettings();
-    setSettings(nativeNotifications.getSettings());
-  };
-
-  const handleDebugInfo = () => {
-    const debugInfo = (nativeNotifications as any).getDebugInfo();
-    console.log('[NotificationsPanel] Debug info:', debugInfo);
-    alert('Debug info logged to console. Check browser dev tools.');
   };
 
   return (
@@ -524,114 +489,6 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onBack }
           disabled={!settings.enabled}
           description="Priority level for info notifications"
         />
-      </div>
-
-      {/* Test Notifications */}
-      <div className="space-y-3">
-        <SectionLabel 
-          label="Test Notifications"
-          icon={<TestTube size={16} />}
-          iconColor="text-cyan-500"
-        />
-        
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => handleTestNotification('success')}
-            disabled={!settings.enabled || !settings.types.success}
-            className="p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-emerald-600 hover:bg-emerald-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            ✅ Test Success
-          </button>
-          
-          <button
-            onClick={() => handleTestNotification('error')}
-            disabled={!settings.enabled || !settings.types.error}
-            className="p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-red-600 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            ❌ Test Error
-          </button>
-          
-          <button
-            onClick={() => handleTestNotification('warning')}
-            disabled={!settings.enabled || !settings.types.warning}
-            className="p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-amber-600 hover:bg-amber-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            ⚠️ Test Warning
-          </button>
-          
-          <button
-            onClick={() => handleTestNotification('info')}
-            disabled={!settings.enabled || !settings.types.info}
-            className="p-3 rounded-xl glass-subtle text-sm font-medium font-jakarta text-blue-600 hover:bg-blue-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            ℹ️ Test Info
-          </button>
-        </div>
-      </div>
-
-      {/* Reset Settings */}
-      <div className="space-y-3 pt-4 border-t border-glass-border">
-        <div className="p-3 rounded-xl glass-subtle">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium font-jakarta text-text-primary">Reset to Defaults</p>
-              <p className="text-xs text-text-secondary font-jakarta mt-1">
-                Restore all notification settings to their default values
-              </p>
-            </div>
-            <button
-              onClick={handleResetSettings}
-              className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta text-red-600 hover:bg-red-500/10 transition-all"
-            >
-              Reset All
-            </button>
-          </div>
-        </div>
-        
-        {/* Debug Button */}
-        <div className="p-3 rounded-xl glass-subtle">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium font-jakarta text-text-primary">Debug Information</p>
-              <p className="text-xs text-text-secondary font-jakarta mt-1">
-                View service state and troubleshooting info
-              </p>
-            </div>
-            <button
-              onClick={handleDebugInfo}
-              className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta text-blue-600 hover:bg-blue-500/10 transition-all"
-            >
-              Debug Info
-            </button>
-          </div>
-        </div>
-        
-        {/* Reinitialize Button */}
-        <div className="p-3 rounded-xl glass-subtle">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium font-jakarta text-text-primary">Reinitialize Service</p>
-              <p className="text-xs text-text-secondary font-jakarta mt-1">
-                Force reload the notification service (fixes initialization issues)
-              </p>
-            </div>
-            <button
-              onClick={async () => {
-                console.log('[NotificationsPanel] Reinitializing notification service...');
-                try {
-                  await (nativeNotifications as any).reinitialize();
-                  alert('Notification service reinitialized successfully!');
-                } catch (error) {
-                  console.error('[NotificationsPanel] Reinitialize failed:', error);
-                  alert(`Reinitialize failed: ${error}`);
-                }
-              }}
-              className="px-4 py-2 rounded-lg text-sm font-medium font-jakarta text-[#C0B7C9] hover:bg-[#C0B7C9]/10 transition-all"
-            >
-              Reinitialize
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
