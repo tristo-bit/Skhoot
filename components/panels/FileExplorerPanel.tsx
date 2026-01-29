@@ -1,5 +1,5 @@
 /**
- * FileExplorerPanel - File explorer with tabs for Recent, Disk, Analysis, Cleanup
+ * FileExplorerPanel - File explorer with tabs for Recent, Disk, Analysis
  * Uses terminal-style floating panel layout
  * Performance optimized with memo and useCallback
  */
@@ -145,7 +145,7 @@ const fileActions = {
   },
 };
 
-type TabId = 'recent' | 'images' | 'disk' | 'analysis' | 'cleanup';
+type TabId = 'recent' | 'images' | 'disk' | 'analysis'; // | 'cleanup';
 
 interface FileItem {
   id: string;
@@ -183,7 +183,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
     { id: 'images', title: searchExpanded ? '' : 'Images', icon: <Image size={14} /> },
     { id: 'disk', title: searchExpanded ? '' : 'Disk', icon: <HardDrive size={14} /> },
     { id: 'analysis', title: searchExpanded ? '' : 'Analysis', icon: <BarChart3 size={14} /> },
-    { id: 'cleanup', title: searchExpanded ? '' : 'Cleanup', icon: <Trash2 size={14} /> },
+    // { id: 'cleanup', title: searchExpanded ? '' : 'Cleanup', icon: <Trash2 size={14} /> },
   ], [searchExpanded]);
 
   useEffect(() => {
@@ -346,7 +346,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
           {activeTab === 'images' && <ImagesTab viewMode={viewMode} isLoading={isLoading} />}
           {activeTab === 'disk' && <DiskTab />}
           {activeTab === 'analysis' && <AnalysisTab />}
-          {activeTab === 'cleanup' && <CleanupTab />}
+          {/* {activeTab === 'cleanup' && <CleanupTab />} */}
         </div>
       </div>
     </SecondaryPanel>
@@ -794,6 +794,7 @@ const AnalysisTab = memo(() => {
 });
 AnalysisTab.displayName = 'AnalysisTab';
 
+/* CLEANUP TAB - COMMENTED OUT
 const CleanupTab = memo(() => {
   const [suggestions, setSuggestions] = useState<Array<{
     id: string;
@@ -879,10 +880,10 @@ const CleanupTab = memo(() => {
     ) : (
       suggestions.map((item) => (
         <div key={item.id} className="flex items-center gap-3 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
-          {/* Status indicator dot */}
+          {/* Status indicator dot *\/}
           <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.safe ? 'bg-green-400' : 'bg-amber-400'}`} />
           
-          {/* Info */}
+          {/* Info *\/}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
@@ -893,7 +894,7 @@ const CleanupTab = memo(() => {
             <p className="text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>{item.description}</p>
           </div>
           
-          {/* Size + Action */}
+          {/* Size + Action *\/}
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className="text-xs font-bold text-purple-400">{item.size}</span>
             <button 
@@ -909,6 +910,7 @@ const CleanupTab = memo(() => {
   </div>;
 });
 CleanupTab.displayName = 'CleanupTab';
+END CLEANUP TAB COMMENT */
 
 FileExplorerPanel.displayName = 'FileExplorerPanel';
 

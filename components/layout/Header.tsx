@@ -51,29 +51,18 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="absolute inset-0 bg-black/5 rounded-r-3xl" />
         </div>
         
-        <button 
-          onClick={onToggleSidebar}
-          data-no-drag
-          data-sidebar-toggle
-          className="header-sidebar-btn relative z-10 p-1.5 hover:bg-black/5 rounded-lg transition-all text-text-secondary active:scale-95"
-          aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
-          title={isSidebarOpen ? 'Close menu' : 'Open menu'}
-        >
-          <div className="relative w-[18px] h-[18px]">
-            <Menu 
-              size={18} 
-              className={`absolute inset-0 transition-all duration-300 ${
-                isSidebarOpen ? 'opacity-0 rotate-90 scale-75' : 'opacity-100 rotate-0 scale-100'
-              }`}
-            />
-            <X 
-              size={18} 
-              className={`absolute inset-0 transition-all duration-300 ${
-                isSidebarOpen ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-75'
-              }`}
-            />
-          </div>
-        </button>
+        {!isSidebarOpen && (
+          <button 
+            onClick={onToggleSidebar}
+            data-no-drag
+            data-sidebar-toggle
+            className="header-sidebar-btn relative z-10 p-1.5 hover:bg-black/5 rounded-lg transition-all text-text-secondary active:scale-95"
+            aria-label="Open menu"
+            title="Open menu"
+          >
+            <Menu size={18} />
+          </button>
+        )}
         
         <div 
           className={`header-logo flex items-center gap-2 relative z-10 transition-all duration-500 ${

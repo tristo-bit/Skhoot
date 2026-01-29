@@ -73,8 +73,8 @@ export const HelpCenterPanel: React.FC<HelpCenterPanelProps> = ({ onBack }) => {
             />
           </div>
           <div>
-            <h4 className="text-lg font-bold font-jakarta text-gray-700 mb-2">Found a Bug?</h4>
-            <p className="text-sm text-gray-500 font-jakarta">
+            <h4 className="text-lg font-bold font-jakarta text-text-primary mb-2">Found a Bug?</h4>
+            <p className="text-sm text-text-secondary font-jakarta">
               Please describe the issue in detail and our development team will investigate and respond within 24 hours.
             </p>
           </div>
@@ -87,7 +87,7 @@ export const HelpCenterPanel: React.FC<HelpCenterPanelProps> = ({ onBack }) => {
             onChange={(e) => setBugReport(e.target.value)}
             placeholder="Describe what happened, what you expected to happen, and steps to reproduce the issue..."
             rows={6}
-            className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            className="w-full p-3 rounded-xl border border-white/5 bg-black/20 text-text-primary text-sm font-medium font-jakarta placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-fuku-brand resize-none"
           />
         </div>
 
@@ -114,8 +114,8 @@ export const HelpCenterPanel: React.FC<HelpCenterPanelProps> = ({ onBack }) => {
             <img src="/skhoot-purple.svg" alt="Skhoot" className="w-16 h-16" />
           </div>
           <div>
-            <h4 className="text-lg font-bold font-jakarta text-gray-700 mb-2">How can we help you?</h4>
-            <p className="text-sm text-gray-500 font-jakarta">
+            <h4 className="text-lg font-bold font-jakarta text-text-primary mb-2">How can we help you?</h4>
+            <p className="text-sm text-text-secondary font-jakarta">
               Please describe your issue in detail and our support team will respond via email within 24 hours.
             </p>
           </div>
@@ -128,7 +128,7 @@ export const HelpCenterPanel: React.FC<HelpCenterPanelProps> = ({ onBack }) => {
             onChange={(e) => setSupportRequest(e.target.value)}
             placeholder="Please provide details about your question or issue. The more information you provide, the better we can assist you..."
             rows={6}
-            className="w-full p-3 rounded-xl border border-gray-200 bg-white text-sm font-medium font-jakarta focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+            className="w-full p-3 rounded-xl border border-white/5 bg-black/20 text-text-primary text-sm font-medium font-jakarta placeholder:text-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-fuku-brand resize-none"
           />
         </div>
 
@@ -154,18 +154,18 @@ export const HelpCenterPanel: React.FC<HelpCenterPanelProps> = ({ onBack }) => {
         <SectionLabel label="Documentation" description="Access our comprehensive guides and tutorials" />
         <button
           onClick={handleOpenDocumentation}
-          className="w-full p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all flex items-center justify-between"
+          className="w-full p-4 rounded-xl border border-white/5 bg-black/20 hover:bg-white/5 transition-all flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white border flex items-center justify-center" style={{ borderColor: '#c0b7c9' }}>
+            <div className="w-10 h-10 rounded-xl bg-black/20 border border-white/5 flex items-center justify-center">
               <ExternalLink size={18} style={{ color: '#c0b7c9' }} />
             </div>
             <div className="text-left">
-              <p className="text-sm font-bold font-jakarta text-gray-700">Open Documentation</p>
-              <p className="text-xs text-gray-500 font-jakarta">View guides, tutorials, and FAQs</p>
+              <p className="text-sm font-bold font-jakarta text-text-primary">Open Documentation</p>
+              <p className="text-xs text-text-secondary font-jakarta">View guides, tutorials, and FAQs</p>
             </div>
           </div>
-          <ChevronRight size={18} className="text-gray-400" />
+          <ChevronRight size={18} className="text-text-secondary" />
         </button>
       </div>
 
@@ -174,18 +174,18 @@ export const HelpCenterPanel: React.FC<HelpCenterPanelProps> = ({ onBack }) => {
         <SectionLabel label="Get Support" description="Need help? Our team will respond within 24 hours" />
         <button
           onClick={() => setShowSupportRequestPanel(true)}
-          className="w-full p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all flex items-center justify-between"
+          className="w-full p-4 rounded-xl border border-white/5 bg-black/20 hover:bg-white/5 transition-all flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white border flex items-center justify-center" style={{ borderColor: '#c0b7c9' }}>
+            <div className="w-10 h-10 rounded-xl bg-black/20 border border-white/5 flex items-center justify-center">
               <Mail size={18} style={{ color: '#c0b7c9' }} />
             </div>
             <div className="text-left">
-              <p className="text-sm font-bold font-jakarta text-gray-700">Request Assistance</p>
-              <p className="text-xs text-gray-500 font-jakarta">Contact our support team</p>
+              <p className="text-sm font-bold font-jakarta text-text-primary">Request Assistance</p>
+              <p className="text-xs text-text-secondary font-jakarta">Contact our support team</p>
             </div>
           </div>
-          <ChevronRight size={18} className="text-gray-400" />
+          <ChevronRight size={18} className="text-text-secondary" />
         </button>
       </div>
 
@@ -194,18 +194,18 @@ export const HelpCenterPanel: React.FC<HelpCenterPanelProps> = ({ onBack }) => {
         <SectionLabel label="Report Issues" description="Found a bug? Help us improve by reporting it" />
         <button
           onClick={() => setShowBugReportPanel(true)}
-          className="w-full p-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-all flex items-center justify-between"
+          className="w-full p-4 rounded-xl border border-white/5 bg-black/20 hover:bg-white/5 transition-all flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
-              <Bug size={18} className="text-red-600" />
+            <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center">
+              <Bug size={18} className="text-red-400" />
             </div>
             <div className="text-left">
-              <p className="text-sm font-bold font-jakarta text-gray-700">Report a Bug</p>
-              <p className="text-xs text-gray-500 font-jakarta">Submit bug reports and issues</p>
+              <p className="text-sm font-bold font-jakarta text-text-primary">Report a Bug</p>
+              <p className="text-xs text-text-secondary font-jakarta">Submit bug reports and issues</p>
             </div>
           </div>
-          <ChevronRight size={18} className="text-gray-400" />
+          <ChevronRight size={18} className="text-text-secondary" />
         </button>
       </div>
 
