@@ -26,6 +26,7 @@
     "notification:allow-remove-active",
     "notification:allow-get-active",
     "shell:allow-open",
-    "dialog:default"
+    "dialog:default",
+    "fs:default"
   ]
 }

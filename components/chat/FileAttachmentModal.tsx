@@ -4,6 +4,7 @@ import { Modal } from '../ui/Modal';
 import { IconButton } from '../buttonFormat';
 import { backendApi } from '../../services/backendApi';
 import { listen } from '@tauri-apps/api/event';
+import { isTauriApp } from '../../services/tauriDetection';
 
 export interface AttachedFile {
   fileName: string;
@@ -236,9 +237,30 @@ export const FileAttachmentModal: React.FC<FileAttachmentModalProps> = ({
   }, [onAddFile]);
 
   // Handle click to open file explorer
-  const handleZoneClick = useCallback(() => {
+  const handleZoneClick = useCallback(async () => {
+    if (isTauriApp()) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const selected = await invoke<string[] | null>('pick_files');
+        if (selected && selected.length > 0) {
+          selected.forEach(filePath => {
+            const pathParts = filePath.split(/[/\\]/);
+            const fileName = pathParts[pathParts.length - 1];
+            onAddFile({
+              fileName,
+              filePath,
+              size: undefined,
+              type: getFileExtension(fileName),
+            });
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('Native file picker failed:', error);
+      }
+    }
     fileInputRef.current?.click();
-  }, []);
+  }, [onAddFile]);
 
   // Check if file is already attached
   const isFileAttached = (fileName: string) => {
@@ -249,8 +271,8 @@ export const FileAttachmentModal: React.FC<FileAttachmentModalProps> = ({
   useEffect(() => {
     console.log('[FileAttachment] useEffect triggered', { isOpen, activeTab });
     
-    if (!isOpen || activeTab !== 'files') {
-      console.log('[FileAttachment] Skipping listener setup - modal closed or wrong tab');
+    if (!isOpen) {
+      console.log('[FileAttachment] Skipping listener setup - modal closed');
       return;
     }
 
@@ -262,22 +284,34 @@ export const FileAttachmentModal: React.FC<FileAttachmentModalProps> = ({
         console.log('[FileAttachment] Setting up Tauri listeners...');
         
         // Listen for file drop
-        unlistenDrop = await listen<string[]>('tauri://drag-drop', (event) => {
+        unlistenDrop = await listen<any>('tauri://drag-drop', (event) => {
           console.log('[FileAttachment] ✅ Tauri drag-drop detected!', event.payload);
           
-          event.payload.forEach(filePath => {
-            const pathParts = filePath.split(/[/\\]/);
-            const fileName = pathParts[pathParts.length - 1];
-            
-            console.log('[FileAttachment] Adding file from Tauri:', fileName, filePath);
-            
-            onAddFile({
-              fileName,
-              filePath,
-              size: undefined,
-              type: getFileExtension(fileName),
+          let paths: string[] = [];
+          
+          // Tauri v2 payload: { paths: string[], position: { x: number, y: number } }
+          // Tauri v1 payload: string[]
+          if (Array.isArray(event.payload)) {
+            paths = event.payload;
+          } else if (event.payload && typeof event.payload === 'object' && Array.isArray(event.payload.paths)) {
+            paths = event.payload.paths;
+          }
+
+          if (paths.length > 0) {
+            paths.forEach(filePath => {
+              const pathParts = filePath.split(/[/\\]/);
+              const fileName = pathParts[pathParts.length - 1] || 'Unknown';
+              
+              console.log('[FileAttachment] Adding file from Tauri:', fileName, filePath);
+              
+              onAddFile({
+                fileName,
+                filePath,
+                size: undefined,
+                type: getFileExtension(fileName),
+              });
             });
-          });
+          }
           
           setIsDragging(false);
         });
@@ -287,23 +321,30 @@ export const FileAttachmentModal: React.FC<FileAttachmentModalProps> = ({
           console.log('[FileAttachment] ✅ Tauri drag hover detected');
           setIsDragging(true);
         });
+
+        // Listen for drag leave
+        const unlistenLeave = await listen('tauri://drag-leave', () => {
+          console.log('[FileAttachment] ✅ Tauri drag leave detected');
+          setIsDragging(false);
+        });
         
         console.log('[FileAttachment] ✅ Tauri file drop listeners setup successfully');
+        
+        return () => {
+          unlistenDrop?.();
+          unlistenHover?.();
+          unlistenLeave();
+        };
       } catch (error) {
         console.error('[FileAttachment] ❌ Failed to setup Tauri listeners:', error);
       }
     };
 
-    setupListener();
+    const cleanupFn = setupListener();
 
     return () => {
       console.log('[FileAttachment] Cleaning up listeners...');
-      if (unlistenDrop) {
-        unlistenDrop();
-      }
-      if (unlistenHover) {
-        unlistenHover();
-      }
+      cleanupFn.then(unlisten => unlisten?.());
       console.log('[FileAttachment] ✅ Tauri file drop listeners cleaned up');
     };
   }, [isOpen, activeTab, onAddFile]);

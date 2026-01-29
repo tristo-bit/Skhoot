@@ -305,6 +305,28 @@ async fn pick_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
   }
 }
 
+/// Open a native file picker dialog from Rust
+#[tauri::command]
+async fn pick_files(app: tauri::AppHandle) -> Result<Option<Vec<String>>, String> {
+  use tauri_plugin_dialog::DialogExt;
+  
+  println!("[Skhoot] Opening file picker via Rust...");
+  
+  let file_paths = app.dialog().file().blocking_pick_files();
+  
+  match file_paths {
+      Some(paths) => {
+          let paths_str: Vec<String> = paths.into_iter().map(|p| p.to_string()).collect();
+          println!("[Skhoot] Files selected: {:?}", paths_str);
+          Ok(Some(paths_str))
+      },
+      None => {
+          println!("[Skhoot] File selection cancelled");
+          Ok(None)
+      }
+  }
+}
+
 fn main() {
   tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
@@ -444,6 +466,7 @@ fn main() {
         disk_info::get_system_disks,
         webview_renderer::render_page,
         pick_folder,
+        pick_files,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
