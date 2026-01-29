@@ -1,15 +1,19 @@
 import { audioService } from './audioService';
 
-export type SttProvider = 'auto' | 'web-speech' | 'openai';
+export type SttProvider = 'auto' | 'web-speech' | 'openai' | 'custom';
 
 export interface SttConfig {
   provider: SttProvider;
+  customUrl?: string;
+  customKey?: string;
 }
 
 const STORAGE_KEY = 'skhoot-stt-settings';
 
 const defaultConfig: SttConfig = {
-  provider: 'auto'
+  provider: 'auto',
+  customUrl: 'https://api.groq.com/openai/v1/audio/transcriptions',
+  customKey: ''
 };
 
 export const sttConfigStore = {
@@ -19,8 +23,12 @@ export const sttConfigStore = {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return { ...defaultConfig };
       const parsed = JSON.parse(raw) as Partial<SttConfig>;
+      
+      // Migration and sanitization
       return {
-        provider: ((parsed.provider as any) === 'local' ? 'auto' : parsed.provider) || defaultConfig.provider
+        provider: ((parsed.provider as any) === 'local' ? 'auto' : parsed.provider) || defaultConfig.provider,
+        customUrl: parsed.customUrl || defaultConfig.customUrl,
+        customKey: parsed.customKey || defaultConfig.customKey
       };
     } catch (error) {
       console.warn('[SttConfig] Failed to read settings:', error);
@@ -38,10 +46,12 @@ export const sttConfigStore = {
         next.provider = 'auto';
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      console.log('[SttConfig] Settings saved:', JSON.stringify(next));
     } catch (error) {
       console.warn('[SttConfig] Failed to save settings:', error);
     }
   },
+
 
   getProviderPreference(): SttProvider {
     return this.get().provider;

@@ -47,6 +47,8 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
   const [isFixingLinuxAudio, setIsFixingLinuxAudio] = useState(false);
   const [linuxFixResult, setLinuxFixResult] = useState<{ success: boolean; message: string } | null>(null);
   const [sttProvider, setSttProvider] = useState<SttProvider>('auto');
+  const [customSttUrl, setCustomSttUrl] = useState('');
+  const [customSttKey, setCustomSttKey] = useState('');
   const [sttTestStatus, setSttTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [sttTestMessage, setSttTestMessage] = useState('');
   
@@ -70,6 +72,12 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
         setOutputVolume(savedSettings.outputVolume);
         setAutoSensitivity(savedSettings.autoSensitivity);
         setManualSensitivity(savedSettings.manualSensitivity);
+        
+        // Load STT config
+        const sttConfig = sttConfigStore.get();
+        setSttProvider(sttConfig.provider);
+        setCustomSttUrl(sttConfig.customUrl || '');
+        setCustomSttKey(sttConfig.customKey || '');
         
         // Check if we already have permission (cached)
         const permStatus = audioService.getPermissionStatus();
@@ -609,10 +617,59 @@ export const SoundPanel: React.FC<SoundPanelProps> = ({ onBack }) => {
             <option value="auto" className="!bg-black !text-white">Auto (preferred)</option>
             <option value="web-speech" className="!bg-black !text-white">Web Speech API</option>
             <option value="openai" className="!bg-black !text-white">OpenAI Whisper (cloud)</option>
+            <option value="custom" className="!bg-black !text-white">Custom / Groq (Free/Fast)</option>
           </select>
+          
           <p className="text-xs text-text-secondary font-jakarta">
-            Choose how speech is transcribed. Auto uses Web Speech when available, then OpenAI cloud.
+            {sttProvider === 'auto' && 'Auto uses Web Speech when available, then OpenAI cloud.'}
+            {sttProvider === 'web-speech' && 'Uses browser-native speech recognition. Free, but restricted on some Linux systems.'}
+            {sttProvider === 'openai' && 'Uses OpenAI Whisper API. Highly accurate but requires a paid API key.'}
+            {sttProvider === 'custom' && 'Use a Whisper-compatible API like Groq (Free & Extremely Fast) or a local server.'}
           </p>
+
+          {sttProvider === 'custom' && (
+            <div className="space-y-3 pt-2 border-t border-white/5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider ml-1">Endpoint URL</label>
+                <input
+                  type="text"
+                  value={customSttUrl}
+                  onChange={(e) => {
+                    const url = e.target.value;
+                    setCustomSttUrl(url);
+                    sttConfigStore.set({ customUrl: url });
+                  }}
+                  placeholder="https://api.groq.com/openai/v1/audio/transcriptions"
+                  className="w-full p-2.5 rounded-lg bg-black/20 border border-white/5 text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:border-emerald-500/50"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold text-text-secondary uppercase tracking-wider ml-1">API Key</label>
+                  <a 
+                    href="https://console.groq.com/keys" 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="text-[10px] text-emerald-500 hover:underline font-bold"
+                  >
+                    Get free Groq key
+                  </a>
+                </div>
+                <input
+                  type="password"
+                  value={customSttKey}
+                  onChange={(e) => {
+                    const key = e.target.value;
+                    setCustomSttKey(key);
+                    sttConfigStore.set({ customKey: key });
+                  }}
+                  placeholder="Enter API Key (e.g. gsk_...)"
+                  className="w-full p-2.5 rounded-lg bg-black/20 border border-white/5 text-sm font-medium font-jakarta text-text-primary focus:outline-none focus:border-emerald-500/50"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <button
               onClick={handleTestStt}

@@ -74,15 +74,16 @@ const resolveProvider = async (): Promise<SttProvider | null> => {
   if (preference === 'web-speech') {
     result = hasWebSpeech ? 'web-speech' : null;
   } else if (preference === 'openai') {
-    // Always allow OpenAI if explicitly selected, even if key is missing
-    // validiation will happen at usage time
     result = 'openai';
+  } else if (preference === 'custom') {
+    result = 'custom';
   } else {
-    // Auto mode: prefer web-speech, then openai
+    // Auto mode: prefer web-speech, then custom (if configured), then openai
     if (hasWebSpeech) {
       result = 'web-speech';
+    } else if (config.customUrl && config.customKey) {
+      result = 'custom';
     } else {
-      // Default to OpenAI if Web Speech is not available (e.g. Linux/Tauri)
       result = 'openai';
     }
   }
@@ -104,27 +105,7 @@ const transcribeWithOpenAI = async (chunks: BlobPart[], mimeType: string | null)
   }
 
   const audioFile = buildAudioFile(chunks, mimeType);
-  const formData = new FormData();
-  formData.append('file', audioFile);
-  formData.append('model', 'whisper-1');
-  const lang = getLanguageHint();
-  if (lang) formData.append('language', lang);
-
-  const response = await fetch(OPENAI_TRANSCRIPTION_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: formData
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Transcription failed: ${response.status} ${errorText}`);
-  }
-
-  const result = await response.json();
-  return (result?.text || '').trim();
+  return transcribeWithGenericProvider(audioFile, OPENAI_TRANSCRIPTION_URL, apiKey);
 };
 
 // Version that takes a File directly (for WebAudioRecorder)
@@ -140,15 +121,23 @@ const transcribeWithOpenAIFile = async (audioFile: File): Promise<string> => {
     throw new Error('Missing OpenAI API key. Add your API key in User Profile → API Configuration.');
   }
 
+  return transcribeWithGenericProvider(audioFile, OPENAI_TRANSCRIPTION_URL, apiKey);
+};
+
+/**
+ * Generic Whisper-compatible transcription call
+ */
+const transcribeWithGenericProvider = async (audioFile: File, url: string, apiKey: string): Promise<string> => {
   const formData = new FormData();
   formData.append('file', audioFile);
-  formData.append('model', 'whisper-1');
+  formData.append('model', url.includes('groq') ? 'whisper-large-v3-turbo' : 'whisper-1');
+  
   const lang = getLanguageHint();
   if (lang) formData.append('language', lang);
 
-  console.log('[STT] Sending WAV file to OpenAI, size:', audioFile.size);
+  console.log(`[STT] Sending file to ${url}, size: ${audioFile.size}`);
 
-  const response = await fetch(OPENAI_TRANSCRIPTION_URL, {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`
@@ -165,6 +154,28 @@ const transcribeWithOpenAIFile = async (audioFile: File): Promise<string> => {
   return (result?.text || '').trim();
 };
 
+/**
+ * Transcribe using custom provider settings
+ */
+const transcribeWithCustom = async (chunks: BlobPart[], mimeType: string | null): Promise<string> => {
+  const config = sttConfigStore.get();
+  if (!config.customUrl || !config.customKey) {
+    throw new Error('Custom STT provider configured but URL or API Key is missing.');
+  }
+  
+  const audioFile = buildAudioFile(chunks, mimeType);
+  return transcribeWithGenericProvider(audioFile, config.customUrl, config.customKey);
+};
+
+const transcribeWithCustomFile = async (audioFile: File): Promise<string> => {
+  const config = sttConfigStore.get();
+  if (!config.customUrl || !config.customKey) {
+    throw new Error('Custom STT provider configured but URL or API Key is missing.');
+  }
+  
+  return transcribeWithGenericProvider(audioFile, config.customUrl, config.customKey);
+};
+
 export const sttService = {
   async getProviderDecision(): Promise<SttProvider | null> {
     return await resolveProvider();
@@ -175,9 +186,10 @@ export const sttService = {
     if (typeof window === 'undefined') return false;
     const config = sttConfigStore.get();
     const hasWebSpeech = sttConfigStore.hasWebSpeechSupport();
-    // For sync check, assume OpenAI might be available if not web-speech
+    // For sync check, assume OpenAI or Custom might be available if not web-speech
     if (hasWebSpeech) return true;
-    // Can't check OpenAI key synchronously, so return true to allow attempt
+    if (config.provider === 'custom') return !!(config.customUrl && config.customKey);
+    if (config.provider === 'openai') return true; // Can't check key sync, so assume yes to allow prompt
     if (!('MediaRecorder' in window)) return false;
     if (!audioService.isAudioSupported()) return false;
     return true;
@@ -189,6 +201,10 @@ export const sttService = {
     if (!provider) return false;
     if (provider === 'web-speech') {
       return audioService.isSpeechRecognitionSupported();
+    }
+    if (provider === 'custom') {
+      const config = sttConfigStore.get();
+      return !!(config.customUrl && config.customKey);
     }
     if (!('MediaRecorder' in window)) return false;
     if (!audioService.isAudioSupported()) return false;
@@ -251,8 +267,11 @@ export const sttService = {
             return await transcribeWithOpenAIFile(wavFile);
           }
           
-          // Default fallback to OpenAI if provider is not specified but we ended up here
-          // This handles the case where we might be in auto mode and selected openai
+          if (provider === 'custom') {
+            return await transcribeWithCustomFile(wavFile);
+          }
+          
+          // Default fallback
           return await transcribeWithOpenAIFile(wavFile);
         },
         abort: () => {
@@ -333,7 +352,13 @@ export const sttService = {
               return;
             }
 
-            // Default fallback to OpenAI
+            if (provider === 'custom') {
+              const result = await transcribeWithCustom(chunks, recorder.mimeType || mimeType);
+              resolve(result);
+              return;
+            }
+
+            // Default fallback
             const result = await transcribeWithOpenAI(chunks, recorder.mimeType || mimeType);
             resolve(result);
           } catch (error) {
