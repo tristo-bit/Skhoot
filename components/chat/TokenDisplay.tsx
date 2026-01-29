@@ -93,14 +93,19 @@ function formatModelName(model: string): string {
   const shortNames: Record<string, string> = {
     'gpt-4o-mini': 'GPT-4o-mini',
     'gpt-4o': 'GPT-4o',
+    'o1': 'O1',
+    'o3': 'O3',
     'gpt-4-turbo': 'GPT-4-Turbo',
     'gpt-3.5-turbo': 'GPT-3.5',
     'gemini-2.0-flash': 'Gemini-2.0',
+    'gemini-2.0-flash-thinking': 'Gemini-Think',
+    'gemini-2.0-pro': 'Gemini-2.0-Pro',
     'gemini-1.5-pro': 'Gemini-1.5-Pro',
     'gemini-1.5-flash': 'Gemini-1.5',
-    'claude-3-5-sonnet-20241022': 'Claude-Sonnet',
-    'claude-3-opus-20240229': 'Claude-Opus',
-    'claude-3-haiku-20240307': 'Claude-Haiku',
+    'claude-3-5-sonnet': 'Claude-Sonnet',
+    'claude-3-5-haiku': 'Claude-Haiku',
+    'claude-3-opus': 'Claude-Opus',
+    'claude-3-haiku': 'Claude-Haiku',
   };
   
   for (const [full, short] of Object.entries(shortNames)) {

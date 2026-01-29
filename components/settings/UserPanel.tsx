@@ -370,6 +370,112 @@ const UserPanel: React.FC<UserPanelProps> = ({ onClose }) => {
               </div>
             </div>
           </div>
+
+          {/* API Configuration Section */}
+          <div ref={apiConfigRef} className="space-y-4 pt-4 border-t border-glass-border">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-bold font-jakarta text-text-primary flex items-center gap-2">
+                <Key size={16} className="text-amber-500" />
+                API Configuration
+              </label>
+              {connectionStatus === 'success' && (
+                <SaveButton
+                  onClick={handleSaveApiKey}
+                  disabled={isApiKeySaved}
+                  isSaved={isApiKeySaved}
+                  saveText="Save"
+                  savedText="Saved!"
+                  size="xs"
+                />
+              )}
+            </div>
+
+            <div className="p-4 rounded-xl glass-subtle space-y-4">
+              {/* Provider Selection */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-text-secondary font-jakarta block">
+                  Select Provider
+                </label>
+                <select
+                  value={selectedProvider}
+                  onChange={(e) => setSelectedProvider(e.target.value)}
+                  className="w-full p-3 rounded-lg bg-black/20 border border-white/5 text-sm font-medium text-text-primary focus:outline-none focus:border-accent appearance-none cursor-pointer [&>option]:bg-[#1a1a1a] [&>option]:text-white"
+                >
+                  {PROVIDERS.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* API Key Input */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-text-secondary font-jakarta block">
+                  API Key
+                </label>
+                <div className="relative">
+                  <input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={apiKey}
+                    onChange={(e) => {
+                      setApiKey(e.target.value);
+                      setConnectionStatus('idle');
+                      setConnectionMessage('');
+                      setIsApiKeySaved(false);
+                    }}
+                    className="w-full p-3 pr-12 rounded-lg bg-black/20 border border-white/5 text-sm font-medium font-jakarta text-text-primary placeholder:text-text-secondary/50 focus:outline-none"
+                    placeholder={`Enter ${PROVIDERS.find(p => p.id === selectedProvider)?.name} API key`}
+                  />
+                  <IconButton
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    icon={<Key size={16} />}
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Model Selection */}
+              {availableModels.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-text-secondary font-jakarta block">
+                    Default Model
+                  </label>
+                  <select
+                    value={selectedModel}
+                    onChange={async (e) => {
+                      const newModel = e.target.value;
+                      setSelectedModel(newModel);
+                      await apiKeyService.saveModel(selectedProvider, newModel);
+                    }}
+                    className="w-full p-3 rounded-lg bg-black/20 border border-white/5 text-sm font-medium text-text-primary focus:outline-none appearance-none cursor-pointer [&>option]:bg-[#1a1a1a] [&>option]:text-white"
+                  >
+                    {availableModels.map((model) => (
+                      <option key={model} value={model}>{model}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Connection Feedback */}
+              {connectionMessage && (
+                <div className={`p-3 rounded-lg text-xs font-medium ${
+                  connectionStatus === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'
+                }`}>
+                  {connectionMessage}
+                </div>
+              )}
+
+              <ConnectionButton
+                onClick={handleTestConnection}
+                disabled={isTestingConnection || !apiKey.trim()}
+                isConnected={connectionStatus === 'success'}
+                isTesting={isTestingConnection}
+                testText="Test Connection"
+                connectedText="Connected"
+              />
+            </div>
+          </div>
         </div>
     </Modal>
   );

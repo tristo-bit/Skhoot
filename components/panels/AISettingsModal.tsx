@@ -6,12 +6,15 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Bot, Terminal, Zap, Settings, Key, BarChart3,
   ChevronRight, Check, AlertCircle, Eye, EyeOff,
-  RefreshCw, Sliders, Clock, Cpu, Brain, Edit3
+  RefreshCw, Sliders, Clock, Cpu, Brain, Edit3, ChevronDown
 } from 'lucide-react';
 import { Modal } from '../ui';
 import { TabButton } from '../buttonFormat';
 import { apiKeyService } from '../../services/apiKeyService';
+import { aiService } from '../../services/aiService';
 import { getMaxOutputTokens } from '../../services/modelCapabilities';
+import { providerRegistry } from '../../services/providerRegistry';
+import { tokenTrackingService, TimePeriod } from '../../services/tokenTrackingService';
 
 type Tab = 'general' | 'parameters' | 'usage';
 
@@ -48,6 +51,8 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
   const [isLoading, setIsLoading] = useState(true);
   const [activeModel, setActiveModel] = useState<string>('');
   const [activeProvider, setActiveProvider] = useState<string>('');
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [isUpdatingModel, setIsUpdatingModel] = useState(false);
 
   // General settings
   const [agentModeDefault, setAgentModeDefault] = useState(() => 
@@ -91,69 +96,81 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({ onClose }) => 
     (localStorage.getItem(STORAGE_KEYS.memoryImportance) as 'low' | 'medium' | 'high') || 'medium'
   );
 
-  // Usage stats (mock data for now)
-  const [usageStats] = useState({
-    currentMonth: {
-      tokens: 125000,
-      requests: 342,
-      cost: 2.45,
-    },
-    lastMonth: {
-      tokens: 98000,
-      requests: 287,
-      cost: 1.89,
-    },
-  });
-
-const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'general', label: 'General', icon: <Settings size={14} /> },
-  { id: 'parameters', label: 'Parameters', icon: <Sliders size={14} /> },
-  { id: 'usage', label: 'Usage', icon: <BarChart3 size={14} /> },
-];
-
-  // Load provider configs
-  useEffect(() => {
-    const loadProviders = async () => {
-      setIsLoading(true);
-      try {
-        const providerIds = ['openai', 'google', 'anthropic', 'custom'];
-        const activeProviderId = await apiKeyService.getActiveProvider();
+  // Load provider configs and models
+  const loadProviderData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const providerIds = ['openai', 'google', 'anthropic', 'custom'];
+      const activeProviderId = await apiKeyService.getActiveProvider();
+      
+      const configs: ProviderConfig[] = await Promise.all(
+        providerIds.map(async (id) => {
+          const hasKey = await apiKeyService.hasKey(id);
+          const model = await apiKeyService.loadModel(id) || getDefaultModel(id);
+          return {
+            id,
+            name: getProviderName(id),
+            hasKey,
+            model,
+            isActive: id === activeProviderId,
+          };
+        })
+      );
+      
+      setProviders(configs);
+      
+      // Set active model and provider
+      const active = configs.find(p => p.isActive);
+      if (active) {
+        setActiveProvider(active.id);
+        setActiveModel(active.model);
         
-        const configs: ProviderConfig[] = await Promise.all(
-          providerIds.map(async (id) => {
-            const hasKey = await apiKeyService.hasKey(id);
-            const model = await apiKeyService.loadModel(id) || getDefaultModel(id);
-            return {
-              id,
-              name: getProviderName(id),
-              hasKey,
-              model,
-              isActive: id === activeProviderId,
-            };
-          })
-        );
-        
-        setProviders(configs);
-        
-        // Set active model and provider
-        const active = configs.find(p => p.isActive);
-        if (active) {
-          setActiveProvider(active.id);
-          setActiveModel(active.model);
+        // Fetch dynamic models for active provider
+        try {
+          const models = await apiKeyService.fetchProviderModels(active.id);
+          setAvailableModels(models);
+        } catch {
+          const registryModels = aiService.getModelsForProvider(active.id as any);
+          setAvailableModels(registryModels);
         }
-      } catch (error) {
-        console.error('Failed to load providers:', error);
-      } finally {
-        setIsLoading(false);
       }
-    };
-    
-    loadProviders();
+    } catch (error) {
+      console.error('Failed to load providers:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadProviderData();
+  }, [loadProviderData]);
+
+  // Handle model change
+  const handleModelChange = useCallback(async (modelId: string) => {
+    if (!activeProvider) return;
+    setIsUpdatingModel(true);
+    try {
+      await apiKeyService.saveModel(activeProvider, modelId);
+      setActiveModel(modelId);
+      setProviders(prev => prev.map(p => 
+        p.id === activeProvider ? { ...p, model: modelId } : p
+      ));
+    } catch (error) {
+      console.error('Failed to save model:', error);
+    } finally {
+      setIsUpdatingModel(false);
+    }
+  }, [activeProvider]);
+
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: 'general', label: 'General', icon: <Settings size={14} /> },
+    { id: 'parameters', label: 'Parameters', icon: <Sliders size={14} /> },
+    { id: 'usage', label: 'Usage', icon: <BarChart3 size={14} /> },
+  ];
 
   // Compute max tokens limit based on active model
   const maxTokensLimit = useMemo(() => {
-    if (!activeModel) return 16384; // Default fallback
+    if (!activeModel) return 16384; 
     return getMaxOutputTokens(activeModel, activeProvider);
   }, [activeModel, activeProvider]);
 
@@ -195,11 +212,18 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
       const updatedProviders = providers.map(p => ({ ...p, isActive: p.id === providerId }));
       setProviders(updatedProviders);
       
-      // Update active model
       const newActive = updatedProviders.find(p => p.id === providerId);
       if (newActive) {
         setActiveProvider(newActive.id);
         setActiveModel(newActive.model);
+        // Refresh models for new provider
+        try {
+          const models = await apiKeyService.fetchProviderModels(newActive.id);
+          setAvailableModels(models);
+        } catch {
+          const registryModels = aiService.getModelsForProvider(newActive.id as any);
+          setAvailableModels(registryModels);
+        }
       }
     } catch (error) {
       console.error('Failed to set active provider:', error);
@@ -238,6 +262,9 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
             memoryImportance={memoryImportance}
             providers={providers}
             isLoading={isLoading}
+            activeProvider={activeProvider}
+            availableModels={availableModels}
+            isUpdatingModel={isUpdatingModel}
             onAgentModeChange={handleAgentModeChange}
             onAiLogsChange={handleAiLogsChange}
             onAdvancedModeChange={handleAdvancedModeChange}
@@ -255,6 +282,7 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
               localStorage.setItem(STORAGE_KEYS.memoryImportance, importance);
             }}
             onSetActiveProvider={handleSetActiveProvider}
+            onModelChange={handleModelChange}
           />
         )}
         {activeTab === 'parameters' && (
@@ -270,7 +298,7 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
           />
         )}
         {activeTab === 'usage' && (
-          <UsageTab stats={usageStats} />
+          <UsageTab />
         )}
       </div>
     </Modal>
@@ -309,6 +337,9 @@ const GeneralTab: React.FC<{
   memoryImportance: 'low' | 'medium' | 'high';
   providers: ProviderConfig[];
   isLoading: boolean;
+  activeProvider: string;
+  availableModels: string[];
+  isUpdatingModel: boolean;
   onAgentModeChange: (enabled: boolean) => void;
   onAiLogsChange: (enabled: boolean) => void;
   onAdvancedModeChange: (enabled: boolean) => void;
@@ -317,12 +348,13 @@ const GeneralTab: React.FC<{
   onMemoryAutoSaveChange: (enabled: boolean) => void;
   onMemoryImportanceChange: (importance: 'low' | 'medium' | 'high') => void;
   onSetActiveProvider: (id: string) => void;
+  onModelChange: (modelId: string) => void;
 }> = ({
   agentModeDefault, aiLogsEnabled, advancedMode, userInstructions,
   memoryEnabled, memoryAutoSave, memoryImportance,
-  providers, isLoading,
+  providers, isLoading, activeProvider, availableModels, isUpdatingModel,
   onAgentModeChange, onAiLogsChange, onAdvancedModeChange, onUserInstructionsChange,
-  onMemoryEnabledChange, onMemoryAutoSaveChange, onMemoryImportanceChange, onSetActiveProvider
+  onMemoryEnabledChange, onMemoryAutoSaveChange, onMemoryImportanceChange, onSetActiveProvider, onModelChange
 }) => (
   <div className="space-y-6">
     {/* Mode Settings */}
@@ -424,30 +456,52 @@ const GeneralTab: React.FC<{
                     : 'border-glass-border opacity-50'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    provider.isActive ? 'bg-purple-500/20' : 'bg-white/5'
-                  }`}>
-                    <Cpu size={16} className={provider.isActive ? 'text-purple-400' : 'text-text-secondary'} />
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      provider.isActive ? 'bg-purple-500/20' : 'bg-white/5'
+                    }`}>
+                      <Cpu size={16} className={provider.isActive ? 'text-purple-400' : 'text-text-secondary'} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{provider.name}</p>
+                      <p className="text-xs text-text-secondary">{provider.model}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">{provider.name}</p>
-                    <p className="text-xs text-text-secondary">{provider.model}</p>
+                  <div className="flex items-center gap-2">
+                    {provider.hasKey ? (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-medium">
+                        Configured
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-medium">
+                        No API Key
+                      </span>
+                    )}
+                    {provider.isActive && <Check size={16} className="text-purple-400" />}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {provider.hasKey ? (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-medium">
-                      Configured
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-medium">
-                      No API Key
-                    </span>
-                  )}
-                  {provider.isActive && <Check size={16} className="text-purple-400" />}
-                </div>
+
+                {/* Inline model selector for active provider */}
+                {provider.isActive && availableModels.length > 0 && (
+                  <div className="pt-2 border-t border-purple-500/20 animate-in fade-in slide-in-from-top-1">
+                    <label className="text-[9px] font-bold text-text-secondary uppercase tracking-wider mb-1 block ml-1">Change Model</label>
+                    <div className="relative">
+                      <select
+                        value={provider.model}
+                        disabled={isUpdatingModel}
+                        onChange={(e) => onModelChange(e.target.value)}
+                        className="w-full bg-black/40 border border-white/5 rounded-lg py-1.5 px-3 text-xs font-medium text-text-primary focus:outline-none focus:border-purple-500/50 appearance-none cursor-pointer"
+                      >
+                        {availableModels.map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -622,7 +676,6 @@ const SliderSetting: React.FC<{
   step: number;
   onChange: (value: number) => void;
 }> = ({ label, description, value, min, max, step, onChange }) => {
-  // Format value display - use locale string for large numbers (tokens)
   const displayValue = value >= 1000 
     ? value.toLocaleString() 
     : value.toFixed(step < 1 ? 1 : 0);
@@ -655,57 +708,83 @@ const SliderSetting: React.FC<{
 };
 
 // Usage Tab
-const UsageTab: React.FC<{ stats: any }> = ({ stats }) => (
-  <div className="space-y-4">
-    <div className="flex items-center justify-between">
-      <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">This Month</p>
-      <span className="text-xs text-text-secondary">
-        <Clock size={12} className="inline mr-1" />
-        January 2026
-      </span>
-    </div>
-    
-    <div className="grid grid-cols-3 gap-3">
-      <StatCard label="Tokens" value={stats.currentMonth.tokens.toLocaleString()} icon={<BarChart3 size={16} />} />
-      <StatCard label="Requests" value={stats.currentMonth.requests.toString()} icon={<Zap size={16} />} />
-      <StatCard label="Est. Cost" value={`$${stats.currentMonth.cost.toFixed(2)}`} icon={<Key size={16} />} />
-    </div>
-    
-    <div className="p-4 rounded-xl glass-subtle">
-      <p className="text-xs font-bold text-text-secondary mb-3">Comparison to Last Month</p>
-      <div className="space-y-2">
-        <ComparisonRow label="Tokens" current={stats.currentMonth.tokens} previous={stats.lastMonth.tokens} />
-        <ComparisonRow label="Requests" current={stats.currentMonth.requests} previous={stats.lastMonth.requests} />
-        <ComparisonRow label="Cost" current={stats.currentMonth.cost} previous={stats.lastMonth.cost} isCurrency />
+const UsageTab: React.FC = () => {
+  const [period, setPeriod] = useState<TimePeriod>('month');
+  const [usage, setUsage] = useState(() => tokenTrackingService.getHistoricalUsage('month'));
+
+  useEffect(() => {
+    setUsage(tokenTrackingService.getHistoricalUsage(period));
+    const unsubscribe = tokenTrackingService.subscribe(() => {
+      setUsage(tokenTrackingService.getHistoricalUsage(period));
+    });
+    return unsubscribe;
+  }, [period]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Usage Period</p>
+        <div className="flex gap-1 p-1 rounded-lg bg-black/20">
+          {(['day', 'week', 'month', 'all'] as TimePeriod[]).map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-2 py-1 text-[10px] font-bold rounded capitalize transition-all ${
+                period === p ? 'bg-purple-500 text-white' : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard label="Tokens" value={formatTokenDisplay(usage.totalTokens)} icon={<BarChart3 size={16} />} />
+        <StatCard label="Input" value={formatTokenDisplay(usage.inputTokens)} icon={<Zap size={16} />} />
+        <StatCard label="Cost" value={`$${usage.cost.toFixed(2)}`} icon={<Key size={16} />} />
+      </div>
+      
+      <div className="p-4 rounded-xl glass-subtle">
+        <p className="text-xs font-bold text-text-secondary mb-3">Model Breakdown</p>
+        <div className="space-y-2">
+          {/* Group usage by model */}
+          {Object.entries(
+            usage.records.reduce((acc, r) => {
+              acc[r.model] = (acc[r.model] || 0) + r.totalTokens;
+              return acc;
+            }, {} as Record<string, number>)
+          ).map(([model, tokens]) => (
+            <div key={model} className="flex items-center justify-between text-xs">
+              <span className="text-text-secondary truncate pr-4">{model}</span>
+              <span className="font-bold text-text-primary">{formatTokenDisplay(tokens)}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode }> = ({ label, value, icon }) => (
   <div className="p-3 rounded-xl glass-subtle text-center">
     <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center mx-auto mb-2 text-purple-400">
       {icon}
     </div>
-    <p className="text-lg font-bold text-text-primary">{value}</p>
+    <p className="text-sm font-bold text-text-primary truncate">{value}</p>
     <p className="text-[10px] text-text-secondary">{label}</p>
   </div>
 );
 
-const ComparisonRow: React.FC<{ label: string; current: number; previous: number; isCurrency?: boolean }> = ({ 
-  label, current, previous, isCurrency 
-}) => {
-  const change = ((current - previous) / previous) * 100;
-  const isPositive = change > 0;
-  
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-xs text-text-secondary">{label}</span>
-      <span className={`text-xs font-medium ${isPositive ? 'text-amber-400' : 'text-emerald-400'}`}>
-        {isPositive ? '+' : ''}{change.toFixed(1)}%
-      </span>
-    </div>
-  );
-};
+// Format tokens with K/M suffix
+function formatTokenDisplay(tokens: number): string {
+  if (tokens >= 1_000_000) {
+    return `${(tokens / 1_000_000).toFixed(1)}M`;
+  }
+  if (tokens >= 1_000) {
+    return `${(tokens / 1_000).toFixed(1)}K`;
+  }
+  return tokens.toLocaleString();
+}
 
 export default AISettingsModal;

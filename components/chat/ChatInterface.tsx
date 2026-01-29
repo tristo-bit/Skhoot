@@ -1258,6 +1258,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         const agentHistory = messages.map(m => ({
           role: m.role as 'user' | 'assistant',
           content: m.content,
+          thought: m.thought, // Pass thought process for Gemini
           toolCalls: m.toolCalls,
           toolResults: m.toolResults,
           images: m.images, // Pass images from message history
@@ -1282,10 +1283,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               // Cast to AgentToolCallData - the name will be validated at runtime
               toolCalls.push(toolCall as AgentToolCallData);
               setSearchStatus(`Executing ${toolCall.name}...`);
+              
+              // Emit event for Agent Log
+              agentService.emit('tool_start', { 
+                sessionId: currentSessionId!, 
+                toolCall 
+              });
             },
             onToolComplete: (result) => {
-              toolResults.push(result);
+              const resultWithSignature = {
+                ...result,
+                thought_signature: (toolCalls.find(tc => tc.id === result.toolCallId) as any)?.thought_signature
+              };
+              toolResults.push(resultWithSignature);
               setSearchStatus(result.success ? 'Tool completed' : 'Tool failed');
+              
+              // Emit event for Agent Log
+              agentService.emit('tool_complete', { 
+                sessionId: currentSessionId!, 
+                toolResult: resultWithSignature
+              });
             },
             onStatusUpdate: (status) => {
               setSearchStatus(status);
@@ -1312,6 +1329,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           id: (Date.now() + 1).toString(),
           role: 'assistant' as const,
           content: result.content || 'Task completed.',
+          thought: result.thought, // Store thought process
           type: toolCalls.length > 0 ? 'agent_action' : 'text',
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
@@ -1801,10 +1819,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               // Cast to AgentToolCallData - the name will be validated at runtime
               toolCalls.push(toolCall as AgentToolCallData);
               setSearchStatus(`Executing ${toolCall.name}...`);
+              
+              // Emit event for Agent Log
+              agentService.emit('tool_start', { 
+                sessionId: currentSessionId!, 
+                toolCall 
+              });
             },
             onToolComplete: (result) => {
-              toolResults.push(result);
+              const resultWithSignature = {
+                ...result,
+                thought_signature: (toolCalls.find(tc => tc.id === result.toolCallId) as any)?.thought_signature
+              };
+              toolResults.push(resultWithSignature);
               setSearchStatus(result.success ? 'Tool completed' : 'Tool failed');
+              
+              // Emit event for Agent Log
+              agentService.emit('tool_complete', { 
+                sessionId: currentSessionId!, 
+                toolResult: resultWithSignature
+              });
             },
             onStatusUpdate: (status) => {
               setSearchStatus(status);
@@ -1830,6 +1864,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           id: (Date.now() + 1).toString(),
           role: 'assistant' as const,
           content: result.content || 'Task completed.',
+          thought: result.thought, // Store thought process
           type: toolCalls.length > 0 ? 'agent_action' : 'text',
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,

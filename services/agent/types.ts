@@ -11,6 +11,8 @@ export interface AgentToolCall {
   id: string;
   name: string;
   arguments: any;
+  /** Gemini-specific thought signature for function calls */
+  thought_signature?: string;
   _hidden?: boolean; // Internal flag for UI hidden tools
 }
 
@@ -26,6 +28,10 @@ export interface ToolResult {
 export interface AgentChatMessage {
   role: 'user' | 'assistant' | 'tool' | 'system';
   content: string;
+  /** Gemini-specific thought process */
+  thought?: string;
+  /** Gemini-specific thought signature for tool responses */
+  thought_signature?: string;
   toolCalls?: AgentToolCall[];
   toolCallId?: string;
   toolCallName?: string; // Needed for some providers (e.g. Gemini)
@@ -35,6 +41,10 @@ export interface AgentChatMessage {
 
 export interface AgentChatResponse {
   content: string;
+  /** Gemini-specific thought process */
+  thought?: string;
+  /** Gemini-specific thought signature */
+  thought_signature?: string;
   toolCalls?: AgentToolCall[];
   isComplete: boolean;
   provider: string;

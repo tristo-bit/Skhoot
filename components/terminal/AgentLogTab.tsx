@@ -244,6 +244,9 @@ export const AgentLogTab: React.FC<AgentLogTabProps> = ({ sessionId, isActive })
       if (msg.type === 'input') {
         addLog('message', `User: ${msg.content.slice(0, 100)}${msg.content.length > 100 ? '...' : ''}`);
       } else if (msg.type === 'output') {
+        if (msg.thought) {
+          addLog('message', `Thinking: ${msg.thought.slice(0, 100)}${msg.thought.length > 100 ? '...' : ''}`, msg.thought);
+        }
         addLog('message', `Assistant: ${msg.content.slice(0, 100)}${msg.content.length > 100 ? '...' : ''}`);
       } else if (msg.type === 'system') {
         addLog('info', `System: ${msg.content.slice(0, 500)}`);

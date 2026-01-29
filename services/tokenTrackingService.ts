@@ -16,14 +16,19 @@ const TOKEN_PRICING: Record<string, { input: number; output: number }> = {
   'gpt-3.5-turbo': { input: 0.50, output: 1.50 },
   
   // Google Gemini
-  'gemini-2.0-flash': { input: 0.075, output: 0.30 },
+  'gemini-3-pro': { input: 1.25, output: 5.00 },
+  'gemini-3-flash': { input: 0.10, output: 0.40 },
+  'gemini-2.0-flash': { input: 0.10, output: 0.40 },
+  'gemini-2.0-flash-thinking': { input: 0.10, output: 0.40 },
+  'gemini-2.0-pro': { input: 1.25, output: 5.00 },
   'gemini-1.5-pro': { input: 1.25, output: 5.00 },
   'gemini-1.5-flash': { input: 0.075, output: 0.30 },
   
   // Anthropic Claude
-  'claude-3-5-sonnet-20241022': { input: 3.00, output: 15.00 },
-  'claude-3-opus-20240229': { input: 15.00, output: 75.00 },
-  'claude-3-haiku-20240307': { input: 0.25, output: 1.25 },
+  'claude-3-5-sonnet': { input: 3.00, output: 15.00 },
+  'claude-3-5-haiku': { input: 0.80, output: 4.00 },
+  'claude-3-opus': { input: 15.00, output: 75.00 },
+  'claude-3-haiku': { input: 0.25, output: 1.25 },
   
   // Default for unknown models
   'default': { input: 1.00, output: 3.00 },
@@ -256,13 +261,29 @@ class TokenTrackingService {
   }
   
   private calculateCost(model: string, input: number, output: number): number {
+    const modelLower = model.toLowerCase();
     let pricing = TOKEN_PRICING['default'];
+    
+    // Try to find matching pricing rule
     for (const [key, p] of Object.entries(TOKEN_PRICING)) {
-      if (model.toLowerCase().includes(key.toLowerCase())) {
+      if (modelLower.includes(key.toLowerCase())) {
         pricing = p;
         break;
       }
     }
+
+    // Heuristics for unknown versions of known families
+    if (pricing === TOKEN_PRICING['default']) {
+      if (modelLower.includes('gemini')) {
+        if (modelLower.includes('pro')) pricing = TOKEN_PRICING['gemini-1.5-pro'];
+        else pricing = TOKEN_PRICING['gemini-1.5-flash'];
+      } else if (modelLower.includes('gpt-4')) {
+        pricing = TOKEN_PRICING['gpt-4o'];
+      } else if (modelLower.includes('claude-3-5')) {
+        pricing = TOKEN_PRICING['claude-3-5-sonnet'];
+      }
+    }
+
     return (input / 1_000_000) * pricing.input + (output / 1_000_000) * pricing.output;
   }
   

@@ -98,6 +98,8 @@ export interface AgentMessage {
   id: string;
   agentId: string;
   content: string;
+  /** Gemini-specific thought process */
+  thought?: string;
   timestamp: number;
   type: MessageType;
 }
@@ -525,7 +527,8 @@ class AgentService {
       await this.sendMessage(
         agent.id,
         response.content,
-        'output'
+        'output',
+        response.thought
       );
       
       // Mark execution as completed
@@ -708,11 +711,12 @@ class AgentService {
   // Message Handling
   // ==========================================================================
 
-  async sendMessage(agentId: string, content: string, type: MessageType = 'output'): Promise<void> {
+  async sendMessage(agentId: string, content: string, type: MessageType = 'output', thought?: string): Promise<void> {
     const message: AgentMessage = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       agentId,
       content,
+      thought,
       timestamp: Date.now(),
       type
     };
@@ -737,7 +741,7 @@ class AgentService {
     return () => this.eventListeners.get(event)?.delete(listener);
   }
 
-  private emit(event: string, data: any): void {
+  public emit(event: string, data: any): void {
     this.eventListeners.get(event)?.forEach(listener => {
       try {
         listener(data);

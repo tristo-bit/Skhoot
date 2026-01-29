@@ -22,6 +22,21 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
     displayName: 'GPT-4o Mini',
     provider: 'openai',
   },
+  'o1': {
+    maxOutputTokens: 32768,
+    displayName: 'O1',
+    provider: 'openai',
+  },
+  'o1-mini': {
+    maxOutputTokens: 65536,
+    displayName: 'O1 Mini',
+    provider: 'openai',
+  },
+  'o3-mini': {
+    maxOutputTokens: 65536,
+    displayName: 'O3 Mini',
+    provider: 'openai',
+  },
   'gpt-4-turbo': {
     maxOutputTokens: 4096,
     displayName: 'GPT-4 Turbo',
@@ -54,9 +69,14 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
     displayName: 'Gemini 2.0 Flash',
     provider: 'google',
   },
-  'gemini-2.0-flash-exp': {
+  'gemini-2.0-flash-thinking-preview': {
     maxOutputTokens: 8192,
-    displayName: 'Gemini 2.0 Flash Experimental',
+    displayName: 'Gemini 2.0 Flash (Thinking)',
+    provider: 'google',
+  },
+  'gemini-2.0-pro-exp-02-05': {
+    maxOutputTokens: 8192,
+    displayName: 'Gemini 2.0 Pro (Experimental)',
     provider: 'google',
   },
   'gemini-1.5-pro': {
@@ -89,6 +109,11 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
   'claude-3-5-sonnet-20241022': {
     maxOutputTokens: 8192,
     displayName: 'Claude 3.5 Sonnet',
+    provider: 'anthropic',
+  },
+  'claude-3-5-haiku-20241022': {
+    maxOutputTokens: 8192,
+    displayName: 'Claude 3.5 Haiku',
     provider: 'anthropic',
   },
   'claude-3-5-sonnet-latest': {

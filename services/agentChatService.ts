@@ -132,7 +132,12 @@ class AgentChatService {
     message: string,
     history: AgentChatMessage[],
     options: AgentChatOptions
-  ): Promise<{ content: string; toolResults: ToolResult[]; displayImages?: Array<{ url: string; alt?: string; fileName?: string }> }> {
+  ): Promise<{ 
+    content: string; 
+    thought?: string;
+    toolResults: ToolResult[]; 
+    displayImages?: Array<{ url: string; alt?: string; fileName?: string }> 
+  }> {
     const allToolResults: ToolResult[] = [];
     const displayImages: Array<{ url: string; alt?: string; fileName?: string }> = [];
     // Start with initial history
@@ -158,7 +163,10 @@ class AgentChatService {
       
       this.collectImages(toolCall, displayImages);
       
-      return this.formatDirectExecutionResult(toolCall, result, allToolResults, displayImages);
+      return {
+        ...this.formatDirectExecutionResult(toolCall, result, allToolResults, displayImages),
+        thought: undefined
+      };
     }
 
     // currentMessage will hold the input for each turn. 
@@ -184,6 +192,7 @@ class AgentChatService {
       if (!response.toolCalls || response.toolCalls.length === 0) {
         return { 
           content: response.content, 
+          thought: response.thought,
           toolResults: allToolResults,
           displayImages: displayImages.length > 0 ? displayImages : undefined
         };
@@ -193,6 +202,8 @@ class AgentChatService {
       currentHistory.push({
         role: 'assistant',
         content: response.content,
+        thought: response.thought,
+        thought_signature: response.thought_signature,
         toolCalls: response.toolCalls,
       });
 
@@ -212,6 +223,8 @@ class AgentChatService {
           role: 'tool',
           content: result.output || result.error || 'No output',
           toolCallId: toolCall.id,
+          toolCallName: toolCall.name,
+          thought_signature: toolCall.thought_signature,
         });
       }
 
@@ -250,7 +263,7 @@ class AgentChatService {
     result: ToolResult, 
     allToolResults: ToolResult[], 
     displayImages: Array<{ url: string; alt?: string; fileName?: string }>
-  ) {
+  ): { content: string; toolResults: ToolResult[]; displayImages?: Array<{ url: string; alt?: string; fileName?: string }> } {
     if (result.success) {
       return {
         content: `✅ Tool executed successfully:\n\n**${toolCall.name}**\n\n${result.output}`,

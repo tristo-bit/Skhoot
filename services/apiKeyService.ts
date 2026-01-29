@@ -291,8 +291,8 @@ class APIKeyService {
           if (!response.ok) throw new Error('Invalid OpenAI API key');
           const data = await response.json();
           const models = data.data?.map((m: any) => m.id).filter((id: string) => 
-            id.includes('gpt') || id.includes('o1')
-          ).slice(0, 10) || [];
+            id.includes('gpt') || id.includes('o1') || id.includes('o3')
+          ).sort() || [];
           return { provider: 'openai', models };
         }
         case 'google': {
@@ -301,7 +301,10 @@ class APIKeyService {
           );
           if (!response.ok) throw new Error('Invalid Google API key');
           const data = await response.json();
-          const models = data.models?.map((m: any) => m.name.replace('models/', '')).slice(0, 10) || [];
+          const models = data.models
+            ?.map((m: any) => m.name.replace('models/', ''))
+            .filter((name: string) => name.toLowerCase().includes('gemini'))
+            .sort() || [];
           return { provider: 'google', models };
         }
         case 'anthropic': {

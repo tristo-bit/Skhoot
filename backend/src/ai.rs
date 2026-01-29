@@ -56,7 +56,9 @@ impl AIManager {
             models: vec![
                 "gpt-4o".to_string(),
                 "gpt-4o-mini".to_string(),
-                "gpt-3.5-turbo".to_string(),
+                "o1".to_string(),
+                "o1-mini".to_string(),
+                "o3-mini".to_string(),
             ],
             embedding_model: Some("text-embedding-3-small".to_string()),
         });
@@ -76,7 +78,11 @@ impl AIManager {
             name: "Google".to_string(),
             base_url: "https://generativelanguage.googleapis.com/v1beta".to_string(),
             models: vec![
-                "gemini-2.0-flash-exp".to_string(),
+                "gemini-3-pro".to_string(),
+                "gemini-3-flash".to_string(),
+                "gemini-2.0-flash".to_string(),
+                "gemini-2.0-flash-thinking-preview".to_string(),
+                "gemini-2.0-pro-exp-02-05".to_string(),
                 "gemini-1.5-pro".to_string(),
                 "gemini-1.5-flash".to_string(),
             ],

@@ -221,6 +221,7 @@ Be concise, friendly, and helpful.`;
       const agentHistory: AgentChatMessage[] = history.map(m => ({
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
+        thought: (m as any).thought, // Preserve thought if present
         // Map images if they exist in history
         images: m.images
       }));
@@ -340,10 +341,11 @@ Be concise, friendly, and helpful.`;
 
       return {
         text: response.content,
+        thought: response.thought, // Include thought in result
         type: 'text',
         provider: provider as AIProvider,
         model,
-      };
+      } as any;
 
     } catch (error) {
       console.error(`[AIService] Chat failed with ${provider}:`, error);

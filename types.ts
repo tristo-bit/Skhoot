@@ -7,6 +7,8 @@ export interface Message {
   data?: any;
   searchInfo?: any; // Enhanced search information from backend
   timestamp: Date;
+  /** Gemini-specific thought process */
+  thought?: string;
   // Agent-specific fields
   toolCalls?: AgentToolCallData[];
   toolResults?: AgentToolResultData[];
@@ -55,6 +57,8 @@ export interface AgentToolCallData {
         'web_search' | 'browse' | 'hidden_web_search' | 'invoke_agent' | 'list_agents' | 'create_agent' |
         'message_search' | 'list_workflows' | 'execute_workflow';
   arguments: Record<string, any>;
+  /** Gemini-specific thought signature */
+  thought_signature?: string;
 }
 
 // Agent tool result data for messages
@@ -63,6 +67,8 @@ export interface AgentToolResultData {
   toolCallName?: string;
   success: boolean;
   output: string;
+  /** Gemini-specific thought signature */
+  thought_signature?: string;
   error?: string;
   durationMs?: number;
 }
