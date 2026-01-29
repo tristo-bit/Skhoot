@@ -435,7 +435,7 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
 
   return (
     <div
-      className="absolute bottom-0 left-0 right-0 pointer-events-none z-20"
+      className="absolute bottom-0 left-0 right-0 z-20"
       style={{
         paddingLeft: 'var(--prompt-area-x)',
         paddingRight: 'var(--prompt-area-x)',

@@ -429,7 +429,6 @@ export const FileAttachmentModal: React.FC<FileAttachmentModalProps> = ({
             
             <div
               ref={dropZoneRef}
-              data-tauri-drag-region="false"
               onDragEnter={handleDragEnter}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}

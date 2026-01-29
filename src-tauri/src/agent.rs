@@ -149,7 +149,15 @@ pub async fn create_agent_session(
     // Create persistent terminal session immediately (Codex-Main approach)
     // This ensures consistent behavior and avoids lazy-init context traps
     let terminal_config = skhoot_backend::SessionConfig {
-        shell: if cfg!(target_os = "windows") { "powershell.exe".to_string() } else { "/bin/bash".to_string() },
+        shell: if cfg!(target_os = "windows") { 
+            "powershell.exe".to_string() 
+        } else { 
+            if std::path::Path::new("/bin/bash").exists() {
+                "/bin/bash".to_string()
+            } else {
+                "/bin/sh".to_string()
+            }
+        },
         cols: 80,
         rows: 24,
         env: vec![("TERM".to_string(), "xterm-256color".to_string())],
@@ -280,7 +288,15 @@ pub async fn execute_agent_tool(
         // Create persistent terminal session if it doesn't exist and tool is shell-related
         if session.terminal_session_id.is_none() && (request.tool_name == "shell" || request.tool_name == "create_terminal") {
             let config = skhoot_backend::SessionConfig {
-                shell: if cfg!(target_os = "windows") { "powershell.exe".to_string() } else { "/bin/bash".to_string() },
+                shell: if cfg!(target_os = "windows") { 
+                    "powershell.exe".to_string() 
+                } else { 
+                    if std::path::Path::new("/bin/bash").exists() {
+                        "/bin/bash".to_string()
+                    } else {
+                        "/bin/sh".to_string()
+                    }
+                },
                 cols: 80,
                 rows: 24,
                 env: vec![("TERM".to_string(), "xterm-256color".to_string())],
