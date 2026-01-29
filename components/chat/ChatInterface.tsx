@@ -157,6 +157,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toggleAgentMode]);
 
+  // Auto-focus input on mount or when chatId changes
+  useEffect(() => {
+    // Small delay to ensure everything is rendered and potential focus-stealing animations are done
+    const timer = setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [chatId, promptKey]);
+
   // Listen for highlight-message event (from ActivityPanel navigation)
   useEffect(() => {
     const handleHighlightMessage = (event: CustomEvent) => {

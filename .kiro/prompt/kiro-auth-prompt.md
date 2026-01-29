@@ -1,3 +1,5 @@
+// THIS WAS ABORTED BECAUSE OF THE WAY KIRO HANDLES OAUTH 
+
 # Feature Request: Kiro CLI Authentication Bridge
 
 ## Context

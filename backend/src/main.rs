@@ -158,6 +158,7 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api/v1", api::disk::disk_routes())
         .nest("/api/v1", api::agents::agent_routes())
         .nest("/api/v1", api::web_search::web_search_routes())
+        .route("/api/v1/recent/system", get(api::recent::get_system_recent_files))
         .nest("/api/v1/terminal", terminal::terminal_routes().with_state(terminal_manager))
         .with_state(state)
         .layer(

@@ -20,6 +20,8 @@ interface HyperlinkResult {
   linkType: 'learning' | 'source';
 }
 
+import { recentFilesService } from '../recentFilesService';
+
 export class ToolExecutor {
   /**
    * Execute a single tool call
@@ -35,6 +37,9 @@ export class ToolExecutor {
 
       // Check specific handlers first
       let result: ToolResult;
+
+      // Log activity for recent files if it's a file operation
+      this.logFileActivity(toolCall);
 
       if (this.isWorkflowTool(toolCall.name)) {
         const workflowResult = await executeWorkflowTool(toolCall.name, toolCall.arguments);
@@ -276,6 +281,25 @@ export class ToolExecutor {
   }
 
   // --- Helper Methods ---
+
+  /**
+   * Log file activity based on tool call
+   */
+  private logFileActivity(toolCall: AgentToolCall): void {
+    const args = toolCall.arguments;
+    if (!args) return;
+
+    const path = args.path || args.filePath || args.directory || args.directoryPath;
+    if (!path || typeof path !== 'string') return;
+
+    if (toolCall.name === 'read_file') {
+      recentFilesService.logAction(path, 'OPENED');
+    } else if (toolCall.name === 'write_file') {
+      recentFilesService.logAction(path, 'EDITED');
+    } else if (toolCall.name === 'list_directory' || toolCall.name === 'search_files') {
+      recentFilesService.logAction(path, 'SEARCHED', true);
+    }
+  }
 
   private formatResult(toolCall: AgentToolCall, success: boolean, data: any, error?: string): ToolResult {
     // Note: duration is not available here as it's measured in execute()

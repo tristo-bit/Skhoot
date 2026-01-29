@@ -13,6 +13,7 @@ import { SecondaryPanel, SecondaryPanelTab } from '../ui/SecondaryPanel';
 import { backendApi } from '../../services/backendApi';
 import { fileOperations } from '../../services/fileOperations';
 import { chatAttachmentService } from '../../services/chatAttachmentService';
+import { recentFilesService, RecentFile, FileActionType } from '../../services/recentFilesService';
 import { ImagesTab } from './ImagesTab';
 import { useToast, ToastContainer } from '../ui/Toast';
 
@@ -174,7 +175,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [recentFiles, setRecentFiles] = useState<FileItem[]>([]);
+  const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [searchExpanded, setSearchExpanded] = useState(false);
 
   // Memoize tabs to prevent recreation on every render - with conditional labels
@@ -206,16 +207,8 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
   const loadRecentFiles = useCallback(async () => {
     setIsLoading(true);
     try {
-      const results = await backendApi.aiFileSearch('recent files', { mode: 'hybrid', max_results: 20 });
-      const files: FileItem[] = (results.merged_results || []).slice(0, 15).map((r: any, i: number) => ({
-        id: `file-${i}`,
-        name: r.path.split(/[/\\]/).pop() || r.path,
-        path: r.path,
-        size: r.size ? formatSize(r.size) : 'Unknown',
-        type: r.file_type === 'directory' ? 'folder' : 'file',
-        modified: r.modified || 'Unknown',
-      }));
-      setRecentFiles(files);
+      const unified = await recentFilesService.getUnifiedRecents();
+      setRecentFiles(unified);
     } catch (error) {
       console.error('Failed to load recent files:', error);
     } finally {
@@ -228,13 +221,14 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
     setIsLoading(true);
     try {
       const results = await backendApi.aiFileSearch(searchQuery, { mode: 'hybrid', max_results: 30 });
-      const files: FileItem[] = (results.merged_results || []).map((r: any, i: number) => ({
+      const files: RecentFile[] = (results.merged_results || []).map((r: any, i: number) => ({
         id: `search-${i}`,
         name: r.path.split(/[/\\]/).pop() || r.path,
         path: r.path,
-        size: r.size ? formatSize(r.size) : 'Unknown',
-        type: r.file_type === 'directory' ? 'folder' : 'file',
-        modified: r.modified || 'Unknown',
+        size: r.size,
+        isDir: r.file_type === 'directory',
+        action: 'SEARCHED',
+        timestamp: Date.now()
       }));
       setRecentFiles(files);
     } catch (error) {
@@ -354,7 +348,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
 });
 
 const RecentTab = memo<{ 
-  files: FileItem[]; 
+  files: RecentFile[]; 
   viewMode: 'list' | 'grid'; 
   isLoading: boolean;
   onDeleteFile: (fileId: string) => void;
@@ -363,6 +357,50 @@ const RecentTab = memo<{
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const { toasts, showToast, closeToast } = useToast();
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Group files by timeline
+  const groups = useMemo(() => {
+    const now = Date.now();
+    const minute = 60 * 1000;
+    const hour = 60 * minute;
+    const day = 24 * hour;
+
+    const sections = [
+      { label: 'Right Now', files: [] as RecentFile[] },
+      { label: 'Active Session', files: [] as RecentFile[] },
+      { label: 'Earlier Today', files: [] as RecentFile[] },
+      { label: 'Recently', files: [] as RecentFile[] },
+    ];
+
+    files.forEach(f => {
+      const diff = now - f.timestamp;
+      if (diff < 5 * minute) sections[0].files.push(f);
+      else if (diff < hour) sections[1].files.push(f);
+      else if (diff < day) sections[2].files.push(f);
+      else sections[3].files.push(f);
+    });
+
+    return sections.filter(s => s.files.length > 0);
+  }, [files]);
+
+  // Helper for action badges
+  const ActionBadge = ({ action, label }: { action: FileActionType, label?: string }) => {
+    const configs: Record<FileActionType, { color: string, icon: string }> = {
+      CREATED: { color: 'bg-emerald-500/20 text-emerald-400', icon: '✨' },
+      EDITED: { color: 'bg-amber-500/20 text-amber-400', icon: '📝' },
+      OPENED: { color: 'bg-blue-500/20 text-blue-400', icon: '👁️' },
+      SEARCHED: { color: 'bg-purple-500/20 text-purple-400', icon: '🔍' },
+      DOWNLOADED: { color: 'bg-cyan-500/20 text-cyan-400', icon: '📥' },
+      MENTIONED: { color: 'bg-white/10 text-text-secondary', icon: '💬' }
+    };
+    const config = configs[action];
+    return (
+      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1 ${config.color}`}>
+        <span>{config.icon}</span>
+        <span>{label || action}</span>
+      </span>
+    );
+  };
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -394,10 +432,9 @@ const RecentTab = memo<{
     await fileActions.open(path);
   };
   
-  const handleAddToChat = async (file: FileItem, e: React.MouseEvent) => {
+  const handleAddToChat = async (file: RecentFile, e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // Button feedback
     const buttonId = `add-${file.id}`;
     setClickedButtons(prev => new Set(prev).add(buttonId));
     setTimeout(() => setClickedButtons(prev => {
@@ -406,29 +443,21 @@ const RecentTab = memo<{
       return next;
     }), 300);
     
-    const fileName = file.path.split(/[/\\]/).pop() || file.path;
-    
-    // Use centralized service
     chatAttachmentService.addToChat({
-      fileName,
+      fileName: file.name,
       filePath: file.path,
       source: 'file_system'
     });
-    
-    // Visual feedback
-    console.log(`[FileExplorer] Added to chat: ${fileName} -> ${file.path}`);
   };
   
-  const handleMoreClick = (file: FileItem, e: React.MouseEvent) => {
+  const handleMoreClick = (file: RecentFile, e: React.MouseEvent) => {
     e.stopPropagation();
     setOpenDropdown(openDropdown === file.id ? null : file.id);
   };
   
-  const handleCopyPath = async (file: FileItem, e: React.MouseEvent) => {
+  const handleCopyPath = async (file: RecentFile, e: React.MouseEvent) => {
     e.stopPropagation();
     setOpenDropdown(null);
-    
-    // Button feedback
     const buttonId = `copy-${file.id}`;
     setClickedButtons(prev => new Set(prev).add(buttonId));
     setTimeout(() => setClickedButtons(prev => {
@@ -439,30 +468,17 @@ const RecentTab = memo<{
     
     try {
       await navigator.clipboard.writeText(file.path);
-      showToast('Chemin copié', 'success', 2000);
+      showToast('Path copied', 'success', 2000);
     } catch (error) {
-      console.error('Failed to copy path:', error);
-      showToast('Échec de la copie', 'error');
+      showToast('Copy failed', 'error');
     }
   };
   
-  const handleDeleteFile = (file: FileItem, e: React.MouseEvent) => {
+  const handleDeleteFile = (file: RecentFile, e: React.MouseEvent) => {
     e.stopPropagation();
     setOpenDropdown(null);
-    
-    // Button feedback
-    const buttonId = `delete-${file.id}`;
-    setClickedButtons(prev => new Set(prev).add(buttonId));
-    
-    // Remove from Recent Files Panel only (no disk deletion, no backend call)
     onDeleteFile(file.id);
-    showToast('Retiré de la liste récente', 'success', 2000);
-    
-    setTimeout(() => setClickedButtons(prev => {
-      const next = new Set(prev);
-      next.delete(buttonId);
-      return next;
-    }), 300);
+    showToast('Removed from recent list', 'success', 2000);
   };
 
   if (isLoading) {
@@ -470,186 +486,89 @@ const RecentTab = memo<{
       <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--text-secondary)' }} />
     </div>;
   }
+
   if (files.length === 0) {
-    return <div className="flex flex-col items-center justify-center h-full text-center">
-      <Clock size={32} className="mb-3 opacity-40" style={{ color: 'var(--text-secondary)' }} />
-      <p className="text-sm font-jakarta" style={{ color: 'var(--text-secondary)' }}>No recent files</p>
+    return <div className="flex flex-col items-center justify-center h-full text-center p-8">
+      <Clock size={40} className="mb-4 opacity-20 text-text-primary" />
+      <p className="text-sm font-bold text-text-primary mb-1">Your timeline is empty</p>
+      <p className="text-xs text-text-secondary max-w-[200px]">
+        Interact with files using the Agent or search to see them appear here magically.
+      </p>
     </div>;
   }
-  if (viewMode === 'grid') {
-    return (
-      <>
-        <div className="grid grid-cols-4 gap-3">
-          {files.map(file => {
-            const colors = getFileColor(file.name, file.type === 'folder');
-            return (
-              <div 
-                key={file.id} 
-                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all relative group"
-              >
-                {/* Action buttons - visible on hover */}
-                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => handleAddToChat(file, e)}
-                    disabled={clickedButtons.has(`add-${file.id}`)}
-                    className={`p-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-all ${
-                      clickedButtons.has(`add-${file.id}`) ? 'scale-90 opacity-70' : 'scale-100'
-                    }`}
-                    title="Add to chat"
-                  >
-                    <MessageSquarePlus size={12} className="text-purple-400" />
-                  </button>
-                  <div className="relative">
-                    <button
-                      onClick={(e) => handleMoreClick(file, e)}
-                      disabled={clickedButtons.has(`more-${file.id}`)}
-                      className={`p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all ${
-                        clickedButtons.has(`more-${file.id}`) ? 'scale-90 opacity-70' : 'scale-100'
-                      }`}
-                      title="More actions"
-                    >
-                      <MoreHorizontal size={12} className="text-text-secondary" />
-                    </button>
-                    {openDropdown === file.id && (
-                      <div 
-                        ref={dropdownRef}
-                        className="absolute right-0 top-full mt-1 min-w-[140px] py-1 rounded-lg backdrop-blur-xl border border-white/10 shadow-xl z-50"
-                        style={{ backgroundColor: 'var(--bg-primary)' }}
-                      >
-                        <button
-                          onClick={(e) => handleCopyPath(file, e)}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-white/10 transition-all"
-                          style={{ color: 'var(--text-primary)' }}
-                        >
-                          <Copy size={12} style={{ color: 'var(--text-secondary)' }} />
-                          Copy path
-                        </button>
-                        <div className="my-0.5 border-t border-white/10" />
-                        <button
-                          onClick={(e) => handleDeleteFile(file, e)}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-red-500/10 transition-all text-red-400"
-                        >
-                          <Trash2 size={12} />
-                          Delete
-                        </button>
+
+  return (
+    <div className="space-y-6">
+      {groups.map(group => (
+        <div key={group.label} className="space-y-3">
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-text-secondary/50">{group.label}</span>
+            <div className="h-px flex-1 bg-white/5" />
+          </div>
+
+          <div className={viewMode === 'grid' ? "grid grid-cols-4 gap-3" : "space-y-1"}>
+            {group.files.map(file => {
+              const colors = getFileColor(file.name, file.isDir);
+              
+              if (viewMode === 'grid') {
+                return (
+                  <div key={file.id} className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all relative group border border-white/5 hover:border-white/10">
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      <button onClick={(e) => handleAddToChat(file, e)} className="p-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-all">
+                        <MessageSquarePlus size={12} className="text-purple-400" />
+                      </button>
+                    </div>
+                    
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-2 shadow-inner" style={{ backgroundColor: `${colors.bg}20` }}>
+                      {file.isDir ? <Folder size={20} style={{ color: colors.text }} /> : <File size={20} style={{ color: colors.text }} />}
+                    </div>
+
+                    <div className="space-y-1 min-w-0">
+                      <p className="text-xs font-bold truncate text-text-primary cursor-pointer hover:underline" onClick={(e) => handleOpenFile(file.path, e)}>
+                        {file.name}
+                      </p>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <ActionBadge action={file.action} label={file.sourceLabel} />
                       </div>
-                    )}
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={file.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all group border border-transparent hover:border-white/5">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 shadow-inner" style={{ backgroundColor: `${colors.bg}10` }}>
+                    {file.isDir ? <Folder size={16} style={{ color: colors.text }} /> : <File size={16} style={{ color: colors.text }} />}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-sm font-bold truncate text-text-primary cursor-pointer hover:underline" onClick={(e) => handleOpenFile(file.path, e)}>
+                        {file.name}
+                      </p>
+                      <ActionBadge action={file.action} label={file.sourceLabel} />
+                    </div>
+                    <p className="text-[10px] truncate text-text-secondary/60 cursor-pointer hover:underline" onClick={(e) => handleOpenFolder(file.path, e)}>
+                      {file.path}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={(e) => handleAddToChat(file, e)} className="p-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400">
+                      <MessageSquarePlus size={14} />
+                    </button>
+                    <button onClick={(e) => handleMoreClick(file, e)} className="p-1.5 rounded-lg hover:bg-white/10 text-text-secondary">
+                      <MoreHorizontal size={14} />
+                    </button>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: `${colors.bg}20` }}>
-                  {file.type === 'folder' ? <Folder size={20} style={{ color: colors.text }} /> : <File size={20} style={{ color: colors.text }} />}
-                </div>
-                <p 
-                  className="text-xs font-medium truncate cursor-pointer hover:underline" 
-                  style={{ color: 'var(--text-primary)' }}
-                  onClick={(e) => handleOpenFile(file.path, e)}
-                  title="Click to open file"
-                >
-                  {file.name}
-                </p>
-                <p 
-                  className="text-[10px] mt-1 cursor-pointer hover:underline hover:opacity-80 transition-opacity truncate" 
-                  style={{ color: 'var(--text-secondary)' }}
-                  onClick={(e) => handleOpenFolder(file.path, e)}
-                  title="Click to open folder"
-                >
-                  {file.size}</p>
-              </div>
-            );
-          })}
-        </div>
-        <ToastContainer toasts={toasts} onClose={closeToast} />
-      </>
-    );
-  }
-  return (
-    <>
-      <div className="space-y-1">
-        {files.map(file => {
-          const colors = getFileColor(file.name, file.type === 'folder');
-          return (
-            <div 
-              key={file.id} 
-              className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all group"
-            >
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${colors.bg}10` }}>
-                {file.type === 'folder' ? <Folder size={16} style={{ color: colors.text }} /> : <File size={16} style={{ color: colors.text }} />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p 
-                  className="text-sm font-medium truncate cursor-pointer hover:underline" 
-                  style={{ color: 'var(--text-primary)' }}
-                  onClick={(e) => handleOpenFile(file.path, e)}
-                  title="Click to open file"
-                >
-                  {file.name}
-                </p>
-                <p 
-                  className="text-xs truncate cursor-pointer hover:underline hover:opacity-80 transition-opacity" 
-                  style={{ color: 'var(--text-secondary)' }}
-                  onClick={(e) => handleOpenFolder(file.path, e)}
-                  title="Click to open folder"
-                >
-                  {file.path}
-                </p>
-              </div>
-            <div className="text-right flex-shrink-0">
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{file.size}</p>
-            </div>
-            {/* Action buttons */}
-            <button 
-              onClick={(e) => handleAddToChat(file, e)}
-              disabled={clickedButtons.has(`add-${file.id}`)}
-              className={`p-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 transition-all opacity-60 group-hover:opacity-100 ${
-                clickedButtons.has(`add-${file.id}`) ? 'scale-90 opacity-50' : 'scale-100'
-              }`}
-              title="Add to chat"
-            >
-              <MessageSquarePlus size={14} className="text-purple-400" />
-            </button>
-            <div className="relative">
-              <button 
-                onClick={(e) => handleMoreClick(file, e)}
-                disabled={clickedButtons.has(`more-${file.id}`)}
-                className={`p-1.5 rounded-lg hover:bg-white/10 transition-all opacity-60 group-hover:opacity-100 ${
-                  clickedButtons.has(`more-${file.id}`) ? 'scale-90 opacity-50' : 'scale-100'
-                }`}
-                title="More actions"
-                style={{ backgroundColor: `${colors.bg}10` }}
-              >
-                <MoreHorizontal size={14} style={{ color: colors.text }} />
-              </button>
-              {openDropdown === file.id && (
-                <div 
-                  ref={dropdownRef}
-                  className="absolute right-0 top-full mt-1 min-w-[140px] py-1 rounded-lg backdrop-blur-xl border border-white/10 shadow-xl z-50"
-                  style={{ backgroundColor: 'var(--bg-primary)' }}
-                >
-                  <button
-                    onClick={(e) => handleCopyPath(file, e)}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-white/10 transition-all"
-                    style={{ color: 'var(--text-primary)' }}
-                  >
-                    <Copy size={12} style={{ color: 'var(--text-secondary)' }} />
-                    Copy path
-                  </button>
-                  <div className="my-0.5 border-t border-white/10" />
-                  <button
-                    onClick={(e) => handleDeleteFile(file, e)}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-red-500/10 transition-all text-red-400"
-                  >
-                    <Trash2 size={12} />
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
+              );
+            })}
           </div>
-          );
-        })}
-      </div>
+        </div>
+      ))}
       <ToastContainer toasts={toasts} onClose={closeToast} />
-    </>
+    </div>
   );
 });
 RecentTab.displayName = 'RecentTab';

@@ -265,9 +265,9 @@ class TerminalService {
 
       // Use HTTP backend if available
       if (await this.checkHttpBackend()) {
-        const output = await terminalHttpService.read(sessionId);
+        const response = await terminalHttpService.read(sessionId);
         // Convert string array to TerminalOutput format
-        return output.map(content => ({
+        return response.output.map(content => ({
           output_type: 'stdout' as const,
           content,
           timestamp: Date.now(),
