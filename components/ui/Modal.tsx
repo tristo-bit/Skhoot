@@ -40,7 +40,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   const modal = (
     <div
-      className={`modal-overlay fixed inset-0 z-50 flex items-center justify-center ${overlayClassName}`}
+      className={`modal-overlay absolute inset-0 z-50 flex items-center justify-center pointer-events-auto ${overlayClassName}`}
       onClick={onClose}
       onDragOver={handleDragOver}
     >
@@ -81,5 +81,7 @@ export const Modal: React.FC<ModalProps> = ({
   );
 
   // Render via portal to escape parent stacking context
-  return createPortal(modal, document.body);
+  // Use specialized portal root if available to ensure clipping to app corners
+  const portalRoot = document.getElementById('modal-portal-root') || document.body;
+  return createPortal(modal, portalRoot);
 };

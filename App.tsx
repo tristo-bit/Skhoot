@@ -479,11 +479,14 @@ const AppContent: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden">
+    <div 
+      className="relative flex h-screen w-full items-center justify-center overflow-hidden p-[1px]"
+      style={{ backgroundColor: 'transparent' }}
+    >
       <ResizeHandles onResizeStart={handleResizeStart} />
 
-      <div className="app-shell relative z-10 w-full h-full flex flex-col shadow-2xl overflow-hidden bg-bg-primary rounded-[var(--app-radius)] isolation-isolate">
-        <div className="app-glass relative z-10 w-full h-full flex flex-col overflow-hidden glass-elevated rounded-[var(--app-radius)]">
+      <div className="app-shell relative z-10 w-full h-full flex flex-col shadow-2xl rounded-[var(--app-radius)] bg-transparent isolation-isolate">
+        <div className="app-glass relative z-10 w-full h-full flex flex-col overflow-hidden bg-bg-primary glass-elevated rounded-[var(--app-radius)]">
           {/* Background layers */}
           <Background3D />
           <AppBackground activeMode={activeQuickAction} />
@@ -565,8 +568,10 @@ const AppContent: React.FC = () => {
                 workingDirectory={workingDirectory}
               />
             </div>
-
           </main>
+
+          {/* Portal target for modals and sidebars to ensure they are clipped by the app corners */}
+          <div id="modal-portal-root" className="absolute inset-0 pointer-events-none rounded-[inherit]" />
         </div>
       </div>
     </div>

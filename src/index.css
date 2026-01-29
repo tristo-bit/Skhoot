@@ -236,7 +236,8 @@
   }
 
   .settings-panel {
-    border-radius: calc(24px * var(--component-scale) * var(--scale));
+    border-radius: var(--app-radius);
+    isolation: isolate;
   }
 
   .settings-panel-header,
@@ -253,7 +254,7 @@
     width: 94vw;
     height: 88vh;
     max-height: 520px;
-    border-radius: calc(20px * var(--component-scale) * var(--scale));
+    border-radius: var(--app-radius);
   }
 
   .compact-mode .settings-panel-header,
@@ -271,7 +272,7 @@
     width: 96vw;
     height: 90vh;
     max-height: none;
-    border-radius: calc(16px * var(--component-scale) * var(--scale));
+    border-radius: var(--app-radius);
   }
 
   .mobile-mode .settings-panel-header,
@@ -291,7 +292,8 @@
     width: 92vw;
     max-width: 420px;
     max-height: 560px;
-    border-radius: calc(24px * var(--component-scale) * var(--scale));
+    border-radius: var(--app-radius);
+    isolation: isolate;
   }
 
   .files-panel-header {
@@ -361,7 +363,8 @@
     width: 92vw;
     max-width: 420px;
     max-height: 560px;
-    border-radius: calc(24px * var(--component-scale) * var(--scale));
+    border-radius: var(--app-radius);
+    isolation: isolate;
   }
 
   .activity-panel-header {
@@ -422,7 +425,7 @@
     width: 94vw;
     height: 88vh;
     max-height: 520px;
-    border-radius: calc(20px * var(--component-scale) * var(--scale));
+    border-radius: var(--app-radius);
   }
 
   .compact-mode .activity-panel-header,
@@ -440,7 +443,7 @@
     width: 96vw;
     height: 90vh;
     max-height: none;
-    border-radius: calc(16px * var(--component-scale) * var(--scale));
+    border-radius: var(--app-radius);
   }
 
   .mobile-mode .activity-panel-header,
@@ -460,7 +463,7 @@
     width: 94vw;
     height: 88vh;
     max-height: 520px;
-    border-radius: calc(20px * var(--component-scale) * var(--scale));
+    border-radius: var(--app-radius);
   }
 
   .compact-mode .files-panel-header,
@@ -478,7 +481,7 @@
     width: 96vw;
     height: 90vh;
     max-height: none;
-    border-radius: calc(16px * var(--component-scale) * var(--scale));
+    border-radius: var(--app-radius);
   }
 
   .mobile-mode .files-panel-header,
@@ -506,6 +509,9 @@
   .modal-overlay {
     background-color: rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border-radius: inherit;
+    overflow: hidden;
   }
 
   .modal-panel {
@@ -513,8 +519,9 @@
     max-width: 420px;
     height: 86vh;
     max-height: 560px;
-    border-radius: calc(24px * var(--component-scale) * var(--scale));
+    border-radius: var(--app-radius);
     overflow: hidden;
+    isolation: isolate;
   }
 
   /* Larger modals on bigger screens */
@@ -576,7 +583,7 @@
     width: 94vw;
     height: 88vh;
     max-height: 520px;
-    border-radius: calc(20px * var(--component-scale) * var(--scale));
+    border-radius: var(--app-radius);
   }
 
   .compact-mode .modal-header,
@@ -594,7 +601,7 @@
     width: 96vw;
     height: 90vh;
     max-height: none;
-    border-radius: calc(16px * var(--component-scale) * var(--scale));
+    border-radius: var(--app-radius);
   }
 
   .mobile-mode .modal-header,
@@ -759,7 +766,8 @@
   html {
     width: 100%;
     height: 100%;
-    background-color: transparent !important;
+    background-color: rgba(0, 0, 0, 0) !important;
+    background: transparent !important;
     font-size: calc(16px * var(--scale-text));
     overflow: hidden;
   }
@@ -768,7 +776,8 @@
     margin: 0;
     width: 100%;
     height: 100%;
-    background-color: transparent !important;
+    background-color: rgba(0, 0, 0, 0) !important;
+    background: transparent !important;
     color: var(--text-primary);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     overflow: hidden;
