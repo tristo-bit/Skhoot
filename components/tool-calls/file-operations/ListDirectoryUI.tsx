@@ -16,20 +16,85 @@ import { useSettings } from '../../../src/contexts/SettingsContext';
 // ============================================================================
 
 function parseDirectoryListing(output: string, basePath: string = ''): FileCardFile[] {
+  // Normalize basePath for matching
+  const requestedPath = basePath.replace(/\/$/, '');
+  const cleanOutput = output.trim();
+
+  // 1. Try parsing as a whole JSON object first (New Backend Format)
+  try {
+    const data = JSON.parse(cleanOutput);
+    if (data && typeof data === 'object') {
+      // Handle the { success: true, path: "...", entries: [...] } format
+      if (Array.isArray(data.entries)) {
+        const actualPath = (data.path || basePath).replace(/\/$/, '');
+        return data.entries
+          .filter((entry: any) => {
+            // Filter out the directory itself if it's in the entries
+            const entryPath = (entry.path || '').replace(/\/$/, '');
+            const entryName = entry.name || '';
+            return entryPath !== actualPath && entryName !== '.' && entryName !== '..';
+          })
+          .map((entry: any) => ({
+            id: entry.path || entry.name,
+            name: entry.name || entry.path.split('/').pop() || 'Unknown',
+            path: entry.path || entry.name,
+            size: entry.is_dir ? '-' : (typeof entry.size === 'number' ? formatFileSize(entry.size) : 'Unknown'),
+            category: entry.is_dir ? 'Folder' : detectCategory(entry.name || ''),
+            safeToRemove: false,
+            lastUsed: entry.modified 
+              ? (typeof entry.modified === 'number' ? new Date(entry.modified * 1000).toLocaleString() : String(entry.modified))
+              : 'Unknown',
+          }));
+      }
+      
+      // Handle array of objects format
+      if (Array.isArray(data)) {
+        return data
+          .filter((entry: any) => {
+            const entryName = entry.name || entry.path?.split('/').pop() || '';
+            return entryName !== '.' && entryName !== '..';
+          })
+          .map((entry: any) => ({
+            id: entry.path || entry.name,
+            name: entry.name || entry.path.split('/').pop() || 'Unknown',
+            path: entry.path || entry.name,
+            size: entry.is_dir ? '-' : (typeof entry.size === 'number' ? formatFileSize(entry.size) : 'Unknown'),
+            category: entry.is_dir ? 'Folder' : detectCategory(entry.name || ''),
+            safeToRemove: false,
+            lastUsed: entry.modified || 'Unknown',
+          }));
+      }
+    }
+  } catch (e) {
+    // Not a single JSON object, fall back to line-by-line parsing
+  }
+
   const files: FileCardFile[] = [];
+  const seenIds = new Set<string>();
   const lines = output.split('\n').filter(line => line.trim());
   
   for (const line of lines) {
-    if (!line.trim() || line.startsWith('total ') || line.startsWith('Directory:')) {
+    const trimmed = line.trim();
+    // Skip obvious JSON noise, summary lines, and common keys
+    if (!trimmed || trimmed.startsWith('total ') || trimmed.startsWith('Directory:') || 
+        /^["']?(entries|success|path|is_dir|size|modified)["']?\s*:/.test(trimmed) ||
+        trimmed === '{' || trimmed === '}' || trimmed === '[' || trimmed === ']' || 
+        trimmed === '"entries": [' || 
+        /^[\{\}\[\],]+$/.test(trimmed)) {
       continue;
     }
     
     let parsed = parseUnixLsLine(line, basePath) || 
-                 parseSimpleLine(line, basePath) ||
-                 parseJsonLine(line);
+                 parseJsonLine(line) ||
+                 parseSimpleLine(line, basePath);
     
     if (parsed) {
-      files.push(parsed);
+      // Filter out the directory itself, current/parent dir, and duplicates
+      const cleanPath = parsed.path.replace(/\/$/, '');
+      if (cleanPath !== requestedPath && parsed.name !== '.' && parsed.name !== '..' && !seenIds.has(parsed.id)) {
+        files.push(parsed);
+        seenIds.add(parsed.id);
+      }
     }
   }
   
@@ -42,14 +107,20 @@ function parseUnixLsLine(line: string, basePath: string): FileCardFile | null {
   
   if (match) {
     const [, permissions, size, date, name] = match;
+    if (name === '.' || name === '..') return null;
+    
     const isDirectory = permissions.startsWith('d');
-    const fullPath = basePath ? `${basePath}/${name}` : name;
+    
+    // Fix path joining
+    const cleanBase = basePath.replace(/\/$/, '');
+    const cleanName = name.replace(/^\//, '');
+    const fullPath = cleanBase ? `${cleanBase}/${cleanName}` : cleanName;
     
     return {
       id: fullPath,
       name: name,
       path: fullPath,
-      size: formatFileSize(parseInt(size, 10)),
+      size: isDirectory ? '-' : formatFileSize(parseInt(size, 10)),
       category: isDirectory ? 'Folder' : detectCategory(name),
       safeToRemove: false,
       lastUsed: date,
@@ -60,8 +131,22 @@ function parseUnixLsLine(line: string, basePath: string): FileCardFile | null {
 }
 
 function parseSimpleLine(line: string, basePath: string): FileCardFile | null {
-  const trimmed = line.trim();
-  if (!trimmed || (trimmed.includes(':') && !trimmed.includes('/'))) {
+  let trimmed = line.trim();
+  
+  // Strip any combination of leading/trailing quotes, commas, brackets, and whitespace
+  trimmed = trimmed.replace(/^["'\s,\[\{]+|["'\s,\]\}]+$/g, '');
+
+  if (trimmed.includes(':') && !trimmed.includes('/') && !trimmed.includes('\\')) {
+    // Likely a JSON key-value pair like "name": "file.txt"
+    const parts = trimmed.split(':');
+    if (parts.length > 1) {
+      trimmed = parts[1].trim().replace(/^["']+|["']+$/g, '');
+    } else {
+      return null;
+    }
+  }
+
+  if (!trimmed || trimmed === '.' || trimmed === '..') {
     return null;
   }
   
@@ -76,10 +161,13 @@ function parseSimpleLine(line: string, basePath: string): FileCardFile | null {
   const fileName = lastSlash >= 0 ? name.slice(lastSlash + 1) : name;
   
   if (basePath && !fullPath.startsWith('/') && !fullPath.startsWith('~')) {
-    fullPath = `${basePath}/${name}`;
+    // Avoid double slashes
+    const cleanBase = basePath.replace(/\/$/, '');
+    const cleanName = name.replace(/^\//, '');
+    fullPath = `${cleanBase}/${cleanName}`;
   }
   
-  const isDirectory = trimmed.endsWith('/') || (!fileName.includes('.') && !trimmed.includes('.'));
+  const isDirectory = line.trim().endsWith('/') || (!fileName.includes('.') && !trimmed.includes('.'));
   
   return {
     id: fullPath,
@@ -94,16 +182,24 @@ function parseSimpleLine(line: string, basePath: string): FileCardFile | null {
 
 function parseJsonLine(line: string): FileCardFile | null {
   try {
-    const data = JSON.parse(line);
+    // Try to extract an object from the line
+    const match = line.match(/\{.*\}/);
+    if (!match) return null;
+    
+    const data = JSON.parse(match[0]);
     if (data.path || data.name) {
+      const path = data.path || data.name;
+      const name = data.name || path.split('/').pop() || path;
+      const isDirectory = data.type === 'directory' || data.is_dir === true;
+      
       return {
-        id: data.path || data.name,
-        name: data.name || data.path.split('/').pop() || data.path,
-        path: data.path || data.name,
-        size: data.size ? formatFileSize(data.size) : 'Unknown',
-        category: data.type === 'directory' ? 'Folder' : detectCategory(data.name || ''),
+        id: path,
+        name: name,
+        path: path,
+        size: data.size ? formatFileSize(data.size) : (isDirectory ? '-' : 'Unknown'),
+        category: isDirectory ? 'Folder' : detectCategory(name),
         safeToRemove: false,
-        lastUsed: data.modified || 'Unknown',
+        lastUsed: data.modified ? (typeof data.modified === 'number' ? new Date(data.modified * 1000).toLocaleString() : String(data.modified)) : 'Unknown',
       };
     }
   } catch {
@@ -150,7 +246,7 @@ export const ListDirectoryUI = memo<ToolCallUIProps>(({
   result,
   onNavigate,
 }) => {
-  const [localLayout, setLocalLayout] = useState<'list' | 'grid' | null>(null);
+  const [localLayout, setLocalLayout] = useState<'compact' | 'grid' | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
   
@@ -189,8 +285,7 @@ export const ListDirectoryUI = memo<ToolCallUIProps>(({
   const toggleLayout = useCallback(() => {
     setLocalLayout(prev => {
       if (prev === 'grid') return 'compact';
-      if (prev === 'compact' || prev === null) return 'grid';
-      return 'compact';
+      return 'grid';
     });
   }, []);
 
