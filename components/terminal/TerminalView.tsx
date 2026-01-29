@@ -553,7 +553,7 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
           {/* Tabs - Only show shell tabs, not agent-log tabs */}
           <div className="flex items-center gap-2 flex-1 overflow-x-auto ml-2">
             {visibleTabs.map(tab => (
-              <button
+              <div
                 key={tab.id}
                 className={`
                   flex items-center gap-2 px-3 py-1.5 rounded-xl cursor-pointer transition-all text-sm
@@ -583,11 +583,11 @@ export const TerminalView: React.FC<TerminalViewProps> = memo(({
                     e.stopPropagation();
                     handleCloseTab(tab.id);
                   }}
-                  className="hover:text-red-400 transition-colors"
+                  className="hover:text-red-400 transition-colors p-0.5 rounded-md hover:bg-black/10 dark:hover:bg-white/10"
                 >
                   <X size={14} />
                 </button>
-              </button>
+              </div>
             ))}
             <button
               onClick={() => handleCreateTab('shell')}

@@ -12,6 +12,8 @@ use tracing::info;
 
 mod ai;
 mod api;
+mod cli_agent;
+mod cli_bridge;
 mod cli_engine;
 mod db;
 mod indexer;
@@ -22,6 +24,7 @@ mod config;
 mod error;
 mod terminal;
 mod content_extraction;
+mod workflows;
 
 use config::AppConfig;
 use error::AppError;
@@ -43,6 +46,7 @@ pub struct AppState {
     search_engine: SearchEngine,
     file_search_manager: SearchManager,
     content_extraction_system: Arc<tokio::sync::Mutex<ContentExtractionSystem>>,
+    pub terminal_manager: TerminalManager,
 }
 
 #[derive(Serialize)]
@@ -141,6 +145,7 @@ async fn main() -> anyhow::Result<()> {
         search_engine,
         file_search_manager,
         content_extraction_system,
+        terminal_manager: terminal_manager.clone(),
     };
 
     let app = Router::new()
