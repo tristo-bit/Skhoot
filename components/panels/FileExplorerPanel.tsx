@@ -4,7 +4,6 @@
  * Performance optimized with memo and useCallback
  */
 import React, { useState, useCallback, useEffect, useRef, memo, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { 
   Search, HardDrive, BarChart3, Trash2, 
   File, Folder, Clock, RefreshCw, Grid, List, MoreHorizontal,
@@ -14,6 +13,7 @@ import { SecondaryPanel, SecondaryPanelTab } from '../ui/SecondaryPanel';
 import { backendApi } from '../../services/backendApi';
 import { fileOperations } from '../../services/fileOperations';
 import { ImagesTab } from './ImagesTab';
+import { useToast, ToastContainer } from '../ui/Toast';
 
 // Helper function to format bytes
 const formatBytes = (bytes: number): string => {
@@ -144,121 +144,6 @@ const fileActions = {
   },
 };
 
-// File context menu dropdown component - rendered as portal to avoid overflow issues
-const FileContextMenu: React.FC<{
-  file: FileItem;
-  isOpen: boolean;
-  onClose: () => void;
-  position: { x: number; y: number };
-}> = ({ file, isOpen, onClose, position }) => {
-  const menuRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleEscape);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isOpen, onClose]);
-  
-  if (!isOpen) return null;
-  
-  const menuItems = [
-    { icon: <MessageSquarePlus size={14} />, label: 'Add to chat', action: async () => { 
-      // Add file reference to chat via custom event
-      const fileName = file.path.split(/[/\\]/).pop() || file.path;
-      
-      // Dispatch custom event for PromptArea to handle
-      const event = new CustomEvent('add-file-reference', {
-        detail: { fileName, filePath: file.path }
-      });
-      window.dispatchEvent(event);
-      
-      // Focus the textarea
-      const textarea = document.querySelector('textarea.file-mention-input') as HTMLTextAreaElement;
-      if (textarea) {
-        textarea.focus();
-      }
-      
-      // Visual feedback
-      console.log(`[FileExplorer] Dispatched add-file-reference: @${fileName} -> ${file.path}`);
-    }, highlight: true },
-    { divider: true },
-    { icon: <ExternalLink size={14} />, label: 'Open', action: async () => { await fileActions.open(file.path); } },
-    { icon: <FolderOpen size={14} />, label: 'Show in folder', action: async () => { await fileActions.revealInExplorer(file.path); } },
-    { divider: true },
-    { icon: <Copy size={14} />, label: 'Copy path', action: async () => { 
-      const success = await fileActions.copy(file.path);
-      if (success) {
-        alert('✅ Path copied to clipboard!');
-      }
-    }},
-    { icon: <Scissors size={14} />, label: 'Cut (copy path)', action: async () => { 
-      await fileActions.copy(file.path);
-      alert('✅ Path copied (cut)');
-    }},
-    { divider: true },
-    { icon: <Archive size={14} />, label: 'Compress to ZIP', action: async () => { await fileActions.compress(file.path); } },
-    { icon: <ExternalLink size={14} />, label: 'Open with...', action: async () => { await fileActions.openWith(file.path); } },
-    { divider: true },
-    { icon: <Info size={14} />, label: 'Properties', action: async () => { await fileActions.properties(file.path); } },
-    { icon: <Trash2 size={14} />, label: 'Delete', action: async () => { await fileActions.delete(file.path); }, danger: true },
-  ];
-  
-  const menu = (
-    <div
-      ref={menuRef}
-      className="fixed z-[99999] min-w-[180px] py-1.5 rounded-xl backdrop-blur-xl border border-white/10 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
-      style={{ 
-        top: Math.min(position.y, window.innerHeight - 320),
-        left: Math.min(position.x, window.innerWidth - 200),
-        backgroundColor: 'var(--bg-primary)',
-      }}
-    >
-      {menuItems.map((item, i) => 
-        item.divider ? (
-          <div key={i} className="my-1 border-t border-white/10" />
-        ) : (
-          <button
-            key={i}
-            onClick={async (e) => {
-              e.stopPropagation();
-              await item.action?.();
-              onClose();
-            }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs font-medium transition-all hover:bg-white/10 ${
-              item.danger ? 'text-red-400 hover:bg-red-500/10' : 
-              (item as any).highlight ? 'bg-purple-500/10 hover:bg-purple-500/20' : ''
-            }`}
-            style={{ color: item.danger ? undefined : (item as any).highlight ? '#a78bfa' : 'var(--text-primary)' }}
-          >
-            <span className={item.danger ? 'text-red-400' : (item as any).highlight ? 'text-purple-400' : 'text-text-secondary'}>{item.icon}</span>
-            {item.label}
-          </button>
-        )
-      )}
-    </div>
-  );
-  
-  // Render as portal to avoid overflow issues
-  return createPortal(menu, document.body);
-};
-
 type TabId = 'recent' | 'images' | 'disk' | 'analysis' | 'cleanup';
 
 interface FileItem {
@@ -378,6 +263,11 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
     if (e.key === 'Enter') handleSearch();
   }, [handleSearch]);
 
+  // Handle delete file from Recent Files Panel
+  const handleDeleteFile = useCallback((fileId: string) => {
+    setRecentFiles(prev => prev.filter(f => f.id !== fileId));
+  }, []);
+
   const headerActions = useMemo(() => (
     <>
       {/* Left: Expandable Search Bar - pre-allocated space */}
@@ -451,7 +341,7 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
     >
       <div className="h-full flex flex-col">
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          {activeTab === 'recent' && <RecentTab files={recentFiles} viewMode={viewMode} isLoading={isLoading} />}
+          {activeTab === 'recent' && <RecentTab files={recentFiles} viewMode={viewMode} isLoading={isLoading} onDeleteFile={handleDeleteFile} />}
           {activeTab === 'images' && <ImagesTab viewMode={viewMode} isLoading={isLoading} />}
           {activeTab === 'disk' && <DiskTab />}
           {activeTab === 'analysis' && <AnalysisTab />}
@@ -462,8 +352,32 @@ export const FileExplorerPanel: React.FC<FileExplorerPanelProps> = memo(({ isOpe
   );
 });
 
-const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading: boolean }>(({ files, viewMode, isLoading }) => {
-  const [contextMenu, setContextMenu] = useState<{ file: FileItem; position: { x: number; y: number } } | null>(null);
+const RecentTab = memo<{ 
+  files: FileItem[]; 
+  viewMode: 'list' | 'grid'; 
+  isLoading: boolean;
+  onDeleteFile: (fileId: string) => void;
+}>(({ files, viewMode, isLoading, onDeleteFile }) => {
+  const [clickedButtons, setClickedButtons] = useState<Set<string>>(new Set());
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const { toasts, showToast, closeToast } = useToast();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    
+    if (openDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openDropdown]);
   
   const handleOpenFolder = async (path: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -474,16 +388,85 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
     }
   };
   
-  const handleContextMenu = (file: FileItem, e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleOpenFile = async (path: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setContextMenu({ file, position: { x: e.clientX, y: e.clientY } });
+    await fileActions.open(path);
+  };
+  
+  const handleAddToChat = async (file: FileItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Button feedback
+    const buttonId = `add-${file.id}`;
+    setClickedButtons(prev => new Set(prev).add(buttonId));
+    setTimeout(() => setClickedButtons(prev => {
+      const next = new Set(prev);
+      next.delete(buttonId);
+      return next;
+    }), 300);
+    
+    const fileName = file.path.split(/[/\\]/).pop() || file.path;
+    
+    // Dispatch custom event for PromptArea to handle
+    const event = new CustomEvent('add-file-reference', {
+      detail: { fileName, filePath: file.path }
+    });
+    window.dispatchEvent(event);
+    
+    // Focus the textarea
+    const textarea = document.querySelector('textarea.file-mention-input') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.focus();
+    }
+    
+    // Visual feedback
+    console.log(`[FileExplorer] Dispatched add-file-reference: @${fileName} -> ${file.path}`);
   };
   
   const handleMoreClick = (file: FileItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
-    setContextMenu({ file, position: { x: rect.left, y: rect.bottom + 4 } });
+    setOpenDropdown(openDropdown === file.id ? null : file.id);
+  };
+  
+  const handleCopyPath = async (file: FileItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpenDropdown(null);
+    
+    // Button feedback
+    const buttonId = `copy-${file.id}`;
+    setClickedButtons(prev => new Set(prev).add(buttonId));
+    setTimeout(() => setClickedButtons(prev => {
+      const next = new Set(prev);
+      next.delete(buttonId);
+      return next;
+    }), 300);
+    
+    try {
+      await navigator.clipboard.writeText(file.path);
+      showToast('Chemin copié', 'success', 2000);
+    } catch (error) {
+      console.error('Failed to copy path:', error);
+      showToast('Échec de la copie', 'error');
+    }
+  };
+  
+  const handleDeleteFile = (file: FileItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpenDropdown(null);
+    
+    // Button feedback
+    const buttonId = `delete-${file.id}`;
+    setClickedButtons(prev => new Set(prev).add(buttonId));
+    
+    // Remove from Recent Files Panel only (no disk deletion, no backend call)
+    onDeleteFile(file.id);
+    showToast('Retiré de la liste récente', 'success', 2000);
+    
+    setTimeout(() => setClickedButtons(prev => {
+      const next = new Set(prev);
+      next.delete(buttonId);
+      return next;
+    }), 300);
   };
 
   if (isLoading) {
@@ -506,19 +489,68 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
             return (
               <div 
                 key={file.id} 
-                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer relative group"
-                onContextMenu={(e) => handleContextMenu(file, e)}
+                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all relative group"
               >
-                <button
-                  onClick={(e) => handleMoreClick(file, e)}
-                  className="absolute top-2 right-2 p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all opacity-0 group-hover:opacity-100"
-                >
-                  <MoreHorizontal size={12} className="text-text-secondary" />
-                </button>
+                {/* Action buttons - visible on hover */}
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => handleAddToChat(file, e)}
+                    disabled={clickedButtons.has(`add-${file.id}`)}
+                    className={`p-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 transition-all ${
+                      clickedButtons.has(`add-${file.id}`) ? 'scale-90 opacity-70' : 'scale-100'
+                    }`}
+                    title="Add to chat"
+                  >
+                    <MessageSquarePlus size={12} className="text-purple-400" />
+                  </button>
+                  <div className="relative">
+                    <button
+                      onClick={(e) => handleMoreClick(file, e)}
+                      disabled={clickedButtons.has(`more-${file.id}`)}
+                      className={`p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all ${
+                        clickedButtons.has(`more-${file.id}`) ? 'scale-90 opacity-70' : 'scale-100'
+                      }`}
+                      title="More actions"
+                    >
+                      <MoreHorizontal size={12} className="text-text-secondary" />
+                    </button>
+                    {openDropdown === file.id && (
+                      <div 
+                        ref={dropdownRef}
+                        className="absolute right-0 top-full mt-1 min-w-[140px] py-1 rounded-lg backdrop-blur-xl border border-white/10 shadow-xl z-50"
+                        style={{ backgroundColor: 'var(--bg-primary)' }}
+                      >
+                        <button
+                          onClick={(e) => handleCopyPath(file, e)}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-white/10 transition-all"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          <Copy size={12} style={{ color: 'var(--text-secondary)' }} />
+                          Copy path
+                        </button>
+                        <div className="my-0.5 border-t border-white/10" />
+                        <button
+                          onClick={(e) => handleDeleteFile(file, e)}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-red-500/10 transition-all text-red-400"
+                        >
+                          <Trash2 size={12} />
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-2" style={{ backgroundColor: `${colors.bg}20` }}>
                   {file.type === 'folder' ? <Folder size={20} style={{ color: colors.text }} /> : <File size={20} style={{ color: colors.text }} />}
                 </div>
-                <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                <p 
+                  className="text-xs font-medium truncate cursor-pointer hover:underline" 
+                  style={{ color: 'var(--text-primary)' }}
+                  onClick={(e) => handleOpenFile(file.path, e)}
+                  title="Click to open file"
+                >
+                  {file.name}
+                </p>
                 <p 
                   className="text-[10px] mt-1 cursor-pointer hover:underline hover:opacity-80 transition-opacity truncate" 
                   style={{ color: 'var(--text-secondary)' }}
@@ -530,14 +562,7 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
             );
           })}
         </div>
-        {contextMenu && (
-          <FileContextMenu
-            file={contextMenu.file}
-            isOpen={true}
-            onClose={() => setContextMenu(null)}
-            position={contextMenu.position}
-          />
-        )}
+        <ToastContainer toasts={toasts} onClose={closeToast} />
       </>
     );
   }
@@ -549,14 +574,20 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
           return (
             <div 
               key={file.id} 
-              className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all cursor-pointer group"
-              onContextMenu={(e) => handleContextMenu(file, e)}
+              className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all group"
             >
               <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${colors.bg}10` }}>
                 {file.type === 'folder' ? <Folder size={16} style={{ color: colors.text }} /> : <File size={16} style={{ color: colors.text }} />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{file.name}</p>
+                <p 
+                  className="text-sm font-medium truncate cursor-pointer hover:underline" 
+                  style={{ color: 'var(--text-primary)' }}
+                  onClick={(e) => handleOpenFile(file.path, e)}
+                  title="Click to open file"
+                >
+                  {file.name}
+                </p>
                 <p 
                   className="text-xs truncate cursor-pointer hover:underline hover:opacity-80 transition-opacity" 
                   style={{ color: 'var(--text-secondary)' }}
@@ -569,26 +600,59 @@ const RecentTab = memo<{ files: FileItem[]; viewMode: 'list' | 'grid'; isLoading
             <div className="text-right flex-shrink-0">
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{file.size}</p>
             </div>
+            {/* Action buttons */}
             <button 
-              onClick={(e) => handleMoreClick(file, e)}
-              className="p-1.5 rounded-lg hover:bg-white/10 transition-all opacity-60 group-hover:opacity-100"
-              title="More actions"
-              style={{ backgroundColor: `${colors.bg}10` }}
+              onClick={(e) => handleAddToChat(file, e)}
+              disabled={clickedButtons.has(`add-${file.id}`)}
+              className={`p-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 transition-all opacity-60 group-hover:opacity-100 ${
+                clickedButtons.has(`add-${file.id}`) ? 'scale-90 opacity-50' : 'scale-100'
+              }`}
+              title="Add to chat"
             >
-              <MoreHorizontal size={14} style={{ color: colors.text }} />
+              <MessageSquarePlus size={14} className="text-purple-400" />
             </button>
+            <div className="relative">
+              <button 
+                onClick={(e) => handleMoreClick(file, e)}
+                disabled={clickedButtons.has(`more-${file.id}`)}
+                className={`p-1.5 rounded-lg hover:bg-white/10 transition-all opacity-60 group-hover:opacity-100 ${
+                  clickedButtons.has(`more-${file.id}`) ? 'scale-90 opacity-50' : 'scale-100'
+                }`}
+                title="More actions"
+                style={{ backgroundColor: `${colors.bg}10` }}
+              >
+                <MoreHorizontal size={14} style={{ color: colors.text }} />
+              </button>
+              {openDropdown === file.id && (
+                <div 
+                  ref={dropdownRef}
+                  className="absolute right-0 top-full mt-1 min-w-[140px] py-1 rounded-lg backdrop-blur-xl border border-white/10 shadow-xl z-50"
+                  style={{ backgroundColor: 'var(--bg-primary)' }}
+                >
+                  <button
+                    onClick={(e) => handleCopyPath(file, e)}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-white/10 transition-all"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    <Copy size={12} style={{ color: 'var(--text-secondary)' }} />
+                    Copy path
+                  </button>
+                  <div className="my-0.5 border-t border-white/10" />
+                  <button
+                    onClick={(e) => handleDeleteFile(file, e)}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-red-500/10 transition-all text-red-400"
+                  >
+                    <Trash2 size={12} />
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           );
         })}
       </div>
-      {contextMenu && (
-        <FileContextMenu
-          file={contextMenu.file}
-          isOpen={true}
-          onClose={() => setContextMenu(null)}
-          position={contextMenu.position}
-        />
-      )}
+      <ToastContainer toasts={toasts} onClose={closeToast} />
     </>
   );
 });

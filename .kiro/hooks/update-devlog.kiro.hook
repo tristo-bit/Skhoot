@@ -4,12 +4,12 @@
   "description": "Automatically updates or creates DEVLOG.md to document prompts used, conversations, achievements, and notable facts/commentary about the code after each agent session",
   "version": "1",
   "when": {
-    "type": "agentStop"
+    "type": "userTriggered"
   },
   "then": {
     "type": "askAgent",
     "prompt": "When the user has either : \n\nReached a significant point during which the dev has advanced : document the progress in the DEVLOG.md \nOr when a merge happens document the progress in the DEVLOG.md \nWhen a feature or plan has been created document the progress in the DEVLOG.md \n\n"
   },
-  "workspaceFolderName": "Skhoot",
+  "workspaceFolderName": "Skhoot-final clone",
   "shortName": "update-devlog"
 }

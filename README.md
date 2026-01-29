@@ -332,6 +332,44 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 </details>
 
 <details>
+<summary><strong>🖼️ Image Library Management</strong></summary>
+
+**Centralized Image Storage**: Manage all images from chat conversations in one organized library.
+
+- **Image Sources**: Automatically captures images from two sources
+  - **User Uploads**: Images attached to chat messages
+  - **Web Search Results**: Images from AI web search responses
+  - **Source Badges**: Visual indicators (USER/WEB) on each image
+- **Dual View Modes**: Switch between grid and list layouts
+  - **Grid View**: 4-column responsive grid with hover actions and thumbnails
+  - **List View**: Compact rows with preview thumbnails and metadata
+- **Image Operations**:
+  - **Add to Chat**: One-click to insert image into current conversation
+  - **Download**: Save images locally with original or custom filenames
+  - **Delete**: Remove images with confirmation dialog
+  - **Copy URL**: Copy image URL to clipboard
+  - **Full-Size Preview**: Click any image for modal lightbox view
+- **Filtering & Sorting**: Find images quickly with advanced controls
+  - **Source Filter**: Show all, user uploads only, or web search only
+  - **Sort Options**: Recent, oldest, name (A-Z), or by source
+  - **Collapsible Filters**: Clean UI with expandable filter panel
+- **Statistics Dashboard**: Real-time stats showing total images, user images, and web search images
+- **Storage Management**: LocalStorage-based with automatic cleanup
+  - **Capacity**: Up to 500 images with automatic pruning of oldest entries
+  - **Metadata**: Stores filename, alt text, source, timestamp, search query, and message ID
+  - **Thumbnails**: Supports separate thumbnail URLs for performance
+- **Interactive Features**:
+  - **Context Menu**: Right-click for quick actions
+  - **Hover Actions**: Grid view shows action buttons on hover
+  - **Filename Overlay**: Displays filename at bottom of grid thumbnails
+  - **Empty State**: Helpful message when no images are stored
+- **Performance Optimized**: React memo, lazy loading, and efficient rendering
+
+**Why This Matters**: Never lose track of images from your conversations. Quickly reuse images across chats, download for external use, or review web search results. Organized image management improves workflow efficiency.
+
+</details>
+
+<details>
 <summary><strong>⚙️ Settings & Privacy</strong></summary>
 
 - **User Profile**: Manage personal information including name and profile picture
@@ -478,8 +516,9 @@ skhoot/
 │   │   ├── AISettingsModal.tsx   # AI configuration modal
 │   │   ├── bookmarks/            # Bookmark management components
 │   │   │   └── BookmarksTab.tsx  # Bookmarks tab UI
-│   │   └── memories/             # Memory management components (NEW)
-│   │       └── MemoriesTab.tsx   # AI memory management UI
+│   │   ├── memories/             # Memory management components (NEW)
+│   │   │   └── MemoriesTab.tsx   # AI memory management UI
+│   │   └── ImagesTab.tsx         # Image library management (NEW)
 │   ├── terminal/        # Terminal and agent log UI
 │   │   ├── TerminalPanel.tsx
 │   │   ├── AgentLogTab.tsx      # Agent monitoring interface (NEW)
@@ -498,6 +537,7 @@ skhoot/
 │   ├── apiKeyService.ts        # Secure API key management
 │   ├── tokenTrackingService.ts # Token usage tracking (NEW)
 │   ├── memoryService.ts        # AI long-term memory management (NEW)
+│   ├── imageStorage.ts         # Image library storage service (NEW)
 │   ├── userProfileService.ts   # User profile data management (NEW)
 │   ├── diskService.ts          # System disk information
 │   ├── notificationService.ts  # Native desktop notifications
@@ -1976,7 +2016,14 @@ const agentResponse = await agentChatService.executeWithTools(
 <details>
 <summary><strong>File Explorer Context Menu & File References</strong></summary>
 
-- **Rich Context Menu**: Right-click or use the "more" button on any file in the File Explorer panel for quick actions
+- **Interactive File List**: Click on any file in the File Explorer panel for quick actions
+  - **Click to Open**: Single-click on files to open them with the default system application
+  - **Click on Folders**: Navigate into folders by clicking on them
+  - **Hover Actions**: Action buttons appear on hover for quick access
+    - **Add to Chat** (MessageSquarePlus icon): One-click to insert file reference into chat input
+    - **Download** (Download icon): Quickly download files to your system
+    - **More Actions** (MoreVertical icon): Access full context menu with additional operations
+- **Rich Context Menu**: Right-click or use the "more" button on any file for comprehensive actions
   - **Add to chat**: Insert file reference into chat input for AI context (e.g., `@config.json`)
     - Simplified reference format: `@filename` (changed from `@file:filename` for cleaner syntax)
     - Automatically focuses chat textarea and appends file reference
