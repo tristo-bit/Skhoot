@@ -459,8 +459,6 @@ npm run backend:dev
 In Skhoot, go into the Settings then navigate to AI Settings, at the bottom of this panel, you will find a API Configuration area, select your provider and enter your API key. 
 ```
 
-**Note**: The desktop version automatically starts the backend. For the web version, the backend must be running separately (`npm run backend:dev`).
-
 ---
 
 ## 🛠️ Development
