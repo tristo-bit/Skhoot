@@ -31,7 +31,7 @@ export const AnimationToolcall: React.FC<AnimationToolcallProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center overflow-hidden rounded-full">
+    <div className="relative w-full h-full flex items-center justify-center rounded-full">
       {/* Outer Ring */}
       <motion.div
         className={`absolute w-[85%] h-[85%] border-2 ${activeConfig.primaryColor} rounded-full ${
