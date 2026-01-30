@@ -193,7 +193,11 @@ export const ACTION_ACTIVE_COLORS = {
 
 export const QUICK_ACTIONS = [
   { id: 'Files', color: '#D1DBCB', activeColor: '#5a7a4a', placeholder: 'Which file are you looking for?', opensPanel: true },
+  /* 
+     Agents feature is currently under development. 
+     We will finish this feature before displaying it in the UI.
   { id: 'Agents', color: '#EAD8DE', activeColor: '#9a5a6a', placeholder: 'Ask an agent for help...', opensPanel: false },
+  */
   { id: 'Workflows', color: '#F9F1D2', activeColor: '#8a7a3a', placeholder: 'Select or create a workflow...', opensPanel: true },
   { id: 'Terminal', color: '#E1D5E3', activeColor: '#7a5a8a', placeholder: 'Run commands...', opensPanel: true },
 ] as const;

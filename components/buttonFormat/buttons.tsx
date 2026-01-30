@@ -16,7 +16,7 @@ export interface BaseButtonProps {
 }
 
 export interface ButtonVariantProps extends BaseButtonProps {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'glass' | 'violet' | 'blue';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'glass' | 'violet' | 'blue' | 'fuku';
   size?: 'xs' | 'sm' | 'md' | 'lg';
   loading?: boolean;
   icon?: React.ReactNode;
@@ -33,7 +33,8 @@ const getVariantClasses = (variant: ButtonVariantProps['variant'] = 'primary') =
     ghost: 'text-text-secondary hover:text-text-primary hover:glass-subtle',
     glass: 'glass-subtle text-text-primary hover:brightness-95',
     violet: 'text-white hover:opacity-90',
-    blue: 'text-white hover:opacity-90'
+    blue: 'text-white hover:opacity-90',
+    fuku: 'text-[#1e1e2e] hover:opacity-90'
   };
   return variants[variant];
 };
@@ -108,6 +109,8 @@ export const Button: React.FC<ButtonVariantProps> = ({
     ? { backgroundColor: '#9a8ba3', ...style }
     : variant === 'blue'
     ? { backgroundColor: '#DDEBF4', ...style }
+    : variant === 'fuku'
+    ? { backgroundColor: '#c0b7c9', ...style }
     : style;
 
   const buttonContent = (

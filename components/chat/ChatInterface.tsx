@@ -421,6 +421,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   // Handle workflow prompts - sends to AI and returns response
   // Uses agent mode if available for tool access (file operations, terminal, etc.)
+  const displayGeneratedFiles = useCallback((files: string[]) => {
+    if (!files || files.length === 0) return;
+    
+    const uniqueFiles = Array.from(new Set(files));
+    
+    const fileList: Message = {
+        id: `files-gen-${Date.now()}`,
+        role: 'assistant',
+        content: 'I have generated the following files:',
+        type: 'file_list',
+        data: uniqueFiles.map(path => ({
+            id: path,
+            name: path.split(/[/\\]/).pop() || 'File',
+            path: path,
+            size: 'Unknown',
+            category: 'Document',
+            safeToRemove: false,
+            lastUsed: new Date().toISOString()
+        })),
+        timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, fileList]);
+  }, []);
+
   const handleWorkflowPromptExtended = useCallback(async (prompt: string): Promise<{ content: string; toolResults?: any[] }> => {
     // Load AI settings
     const aiSettings = aiSettingsService.loadSettings();
@@ -1256,13 +1281,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           const newMessages = [...prev, assistantMsg];
 
           // If files were generated, show them immediately
-          if (result.generatedFiles && result.generatedFiles.length > 0) {
+          const allGeneratedFiles = [...(result.generatedFiles || [])];
+          
+          // Heuristic: Search for potential paths in the content text too
+          const pathMatch = result.content.match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t]+\.[a-zA-Z0-9]{1,5}/g);
+          if (pathMatch) {
+              allGeneratedFiles.push(...pathMatch);
+          }
+
+          if (allGeneratedFiles.length > 0) {
+              const uniqueFiles = Array.from(new Set(allGeneratedFiles));
               const fileList: Message = {
                   id: `files-${Date.now()}`,
                   role: 'assistant',
                   content: 'Created files:',
                   type: 'file_list',
-                  data: result.generatedFiles.map(path => ({
+                  data: uniqueFiles.map(path => ({
                       id: path,
                       name: path.split(/[/\\]/).pop() || 'File',
                       path: path,
@@ -1855,7 +1889,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             presencePenalty: aiSettings.presencePenalty,
           }
         );
-        
         setSearchType(null);
         setSearchStatus('');
         
@@ -1869,7 +1902,38 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           timestamp: new Date()
         };
         
-        setMessages(prev => [...prev, assistantMsg]);
+        setMessages(prev => {
+            const newMsgs = [...prev, assistantMsg];
+            
+            // Detect paths in normal text output
+            const allGeneratedFiles: string[] = [];
+            const pathMatch = (result.text || '').match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t]+\.[a-zA-Z0-9]{1,5}/g);
+            if (pathMatch) {
+                allGeneratedFiles.push(...pathMatch);
+            }
+
+            if (allGeneratedFiles.length > 0 && result.type !== 'file_list') {
+                const uniqueFiles = Array.from(new Set(allGeneratedFiles));
+                newMsgs.push({
+                    id: `files-norm-${Date.now()}`,
+                    role: 'assistant',
+                    content: 'Generated files detected:',
+                    type: 'file_list',
+                    data: uniqueFiles.map(path => ({
+                        id: path,
+                        name: path.split(/[/\\]/).pop() || 'File',
+                        path: path,
+                        size: 'Unknown',
+                        category: 'Document',
+                        safeToRemove: false,
+                        lastUsed: new Date().toISOString()
+                    })),
+                    timestamp: new Date()
+                });
+            }
+            return newMsgs;
+        });
+
         
         await nativeNotifications.success(
           'Response Received',

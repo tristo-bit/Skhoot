@@ -283,15 +283,16 @@ export const FileCard = memo<FileCardProps>(({
         </span>
         {showActions && (
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {showAddToChat && (
-              <button
-                onClick={handleAddToChat}
-                className="p-1 rounded glass-subtle hover:bg-purple-500/20 transition-colors"
-                title={isFolder ? "Add folder to chat" : "Add to chat"}
-              >
-                {addedToChat ? <Check size={10} className="text-purple-500" /> : <MessageSquarePlus size={10} className="text-purple-500" />}
-              </button>
-            )}
+        {showAddToChat && (
+          <button
+            onClick={handleAddToChat}
+            className="p-1 rounded glass-subtle hover:bg-fuku-brand/20 transition-colors"
+            title={isFolder ? "Add folder to chat" : "Add to chat"}
+          >
+            {addedToChat ? <Check size={10} className="text-fuku-brand" /> : <MessageSquarePlus size={10} className="text-fuku-brand" />}
+          </button>
+        )}
+
             <button
               onClick={handleOpen}
               className="p-1 rounded glass-subtle hover:glass-elevated transition-colors"
@@ -355,10 +356,10 @@ export const FileCard = memo<FileCardProps>(({
               {showAddToChat && (
                 <button 
                   onClick={handleAddToChat} 
-                  className={`flex-1 p-1.5 rounded-lg transition-colors flex items-center justify-center ${addedToChat ? 'bg-purple-500/30' : 'bg-purple-500/20 hover:bg-purple-500/30'}`}
+                  className={`flex-1 p-1.5 rounded-lg transition-colors flex items-center justify-center ${addedToChat ? 'bg-fuku-brand/30' : 'bg-fuku-brand/20 hover:bg-fuku-brand/30'}`}
                   title={isFolder ? "Add folder to chat" : "Add to chat"}
                 >
-                  {addedToChat ? <Check size={12} className="text-purple-500" /> : <MessageSquarePlus size={12} className="text-purple-500" />}
+                  {addedToChat ? <Check size={12} className="text-fuku-brand" /> : <MessageSquarePlus size={12} className="text-fuku-brand" />}
                 </button>
               )}
               <button 
@@ -448,10 +449,10 @@ export const FileCard = memo<FileCardProps>(({
   // Default list layout
   return (
     <div 
-      className={`glass-subtle p-3 rounded-2xl border-glass-border animate-in fade-in slide-in-from-bottom-1 duration-300 ${isFolder && onNavigate ? 'cursor-pointer hover:glass-elevated' : ''}`}
+      className={`glass-subtle p-4 rounded-2xl border-glass-border animate-in fade-in slide-in-from-bottom-1 duration-300 w-full sm:min-w-[520px] max-w-4xl ${isFolder && onNavigate ? 'cursor-pointer hover:glass-elevated' : ''}`}
       onClick={isFolder && onNavigate ? handleNavigate : undefined}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <div className="w-10 h-10 rounded-xl glass-subtle flex items-center justify-center flex-shrink-0">
           <FileIcon isFolder={isFolder} size={18} />
         </div>
@@ -509,26 +510,26 @@ export const FileCard = memo<FileCardProps>(({
       </div>
       
       {showActions && (
-        <div className="flex gap-2 mt-3 pt-2 border-t border-glass-border">
+        <div className="flex gap-2 mt-4 pt-3 border-t border-glass-border">
           {showAddToChat && (
             <Button 
               onClick={handleAddToChat} 
-              variant={addedToChat ? 'primary' : 'glass'} 
+              variant={addedToChat ? 'primary' : 'fuku'} 
               size="xs" 
               icon={addedToChat ? <Check size={12} /> : <MessageSquarePlus size={12} />} 
               iconPosition="left" 
-              className="flex-1 text-purple-600"
+              className="flex-[2] whitespace-nowrap px-4 py-2"
             >
               {addedToChat ? 'Added!' : 'Add to Chat'}
             </Button>
           )}
-          <Button onClick={handleOpen} variant="glass" size="xs" icon={<ExternalLink size={12} />} iconPosition="left" className="flex-1 text-text-primary">
+          <Button onClick={handleOpen} variant="glass" size="xs" icon={<ExternalLink size={12} />} iconPosition="left" className="flex-1 px-3 py-2 text-text-primary">
             Open
           </Button>
-          <Button onClick={handleGo} variant="glass" size="xs" icon={<Folder size={12} />} iconPosition="left" className="flex-1 text-text-primary">
+          <Button onClick={handleGo} variant="glass" size="xs" icon={<Folder size={12} />} iconPosition="left" className="flex-1 px-3 py-2 text-text-primary">
             Folder
           </Button>
-          <Button onClick={handleCopy} variant={copied ? 'primary' : 'glass'} size="xs" icon={copied ? <Check size={12} /> : <Copy size={12} />} iconPosition="left" className="flex-1 text-text-primary">
+          <Button onClick={handleCopy} variant={copied ? 'primary' : 'glass'} size="xs" icon={copied ? <Check size={12} /> : <Copy size={12} />} iconPosition="left" className="flex-1 px-3 py-2 text-text-primary">
             {copied ? 'Copied!' : 'Copy'}
           </Button>
         </div>

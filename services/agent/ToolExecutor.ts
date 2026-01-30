@@ -90,6 +90,14 @@ export class ToolExecutor {
             toolCall.arguments,
             options.sessionId
           );
+          
+          if (toolCall.name === 'execute_command' && terminalResult.success) {
+              const cmdCreatedFiles = this.detectCreatedFilesFromCommand(toolCall.arguments.command);
+              if (cmdCreatedFiles.length > 0) {
+                  (toolCall as any)._generatedFiles = cmdCreatedFiles;
+              }
+          }
+
           return this.formatResult(toolCall, terminalResult.success, terminalResult.data, terminalResult.error);
 
         // File and shell tools
@@ -106,7 +114,6 @@ export class ToolExecutor {
           
           if (!shellTermResult.success) {
             // Fallback to legacy ephemeral shell if persistent shell fails
-            // This handles cases where terminal service is unavailable
             console.warn('[ToolExecutor] Persistent shell failed, falling back to ephemeral:', shellTermResult.error);
             const shellResult = await backendApi.executeShellCommand(
               toolCall.arguments.command,
@@ -116,13 +123,15 @@ export class ToolExecutor {
             output = JSON.stringify(shellResult, null, 2);
             success = true;
           } else {
-            // Success with persistent shell
-            // ToolResult definition: success, data, error, metadata. 'output' is not a property.
-            // But execute() function returns { ..., output: string }.
-            // We need to extract the output from data or metadata.
             const data = shellTermResult.data;
             output = data && data.message ? data.message : 'Command executed successfully in terminal.';
             success = true;
+          }
+
+          // Detect files created via shell (heuristic)
+          const shellCreatedFiles = this.detectCreatedFilesFromCommand(toolCall.arguments.command);
+          if (shellCreatedFiles.length > 0) {
+              (toolCall as any)._generatedFiles = shellCreatedFiles;
           }
           break;
 
@@ -380,5 +389,35 @@ export class ToolExecutor {
       console.error('[HiddenWebSearch] Error:', error);
       return results;
     }
+  }
+
+  /**
+   * Detect potential files created by common shell commands
+   */
+  private detectCreatedFilesFromCommand(command: string): string[] {
+    const files: string[] = [];
+    
+    // Heuristic 1: Redirects (e.g., echo "data" > file.txt, cat > config.json)
+    const redirectMatches = command.matchAll(/(?:>|>>)\s*([^\s;&|]+)/g);
+    for (const match of redirectMatches) {
+        if (match[1]) files.push(match[1].replace(/['"]/g, ''));
+    }
+
+    // Heuristic 2: common file creation commands
+    // touch file.js
+    const touchMatches = command.matchAll(/touch\s+([^\s;&|]+)/g);
+    for (const match of touchMatches) {
+        if (match[1]) files.push(match[1].replace(/['"]/g, ''));
+    }
+
+    // Heuristic 3: Compilers/Tools with output flags
+    // gcc main.c -o myapp
+    // curl ... -o download.zip
+    const outputFlagMatches = command.matchAll(/(?:\s-o\s+)([^\s;&|]+)/g);
+    for (const match of outputFlagMatches) {
+        if (match[1]) files.push(match[1].replace(/['"]/g, ''));
+    }
+
+    return Array.from(new Set(files)).filter(f => f.includes('.')); // Filter out non-files (folders usually don't have dots)
   }
 }

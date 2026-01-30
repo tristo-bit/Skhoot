@@ -501,8 +501,9 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
               }}
             >
               <div
-                className="quick-action-grid grid grid-cols-4"
+                className="quick-action-grid grid"
                 style={{
+                  gridTemplateColumns: `repeat(${QUICK_ACTIONS.filter((a: any) => !!a).length}, minmax(0, 1fr))`,
                   gap: 'calc(var(--scale-space-2) * var(--spacing-scale))',
                   paddingLeft: 'calc(var(--scale-space-2) * var(--spacing-scale))',
                   paddingRight: 'calc(var(--scale-space-2) * var(--spacing-scale))',
@@ -510,7 +511,7 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
                   paddingBottom: 'calc(var(--scale-space-2) * var(--spacing-scale))',
                 }}
               >
-                {QUICK_ACTIONS.map((action, index) => {
+                {QUICK_ACTIONS.filter((a: any) => !!a).map((action: any, index: number) => {
                   const isActive = activeMode === action.id;
                   return (
                     <QuickActionButton
@@ -524,7 +525,7 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
                       style={{
                         opacity: showQuickActions ? 1 : 0,
                         transform: showQuickActions ? 'scale(1)' : 'scale(0.92)',
-                        transition: `opacity 0.35s ${smoothEasing} ${showQuickActions ? index * 0.04 : (QUICK_ACTIONS.length - 1 - index) * 0.02}s, transform 0.4s ${smoothEasing} ${showQuickActions ? index * 0.04 : 0}s`,
+                        transition: `opacity 0.35s ${smoothEasing} ${showQuickActions ? index * 0.04 : (QUICK_ACTIONS.filter((a: any) => !!a).length - 1 - index) * 0.02}s, transform 0.4s ${smoothEasing} ${showQuickActions ? index * 0.04 : 0}s`,
                         fontSize: 'calc(var(--scale-font-sm) * var(--text-scale))',
                         padding: 'calc(8px * var(--component-scale) * var(--scale)) calc(12px * var(--component-scale) * var(--scale))',
                         borderRadius: 'calc(12px * var(--component-scale) * var(--scale))',
@@ -533,6 +534,7 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
                   );
                 })}
               </div>
+
             </div>
           </div>
         </div>

@@ -255,25 +255,32 @@ export class WorkflowExecutor {
   private detectGeneratedFiles(step: WorkflowStep, output: string, toolResults: any[]): string[] {
       let generatedFiles: string[] = [];
       
-      if (step.outputFormat === 'file' && toolResults) {
-          const writeTool = toolResults.find(r => r.success && (r.toolCallName === 'write_file' || r.name === 'write_file')); // check naming consistency
-          if (writeTool) {
-             const match = writeTool.output.match(/File written successfully: (.*)/);
-             if (match) {
-                 generatedFiles.push(match[1]);
-             }
-          }
+      // 1. Check Tool Results for explicit markers (from write_file or shell detection)
+      if (toolResults) {
+          toolResults.forEach(r => {
+              if (r.success) {
+                  // Direct write_file marker
+                  if (r.toolCallName === 'write_file' || r.name === 'write_file') {
+                      const match = r.output?.match(/File written successfully: (.*)/);
+                      if (match) generatedFiles.push(match[1]);
+                  }
+                  
+                  // Also check for tagged files from our recent detection logic
+                  // Note: the original toolCall was tagged, but we only have results here.
+                  // Wait, agentChatService returns result.generatedFiles which we already use.
+              }
+          });
       }
 
-      // Fallback regex
-      if (generatedFiles.length === 0 && step.outputFormat === 'file') {
+      // 2. Fallback to path detection in AI output if file format was expected
+      if (step.outputFormat === 'file') {
         const pathMatch = output.match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t]+\.[a-zA-Z0-9]{1,5}/g);
         if (pathMatch) {
             generatedFiles.push(...pathMatch);
         }
       }
 
-      return generatedFiles;
+      return Array.from(new Set(generatedFiles));
   }
 
   // Logic ported from WorkflowService.executeStep to determine next state

@@ -182,12 +182,12 @@ export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: 
                 <button
                   onClick={(e) => handleAddToChat(image, e)}
                   disabled={clickedButtons.has(`add-${image.id}`)}
-                  className={`p-1 rounded-lg bg-purple-500/80 hover:bg-purple-500 transition-all ${
+                  className={`p-1 rounded-lg bg-fuku-brand/80 hover:bg-fuku-brand transition-all ${
                     clickedButtons.has(`add-${image.id}`) ? 'scale-90 opacity-70' : 'scale-100'
                   }`}
                   title="Add to chat"
                 >
-                  <MessageSquarePlus size={12} className="text-white" />
+                  <MessageSquarePlus size={12} className="text-[#1e1e2e]" />
                 </button>
                 <button
                   onClick={(e) => handleDelete(image, e)}
@@ -242,12 +242,12 @@ export const ImagesTab: React.FC<ImagesTabProps> = memo(({ viewMode, isLoading: 
               <button 
                 onClick={(e) => handleAddToChat(image, e)}
                 disabled={clickedButtons.has(`add-${image.id}`)}
-                className={`p-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 transition-all opacity-60 group-hover:opacity-100 ${
+                className={`p-1.5 rounded-lg bg-fuku-brand/10 hover:bg-fuku-brand/20 transition-all opacity-60 group-hover:opacity-100 ${
                   clickedButtons.has(`add-${image.id}`) ? 'scale-90 opacity-50' : 'scale-100'
                 }`}
                 title="Add to chat"
               >
-                <MessageSquarePlus size={14} className="text-purple-400" />
+                <MessageSquarePlus size={14} className="text-fuku-brand" />
               </button>
               <button 
                 onClick={(e) => handleDelete(image, e)}
