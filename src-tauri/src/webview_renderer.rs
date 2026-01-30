@@ -108,7 +108,7 @@ impl WebViewRenderer {
             .map_err(|e| tauri::Error::InvalidUrl(e))?;
         
         // Create a hidden window that won't be visible to the user
-        let window = WebviewWindowBuilder::new(
+        let mut window_builder = WebviewWindowBuilder::new(
             &self.app_handle,
             label,
             WebviewUrl::External(parsed_url),
@@ -182,15 +182,21 @@ impl WebViewRenderer {
                 }, 500);
             })();
         "#)
-        .decorations(false) // No window decorations
-        .transparent(true) // Transparent window (helps prevent titlebar on Windows)
-        .skip_taskbar(true) // Don't show in taskbar
-        .always_on_bottom(true) // Keep below all other windows if somehow visible
-        .resizable(false) // Not resizable
-        .minimizable(false) // Not minimizable
-        .maximizable(false) // Not maximizable
-        .closable(true) // Allow programmatic closing
-        .build()?;
+        .decorations(false); // No window decorations
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            window_builder = window_builder.transparent(true); // Transparent window (helps prevent titlebar on Windows)
+        }
+
+        let window = window_builder
+            .skip_taskbar(true) // Don't show in taskbar
+            .always_on_bottom(true) // Keep below all other windows if somehow visible
+            .resizable(false) // Not resizable
+            .minimizable(false) // Not minimizable
+            .maximizable(false) // Not maximizable
+            .closable(true) // Allow programmatic closing
+            .build()?;
 
         Ok(window)
     }
@@ -276,61 +282,11 @@ impl WebViewRenderer {
         let window = self.app_handle.get_webview_window(&window_label)
             .ok_or_else(|| format!("Render window {} not found", window_label))?;
 
-        // Execute JavaScript to get the page content
-        // We use a structured JSON return to get multiple values at once
-        let script = r#"
-            (function() {
-                return {
-                    html: document.documentElement.outerHTML,
-                    title: document.title,
-                    url: window.location.href
-                };
-            })();
-        "#;
-
-        // In Tauri v2, we might not have a direct eval-and-return-value API easily accessible 
-        // in this context without more complex setup (IPC).
-        // However, for this implementation, we can use the window's eval method if available,
-        // or we can use a more robust IPC approach.
-        
-        // Since we are inside the Tauri process, we can use the window handle to evaluate script.
-        // NOTE: standard window.eval() doesn't return values to Rust directly in all versions.
-        // A common pattern is to use a custom event or a specific command, but here we'll try
-        // to use the basic eval and rely on the fact that we need a way to get data back.
-        
-        // IMPROVED APPROACH:
-        // Since getting return values from eval can be tricky, we will use a specific approach:
-        // We can't easily get the return value from `eval` in the current Tauri version without
-        // using an invoke handler or event system. 
-        //
-        // However, for this task, we will assume we can't get it directly and instead
-        // use a workaround or Placeholder for now if we can't verify the API.
-        //
-        // WAIT: The prompt implies I should "implement" it. 
-        // The most reliable way in Tauri to get data back from a window initiated from Rust
-        // is usually ensuring the window sends an event back, or using a specific API.
-        
-        // BUT, let's look at the imports. We have `WebviewWindowBuilder`.
-        // Let's assume we can use a simpler approach for now to avoid over-engineering 
-        // if we are unsure of the specific Tauri v2 API surface available in this environment.
-        
-        // Let's use the `eval` method which allows executing JS.
-        // Getting the result back is the hard part.
-        
-        // Let's try to use the `with_webview` closure if available, or just fallback to the 
-        // reliable (but slightly hacky) title-based extraction or similar if strict API is missing.
-        
-        // Actually, let's look at the constraints. 
-        // If we can't easily get the result, we might need to rely on the backend fallback.
-        // BUT the user wants this to work.
-        
-        // Let's try to find a way to get the content.
-        // Since we are in `src-tauri`, we have full access.
-        
         // Strategy: Use `eval` to send the data back via an event.
         // We will listen for an event `render-result-{job_id}`.
         
         let (tx, rx) = std::sync::mpsc::channel();
+
         let tx_clone = Arc::new(Mutex::new(tx));
         
         let event_name = format!("render-result-{}", job.job_id);
