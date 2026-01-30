@@ -528,8 +528,8 @@ async fn start_backend_sidecar(app_handle: &tauri::AppHandle) {
     let mut cmd = Command::new("cargo");
     cmd.args(&["run"])
        .current_dir(&backend_dir)
-       .stdout(Stdio::piped())
-       .stderr(Stdio::piped());
+       .stdout(Stdio::inherit())
+       .stderr(Stdio::inherit());
     
     match cmd.spawn() {
       Ok(mut child) => {
@@ -541,9 +541,6 @@ async fn start_backend_sidecar(app_handle: &tauri::AppHandle) {
         match child.try_wait() {
           Ok(Some(status)) => {
             eprintln!("[Skhoot] Backend process exited early with status: {}", status);
-            if let Ok(output) = child.wait_with_output() {
-              eprintln!("[Skhoot] Backend stderr: {}", String::from_utf8_lossy(&output.stderr));
-            }
           }
           Ok(None) => {
             println!("[Skhoot] Backend started successfully and is running");
@@ -593,10 +590,16 @@ async fn start_backend_sidecar(app_handle: &tauri::AppHandle) {
       return;
     }
     
-    let mut cmd = Command::new(&backend_path);
-    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+      let mut cmd = Command::new(&backend_path);
+      cmd.stdout(Stdio::null()).stderr(Stdio::null());
 
-    match cmd.spawn() {
+      #[cfg(windows)]
+      {
+          use std::os::windows::process::CommandExt;
+          cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+      }
+
+      match cmd.spawn() {
       Ok(mut child) => {
         println!("[Skhoot] Backend sidecar started successfully");
         

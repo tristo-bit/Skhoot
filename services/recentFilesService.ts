@@ -59,7 +59,7 @@ class RecentFilesService {
   async getUnifiedRecents(): Promise<RecentFile[]> {
     try {
       // 1. Fetch from system backend
-      const response = await fetch('http://localhost:3001/api/v1/recent/system?hours=24&limit=15');
+      const response = await fetch('http://127.0.0.1:3001/api/v1/recent/system?hours=24&limit=15');
       if (response.ok) {
         const systemFiles = await response.json();
         systemFiles.forEach((f: any) => {

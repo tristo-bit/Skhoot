@@ -108,7 +108,7 @@ class ChatAttachmentService {
             attachedFileNames.push(file.fileName);
           } else {
             // Fallback to backend API
-            const response = await fetch(`http://localhost:3001/api/v1/files/image?path=${encodeURIComponent(file.filePath)}`);
+            const response = await fetch(`http://127.0.0.1:3001/api/v1/files/image?path=${encodeURIComponent(file.filePath)}`);
             if (response.ok) {
               const blob = await response.blob();
               const base64 = await new Promise<string>((resolve) => {
@@ -139,7 +139,7 @@ class ChatAttachmentService {
       } else {
         // Handle text files
         try {
-          const response = await fetch(`http://localhost:3001/api/v1/files/read?path=${encodeURIComponent(file.filePath)}`);
+          const response = await fetch(`http://127.0.0.1:3001/api/v1/files/read?path=${encodeURIComponent(file.filePath)}`);
           if (response.ok) {
             const data = await response.json();
             const content = data.content || '';

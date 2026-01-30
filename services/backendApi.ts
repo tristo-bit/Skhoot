@@ -1,4 +1,4 @@
-const BACKEND_URL = 'http://localhost:3001';
+const BACKEND_URL = 'http://127.0.0.1:3001';
 
 export interface HealthResponse {
   status: string;

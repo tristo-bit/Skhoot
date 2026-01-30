@@ -53,7 +53,7 @@ export const FileChip = memo<FileChipProps>(({ fileName, filePath, onRemove }) =
     }
     
     // For web/development, use the backend API to serve the image
-    return `http://localhost:3001/api/v1/files/image?path=${encodeURIComponent(path)}`;
+    return `http://127.0.0.1:3001/api/v1/files/image?path=${encodeURIComponent(path)}`;
   };
 
   return (

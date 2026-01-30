@@ -5,7 +5,7 @@ import { backendApi } from '../../services/backendApi';
 // Helper to open a file directly
 const openFile = async (filePath: string): Promise<boolean> => {
   try {
-    const response = await fetch('http://localhost:3001/api/v1/files/open', {
+    const response = await fetch('http://127.0.0.1:3001/api/v1/files/open', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: filePath }),
@@ -22,7 +22,7 @@ const openFile = async (filePath: string): Promise<boolean> => {
 const openFolder = async (filePath: string): Promise<boolean> => {
   const normalizedPath = filePath.replace(/\//g, '\\');
   try {
-    const response = await fetch('http://localhost:3001/api/v1/files/reveal', {
+    const response = await fetch('http://127.0.0.1:3001/api/v1/files/reveal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: normalizedPath }),

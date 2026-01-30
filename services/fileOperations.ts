@@ -2,7 +2,7 @@
  * File operations service - handles file management operations via backend API
  */
 
-const BACKEND_URL = 'http://localhost:3001/api/v1';
+const BACKEND_URL = 'http://127.0.0.1:3001/api/v1';
 
 export const fileOperations = {
   /**

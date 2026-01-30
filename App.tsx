@@ -74,7 +74,7 @@ const AppContent: React.FC = () => {
     // Check backend health
     const checkBackendHealth = async () => {
       try {
-        const response = await fetch('http://localhost:3001/health');
+        const response = await fetch('http://127.0.0.1:3001/health');
         if (response.ok) {
           console.log('[App] Backend is healthy');
         }
