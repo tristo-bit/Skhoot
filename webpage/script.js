@@ -1,95 +1,3 @@
-// ===== Header Scroll Effect =====
-const header = document.getElementById('header');
-let lastScroll = 0;
-
-function handleScroll() {
-    const currentScroll = window.pageYOffset;
-    
-    if (currentScroll > 50) {
-        header.classList.add('scrolled');
-    } else {
-        header.classList.remove('scrolled');
-    }
-    
-    lastScroll = currentScroll;
-}
-
-window.addEventListener('scroll', handleScroll, { passive: true });
-
-// ===== Mobile Menu Toggle =====
-const menuToggle = document.querySelector('.menu-toggle');
-const mobileMenu = document.getElementById('mobile-menu');
-const menuBars = document.querySelectorAll('.menu-bar');
-
-if (menuToggle && mobileMenu) {
-    menuToggle.addEventListener('click', () => {
-        const isActive = mobileMenu.classList.toggle('active');
-        menuToggle.setAttribute('aria-expanded', isActive);
-        
-        // Animate menu bars
-        if (isActive) {
-            menuBars[0].style.transform = 'rotate(45deg) translate(5px, 5px)';
-            menuBars[1].style.transform = 'rotate(-45deg) translate(5px, -5px)';
-        } else {
-            menuBars[0].style.transform = '';
-            menuBars[1].style.transform = '';
-        }
-    });
-    
-    // Close menu when clicking a link
-    const mobileLinks = mobileMenu.querySelectorAll('a');
-    mobileLinks.forEach(link => {
-        link.addEventListener('click', () => {
-            mobileMenu.classList.remove('active');
-            menuToggle.setAttribute('aria-expanded', 'false');
-            menuBars[0].style.transform = '';
-            menuBars[1].style.transform = '';
-        });
-    });
-}
-
-// ===== Smooth Scroll for Anchor Links =====
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function(e) {
-        const href = this.getAttribute('href');
-        if (href === '#') return;
-        
-        e.preventDefault();
-        const target = document.querySelector(href);
-        
-        if (target) {
-            const headerHeight = header.offsetHeight;
-            const targetPosition = target.getBoundingClientRect().top + window.pageYOffset - headerHeight;
-            
-            window.scrollTo({
-                top: targetPosition,
-                behavior: 'smooth'
-            });
-        }
-    });
-});
-
-// ===== Intersection Observer for Animations =====
-const observerOptions = {
-    root: null,
-    rootMargin: '0px',
-    threshold: 0.1
-};
-
-const animateOnScroll = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            entry.target.style.opacity = '1';
-            entry.target.style.transform = 'translateY(0)';
-        }
-    });
-}, observerOptions);
-
-// Observe elements for animation
-document.querySelectorAll('.feature-card, .tech-item, .download-card').forEach(el => {
-    animateOnScroll.observe(el);
-});
-
 // ===== Simulated Agent Demo =====
 const demoChat = document.getElementById('demo-chat');
 
@@ -100,7 +8,7 @@ const demoScenario = [
     },
     {
         type: 'agent-status',
-        content: 'Analyzing project structure...'
+        content: 'Searching codebase...'
     },
     {
         type: 'tool',
@@ -112,7 +20,7 @@ const demoScenario = [
     },
     {
         type: 'agent-status',
-        content: 'Searching for architectural docs...'
+        content: 'Locating ARCHITECTURE.md...'
     },
     {
         type: 'tool',
@@ -124,7 +32,7 @@ const demoScenario = [
     },
     {
         type: 'agent-status',
-        content: 'Running backend tests...'
+        content: 'Running cargo test...'
     },
     {
         type: 'tool',
@@ -145,7 +53,7 @@ let isAnimating = false;
 
 function addMessage(type, data) {
     const messageDiv = document.createElement('div');
-    messageDiv.className = `chat-message message-${type}`;
+    messageDiv.className = `chat-message message-${type === 'agent-status' ? 'assistant' : type}`;
     
     if (type === 'tool') {
         messageDiv.innerHTML = `
@@ -153,7 +61,7 @@ function addMessage(type, data) {
                 <div class="tool-header">
                     <span class="tool-icon ${data.color}">${data.icon}</span>
                     <span class="tool-name">${data.name}</span>
-                    <span class="tool-status">success</span>
+                    <span class="tool-status">SUCCESS</span>
                 </div>
                 <div class="tool-content">
                     <code>${data.args}</code>
@@ -162,11 +70,10 @@ function addMessage(type, data) {
             </div>
         `;
     } else if (type === 'agent-status') {
-        messageDiv.className = 'chat-message message-assistant';
         messageDiv.innerHTML = `
-            <div class="agent-badge" style="background: none; padding-left: 0;">
+            <div class="agent-status-msg">
                 <span class="agent-dot"></span>
-                <span style="font-size: 0.8rem; color: #a0a0a0;">${data.content}</span>
+                <span class="agent-status-text">${data.content}</span>
             </div>
         `;
     } else {
@@ -176,7 +83,12 @@ function addMessage(type, data) {
     }
     
     demoChat.appendChild(messageDiv);
-    demoChat.scrollTop = demoChat.scrollHeight;
+    
+    // Smooth scroll to bottom
+    demoChat.scrollTo({
+        top: demoChat.scrollHeight,
+        behavior: 'smooth'
+    });
 }
 
 async function runScenario() {
@@ -189,11 +101,11 @@ async function runScenario() {
     while (scenarioIndex < demoScenario.length) {
         const item = demoScenario[scenarioIndex];
         
-        // Dynamic delays
-        let delay = 1500;
+        // Dynamic delays for realism
+        let delay = 1200;
         if (item.type === 'user') delay = 500;
-        if (item.type === 'tool') delay = 2000;
-        if (item.type === 'agent-status') delay = 1000;
+        if (item.type === 'tool') delay = 1800;
+        if (item.type === 'agent-status') delay = 800;
         
         await new Promise(r => setTimeout(r, delay));
         addMessage(item.type, item);
@@ -201,8 +113,8 @@ async function runScenario() {
         scenarioIndex++;
     }
     
-    // Reset after a long pause
-    await new Promise(r => setTimeout(r, 10000));
+    // Pause before restarting
+    await new Promise(r => setTimeout(r, 8000));
     isAnimating = false;
     runScenario();
 }
@@ -220,6 +132,75 @@ if (demoChat) {
 }
 
 // ===== Header Scroll Effect =====
+const header = document.getElementById('header');
+window.addEventListener('scroll', () => {
+    if (window.pageYOffset > 50) {
+        header.classList.add('scrolled');
+    } else {
+        header.classList.remove('scrolled');
+    }
+}, { passive: true });
+
+// ===== Mobile Menu Toggle =====
+const menuToggle = document.querySelector('.menu-toggle');
+const mobileMenu = document.getElementById('mobile-menu');
+const menuBars = document.querySelectorAll('.menu-bar');
+
+if (menuToggle && mobileMenu) {
+    menuToggle.addEventListener('click', () => {
+        const isActive = mobileMenu.classList.toggle('active');
+        menuToggle.setAttribute('aria-expanded', isActive);
+        if (isActive) {
+            menuBars[0].style.transform = 'rotate(45deg) translate(5px, 5px)';
+            menuBars[1].style.transform = 'rotate(-45deg) translate(5px, -5px)';
+        } else {
+            menuBars[0].style.transform = '';
+            menuBars[1].style.transform = '';
+        }
+    });
+}
+
+// ===== Smooth Scroll for Anchor Links =====
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+        const href = this.getAttribute('href');
+        if (href === '#') return;
+        e.preventDefault();
+        const target = document.querySelector(href);
+        if (target) {
+            const headerHeight = header.offsetHeight;
+            const targetPosition = target.getBoundingClientRect().top + window.pageYOffset - headerHeight;
+            window.scrollTo({ top: targetPosition, behavior: 'smooth' });
+        }
+    });
+});
+
+// ===== Detect OS for Download Highlight =====
+function detectOS() {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const platform = navigator.platform?.toLowerCase() || '';
+    if (userAgent.includes('win') || platform.includes('win')) return 'windows';
+    if (userAgent.includes('mac') || platform.includes('mac')) return 'macos';
+    if (userAgent.includes('linux') || platform.includes('linux')) return 'linux';
+    return null;
+}
+
+const os = detectOS();
+if (os) {
+    const downloadCards = document.querySelectorAll('.download-card');
+    downloadCards.forEach(card => {
+        const platform = card.querySelector('.download-platform').textContent.toLowerCase();
+        if (platform === os || (platform === 'macos' && os === 'macos')) {
+            card.classList.add('featured');
+            const badge = document.createElement('div');
+            badge.className = 'download-badge';
+            badge.textContent = 'Recommended';
+            card.insertBefore(badge, card.firstChild);
+        }
+    });
+}
+
+// ===== Console Easter Egg =====
 console.log('%c🚀 Skhoot', 'font-size: 24px; font-weight: bold; color: #c0b7c9;');
 console.log('%cYour intelligent desktop AI assistant', 'font-size: 14px; color: #636E72;');
 console.log('%cCheck out the source: https://github.com/tristo-bit/skhoot', 'font-size: 12px; color: #a0a0a0;');
