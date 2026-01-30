@@ -80,6 +80,7 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
   - **File Operations**: `read_file`, `write_file` tools show file paths, operation types, content previews, and diff views
   - **Directory Listing**: `list_directory` tool renders interactive file lists with icons, sizes, and click-to-open functionality
   - **File Search**: `search_files` tool displays results with syntax highlighting, line numbers, and folder navigation
+  - **Memory Search**: `memory_search` tool displays long-term memory results with relevance scoring, categories, and metadata
   - **Real-Time Tool Tracking**: Live tracking of currently executing agent tools with automatic state management
     - Tracks tool execution start and completion in real-time
     - Automatically clears tool state when execution completes
@@ -87,7 +88,7 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
   - **Intelligent Loading Animations**: Context-aware Framer Motion animations with simplified, consistent visual feedback:
     - **Tool-Specific Animations**: When tool name is known, displays category-specific animation:
       - **File Operations** (Blue): `read_file`, `write_file`, `fsWrite`, `fsAppend`, `strReplace`, `deleteFile`
-      - **Search & Discovery** (Purple): `list_directory`, `search_files`, `fileSearch`, `grepSearch`, `message_search`
+      - **Search & Discovery** (Purple): `list_directory`, `search_files`, `fileSearch`, `grepSearch`, `message_search`, `memory_search`
       - **Command Execution** (Green): `shell`, `execute_command`, `create_terminal`, `executeBash`, `controlBashProcess`
       - **Web Access** (Cyan): `web_search`, `remote_web_search`, `webFetch`, `browse`
       - **Agent Operations** (Indigo): `invoke_agent`, `list_agents`, `create_agent`
@@ -189,6 +190,7 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 <summary><strong>💬 AI Chat Interface</strong></summary>
 
 - **Conversational AI**: Powered by Google Gemini for natural interactions
+- **Dynamic Welcome Messages**: Rotating task-oriented prompts on the home screen to inspire action ("Ready for your next command", "How can I assist you today?", etc.)
 - **Chat History**: Save and manage multiple conversation threads
 - **Message Editing & Regeneration**: Edit sent messages and regenerate AI responses from any point in the conversation
   - Hover over user messages to reveal edit button
@@ -1016,6 +1018,7 @@ Features:
 - `write_file`: Write or modify file contents
 - `list_directory`: List directory contents with file metadata
 - `search_files`: Search for files by pattern or content
+- `memory_search`: Search through long-term memory for relevant past information, preferences, and context
 
 </details>
 
@@ -1894,6 +1897,10 @@ const agentResponse = await agentChatService.executeWithTools(
     - `FileOperationsLoading`, `CommandExecutionLoading`, `SearchDiscoveryLoading`, `WebAccessLoading`, `AgentOperationsLoading`
     - Each component displays a 24px height animation while tool executes
     - Automatically used by tool-call registry system for visual feedback
+  - **Tool Call Registry** (`ToolCallRegistry.tsx`): Central registry mapping tool names to UI components
+    - All agent tools registered with display names, categories, icons, and loading animations
+    - Bookmark operations: `message_search` tool for searching bookmarked messages with compact/expanded layouts
+    - Supports plugin architecture for extensible tool visualization
   - **Configurable Animations**: Each animation has customizable colors, ring speed, and ring type (dotted/dashed/solid)
   - **Idle State**: Subtle floating particles when not processing
   - **Active State**: Dynamic animations with category-specific behavior when tool is executing

@@ -39,16 +39,16 @@ export const GLASS_STYLES = {
 
 // Homescreen welcome messages (shown when no action is active)
 export const WELCOME_MESSAGES = [
-  "Need help with something?",
-  "Looking for a lost file?",
-  "What can I find for you?",
-  "Let's track down that file",
-  "Search your files smarter",
-  "Where did you save it?",
-  "Find anything, instantly",
-  "What are we hunting today?",
-  "Lost something? I'll find it",
-  "Your files, organized chaos"
+"Ready for your next command.",
+"How can I assist you today?",
+"Ready to handle any task.",
+"Your digital handyman is online.",
+"What can I do for you today?",
+"Let's get things done together.",
+"What's our mission for today?",
+"At your service for any task.",
+"How can I make your work easier?",
+"Tell me what to execute next."
 ] as const;
 
 // Action-specific prompts for each QuickAction mode
