@@ -48,6 +48,9 @@ export { CreateAgentUI } from './agent-operations/CreateAgentUI';
 // Bookmark Operations
 export { MessageSearchUI } from './bookmark-operations/MessageSearchUI';
 
+// Memory Operations
+export { MemorySearchUI } from './memory-operations/MemorySearchUI';
+
 // Framer Motion Animations
 export { AnimationFileOperations } from './AnimationFileOperations';
 export { AnimationCommandExecution } from './AnimationCommandExecution';

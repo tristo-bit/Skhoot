@@ -35,6 +35,8 @@ import { InvokeAgentUI } from '../agent-operations/InvokeAgentUI';
 import { ListAgentsUI } from '../agent-operations/ListAgentsUI';
 import { CreateAgentUI } from '../agent-operations/CreateAgentUI';
 
+import { MemorySearchUI } from '../memory-operations/MemorySearchUI';
+
 // Import Framer Motion Loading Animations
 import { 
   FileOperationsLoading,
@@ -252,4 +254,16 @@ toolCallRegistry.register({
   loadingComponent: SearchDiscoveryLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Search bookmarked messages',
+});
+
+// Memory Operations
+toolCallRegistry.register({
+  toolName: 'memory_search',
+  displayName: 'Memory Search',
+  category: 'other',
+  icon: Bot,
+  component: MemorySearchUI,
+  loadingComponent: SearchDiscoveryLoading,
+  supportedLayouts: ['compact', 'expanded'],
+  description: 'Search long-term memory for relevant past information',
 });
