@@ -41,7 +41,9 @@ export interface ParameterDefinition {
   description: string;
   enum?: string[];
   default?: any;
-  items?: { type: string };
+  items?: { type: string; properties?: Record<string, ParameterDefinition>; required?: string[] };
+  properties?: Record<string, ParameterDefinition>;
+  required?: string[];
 }
 
 export interface ToolResult {
@@ -81,8 +83,30 @@ export const workflowToolDefinitions: ToolDefinition[] = [
         },
         steps: {
           type: 'array',
-          description: 'Array of workflow steps with prompts and optional decision nodes',
-          items: { type: 'object' },
+          description: 'Array of workflow steps defining the process.',
+          items: { 
+            type: 'object',
+            properties: {
+              id: { type: 'string', description: 'Unique identifier for the step (e.g. "step-1")' },
+              name: { type: 'string', description: 'Human-readable name for the step' },
+              prompt: { type: 'string', description: 'The instructions for the AI to follow in this step. Can use {{var}} for variable substitution.' },
+              order: { type: 'number', description: 'Execution order (1, 2, 3...)' },
+              nextStep: { type: 'string', description: 'ID of the next step to execute after this one.' },
+              outputFormat: { type: 'string', description: 'Optional format hint: "text", "markdown", "json", or "file".' },
+              outputVar: { type: 'string', description: 'Optional variable name to store the output of this step for use in later steps.' },
+              requiresConfirmation: { type: 'boolean', description: 'Whether to pause and wait for user confirmation before moving to the next step.' },
+              decision: {
+                type: 'object',
+                description: 'Optional branching logic based on step output.',
+                properties: {
+                  condition: { type: 'string', description: 'Natural language description of the decision criteria.' },
+                  trueBranch: { type: 'string', description: 'Step ID to follow if condition is met.' },
+                  falseBranch: { type: 'string', description: 'Step ID to follow if condition is NOT met.' }
+                }
+              }
+            },
+            required: ['name', 'prompt']
+          } as any, // Cast to any to bypass strict ToolDefinition if needed, but it should match now
         },
         intent: {
           type: 'string',

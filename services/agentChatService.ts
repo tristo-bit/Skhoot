@@ -136,7 +136,8 @@ class AgentChatService {
     content: string; 
     thought?: string;
     toolResults: ToolResult[]; 
-    displayImages?: Array<{ url: string; alt?: string; fileName?: string }> 
+    displayImages?: Array<{ url: string; alt?: string; fileName?: string }>;
+    generatedFiles?: string[];
   }> {
     const allToolResults: ToolResult[] = [];
     const displayImages: Array<{ url: string; alt?: string; fileName?: string }> = [];
@@ -190,15 +191,17 @@ class AgentChatService {
 
       // If no tool calls, we're done
       if (!response.toolCalls || response.toolCalls.length === 0) {
-        return { 
-          content: response.content, 
-          thought: response.thought,
-          toolResults: allToolResults,
-          displayImages: displayImages.length > 0 ? displayImages : undefined
-        };
-      }
+    return { 
+      content: response.content, 
+      thought: response.thought,
+      toolResults: allToolResults,
+      displayImages: displayImages.length > 0 ? displayImages : undefined,
+      generatedFiles: response.toolCalls?.map((tc: any) => tc._generatedFile).filter(Boolean) as string[]
+    };
+  }
 
-      // Add assistant message with tool calls to history
+  // Add assistant message with tool calls to history
+
       currentHistory.push({
         role: 'assistant',
         content: response.content,

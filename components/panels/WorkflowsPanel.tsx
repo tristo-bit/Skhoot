@@ -17,7 +17,8 @@ import {
   CheckCircle, XCircle, Settings,
   Save, Zap, GitBranch, FileOutput, Bell,
   Code, Folder, ChevronRight, ChevronDown,
-  AlertCircle, Target, Layers, Upload, Download
+  AlertCircle, Target, Layers, Upload, Download,
+  RefreshCw
 } from 'lucide-react';
 import { SecondaryPanel, SecondaryPanelTab } from '../ui/SecondaryPanel';
 import { 
@@ -47,16 +48,26 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
   const [runningExecutions, setRunningExecutions] = useState<ExecutionContext[]>([]);
   const [historyExecutions, setHistoryExecutions] = useState<ExecutionContext[]>([]);
   const [activeWorkflow, setActiveWorkflow] = useState<WorkflowType | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Load workflows on mount
   useEffect(() => {
-    loadWorkflows();
-    
+    if (isOpen) {
+      loadWorkflows();
+      setRunningExecutions(workflowService.getActiveExecutions());
+      setHistoryExecutions(workflowService.getHistory());
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     // Subscribe to workflow events
     const unsubCreate = workflowService.on('workflow_created', loadWorkflows);
     const unsubUpdate = workflowService.on('workflow_updated', loadWorkflows);
     const unsubDelete = workflowService.on('workflow_deleted', loadWorkflows);
     const unsubExecStart = workflowService.on('execution_started', () => {
+      setRunningExecutions(workflowService.getActiveExecutions());
+    });
+    const unsubExecUpdate = workflowService.on('execution_updated', () => {
       setRunningExecutions(workflowService.getActiveExecutions());
     });
     const unsubExecComplete = workflowService.on('execution_completed', () => {
@@ -73,13 +84,19 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
       unsubUpdate();
       unsubDelete();
       unsubExecStart();
+      unsubExecUpdate();
       unsubExecComplete();
     };
   }, []);
 
   const loadWorkflows = useCallback(async () => {
-    const wfs = await workflowService.list();
-    setWorkflows(wfs);
+    setIsRefreshing(true);
+    try {
+      const wfs = await workflowService.list();
+      setWorkflows(wfs);
+    } finally {
+      setIsRefreshing(false);
+    }
   }, []);
 
   // Memoize tabs
@@ -183,6 +200,14 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
   const headerActions = useMemo(() => (
     <div className="flex items-center gap-1">
       <button
+        onClick={loadWorkflows}
+        className={`p-1.5 rounded-xl transition-all hover:bg-white/10 ${isRefreshing ? 'animate-spin text-purple-500' : ''}`}
+        style={{ color: 'var(--text-secondary)' }}
+        title="Refresh Workflows"
+      >
+        <RefreshCw size={14} />
+      </button>
+      <button
         onClick={handleOpenStorage}
         className="p-1.5 rounded-xl transition-all hover:bg-blue-500/10 hover:text-blue-500"
         style={{ color: 'var(--text-secondary)' }}
@@ -240,6 +265,14 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
   const handleEdit = useCallback(() => setIsEditing(true), []);
   const handleSave = useCallback(() => setIsEditing(false), []);
 
+  const handleCancelExecution = useCallback(async (executionId: string) => {
+    try {
+      await workflowService.cancelExecution(executionId);
+    } catch (error) {
+      console.error('Failed to cancel execution:', error);
+    }
+  }, []);
+
   return (
     <SecondaryPanel
       isOpen={isOpen}
@@ -257,7 +290,7 @@ export const WorkflowsPanel = memo<WorkflowsPanelProps>(({ isOpen, onClose }) =>
         {/* Left Column - Always visible */}
         <div className="w-1/3 border-r border-white/5 overflow-y-auto custom-scrollbar">
           {activeTab === 'running' ? (
-            <RunningList executions={runningExecutions} workflows={workflows} />
+            <RunningList executions={runningExecutions} workflows={workflows} onCancel={handleCancelExecution} />
           ) : activeTab === 'outputs' ? (
             <HistoryList executions={historyExecutions} workflows={workflows} selectedId={selectedWorkflow} onSelect={setSelectedWorkflow} />
           ) : (
@@ -411,7 +444,18 @@ const ExecutionDetail = memo<{
         <div className="space-y-3">
           {Object.entries(execution.stepResults).map(([stepId, result]) => {
             const stepName = workflow?.steps.find(s => s.id === stepId)?.name || stepId;
-            return (
+  const handleCancelExecution = useCallback(async (executionId: string) => {
+    try {
+      await workflowService.cancelExecution(executionId);
+      setRunningExecutions(workflowService.getActiveExecutions());
+      setHistoryExecutions(workflowService.getHistory());
+    } catch (error) {
+      console.error('Failed to cancel execution:', error);
+    }
+  }, []);
+
+  return (
+
               <div key={stepId} className="p-3 rounded-xl bg-white/5">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -567,8 +611,8 @@ const WorkflowTypeIcon = memo<{ type: WFType }>(({ type }) => {
   });
 WorkflowTypeIcon.displayName = 'WorkflowTypeIcon';
 
-const RunningList = memo<{ executions: ExecutionContext[]; workflows: WorkflowType[] }>(
-  ({ executions, workflows }) => (
+const RunningList = memo<{ executions: ExecutionContext[]; workflows: WorkflowType[]; onCancel: (id: string) => void }>(
+  ({ executions, workflows, onCancel }) => (
     <div className="p-2">
       {executions.length === 0 ? (
         <div className="text-center py-8">
@@ -579,12 +623,21 @@ const RunningList = memo<{ executions: ExecutionContext[]; workflows: WorkflowTy
         executions.map(exec => {
           const wf = workflows.find(w => w.id === exec.workflowId);
           return (
-            <div key={exec.executionId} className="p-3 rounded-xl bg-amber-500/10 mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {wf?.name || 'Unknown'}
-                </p>
+            <div key={exec.executionId} className="p-3 rounded-xl bg-amber-500/10 mb-2 group">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    {wf?.name || 'Unknown'}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => onCancel(exec.executionId)}
+                  className="p-1 rounded-lg hover:bg-red-500/20 text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                  title="Cancel Execution"
+                >
+                  <XCircle size={14} />
+                </button>
               </div>
               <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
                 Step: {exec.currentStepId || 'Starting...'}

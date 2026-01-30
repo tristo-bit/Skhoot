@@ -151,669 +151,8 @@ export interface CreateWorkflowRequest {
 // Default Workflows
 // ============================================================================
 
-const DEFAULT_WORKFLOWS: Workflow[] = [
-  {
-    id: 'default-steering-file',
-    name: 'Create Agent Steering File',
-    description: 'Create a structured steering file for agent behavior configuration',
-    category: 'default',
-    workflowType: 'process',
-    intent: 'create steering file, agent configuration, behavior rules',
-    steps: [
-      {
-        id: 's1',
-        name: 'Analyze Context',
-        prompt: `Analyze the current project structure to understand the context for creating a steering file.
+const DEFAULT_WORKFLOWS: Workflow[] = [];
 
-Use the available tools to:
-1. List the project directory structure to understand the codebase
-2. Look for existing configuration files or documentation
-
-Based on your analysis, describe:
-- What type of project this is
-- What behaviors and rules would be appropriate for an AI agent working on this project
-- Any coding standards or patterns you observe`,
-        order: 1,
-        nextStep: 's2',
-        outputFormat: 'markdown',
-        timeoutSecs: 60,
-      },
-      {
-        id: 's2',
-        name: 'Define Rules',
-        prompt: `Based on the project analysis, define specific rules and guidelines for the steering file.
-
-Create a YAML structure with:
-- Project context and description
-- Coding standards (language, formatting, patterns)
-- File organization rules
-- Interaction guidelines for the AI agent
-- Any project-specific conventions
-
-Format the output as valid YAML that can be used in a steering file.`,
-        order: 2,
-        nextStep: 's3',
-        outputFormat: 'yaml',
-        requiresConfirmation: true,
-        timeoutSecs: 120,
-      },
-      {
-        id: 's3',
-        name: 'Generate File',
-        prompt: `Create the steering file with the defined rules.
-
-Use the write_file tool to save the steering file to: .kiro/steering/project-rules.md
-
-The file should have:
-1. YAML frontmatter with metadata (inclusion: always)
-2. Markdown content with the rules and guidelines
-
-If you don't have write_file access, output the complete file content so the user can save it manually.`,
-        order: 3,
-        outputFormat: 'file',
-        timeoutSecs: 30,
-      },
-    ],
-    outputSettings: {
-      folder: '.kiro/steering',
-      filePattern: '{name}.md',
-      formatDescription: 'Markdown file with YAML frontmatter',
-    },
-    behavior: {
-      notifyOnComplete: true,
-      logExecution: true,
-    },
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    runCount: 0,
-    status: 'idle',
-  },
-  {
-    id: 'default-auto-workflow',
-    name: 'Create Workflow from Conversation',
-    description: 'Automatically detect and create workflows from conversation patterns',
-    category: 'default',
-    workflowType: 'hook',
-    intent: 'create workflow, automate task, save as workflow',
-    trigger: {
-      type: 'on_ai_detection',
-      intentPatterns: [
-        'create a workflow',
-        'save this as a workflow',
-        'automate this',
-        'make this repeatable',
-      ],
-    },
-    steps: [
-      {
-        id: 's1',
-        name: 'Extract Pattern',
-        prompt: `Analyze the recent conversation history and extract a repeatable workflow pattern.
-
-Identify:
-1. The main goal or task being accomplished
-2. The sequence of steps taken
-3. Any inputs or parameters needed
-4. Expected outputs or results
-
-Determine if this can be converted into a reusable workflow.
-Output your analysis as JSON with: { "isValid": boolean, "reason": string, "steps": [...] }`,
-        order: 1,
-        decision: {
-          id: 'd1',
-          condition: 'Is this a valid workflow pattern?',
-          trueBranch: 's2',
-          falseBranch: 's_invalid',
-        },
-        outputFormat: 'json',
-        timeoutSecs: 60,
-      },
-      {
-        id: 's_invalid',
-        name: 'Invalid Pattern',
-        prompt: 'Explain why this cannot be converted to a workflow and suggest alternatives.',
-        order: 2,
-        timeoutSecs: 30,
-      },
-      {
-        id: 's2',
-        name: 'Define Workflow',
-        prompt: 'Create the workflow definition with proper steps, triggers, and output settings. Ask the user for workflow name and type.',
-        order: 3,
-        nextStep: 's3',
-        outputFormat: 'json',
-        requiresConfirmation: true,
-        timeoutSecs: 120,
-      },
-      {
-        id: 's3',
-        name: 'Save Workflow',
-        prompt: 'Save the workflow using the create_workflow tool and confirm creation to the user.',
-        order: 4,
-        timeoutSecs: 30,
-      },
-    ],
-    outputSettings: {},
-    behavior: {
-      asToolcall: true,
-      notifyOnComplete: true,
-      logExecution: true,
-    },
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    runCount: 0,
-    status: 'idle',
-  },
-  {
-    id: 'default-error-search',
-    name: 'Search for Errors and Logic Enhancements',
-    description: 'Analyze codebase for errors, bugs, and potential logic improvements',
-    category: 'default',
-    workflowType: 'manual',
-    intent: 'find errors, search bugs, logic enhancement, code review',
-    steps: [
-      {
-        id: 's1',
-        name: 'Scan Codebase',
-        prompt: `Scan the codebase for potential errors and issues.
-
-Use available tools to:
-1. List the main source directories (src/, components/, services/, etc.)
-2. Search for common error patterns like TODO, FIXME, console.error
-3. Look for files with recent modifications
-
-Identify the most critical files that should be reviewed first.
-Output a list of files to analyze with their priority level.`,
-        order: 1,
-        nextStep: 's2',
-        outputFormat: 'json',
-        timeoutSecs: 180,
-      },
-      {
-        id: 's2',
-        name: 'Analyze Logic',
-        prompt: `Analyze the identified files for potential issues.
-
-Look for:
-1. Type errors or missing type annotations
-2. Unhandled edge cases
-3. Performance issues (unnecessary re-renders, memory leaks)
-4. Security vulnerabilities (unsanitized inputs, exposed secrets)
-5. Code duplication or poor patterns
-
-Categorize issues as CRITICAL, WARNING, or SUGGESTION.
-Are there any critical issues that need immediate attention?`,
-        order: 2,
-        decision: {
-          id: 'd1',
-          condition: 'Are there critical issues that need immediate attention?',
-          trueBranch: 's3_critical',
-          falseBranch: 's3_normal',
-        },
-        outputFormat: 'markdown',
-        timeoutSecs: 120,
-      },
-      {
-        id: 's3_critical',
-        name: 'Critical Issues Report',
-        prompt: `Generate a prioritized report of the CRITICAL issues found.
-
-For each critical issue:
-1. File and line location
-2. Description of the problem
-3. Potential impact (security, data loss, crashes)
-4. Suggested fix with code example
-
-Format as a clear, actionable report.`,
-        order: 3,
-        nextStep: 's4',
-        outputFormat: 'markdown',
-        requiresConfirmation: true,
-        timeoutSecs: 60,
-      },
-      {
-        id: 's3_normal',
-        name: 'Enhancement Report',
-        prompt: `Generate a report of suggested enhancements and optimizations.
-
-Organize by:
-1. Quick wins (easy fixes, high impact)
-2. Medium effort improvements
-3. Long-term refactoring suggestions
-
-Include code examples where helpful.`,
-        order: 3,
-        nextStep: 's4',
-        outputFormat: 'markdown',
-        timeoutSecs: 60,
-      },
-      {
-        id: 's4',
-        name: 'Summary',
-        prompt: 'Provide an executive summary of findings with actionable next steps.',
-        order: 4,
-        outputFormat: 'markdown',
-        timeoutSecs: 30,
-      },
-    ],
-    outputSettings: {
-      folder: 'reports',
-      filePattern: 'code-analysis-{timestamp}.md',
-      formatDescription: 'Markdown report with findings and recommendations',
-      timestamped: true,
-    },
-    behavior: {
-      notifyOnComplete: true,
-      logExecution: true,
-    },
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    runCount: 0,
-    status: 'idle',
-  },
-  // ============================================================================
-  // Agent Builder Workflows
-  // ============================================================================
-  {
-    id: 'agent-gatherer-workflow',
-    name: 'Agent Gatherer',
-    description: 'Discovers agent requirements through interactive questions',
-    category: 'agent-builder',
-    workflowType: 'process',
-    intent: 'gather agent requirements, discover needs, agent questions',
-    steps: [
-      {
-        id: 'g1',
-        name: 'Greet & Understand',
-        prompt: `You are the Agent Gatherer, the first step in creating a new agent.
-
-Your goal is to understand what the user wants the agent to do. Ask clear, focused questions:
-
-1. "What should this agent do?" - Get the main purpose
-2. "What triggers should activate it?" - Understand when it should run
-3. "What tools should it have access to?" - Determine capabilities
-
-Be conversational and helpful. One question at a time. Wait for the user's response before asking the next question.
-
-Start by greeting the user and asking the first question.`,
-        order: 1,
-        nextStep: 'g2',
-        outputFormat: 'text',
-        timeoutSecs: 300,
-      },
-      {
-        id: 'g2',
-        name: 'Gather Constraints',
-        prompt: `Now gather information about constraints and preferences:
-
-Ask these questions (one at a time, wait for responses):
-1. "Any limitations or restrictions for this agent?"
-2. "How should it handle errors?"
-3. "Should it notify you when complete?"
-4. "Any specific workflows it should use?"
-
-Be patient and clarify if the user seems unsure.`,
-        order: 2,
-        nextStep: 'g3',
-        outputFormat: 'text',
-        timeoutSecs: 300,
-      },
-      {
-        id: 'g3',
-        name: 'Create Discovery Document',
-        prompt: `Create a discovery document with all gathered information.
-
-Use the write_file tool to save to: .skhoot/agent-discovery/{timestamp}-needs.md
-
-Format the document as:
-# Agent Discovery: [Agent Name]
-
-## Purpose
-[What the agent does]
-
-## Triggers
-[When it activates]
-
-## Capabilities
-### Tools
-- [List of tools]
-
-### Workflows
-- [List of workflows]
-
-## Constraints
-[Any limitations]
-
-## Error Handling
-[How to handle errors]
-
-## Notifications
-[Notification preferences]
-
-## Additional Notes
-[Any other relevant information]
-
-After creating the file, confirm to the user and provide the file path.`,
-        order: 3,
-        outputFormat: 'file',
-        timeoutSecs: 60,
-      },
-    ],
-    outputSettings: {
-      folder: '.skhoot/agent-discovery',
-      filePattern: '{timestamp}-needs.md',
-      formatDescription: 'Markdown discovery document',
-      timestamped: true,
-    },
-    behavior: {
-      notifyOnComplete: true,
-      logExecution: true,
-    },
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    runCount: 0,
-    status: 'idle',
-  },
-  {
-    id: 'agent-designer-workflow',
-    name: 'Agent Designer',
-    description: 'Designs automation strategy from discovery document',
-    category: 'agent-builder',
-    workflowType: 'process',
-    intent: 'design agent automation, create agent strategy',
-    steps: [
-      {
-        id: 'd1',
-        name: 'Read Discovery Document',
-        prompt: `You are the Agent Designer. Your job is to design the automation strategy.
-
-First, read the discovery document that was created by the Agent Gatherer.
-Use the read_file tool to load the most recent file from .skhoot/agent-discovery/
-
-Parse the requirements and constraints carefully.`,
-        order: 1,
-        nextStep: 'd2',
-        outputFormat: 'text',
-        timeoutSecs: 60,
-      },
-      {
-        id: 'd2',
-        name: 'Design Workflows',
-        prompt: `Based on the discovery document, design the workflows this agent needs.
-
-For each workflow, define:
-1. Workflow name and purpose
-2. Steps in the workflow
-3. Tools required for each step
-4. Decision points (if any)
-5. Expected outputs
-
-Think about:
-- What sequence of actions achieves the goal?
-- What tools are needed at each step?
-- Where might the agent need to make decisions?
-- How should errors be handled?
-
-Output your workflow design in a structured format.`,
-        order: 2,
-        nextStep: 'd3',
-        outputFormat: 'markdown',
-        timeoutSecs: 180,
-      },
-      {
-        id: 'd3',
-        name: 'Create Master Prompt',
-        prompt: `Create the master prompt that defines the agent's behavior and personality.
-
-The master prompt should:
-1. Define the agent's role and purpose
-2. Specify behavior guidelines
-3. Include success criteria
-4. Define how to interact with users
-5. Specify error handling approach
-
-Make it clear, concise, and actionable. The agent will use this as its core instruction set.
-
-Example format:
-"You are [Agent Name], responsible for [purpose].
-
-Your primary goals are:
-1. [Goal 1]
-2. [Goal 2]
-
-When executing tasks:
-- [Guideline 1]
-- [Guideline 2]
-
-Success means: [Success criteria]
-
-If errors occur: [Error handling]"`,
-        order: 3,
-        nextStep: 'd4',
-        outputFormat: 'text',
-        timeoutSecs: 120,
-      },
-      {
-        id: 'd4',
-        name: 'Update Document',
-        prompt: `Update the discovery document with the automation design.
-
-Use write_file tool to append to the existing discovery document:
-
-## Automation Design
-
-### Master Prompt
-[The master prompt you created]
-
-### Workflows
-[The workflow designs]
-
-### Required Tools
-[List of all tools needed]
-
-### Implementation Notes
-[Any additional notes for the builder]
-
-Confirm the update to the user.`,
-        order: 4,
-        outputFormat: 'file',
-        requiresConfirmation: true,
-        timeoutSecs: 60,
-      },
-    ],
-    outputSettings: {
-      folder: '.skhoot/agent-discovery',
-      formatDescription: 'Updated discovery document with automation design',
-    },
-    behavior: {
-      notifyOnComplete: true,
-      logExecution: true,
-    },
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    runCount: 0,
-    status: 'idle',
-  },
-  {
-    id: 'agent-builder-workflow',
-    name: 'Agent Builder',
-    description: 'Creates agent via backend API from discovery document',
-    category: 'agent-builder',
-    workflowType: 'process',
-    intent: 'build agent, create agent from design',
-    steps: [
-      {
-        id: 'b1',
-        name: 'Read Final Document',
-        prompt: `You are the Agent Builder. Your job is to create the actual agent.
-
-Read the complete discovery document with the automation design.
-Use read_file tool to load it from .skhoot/agent-discovery/
-
-Extract all the information needed to create the agent:
-- Name
-- Description
-- Master prompt
-- Workflows
-- Tools
-- Trigger configuration`,
-        order: 1,
-        nextStep: 'b2',
-        outputFormat: 'text',
-        timeoutSecs: 60,
-      },
-      {
-        id: 'b2',
-        name: 'Validate Configuration',
-        prompt: `Validate the agent configuration before creating it.
-
-Check:
-1. Name is not empty
-2. Master prompt is clear and actionable
-3. Tool names are valid (read_file, write_file, search_files, shell, etc.)
-4. Workflow references exist (if any)
-5. Trigger configuration is valid
-
-If anything is missing or invalid, explain what needs to be fixed.
-If everything is valid, confirm you're ready to create the agent.`,
-        order: 2,
-        decision: {
-          id: 'b_decision',
-          condition: 'Is the configuration valid?',
-          trueBranch: 'b3',
-          falseBranch: 'b_invalid',
-        },
-        outputFormat: 'text',
-        timeoutSecs: 60,
-      },
-      {
-        id: 'b_invalid',
-        name: 'Report Validation Errors',
-        prompt: `The configuration has validation errors. Report them clearly to the user.
-
-Explain:
-1. What's wrong
-2. What needs to be fixed
-3. How to fix it
-
-The user will need to restart the agent creation process with corrections.`,
-        order: 3,
-        outputFormat: 'text',
-        timeoutSecs: 30,
-      },
-      {
-        id: 'b3',
-        name: 'Create Agent',
-        prompt: `Create the agent using the create_agent tool.
-
-Call create_agent with:
-{
-  "name": "[agent name]",
-  "description": "[agent description]",
-  "master_prompt": "[the master prompt]",
-  "workflows": ["workflow-id-1", "workflow-id-2"],
-  "allowed_tools": ["tool1", "tool2", "tool3"],
-  "trigger": {
-    "type": "keyword",
-    "keywords": ["trigger1", "trigger2"],
-    "autoActivate": true
-  }
-}
-
-After creation, confirm success and provide the agent ID.`,
-        order: 4,
-        nextStep: 'b4',
-        outputFormat: 'text',
-        timeoutSecs: 60,
-      },
-      {
-        id: 'b4',
-        name: 'Confirm Creation',
-        prompt: `Congratulations! The agent has been created successfully.
-
-Provide the user with:
-1. Agent ID
-2. Agent name
-3. How to use it (trigger keywords or manual invocation)
-4. Next steps (test it, modify it, etc.)
-
-Encourage them to try it out!`,
-        order: 5,
-        outputFormat: 'text',
-        timeoutSecs: 30,
-      },
-    ],
-    outputSettings: {
-      formatDescription: 'Agent creation confirmation',
-    },
-    behavior: {
-      notifyOnComplete: true,
-      logExecution: true,
-    },
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    runCount: 0,
-    status: 'idle',
-  },
-  // ============================================================================
-  // Test Workflows
-  // ============================================================================
-  {
-    id: 'demo-meal-planner',
-    name: 'Healthy Meal Planner',
-    description: 'Plans a healthy week of meals with recipes, prices, and budget',
-    category: 'demo',
-    workflowType: 'manual',
-    steps: [
-      {
-        id: 's1',
-        name: 'Find Recipes',
-        prompt: 'Search the web for 10 healthy recipes that are nutritious and easy to make. List them with their main ingredients.',
-        order: 1,
-        outputVar: 'recipes',
-        timeoutSecs: 120
-      },
-      {
-        id: 's2',
-        name: 'Check Prices',
-        prompt: 'Based on the recipes found, search for the current prices of the main ingredients for 2 people. Calculate approximate costs.',
-        order: 2,
-        outputVar: 'prices',
-        timeoutSecs: 180
-      },
-      {
-        id: 's3',
-        name: 'Create Plan',
-        prompt: 'Create a 7-day meal plan for 2 people using the recipes and prices found. Calculate the total budget. Ensure it is balanced.',
-        order: 3,
-        outputVar: 'plan',
-        timeoutSecs: 120
-      },
-      {
-        id: 's4',
-        name: 'Generate HTML',
-        prompt: 'Create a beautiful HTML file displaying the meal plan, recipes, and budget. Save it to "meal_plan.html" using the write_file tool.',
-        order: 4,
-        outputFormat: 'file',
-        timeoutSecs: 60
-      }
-    ],
-    outputSettings: {
-      folder: 'outputs',
-      filePattern: 'meal_plan.html',
-      formatDescription: 'HTML Meal Plan'
-    },
-    behavior: {
-      notifyOnComplete: true,
-      logExecution: true,
-      asToolcall: true // Enable tool access
-    },
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    runCount: 0,
-    status: 'idle',
-  },
-];
 
 // ============================================================================
 // Workflow Service Class
@@ -849,45 +188,69 @@ class WorkflowService {
   }
 
   private async loadFromDisk(): Promise<void> {
+    // 1. Load from LocalStorage first (instant)
     try {
-      const result = await backendApi.listDirectory(this.STORAGE_PATH);
-      // Handle various response formats (files array or items property)
-      const items = Array.isArray(result) ? result : (result.files || result.items || []);
-      
-      for (const item of items) {
-        if (item.name && item.name.endsWith('.json')) {
-          try {
-            const content = await backendApi.readFile(item.path);
-            const workflow = JSON.parse(content);
-            if (workflow.id && workflow.name) {
-              this.workflows.set(workflow.id, workflow);
-            }
-          } catch (e) {
-            console.error(`[WorkflowService] Failed to load ${item.name}:`, e);
-          }
+      const stored = localStorage.getItem('skhoot_workflow_definitions');
+      if (stored) {
+        const workflows = JSON.parse(stored);
+        if (Array.isArray(workflows)) {
+          workflows.forEach((wf: Workflow) => {
+            this.workflows.set(wf.id, wf);
+          });
         }
+      }
+    } catch (e) {
+      console.warn('[WorkflowService] Failed to load workflows from LocalStorage', e);
+    }
+
+    // 2. Sync from backend (source of truth)
+    try {
+      const response = await fetch(`${backendApi.baseUrl}/workflows`);
+      if (response.ok) {
+        const workflows = await response.json();
+        workflows.forEach((wf: Workflow) => {
+          this.workflows.set(wf.id, wf);
+        });
+        // Update LocalStorage cache
+        this.saveToLocalStorage();
       }
       this.emit('workflow_updated', { workflow: null }); // Force UI refresh
     } catch (error) {
-      // Ignore errors if directory doesn't exist yet
+      console.warn('[WorkflowService] Failed to sync workflows from backend', error);
+    }
+  }
+
+  private saveToLocalStorage(): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      const all = Array.from(this.workflows.values());
+      localStorage.setItem('skhoot_workflow_definitions', JSON.stringify(all));
+    } catch (e) {
+      console.warn('[WorkflowService] Failed to save workflows to LocalStorage', e);
     }
   }
 
   private async saveToDisk(workflow: Workflow): Promise<void> {
+    this.saveToLocalStorage();
     try {
-      const filePath = `${this.STORAGE_PATH}/${workflow.id}.json`;
-      await backendApi.writeFile(filePath, JSON.stringify(workflow, null, 2));
+      await fetch(`${backendApi.baseUrl}/workflows/${workflow.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(workflow)
+      });
     } catch (error) {
-      console.error('[WorkflowService] Failed to save to disk:', error);
+      console.error('[WorkflowService] Failed to save to backend:', error);
     }
   }
 
   private async deleteFromDisk(workflowId: string): Promise<void> {
+    this.saveToLocalStorage();
     try {
-      const filePath = `${this.STORAGE_PATH}/${workflowId}.json`;
-      await fileOperations.delete(filePath);
+      await fetch(`${backendApi.baseUrl}/workflows/${workflowId}`, {
+        method: 'DELETE'
+      });
     } catch (error) {
-      // Ignore if file doesn't exist
+      console.error('[WorkflowService] Failed to delete from backend:', error);
     }
   }
 
@@ -895,26 +258,50 @@ class WorkflowService {
   // Execution Persistence (LocalStorage)
   // ==========================================================================
 
-  private loadExecutions(): void {
-    if (typeof localStorage === 'undefined') return;
-    
-    try {
-      const stored = localStorage.getItem('skhoot_workflow_executions');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          // Sort by date descending and keep last 50 to avoid storage limits
-          const recent = parsed
-            .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0))
-            .slice(0, 50);
-            
-          recent.forEach((ctx: ExecutionContext) => {
-             this.executions.set(ctx.executionId, ctx);
-          });
+  private async loadExecutions(): Promise<void> {
+    // 1. Load from LocalStorage first
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('skhoot_workflow_executions');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((ctx: ExecutionContext) => {
+               this.executions.set(ctx.executionId, ctx);
+            });
+          }
         }
+      } catch (e) {
+        console.error('[WorkflowService] Failed to load executions from storage:', e);
       }
-    } catch (e) {
-      console.error('[WorkflowService] Failed to load executions from storage:', e);
+    }
+
+    // 2. Sync active executions from backend
+    try {
+      const response = await fetch(`${backendApi.baseUrl}/workflows/executions/active`);
+      if (response.ok) {
+        const active = await response.json();
+        active.forEach((ctx: ExecutionContext) => {
+          // Normalize backend field names (snake_case to camelCase) if necessary
+          // Our backend uses serde default which is usually snake_case for Rust
+          // but ExecutionContext in TS expects camelCase.
+          const normalized: ExecutionContext = {
+            workflowId: (ctx as any).workflow_id || ctx.workflowId,
+            executionId: (ctx as any).execution_id || ctx.executionId,
+            currentStepId: (ctx as any).current_step_id || ctx.currentStepId,
+            variables: ctx.variables,
+            stepResults: (ctx as any).step_results || ctx.stepResults,
+            startedAt: (ctx as any).started_at || ctx.startedAt,
+            completedAt: (ctx as any).completed_at || ctx.completedAt,
+            status: ctx.status,
+            loopState: (ctx as any).loop_state || ctx.loopState
+          };
+          this.executions.set(normalized.executionId, normalized);
+        });
+        this.emit('execution_updated', { context: null });
+      }
+    } catch (error) {
+      console.warn('[WorkflowService] Failed to sync active executions from backend', error);
     }
   }
 
@@ -952,6 +339,19 @@ class WorkflowService {
   // ==========================================================================
 
   async list(): Promise<Workflow[]> {
+    // Proactively sync from backend to ensure latest list
+    try {
+      const response = await fetch(`${backendApi.baseUrl}/workflows`);
+      if (response.ok) {
+        const workflows = await response.json();
+        workflows.forEach((wf: Workflow) => {
+          this.workflows.set(wf.id, wf);
+        });
+        this.saveToLocalStorage();
+      }
+    } catch (error) {
+      console.warn('[WorkflowService] Background sync failed during list()', error);
+    }
     return Array.from(this.workflows.values());
   }
 
@@ -975,6 +375,25 @@ class WorkflowService {
   }
 
   async create(request: CreateWorkflowRequest): Promise<Workflow> {
+    try {
+      const response = await fetch(`${backendApi.baseUrl}/workflows`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request)
+      });
+      
+      if (response.ok) {
+        const created = await response.json();
+        this.workflows.set(created.id, created);
+        this.saveToLocalStorage();
+        this.emit('workflow_created', { workflow: created });
+        return created;
+      }
+    } catch (e) {
+      console.error('[WorkflowService] Failed to create workflow on backend:', e);
+    }
+
+    // Fallback if backend creation failed
     const now = Date.now();
     const workflow: Workflow = {
       id: `wf-${now}-${Math.random().toString(36).substr(2, 9)}`,
@@ -1085,28 +504,39 @@ class WorkflowService {
     executor.on('step_start', (data: any) => {
         this.emit('step_start', data);
         window.dispatchEvent(new CustomEvent('workflow-step-start', { detail: { ...data, executionId, workflow } }));
+        // Update local context reference and save
+        this.executions.set(executionId, data.context);
         this.saveExecutions();
+        this.emit('execution_updated', { context: data.context });
     });
 
     executor.on('step_complete', (data: any) => {
-        this.emit('step_completed', { context, stepResult: data.result, nextStepId: data.nextStepId });
+        this.emit('step_completed', { context: data.context, stepResult: data.result, nextStepId: data.nextStepId });
         
         // Dispatch event to continue workflow (UI updates)
         window.dispatchEvent(new CustomEvent('workflow-step-next', {
           detail: {
             executionId,
             workflow,
-            context,
+            context: data.context,
             currentStep: workflow.steps.find(s => s.id === data.nextStepId),
             previousResult: data.result,
           }
         }));
+        
+        // Update local context reference and save
+        this.executions.set(executionId, data.context);
         this.saveExecutions();
+        this.emit('execution_updated', { context: data.context });
     });
 
     executor.on('waiting_for_input', (data: any) => {
         window.dispatchEvent(new CustomEvent('workflow-input-request', { detail: { ...data, executionId, workflow } }));
         this.saveExecutions();
+    });
+
+    executor.on('status_update', (data: any) => {
+        window.dispatchEvent(new CustomEvent('workflow-status-update', { detail: { ...data, executionId } }));
     });
 
     executor.on('workflow_complete', (data: any) => {
@@ -1116,11 +546,11 @@ class WorkflowService {
           lastRun: Date.now(),
         });
         
-        this.emit('execution_completed', { context, workflow });
+        this.emit('execution_completed', { context: data.context, workflow });
         
         // Dispatch completion event
         window.dispatchEvent(new CustomEvent('workflow-completed', {
-          detail: { executionId, context, workflow }
+          detail: { executionId, context: data.context, workflow }
         }));
         
         this.executors.delete(executionId);
@@ -1130,21 +560,23 @@ class WorkflowService {
     executor.on('workflow_failed', (data: any) => {
         this.update(workflowId, { status: 'idle' });
         // Use completion event but context status is failed
-        window.dispatchEvent(new CustomEvent('workflow-completed', { detail: { executionId, context, workflow } }));
+        window.dispatchEvent(new CustomEvent('workflow-completed', { detail: { executionId, context: data.context, workflow } }));
         this.executors.delete(executionId);
         this.saveExecutions();
     });
 
     executor.on('execution_cancelled', (data: any) => {
         this.update(workflowId, { status: 'idle' });
-        this.emit('execution_cancelled', { context });
-        window.dispatchEvent(new CustomEvent('workflow-completed', { detail: { executionId, context, workflow } }));
+        this.emit('execution_cancelled', { context: data.context });
+        window.dispatchEvent(new CustomEvent('workflow-completed', { detail: { executionId, context: data.context, workflow } }));
         this.executors.delete(executionId);
         this.saveExecutions();
     });
 
-    // Start execution
-    executor.start();
+    // Start execution with a small delay to allow UI to setup listeners and state
+    setTimeout(() => {
+        executor.start();
+    }, 500);
     
     return context;
   }
@@ -1154,19 +586,6 @@ class WorkflowService {
     if (executor) {
         executor.resume(input);
     }
-  }
-
-  /**
-   * @deprecated Use WorkflowExecutor
-   */
-  async executeStep(
-    executionId: string,
-    output: string,
-    decisionResult?: boolean,
-    generatedFiles?: string[]
-  ): Promise<{ nextStepId?: string; completed: boolean }> {
-    console.warn('[WorkflowService] executeStep is deprecated. Execution is now handled by WorkflowExecutor.');
-    return { completed: true };
   }
 
   async cancelExecution(executionId: string): Promise<void> {
@@ -1182,6 +601,24 @@ class WorkflowService {
          this.saveExecutions();
          this.emit('execution_cancelled', { context });
        }
+    }
+  }
+
+  async updateExecutionState(context: ExecutionContext): Promise<void> {
+    this.executions.set(context.executionId, context);
+    this.saveExecutions();
+    
+    // Emit event for UI updates
+    this.emit('execution_updated', { context });
+    
+    try {
+      await fetch(`${backendApi.baseUrl}/workflows/executions/${context.executionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(context)
+      });
+    } catch (error) {
+      console.warn('[WorkflowService] Failed to sync execution with backend:', error);
     }
   }
 

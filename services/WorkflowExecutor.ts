@@ -15,7 +15,8 @@ export type WorkflowEvent =
   | 'workflow_complete' 
   | 'workflow_failed'
   | 'waiting_for_input'
-  | 'execution_cancelled';
+  | 'execution_cancelled'
+  | 'status_update';
 
 export class WorkflowExecutor {
   private context: ExecutionContext;
@@ -127,7 +128,10 @@ export class WorkflowExecutor {
         let prompt = step.prompt;
         if (this.context.variables) {
             Object.entries(this.context.variables).forEach(([key, value]) => {
-                prompt = prompt.replace(new RegExp(`{{${key}}}`, 'g'), String(value));
+                // Better substitution: handles both {{var}} and ${var}
+                const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
+                prompt = prompt.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), valStr);
+                prompt = prompt.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), valStr);
             });
         }
 
@@ -137,16 +141,17 @@ export class WorkflowExecutor {
         }
 
         // 3. Execute AI
-        const { content, toolResults } = await this.executeAI(prompt);
+        const { content, toolResults, generatedFiles: stepGeneratedFiles } = await this.executeAI(prompt);
         
         // 4. Determine Decision (if any)
         const decisionResult = this.evaluateDecision(step, content);
 
         // 5. Handle File Outputs
-        const generatedFiles = this.detectGeneratedFiles(step, content, toolResults);
+        const detectedFiles = this.detectGeneratedFiles(step, content, toolResults);
+        const allGeneratedFiles = Array.from(new Set([...detectedFiles, ...(stepGeneratedFiles || [])]));
 
         // 6. Complete Step & Move Next
-        await this.handleStepCompletion(step, content, decisionResult, generatedFiles);
+        await this.handleStepCompletion(step, content, decisionResult, allGeneratedFiles);
 
       } catch (error) {
         console.error('[WorkflowExecutor] Step failed:', error);
@@ -164,29 +169,45 @@ export class WorkflowExecutor {
     }
   }
 
-  private async executeAI(prompt: string): Promise<{ content: string; toolResults: any[] }> {
+  private async executeAI(prompt: string): Promise<{ content: string; toolResults: any[]; generatedFiles?: string[] }> {
     const aiSettings = aiSettingsService.loadSettings();
-    const sessionId = this.agentSessionId || `wf-exec-${this.context.executionId}`;
+    // Use a truly unique session ID for this workflow execution to avoid chat pollution
+    const sessionId = this.agentSessionId || `workflow-exec-${this.context.executionId}`;
 
-    // Create a clean history or minimal context?
-    // The plan says "clean context window" for executeStepWithAI.
-    // But we might want previous steps output? 
-    // For now, let's keep it clean as per plan: "Implement executeStepWithAI to use agentChatService.executeWithTools with a clean context window."
+    console.log(`[WorkflowExecutor] Executing AI step with isolated session: ${sessionId}`);
     
+    // Accumulate history from previous steps to maintain context
+    const workflowHistory: AgentChatMessage[] = [];
+    
+    // Sort steps by order to ensure chronological history
+    const sortedSteps = [...this.workflow.steps].sort((a, b) => a.order - b.order);
+    
+    for (const s of sortedSteps) {
+        const result = this.context.stepResults[s.id];
+        if (result && result.success) {
+            // Add user prompt and assistant response for each completed step
+            workflowHistory.push({ role: 'user', content: s.prompt });
+            workflowHistory.push({ role: 'assistant', content: result.output });
+        }
+    }
+
     const result = await agentChatService.executeWithTools(
         prompt,
-        [], // Empty history
+        workflowHistory, // Pass accumulated history instead of empty array
         {
             sessionId,
             temperature: aiSettings.temperature,
             maxTokens: aiSettings.maxTokens,
-            // ... other settings
+            onStatusUpdate: (status) => {
+                this.emit('status_update', { status });
+            }
         }
     );
 
     return {
         content: result.content,
-        toolResults: result.toolResults
+        toolResults: result.toolResults,
+        generatedFiles: result.generatedFiles
     };
   }
 
@@ -276,8 +297,7 @@ export class WorkflowExecutor {
           nextStepId = step.nextStep;
       }
 
-      // 4. Handle Loops (Copied logic)
-      
+      // 4. Handle Loops
       // Active Loop
       if (this.context.loopState && this.context.loopState.stepId === step.id) {
           this.context.loopState.currentIndex++;
@@ -319,18 +339,32 @@ export class WorkflowExecutor {
           }
       }
 
+      // Fallback to next step by order if no explicit nextStepId
+      if (!nextStepId) {
+          const nextStep = this.workflow.steps
+              .filter(s => s.order > step.order)
+              .sort((a, b) => a.order - b.order)[0];
+          if (nextStep) {
+              nextStepId = nextStep.id;
+          }
+      }
+
       this.context.currentStepId = nextStepId;
 
-      // Persist via WorkflowService (Assuming we can call a method or it's implicitly saved if we modify the object and trigger save)
-      // Since context is a reference to the object in WorkflowService.executions map (if passed correctly), 
-      // we just need to tell WorkflowService to save to disk.
-      // I'll assume WorkflowService handles persistence if I call a method or I might need to add one.
-      // For now, I won't explicitly call save on disk to avoid circular dependency issues if I import workflowService.
-      // Wait, I imported workflowService. 
-      // But `saveExecutions` is private.
-      // I'll emit an event that WorkflowService listens to? No, WorkflowService creates the executor.
-      
-      // I'll assume for now that I need to emit a 'state_change' event or similar if I want external persistence,
-      // but the UI listens to 'step_complete'.
+      // Notify step start immediately for UI updates
+      if (nextStepId) {
+          const nextStep = this.workflow.steps.find(s => s.id === nextStepId);
+          if (nextStep) {
+              this.emit('step_start', { step: nextStep, context: this.context });
+          }
+      }
+
+      // Sync with backend if possible
+      try {
+          const { workflowService } = await import('./workflowService');
+          await workflowService.updateExecutionState(this.context);
+      } catch (e) {
+          console.warn('[WorkflowExecutor] Failed to sync execution state with backend:', e);
+      }
   }
 }

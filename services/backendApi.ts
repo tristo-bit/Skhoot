@@ -241,6 +241,7 @@ export interface PageExtract {
 }
 
 export const backendApi = {
+  baseUrl: BACKEND_URL + '/api/v1',
   async health(): Promise<HealthResponse> {
     const response = await fetch(`${BACKEND_URL}/health`);
     if (!response.ok) {

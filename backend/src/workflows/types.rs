@@ -74,7 +74,7 @@ pub struct DecisionNode {
 }
 
 /// A single step in a workflow
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct WorkflowStep {
     pub id: String,
     pub name: String,
@@ -95,6 +95,31 @@ pub struct WorkflowStep {
     /// Timeout in seconds
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeout_secs: Option<u64>,
+    /// Variable name to store the output in
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_var: Option<String>,
+    /// Optional loop configuration
+    #[serde(skip_serializing_if = "Option::is_none", rename = "loop")]
+    pub loop_config: Option<WorkflowLoop>,
+    /// Interactive input request
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_request: Option<InputRequest>,
+}
+
+/// Loop configuration
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct WorkflowLoop {
+    #[serde(rename = "type")]
+    pub loop_type: String, // e.g., "foreach"
+    pub source: String,
+    pub item_var: String,
+}
+
+/// Input request configuration
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct InputRequest {
+    pub enabled: bool,
+    pub placeholder: Option<String>,
 }
 
 /// Output settings for workflow results
@@ -152,8 +177,12 @@ pub struct WorkflowBehavior {
     pub log_execution: bool,
 }
 
-fn default_max_retries() -> u32 { 3 }
-fn default_true() -> bool { true }
+fn default_max_retries() -> u32 {
+    3
+}
+fn default_true() -> bool {
+    true
+}
 
 impl Default for WorkflowBehavior {
     fn default() -> Self {
@@ -233,6 +262,17 @@ pub struct ExecutionContext {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<i64>,
     pub status: WorkflowStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub loop_state: Option<LoopState>,
+}
+
+/// State of an active loop
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoopState {
+    pub step_id: String,
+    pub items: Vec<serde_json::Value>,
+    pub current_index: u32,
+    pub item_var: String,
 }
 
 /// Result of a single step execution
