@@ -451,19 +451,12 @@ git clone https://github.com/tristo-bit/skhoot.git
 cd skhoot
 npm install
 
-# Configure API key (optional for web version)
-cp .env.example .env
-# Edit .env: VITE_GEMINI_API_KEY=your_api_key_here
-
-# Build backend (one-time setup)
-cd backend
-cargo build --release
-cd ..
-
 # Start application
-npm run tauri:dev    # Desktop version (auto-starts backend)
-# OR
-npm run dev:full     # Web version (starts backend + frontend)
+npm run tauri:dev    
+npm run backend:dev
+
+# Configure API key 
+In Skhoot, go into the Settings then navigate to AI Settings, at the bottom of this panel, you will find a API Configuration area, select your provider and enter your API key. 
 ```
 
 **Note**: The desktop version automatically starts the backend. For the web version, the backend must be running separately (`npm run backend:dev`).
