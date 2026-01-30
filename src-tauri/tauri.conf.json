@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Skhoot Desktop Seeker",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "identifier": "com.skhoot.desktop-seeker",
   "build": {
     "beforeBuildCommand": "npm run build && cd backend && cargo build --release && node ../scripts/copy-backend-binary.cjs",

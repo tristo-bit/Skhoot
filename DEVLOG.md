@@ -1,5 +1,51 @@
 # Development Log
 
+## January 30, 2026 - Release v0.1.8 🚀
+
+### Release Metadata
+- **Version**: v0.1.8
+- **Release Date**: January 30, 2026
+- **Commits Since v0.1.7**: 15
+- **Tag**: v0.1.8
+- **Changelog**: [documentation/CHANGELOG-v0.1.8.md](documentation/CHANGELOG-v0.1.8.md)
+
+### Major Features
+- **Comprehensive Animation System**: 6 new animation components for different tool categories with 3-tier priority system for intelligent detection
+- **Workflow Execution API**: Complete workflow execution engine with REST endpoints, execution context management, and agent integration
+- **Workflow Cancellation**: AbortController integration for immediate cancellation with graceful stopping
+- **Enhanced Web Search**: SearXNG fallback, VQD token retrieval for DuckDuckGo, and improved reliability
+- **Memory Search UI**: New component for displaying memory search results with category icons and metadata
+- **Improved File Detection**: Explicit tracking of agent-generated vs referenced files with validation
+
+### Key Improvements
+- **Animation System**: Smooth visual transitions from connection through tool execution with comprehensive documentation
+- **Panel Management**: Complete panel closing logic to prevent UI overlap
+- **File Detection Accuracy**: Only apply heuristics when agent doesn't provide explicit file list, preventing false positives
+- **Agent Communication**: Natural language summaries after tool execution instead of empty responses
+- **Fuku Button Variant**: New custom button styling with dynamic quick action grid layout
+
+### Bug Fixes
+- Fixed overflow-hidden clipping in AnimationToolcall container
+- Fixed panel overlap by implementing proper panel closing logic
+- Fixed file detection false positives from AI-mentioned paths
+- Fixed workflow cancellation to stop processing immediately
+- Fixed shell command success status to use actual execution results
+
+### Documentation
+- Added 6 comprehensive animation system documentation files
+- Added session and task documentation (SESSION_SUMMARY.md, TASK_COMPLETE_FIX.md)
+- Added PANEL_OVERLAP_FIX.md for panel management solution
+- Enhanced README with communication features and workflow capabilities
+
+### Next Steps
+- Enhanced workflow templates with more pre-built automation patterns
+- Workflow marketplace for sharing and discovering community workflows
+- Advanced animation customization for user preferences
+- Memory system enhancements with semantic clustering
+- Multi-workspace support for managing multiple projects
+
+---
+
 ## January 29, 2026 - Release v0.1.7 🚀
 
 ### Release Metadata
