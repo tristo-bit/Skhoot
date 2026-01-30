@@ -79,7 +79,7 @@
             <a href="#features" class="mobile-link">Features</a>
             <a href="#tech" class="mobile-link">Tech</a>
             <a href="#download" class="mobile-link">Releases</a>
-            <a href="https://github.com/tristo-bit/Skhoot" class="mobile-link" target="_blank">GitHub</a>
+            <a href="https://github.com/tristo-bit/skhoot" class="mobile-link" target="_blank">GitHub</a>
         </nav>
     </div>
 
@@ -106,7 +106,7 @@
                         </svg>
                         <span>Download for Free</span>
                     </a>
-                    <a href="https://github.com/tristo-bit/Skhoot" class="btn btn-secondary btn-hero" target="_blank">
+                    <a href="https://github.com/tristo-bit/skhoot" class="btn btn-secondary btn-hero" target="_blank">
                         <span>View Source</span>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                             <path d="M7 17L17 7M17 7H7M17 7v10"/>
@@ -131,12 +131,39 @@
                 </div>
             </div>
             
-            <!-- App Preview -->
             <div class="hero-preview">
                 <div class="preview-glow"></div>
                 <div class="preview-window">
-                    <div class="window-body window-body-iframe">
-                        <iframe id="app-preview" src="https://skhoot.vercel.app/?demo=true" title="Skhoot App Preview" class="app-iframe"></iframe>
+                    <div class="window-chrome">
+                        <div class="window-buttons">
+                            <span class="btn-close"></span>
+                            <span class="btn-minimize"></span>
+                            <span class="btn-maximize"></span>
+                        </div>
+                        <div class="window-title">Skhoot Agent Session</div>
+                        <div class="window-actions">
+                            <div class="agent-badge">
+                                <span class="agent-dot"></span>
+                                Agent Mode
+                            </div>
+                        </div>
+                    </div>
+                    <div class="window-body demo-container">
+                        <div class="demo-chat" id="demo-chat">
+                            <!-- Messages will be injected by script.js -->
+                            <div class="chat-placeholder">Initializing secure session...</div>
+                        </div>
+                        <div class="demo-sidebar">
+                            <div class="sidebar-top">
+                                <div class="sidebar-icon active">💬</div>
+                                <div class="sidebar-icon">📂</div>
+                                <div class="sidebar-icon">⚡</div>
+                                <div class="sidebar-icon">🧠</div>
+                            </div>
+                            <div class="sidebar-bottom">
+                                <div class="sidebar-icon">⚙️</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -153,41 +180,41 @@
                 <div class="features-grid">
                     <div class="feature-card feature-hero">
                         <div class="feature-visual">
-                            <div class="search-demo">
-                                <div class="search-bar">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-                                        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-                                    </svg>
-                                    <span>project-final.pdf</span>
-                                </div>
-                                <div class="search-results">
-                                    <div class="result-item">
-                                        <div class="result-icon">📄</div>
-                                        <div class="result-info">
-                                            <span class="result-name">project-final-v2.pdf</span>
-                                            <span class="result-path">~/Documents/Work</span>
-                                        </div>
-                                        <span class="result-match">98%</span>
+                            <div class="agent-demo-preview">
+                                <div class="tool-call-card">
+                                    <div class="tool-header">
+                                        <span class="tool-icon green">⌨️</span>
+                                        <span class="tool-name">shell</span>
+                                        <span class="tool-status">executing...</span>
                                     </div>
-                                    <div class="result-item">
-                                        <div class="result-icon">📄</div>
-                                        <div class="result-info">
-                                            <span class="result-name">project-final-draft.pdf</span>
-                                            <span class="result-path">~/Desktop</span>
+                                    <div class="tool-content">
+                                        <code>npm run build</code>
+                                        <div class="tool-output">
+                                            > skhoot@0.1.8 build<br>
+                                            > vite build<br>
+                                            <span class="text-success">✓ built in 1.2s</span>
                                         </div>
-                                        <span class="result-match">87%</span>
+                                    </div>
+                                </div>
+                                <div class="tool-call-card">
+                                    <div class="tool-header">
+                                        <span class="tool-icon purple">🔍</span>
+                                        <span class="tool-name">search_files</span>
+                                    </div>
+                                    <div class="tool-content">
+                                        <code>pattern: "*.rs"</code>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="feature-content">
-                            <div class="feature-badge">Core Feature</div>
-                            <h3>Intelligent File Search</h3>
-                            <p>Multi-engine search with fuzzy matching, CLI integration, and AI-powered suggestions. Find any file in milliseconds with our Rust-based search engine.</p>
+                            <div class="feature-badge">Advanced AI</div>
+                            <h3>Agent Mode with Visual Tools</h3>
+                            <p>Skhoot isn't just a chat bot. Its Agent Mode can execute shell commands, read/write files, and search your codebase. Watch the agent work in real-time with rich, visual tool execution cards.</p>
                             <ul class="feature-list">
-                                <li><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Hybrid search combining multiple engines</li>
-                                <li><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Content search with snippet extraction</li>
-                                <li><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Real-time performance metrics</li>
+                                <li><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Unrestricted system command execution</li>
+                                <li><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Visual tool tracking & intelligent animations</li>
+                                <li><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Multi-turn reasoning & tool calling loops</li>
                             </ul>
                         </div>
                     </div>
@@ -195,32 +222,42 @@
                     <div class="feature-card">
                         <div class="feature-icon" style="background: var(--color-agents);">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28">
+                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                            </svg>
+                        </div>
+                        <h3>Workflow Automation</h3>
+                        <p>Create multi-step prompt chains for repetitive tasks like code reviews, documentation, or testing. Automate your engineering workflow.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background: #EAD8DE;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28">
                                 <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
                                 <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/>
                             </svg>
                         </div>
-                        <h3>Voice Interface</h3>
-                        <p>Speak naturally to search, command, and interact. Real-time transcription with audio visualization.</p>
+                        <h3>Voice-First UX</h3>
+                        <p>Control Skhoot with your voice. Featuring advanced frequency visualization and high-speed Groq STT support.</p>
                     </div>
 
                     <div class="feature-card">
-                        <div class="feature-icon" style="background: var(--color-primary);">
+                        <div class="feature-icon" style="background: #F9F1D2;">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28">
                                 <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
                             </svg>
                         </div>
-                        <h3>AI Chat</h3>
-                        <p>Natural conversations with AI assistance. Get help with files, tasks, and more.</p>
+                        <h3>Long-term Memory</h3>
+                        <p>Skhoot remembers your preferences, project context, and past interactions across conversations with persistent memory management.</p>
                     </div>
 
                     <div class="feature-card">
-                        <div class="feature-icon" style="background: var(--color-space);">
+                        <div class="feature-icon" style="background: #D1DBCB;">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28">
-                                <path d="M21.21 15.89A10 10 0 118 2.83M22 12A10 10 0 0012 2v10z"/>
+                                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
                             </svg>
                         </div>
-                        <h3>Disk Analysis</h3>
-                        <p>Visualize disk usage, identify large files, and get smart cleanup recommendations.</p>
+                        <h3>Hybrid Search</h3>
+                        <p>Lightning-fast file search combining Rust fuzzy matching with native CLI tools like ripgrep and fd.</p>
                     </div>
 
                     <div class="feature-card">
@@ -251,17 +288,116 @@
             <div class="container">
                 <div class="section-header">
                     <span class="section-eyebrow">Technology</span>
-                    <h2 class="section-title">The <span class="gradient-text">3T2R</span> Stack</h2>
-                    <p class="section-subtitle">Modern technology stack for performance, reliability, and developer experience.</p>
+                    <h2 class="section-title">The <span class="gradient-text">Advanced AI</span> Stack</h2>
+                    <p class="section-subtitle">Skhoot leverages the latest in AI and desktop technology for a seamless, high-performance experience.</p>
                 </div>
                 
                 <div class="tech-grid">
                     <div class="tech-card">
                         <div class="tech-logo">
+                            🌐
+                        </div>
+                        <span class="tech-name">Gemini 3</span>
+                        <span class="tech-desc">Advanced Reasoning</span>
+                    </div>
+                    
+                    <div class="tech-card">
+                        <div class="tech-logo" style="color: #DEA584;">
                             <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M14.23 12.004a2.236 2.236 0 0 1-2.235 2.236 2.236 2.236 0 0 1-2.236-2.236 2.236 2.236 0 0 1 2.235-2.236 2.236 2.236 0 0 1 2.236 2.236zm2.648-10.69c-1.346 0-3.107.96-4.888 2.622-1.78-1.653-3.542-2.602-4.887-2.602-.41 0-.783.093-1.106.278-1.375.793-1.683 3.264-.973 6.365C1.98 8.917 0 10.42 0 12.004c0 1.59 1.99 3.097 5.043 4.03-.704 3.113-.39 5.588.988 6.38.32.187.69.275 1.102.275 1.345 0 3.107-.96 4.888-2.624 1.78 1.654 3.542 2.603 4.887 2.603.41 0 .783-.09 1.106-.275 1.374-.792 1.683-3.263.973-6.365C22.02 15.096 24 13.59 24 12.004c0-1.59-1.99-3.097-5.043-4.032.704-3.11.39-5.587-.988-6.38-.318-.184-.688-.277-1.092-.278zm-.005 1.09v.006c.225 0 .406.044.558.127.666.382.955 1.835.73 3.704-.054.46-.142.945-.25 1.44-.96-.236-2.006-.417-3.107-.534-.66-.905-1.345-1.727-2.035-2.447 1.592-1.48 3.087-2.292 4.105-2.295zm-9.77.02c1.012 0 2.514.808 4.11 2.28-.686.72-1.37 1.537-2.02 2.442-1.107.117-2.154.298-3.113.538-.112-.49-.195-.964-.254-1.42-.23-1.868.054-3.32.714-3.707.19-.09.4-.127.563-.132zm4.882 3.05c.455.468.91.992 1.36 1.564-.44-.02-.89-.034-1.345-.034-.46 0-.915.01-1.36.034.44-.572.895-1.096 1.345-1.565zM12 8.1c.74 0 1.477.034 2.202.093.406.582.802 1.203 1.183 1.86.372.64.71 1.29 1.018 1.946-.308.655-.646 1.31-1.013 1.95-.38.66-.773 1.288-1.18 1.87-.728.063-1.466.098-2.21.098-.74 0-1.477-.035-2.202-.093-.406-.582-.802-1.204-1.183-1.86-.372-.64-.71-1.29-1.018-1.946.303-.657.646-1.313 1.013-1.954.38-.66.773-1.286 1.18-1.868.728-.064 1.466-.098 2.21-.098zm-3.635.254c-.24.377-.48.763-.704 1.16-.225.39-.435.782-.635 1.174-.265-.656-.49-1.31-.676-1.947.64-.15 1.315-.283 2.015-.386zm7.26 0c.695.103 1.365.23 2.006.387-.18.632-.405 1.282-.66 1.933-.2-.39-.41-.783-.64-1.174-.225-.392-.465-.774-.705-1.146zm3.063.675c.484.15.944.317 1.375.498 1.732.74 2.852 1.708 2.852 2.476-.005.768-1.125 1.74-2.857 2.475-.42.18-.88.342-1.355.493-.28-.958-.646-1.956-1.1-2.98.45-1.017.81-2.01 1.085-2.964zm-13.395.004c.278.96.645 1.957 1.1 2.98-.45 1.017-.812 2.01-1.086 2.964-.484-.15-.944-.318-1.37-.5-1.732-.737-2.852-1.706-2.852-2.474 0-.768 1.12-1.742 2.852-2.476.42-.18.88-.342 1.356-.494zm11.678 4.28c.265.657.49 1.312.676 1.948-.64.157-1.316.29-2.016.39.24-.375.48-.762.705-1.158.225-.39.435-.788.636-1.18zm-9.945.02c.2.392.41.783.64 1.175.23.39.465.772.705 1.143-.695-.102-1.365-.23-2.006-.386.18-.63.406-1.282.66-1.933zM17.92 16.32c.112.493.2.968.254 1.423.23 1.868-.054 3.32-.714 3.708-.147.09-.338.128-.563.128-1.012 0-2.514-.807-4.11-2.28.686-.72 1.37-1.536 2.02-2.44 1.107-.118 2.154-.3 3.113-.54zm-11.83.01c.96.234 2.006.415 3.107.532.66.905 1.345 1.727 2.035 2.446-1.595 1.483-3.092 2.295-4.11 2.295-.22-.005-.406-.05-.553-.132-.666-.38-.955-1.834-.73-3.703.054-.46.142-.944.25-1.438zm4.56.64c.44.02.89.034 1.345.034.46 0 .915-.01 1.36-.034-.44.572-.895 1.095-1.345 1.565-.455-.47-.91-.993-1.36-1.565z"/>
+                                <path d="M23.8346 11.7033l-3.0929-3.092a.851.851 0 00-.1078-.0838l-6.6606-4.3891a.8513.8513 0 00-.9472.0001L6.3654 8.5765a.8518.8518 0 00-.0557.0407l-3.1038 3.0864a.8513.8513 0 000 1.2038l3.0929 3.0929a.8518.8518 0 00.0838.0686l6.6606 4.5765a.8513.8513 0 00.9472 0l6.6606-4.5765a.8518.8518 0 00.0838-.0686l3.0929-3.0929a.8513.8513 0 000-1.2041zm-12.0858 7.501l-5.1922-3.5684 2.5014-2.4867 2.6908 2.6908zm.8512-4.6601L9.9077 11.852l2.6923-2.6777 2.6923 2.6777zm.8512 4.6601V14.632l2.6908-2.6908 2.5014 2.4867zm5.1922-3.5684l-2.5014-2.4867 2.5014-2.4867 2.5014 2.4867zM12 9.1742L9.3077 6.4965 12 3.8188l2.6923 2.6777zm-5.3846 2.678L4.1231 9.3655l2.4923-2.4777 2.6923 2.6777zm-2.4923 2.4867l2.4923 2.4867-2.4923 2.4867-2.4923-2.4867zm14.2615-2.4867l2.6923-2.6777 2.4923 2.4777-2.5014 2.4867z"/>
                             </svg>
                         </div>
+                        <span class="tech-name">Rust</span>
+                        <span class="tech-desc">Backend Engine</span>
+                    </div>
+                    
+                    <div class="tech-card">
+                        <div class="tech-logo" style="color: #FFC131;">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M21.8244 9.0167h-1.9239c-.0948-.3166-.2138-.6236-.3568-.9188l1.3614-1.3614a.764.764 0 000-1.0808l-2.5608-2.5607a.764.764 0 00-1.0808 0l-1.3614 1.3614a7.0757 7.0757 0 00-.9188-.3568V2.1757a.764.764 0 00-.764-.764h-3.6218a.764.764 0 00-.764.764v1.9239c-.3166.0948-.6236.2138-.9188.3568L7.5573 3.0951a.764.764 0 00-1.0808 0L3.9158 5.6558a.764.764 0 000 1.0808l1.3614 1.3614a7.0757 7.0757 0 00-.3568.9188H2.9965a.764.764 0 00-.764.764v3.6218a.764.764 0 00.764.764h1.9239c.0948.3166.2138.6236.3568.9188l-1.3614 1.3614a.764.764 0 000 1.0808l2.5607 2.5608a.764.764 0 001.0808 0l1.3614-1.3614c.2952.143.6022.262.9188.3568v1.9239a.764.764 0 00.764.764h3.6218a.764.764 0 00.764-.764v-1.9239c.3166-.0948.6236-.2138.9188-.3568l1.3614 1.3614a.764.764 0 001.0808 0l2.5608-2.5608a.764.764 0 000-1.0808l-1.3614-1.3614c.143-.2952.262-.6022.3568-.9188h1.9239a.764.764 0 00.764-.764v-3.6218a.764.764 0 00-.764-.764zM12 15.8433a3.8433 3.8433 0 110-7.6866 3.8433 3.8433 0 010 7.6866z"/>
+                            </svg>
+                        </div>
+                        <span class="tech-name">Tauri 2.0</span>
+                        <span class="tech-desc">Desktop Runtime</span>
+                    </div>
+                    
+                    <div class="tech-card">
+                        <div class="tech-logo" style="color: #61DAFB;">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M14.23 12.004a2.236 2.236 0 0 1-2.235 2.236 2.236 2.236 0 0 1-2.236-2.236 2.236 2.236 0 0 1 2.235-2.236 2.236 2.236 0 0 1 2.236 2.236zm2.648-10.69c-1.346 0-3.107.96-4.888 2.622-1.78-1.653-3.542-2.602-4.887-2.602-.41 0-.783.093-1.106.278-1.375.793-1.683 3.264-.973 6.365C1.98 8.917 0 10.42 0 12.004c0 1.59 1.99 3.097 5.043 4.03-.704 3.113-.39 5.588.988 6.38.32.187.69.275 1.102.275 1.345 0 3.107-.96 4.888-2.624 1.78 1.654 3.542 2.603 4.887 2.603.41 0 .783-.09 1.106-.275 1.374-.792 1.683-3.263.973-6.365C22.02 15.096 24 13.59 24 12.004c0-1.59-1.99-3.097-5.043-4.032.704-3.11.39-5.587-.988-6.38-.318-.184-.688-.277-1.092-.278zm-.005 1.09v.006c.225 0 .406.044.558.127.666.382.955 1.835.73 3.704-.054.46-.142.945-.25 1.44-.96-.236-2.006-.417-3.107-.534-.66-.905-1.345-1.727-2.035-2.447 1.592-1.48 3.087-2.292 4.105-2.295zm-9.77.02c1.012 0 2.514.808 4.11 2.28-.686.72-1.37 1.537-2.02 2.442-1.107.117-2.154.298-3.113.538-.112-.49-.195-.964-.254-1.42-.23-1.868.054-3.32.714-3.707.19-.09.4-.127.563-.132zm4.882 3.05c.455.468.91.992 1.36 1.564-.44-.02-.89-.034-1.345-.034-.46 0-.915.01-1.36.034.44-.572.895-1.096 1.345-1.565zM12 8.1c.74 0 1.477.034 2.202.093.406.582.802 1.203 1.183 1.86.372.64.71 1.29 1.018 1.946-.308.655-.646 1.31-1.013 1.95-.38.66-.773 1.288-1.18 1.87-.728.063-1.466.098-2.21.098-.74 0-1.477-.035-2.202-.093-.406-.582-.802-1.204-1.183-1.86-.372-.64-.71-1.29-1.018-1.946.303-.657.646-1.313 1.013-1.954.38-.66.773-1.286 1.18-1.868.728-.064 1.466-.098 2.21-.098zm-3.635.254c-.24.377-.48.763-.704 1.16-.225.39-.435.782-.635 1.174-.265-.656-.49-1.31-.676-1.947.64-.15 1.315-.283 2.015-.386zm7.26 0c.695.103 1.365.23 2.006.387-.18.632-.405 1.282-.66 1.933-.2-.39-.41-.783-.64-1.174-.225-.392-.465-.774-.705-1.146zm3.063.675c.484.15.944.317 1.375.498 1.732.74 2.852 1.708 2.852 2.476-.005.768-1.125 1.74-2.857 2.475-.42.18-.88.342-1.355.493-.28-.958-.646-1.956-1.1-2.98.45-1.017.81-2.01 1.085-2.964zm-13.395.004c.278.96.645 1.957 1.1 2.98-.45 1.017-.812...
+                            </svg>
+                        </div>
+                        <span class="tech-name">React 19</span>
+                        <span class="tech-desc">Modern UI</span>
+                    </div>
+                    
+                    <div class="tech-card">
+                        <div class="tech-logo" style="color: #06B6D4;">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12.001 4.8c-3.2 0-5.2 1.6-6 4.8 1.2-1.6 2.6-2.2 4.2-1.8.913.228 1.565.89 2.288 1.624C13.666 10.618 15.027 12 18.001 12c3.2 0 5.2-1.6 6-4.8-1.2 1.6-2.6 2.2-4.2 1.8-.913-.228-1.565-.89-2.288-1.624C16.337 6.182 14.976 4.8 12.001 4.8zm-6 7.2c-3.2 0-5.2 1.6-6 4.8 1.2-1.6 2.6-2.2 4.2-1.8.913.228 1.565.89 2.288 1.624 1.177 1.194 2.538 2.576 5.512 2.576 3.2 0 5.2-1.6 6-4.8-1.2 1.6-2.6 2.2-4.2 1.8-.913-.228-1.565-.89-2.288-1.624C10.337 13.382 8.976 12 6.001 12z"/>
+                            </svg>
+                        </div>
+                        <span class="tech-name">Tailwind 4.0</span>
+                        <span class="tech-desc">Design System</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+                    
+                    <div class="tech-grid">
+                        <div class="tech-card">
+                            <div class="tech-logo">
+                                🌐
+                            </div>
+                            <span class="tech-name">Gemini 3</span>
+                            <span class="tech-desc">Advanced Reasoning</span>
+                        </div>
+                            <span class="tech-name">Gemini 3</span>
+                            <span class="tech-desc">Advanced Reasoning</span>
+                        </div>
+                        
+                        <div class="tech-card">
+                            <div class="tech-logo" style="color: #DEA584;">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M23.8346 11.7033l-3.0929-3.092a.851.851 0 00-.1078-.0838l-6.6606-4.3891a.8513.8513 0 00-.9472.0001L6.3654 8.5765a.8518.8518 0 00-.0557.0407l-3.1038 3.0864a.8513.8513 0 000 1.2038l3.0929 3.0929a.8518.8518 0 00.0838.0686l6.6606 4.5765a.8513.8513 0 00.9472 0l6.6606-4.5765a.8518.8518 0 00.0838-.0686l3.0929-3.0929a.8513.8513 0 000-1.2041zm-12.0858 7.501l-5.1922-3.5684 2.5014-2.4867 2.6908 2.6908zm.8512-4.6601L9.9077 11.852l2.6923-2.6777 2.6923 2.6777zm.8512 4.6601V14.632l2.6908-2.6908 2.5014 2.4867zm5.1922-3.5684l-2.5014-2.4867 2.5014-2.4867 2.5014 2.4867zM12 9.1742L9.3077 6.4965 12 3.8188l2.6923 2.6777zm-5.3846 2.678L4.1231 9.3655l2.4923-2.4777 2.6923 2.6777zm-2.4923 2.4867l2.4923 2.4867-2.4923 2.4867-2.4923-2.4867zm14.2615-2.4867l2.6923-2.6777 2.4923 2.4777-2.5014 2.4867z"/>
+                                </svg>
+                            </div>
+                            <span class="tech-name">Rust</span>
+                            <span class="tech-desc">Backend Engine</span>
+                        </div>
+                        
+                        <div class="tech-card">
+                            <div class="tech-logo" style="color: #FFC131;">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M21.8244 9.0167h-1.9239c-.0948-.3166-.2138-.6236-.3568-.9188l1.3614-1.3614a.764.764 0 000-1.0808l-2.5608-2.5607a.764.764 0 00-1.0808 0l-1.3614 1.3614a7.0757 7.0757 0 00-.9188-.3568V2.1757a.764.764 0 00-.764-.764h-3.6218a.764.764 0 00-.764.764v1.9239c-.3166.0948-.6236.2138-.9188.3568L7.5573 3.0951a.764.764 0 00-1.0808 0L3.9158 5.6558a.764.764 0 000 1.0808l1.3614 1.3614a7.0757 7.0757 0 00-.3568.9188H2.9965a.764.764 0 00-.764.764v3.6218a.764.764 0 00.764.764h1.9239c.0948.3166.2138.6236.3568.9188l-1.3614 1.3614a.764.764 0 000 1.0808l2.5607 2.5608a.764.764 0 001.0808 0l1.3614-1.3614c.2952.143.6022.262.9188.3568v1.9239a.764.764 0 00.764.764h3.6218a.764.764 0 00.764-.764v-1.9239c.3166-.0948.6236-.2138.9188-.3568l1.3614 1.3614a.764.764 0 001.0808 0l2.5608-2.5608a.764.764 0 000-1.0808l-1.3614-1.3614c.143-.2952.262-.6022.3568-.9188h1.9239a.764.764 0 00.764-.764v-3.6218a.764.764 0 00-.764-.764zM12 15.8433a3.8433 3.8433 0 110-7.6866 3.8433 3.8433 0 010 7.6866z"/>
+                                </svg>
+                            </div>
+                            <span class="tech-name">Tauri 2.0</span>
+                            <span class="tech-desc">Desktop Runtime</span>
+                        </div>
+                        
+                        <div class="tech-card">
+                            <div class="tech-logo" style="color: #61DAFB;">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M14.23 12.004a2.236 2.236 0 0 1-2.235 2.236 2.236 2.236 0 0 1-2.236-2.236 2.236 2.236 0 0 1 2.235-2.236 2.236 2.236 0 0 1 2.236 2.236zm2.648-10.69c-1.346 0-3.107.96-4.888 2.622-1.78-1.653-3.542-2.602-4.887-2.602-.41 0-.783.093-1.106.278-1.375.793-1.683 3.264-.973 6.365C1.98 8.917 0 10.42 0 12.004c0 1.59 1.99 3.097 5.043 4.03-.704 3.113-.39 5.588.988 6.38.32.187.69.275 1.102.275 1.345 0 3.107-.96 4.888-2.624 1.78 1.654 3.542 2.603 4.887 2.603.41 0 .783-.09 1.106-.275 1.374-.792 1.683-3.263.973-6.365C22.02 15.096 24 13.59 24 12.004c0-1.59-1.99-3.097-5.043-4.032.704-3.11.39-5.587-.988-6.38-.318-.184-.688-.277-1.092-.278zm-.005 1.09v.006c.225 0 .406.044.558.127.666.382.955 1.835.73 3.704-.054.46-.142.945-.25 1.44-.96-.236-2.006-.417-3.107-.534-.66-.905-1.345-1.727-2.035-2.447 1.592-1.48 3.087-2.292 4.105-2.295zm-9.77.02c1.012 0 2.514.808 4.11 2.28-.686.72-1.37 1.537-2.02 2.442-1.107.117-2.154.298-3.113.538-.112-.49-.195-.964-.254-1.42-.23-1.868.054-3.32.714-3.707.19-.09.4-.127.563-.132zm4.882 3.05c.455.468.91.992 1.36 1.564-.44-.02-.89-.034-1.345-.034-.46 0-.915.01-1.36.034.44-.572.895-1.096 1.345-1.565zM12 8.1c.74 0 1.477.034 2.202.093.406.582.802 1.203 1.183 1.86.372.64.71 1.29 1.018 1.946-.308.655-.646 1.31-1.013 1.95-.38.66-.773 1.288-1.18 1.87-.728.063-1.466.098-2.21.098-.74 0-1.477-.035-2.202-.093-.406-.582-.802-1.204-1.183-1.86-.372-.64-.71-1.29-1.018-1.946.303-.657.646-1.313 1.013-1.954.38-.66.773-1.286 1.18-1.868.728-.064 1.466-.098 2.21-.098zm-3.635.254c-.24.377-.48.763-.704 1.16-.225.39-.435.782-.635 1.174-.265-.656-.49-1.31-.676-1.947.64-.15 1.315-.283 2.015-.386zm7.26 0c.695.103 1.365.23 2.006.387-.18.632-.405 1.282-.66 1.933-.2-.39-.41-.783-.64-1.174-.225-.392-.465-.774-.705-1.146zm3.063.675c.484.15.944.317 1.375.498 1.732.74 2.852 1.708 2.852 2.476-.005.768-1.125 1.74-2.857 2.475-.42.18-.88.342-1.355.493-.28-.958-.646-1.956-1.1-2.98.45-1.017.81-2.01 1.085-2.964zm-13.395.004c.278.96.645 1.957 1.1 2.98-.45 1.017-.812...
+                            </svg>
+                        </div>
+                        <span class="tech-name">React 19</span>
+                        <span class="tech-desc">Modern UI</span>
+                    </div>
+                    
+                    <div class="tech-card">
+                        <div class="tech-logo" style="color: #06B6D4;">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12.001 4.8c-3.2 0-5.2 1.6-6 4.8 1.2-1.6 2.6-2.2 4.2-1.8.913.228 1.565.89 2.288 1.624C13.666 10.618 15.027 12 18.001 12c3.2 0 5.2-1.6 6-4.8-1.2 1.6-2.6 2.2-4.2 1.8-.913-.228-1.565-.89-2.288-1.624C16.337 6.182 14.976 4.8 12.001 4.8zm-6 7.2c-3.2 0-5.2 1.6-6 4.8 1.2-1.6 2.6-2.2 4.2-1.8.913.228 1.565.89 2.288 1.624 1.177 1.194 2.538 2.576 5.512 2.576 3.2 0 5.2-1.6 6-4.8-1.2 1.6-2.6 2.2-4.2 1.8-.913-.228-1.565-.89-2.288-1.624C10.337 13.382 8.976 12 6.001 12z"/>
+                            </svg>
+                        </div>
+                        <span class="tech-name">Tailwind 4.0</span>
+                        <span class="tech-desc">Design System</span>
+                    </div>
+                </div>
+            </div>
+        </section>
                         <span class="tech-name">React</span>
                         <span class="tech-desc">UI Framework</span>
                     </div>
@@ -319,7 +455,7 @@
                 </div>
                 
                 <div class="download-grid">
-                    <a href="https://github.com/tristo-bit/Skhoot/releases/latest/download/Skhoot_x64.msi" class="download-card">
+                    <a href="https://github.com/tristo-bit/skhoot/releases/latest/download/Skhoot_x64.msi" class="download-card">
                         <div class="download-icon">
                             <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
                                 <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>

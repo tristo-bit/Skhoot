@@ -90,93 +90,136 @@ document.querySelectorAll('.feature-card, .tech-item, .download-card').forEach(e
     animateOnScroll.observe(el);
 });
 
-// ===== Typing Animation for Chat Demo =====
-function typeWriter(element, text, speed = 30) {
-    let i = 0;
-    element.textContent = '';
+// ===== Simulated Agent Demo =====
+const demoChat = document.getElementById('demo-chat');
+
+const demoScenario = [
+    { 
+        type: 'user', 
+        content: 'I need to prepare a summary of our Rust backend architecture. Can you find the main project files and check if the tests are passing?' 
+    },
+    {
+        type: 'agent-status',
+        content: 'Analyzing project structure...'
+    },
+    {
+        type: 'tool',
+        name: 'list_directory',
+        icon: '📂',
+        color: 'blue',
+        args: 'path: "backend/src"',
+        output: 'Found: main.rs, lib.rs, search_engine/, cli_agent/, api/'
+    },
+    {
+        type: 'agent-status',
+        content: 'Searching for architectural docs...'
+    },
+    {
+        type: 'tool',
+        name: 'search_files',
+        icon: '🔍',
+        color: 'purple',
+        args: 'pattern: "ARCHITECTURE.md"',
+        output: 'Result: Found 1 match at ./ARCHITECTURE.md'
+    },
+    {
+        type: 'agent-status',
+        content: 'Running backend tests...'
+    },
+    {
+        type: 'tool',
+        name: 'shell',
+        icon: '⌨️',
+        color: 'green',
+        args: 'command: "cargo test"',
+        output: 'Finished: 42 passed, 0 failed, 0 ignored'
+    },
+    {
+        type: 'assistant',
+        content: 'I\'ve analyzed your backend. The core logic resides in `backend/src`, and I found a detailed `ARCHITECTURE.md`. Good news: all 42 tests are passing successfully! Would you like me to extract the key components from the docs for your summary?'
+    }
+];
+
+let scenarioIndex = 0;
+let isAnimating = false;
+
+function addMessage(type, data) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message message-${type}`;
     
-    function type() {
-        if (i < text.length) {
-            element.textContent += text.charAt(i);
-            i++;
-            setTimeout(type, speed);
-        }
+    if (type === 'tool') {
+        messageDiv.innerHTML = `
+            <div class="tool-call">
+                <div class="tool-header">
+                    <span class="tool-icon ${data.color}">${data.icon}</span>
+                    <span class="tool-name">${data.name}</span>
+                    <span class="tool-status">success</span>
+                </div>
+                <div class="tool-content">
+                    <code>${data.args}</code>
+                    <div class="tool-output">${data.output}</div>
+                </div>
+            </div>
+        `;
+    } else if (type === 'agent-status') {
+        messageDiv.className = 'chat-message message-assistant';
+        messageDiv.innerHTML = `
+            <div class="agent-badge" style="background: none; padding-left: 0;">
+                <span class="agent-dot"></span>
+                <span style="font-size: 0.8rem; color: #a0a0a0;">${data.content}</span>
+            </div>
+        `;
+    } else {
+        messageDiv.innerHTML = `
+            <div class="message-bubble">${data.content}</div>
+        `;
     }
     
-    type();
+    demoChat.appendChild(messageDiv);
+    demoChat.scrollTop = demoChat.scrollHeight;
 }
 
-// Initialize chat demo animation when visible
-const chatDemo = document.querySelector('.chat-demo');
-if (chatDemo) {
-    const chatObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                // Messages are already animated via CSS
-                chatObserver.unobserve(entry.target);
-            }
-        });
-    }, { threshold: 0.5 });
+async function runScenario() {
+    if (isAnimating) return;
+    isAnimating = true;
     
-    chatObserver.observe(chatDemo);
-}
-
-// ===== Detect OS for Download Highlight =====
-function detectOS() {
-    const userAgent = navigator.userAgent.toLowerCase();
-    const platform = navigator.platform?.toLowerCase() || '';
+    demoChat.innerHTML = '';
+    scenarioIndex = 0;
     
-    if (userAgent.includes('win') || platform.includes('win')) return 'windows';
-    if (userAgent.includes('mac') || platform.includes('mac')) return 'macos';
-    if (userAgent.includes('linux') || platform.includes('linux')) return 'linux';
-    
-    return null;
-}
-
-// Highlight the appropriate download card and set as recommended
-const os = detectOS();
-if (os) {
-    const downloadCards = document.querySelectorAll('.download-card');
-    downloadCards.forEach(card => {
-        const platform = card.querySelector('.download-platform').textContent.toLowerCase();
-        const isMatch = platform === os || (platform === 'macos' && os === 'macos');
+    while (scenarioIndex < demoScenario.length) {
+        const item = demoScenario[scenarioIndex];
         
-        // Remove featured class and badge from all cards first
-        card.classList.remove('featured');
-        const existingBadge = card.querySelector('.download-badge');
-        if (existingBadge) existingBadge.remove();
+        // Dynamic delays
+        let delay = 1500;
+        if (item.type === 'user') delay = 500;
+        if (item.type === 'tool') delay = 2000;
+        if (item.type === 'agent-status') delay = 1000;
         
-        if (isMatch) {
-            // Add featured styling to the matching OS
-            card.classList.add('featured');
-            
-            // Add recommended badge
-            const badge = document.createElement('div');
-            badge.className = 'download-badge';
-            badge.textContent = 'Recommended';
-            card.insertBefore(badge, card.firstChild);
-        }
-    });
+        await new Promise(r => setTimeout(r, delay));
+        addMessage(item.type, item);
+        
+        scenarioIndex++;
+    }
+    
+    // Reset after a long pause
+    await new Promise(r => setTimeout(r, 10000));
+    isAnimating = false;
+    runScenario();
 }
 
-// ===== Set dark mode on app preview iframe =====
-const appPreview = document.getElementById('app-preview');
-if (appPreview) {
-    appPreview.addEventListener('load', () => {
-        try {
-            // Force dark mode in the iframe
-            const iframeDoc = appPreview.contentDocument || appPreview.contentWindow.document;
-            if (iframeDoc) {
-                iframeDoc.documentElement.classList.add('dark');
-            }
-        } catch (e) {
-            // Cross-origin restrictions may prevent this
-            console.log('Could not set dark mode on iframe:', e);
-        }
-    });
+// Start demo when in view
+const demoObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) {
+        runScenario();
+        demoObserver.disconnect();
+    }
+}, { threshold: 0.2 });
+
+if (demoChat) {
+    demoObserver.observe(demoChat);
 }
 
-// ===== Console Easter Egg =====
+// ===== Header Scroll Effect =====
 console.log('%c🚀 Skhoot', 'font-size: 24px; font-weight: bold; color: #c0b7c9;');
 console.log('%cYour intelligent desktop AI assistant', 'font-size: 14px; color: #636E72;');
-console.log('%cCheck out the source: https://github.com/USER/skhoot', 'font-size: 12px; color: #a0a0a0;');
+console.log('%cCheck out the source: https://github.com/tristo-bit/skhoot', 'font-size: 12px; color: #a0a0a0;');
