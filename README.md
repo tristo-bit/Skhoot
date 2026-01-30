@@ -107,6 +107,10 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 - **Interactive Results**: Click files to open, navigate folders visually, copy code with one click
 - **Session Management**: Agent sessions tied to conversations with proper lifecycle management
 - **Event-Driven Architecture**: Real-time updates via Tauri events (tool_start, tool_complete, message, cancelled)
+- **Enhanced Communication**: Agents always provide natural language summaries after tool execution
+  - Never returns empty responses - explains results in context
+  - Adds interpretation and insights beyond raw tool output
+  - Conversational explanations make technical operations accessible
 
 **Why This Matters**: See what your agent is doing in real-time with visual feedback. No more scrolling through terminal text - interact with results directly. Full transparency into agent decision-making and tool execution.
 
