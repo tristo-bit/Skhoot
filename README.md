@@ -216,6 +216,12 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
   - **Agent Mode Support**: Full vision capabilities in agent mode with tool calling
   - **Optimized Loading**: Desktop app uses native Tauri file API for faster image loading, web version uses backend endpoint
   - **Image Display**: Attached images shown as thumbnails in message bubbles with full-size preview on click
+- **File Attachment Management**: Streamlined file attachment workflow with smart panel management
+  - Click "+" button to open file attachment modal
+  - Automatically closes all floating panels (File Explorer, Terminal, Workflows, Agents) when opening attachment modal to prevent UI overlap
+  - Clean, focused interface for selecting and managing file attachments
+  - File chips display attached files with one-click removal
+  - Multi-file support with compact chip display
 - **Message Queue System**: Queue new messages while AI is processing
   - Visual queued message indicator appears when typing during AI response
   - Options to send immediately (interrupts current response) or wait for completion
@@ -1572,7 +1578,7 @@ skhootDemo.showMarkdown()   // Demo markdown rendering
   - `find-message-chat`: Finds chat containing a specific message
   - `close-activity-panel`: Closes activity panel programmatically
 - **Panel Management**: Intelligent panel state management with mutual exclusivity
-  - Opening one panel automatically closes conflicting panels
+  - Opening one panel automatically closes conflicting panels (Terminal, File Explorer, Workflows, Activity)
   - Prevents UI clutter with smart panel switching
   - Maintains clean workspace with focused panel display
 

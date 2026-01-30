@@ -41,6 +41,7 @@ interface PromptAreaProps {
   onToggleTerminal?: () => void;
   onToolCallSelected?: (tool: ToolDefinition) => void;
   waitingForInput?: boolean;
+  onCloseAllPanels?: () => void;
 }
 
 export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(({
@@ -62,6 +63,7 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
   onToggleTerminal,
   onToolCallSelected,
   waitingForInput = false,
+  onCloseAllPanels,
 }, ref) => {
   const { resolvedTheme } = useTheme();
   const { illumination } = useSettings();
@@ -398,8 +400,10 @@ export const PromptArea = memo(forwardRef<HTMLTextAreaElement, PromptAreaProps>(
   
   // Handle + button click
   const handleAddFileClick = useCallback(() => {
+    // Close all panels when opening file attachment modal
+    onCloseAllPanels?.();
     setIsFileModalOpen(true);
-  }, []);
+  }, [onCloseAllPanels]);
   
   // Show Opera notification briefly when component mounts (skip in demo mode)
   useEffect(() => {
