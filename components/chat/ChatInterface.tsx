@@ -1066,6 +1066,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setQueuedMessage(newText);
   }, []);
 
+  // Handle closing all panels (for file attachment modal)
+  const handleCloseAllPanels = useCallback(() => {
+    // Close all panels if they're open
+    if (isFileExplorerOpen) onToggleFileExplorer?.();
+    if (isTerminalOpen) onToggleTerminal?.();
+    if (isWorkflowsOpen) onToggleWorkflows?.();
+    if (isAgentsOpen) onToggleAgents?.();
+  }, [isFileExplorerOpen, isTerminalOpen, isWorkflowsOpen, isAgentsOpen, onToggleFileExplorer, onToggleTerminal, onToggleWorkflows, onToggleAgents]);
+
   const handleSend = useCallback(async () => {
     const messageText = voiceTranscript.trim() || input.trim();
     
@@ -2110,6 +2119,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onToggleTerminal={onToggleTerminal}
         onToolCallSelected={handleToolCallSelected}
         waitingForInput={!!waitingForInput}
+        onCloseAllPanels={handleCloseAllPanels}
       />
     </div>
   );

@@ -166,6 +166,8 @@ const AppContent: React.FC = () => {
         // Close other panels when opening terminal
         setIsFileExplorerOpen(false);
         setIsWorkflowsOpen(false);
+        setIsActivityOpen(false);
+        setIsAgentsOpen(false);
       }
     };
 
@@ -174,6 +176,8 @@ const AppContent: React.FC = () => {
       setIsTerminalOpen(true);
       setIsFileExplorerOpen(false);
       setIsWorkflowsOpen(false);
+      setIsActivityOpen(false);
+      setIsAgentsOpen(false);
     };
 
     // Listen for navigate-to-message event (from ActivityPanel)
@@ -373,6 +377,8 @@ const AppContent: React.FC = () => {
         // Opening terminal, close other panels
         setIsFileExplorerOpen(false);
         setIsWorkflowsOpen(false);
+        setIsActivityOpen(false);
+        setIsAgentsOpen(false);
       }
       return !open;
     });
@@ -384,6 +390,8 @@ const AppContent: React.FC = () => {
         // Opening file explorer, close other panels
         setIsTerminalOpen(false);
         setIsWorkflowsOpen(false);
+        setIsActivityOpen(false);
+        setIsAgentsOpen(false);
       }
       return !open;
     });
@@ -396,6 +404,7 @@ const AppContent: React.FC = () => {
         setIsTerminalOpen(false);
         setIsFileExplorerOpen(false);
         setIsAgentsOpen(false);
+        setIsActivityOpen(false);
       }
       return !open;
     });
@@ -408,6 +417,7 @@ const AppContent: React.FC = () => {
         setIsTerminalOpen(false);
         setIsFileExplorerOpen(false);
         setIsWorkflowsOpen(false);
+        setIsActivityOpen(false);
       }
       return !open;
     });
@@ -425,21 +435,25 @@ const AppContent: React.FC = () => {
       setIsTerminalOpen(false);
       setIsWorkflowsOpen(false);
       setIsAgentsOpen(false);
+      setIsActivityOpen(false);
       setIsFileExplorerOpen(true);
     } else if (mode === 'Agents') {
       setIsTerminalOpen(false);
       setIsFileExplorerOpen(false);
       setIsWorkflowsOpen(false);
+      setIsActivityOpen(false);
       setIsAgentsOpen(true);
     } else if (mode === 'Workflows') {
       setIsTerminalOpen(false);
       setIsFileExplorerOpen(false);
       setIsAgentsOpen(false);
+      setIsActivityOpen(false);
       setIsWorkflowsOpen(true);
     } else if (mode === 'Terminal') {
       setIsFileExplorerOpen(false);
       setIsWorkflowsOpen(false);
       setIsAgentsOpen(false);
+      setIsActivityOpen(false);
       setIsTerminalOpen(true);
     } else {
       // If mode is null, close all panels
@@ -447,6 +461,7 @@ const AppContent: React.FC = () => {
       setIsFileExplorerOpen(false);
       setIsWorkflowsOpen(false);
       setIsAgentsOpen(false);
+      setIsActivityOpen(false);
     }
   }, []);
 
