@@ -61,6 +61,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [searchType, setSearchType] = useState<'files' | 'messages' | 'disk' | 'cleanup' | null>(null);
+  const [currentToolName, setCurrentToolName] = useState<string | null>(null); // NEW: Track current tool
   const [searchStatus, setSearchStatus] = useState<string>('');
   const [activeMode, setActiveMode] = useState<string | null>(null);
   const [turnCount, setTurnCount] = useState(0);
@@ -1293,6 +1294,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onToolStart: (toolCall) => {
               // Cast to AgentToolCallData - the name will be validated at runtime
               toolCalls.push(toolCall as AgentToolCallData);
+              setCurrentToolName(toolCall.name); // Track current tool
               setSearchStatus(`Executing ${toolCall.name}...`);
               
               // Emit event for Agent Log
@@ -1307,6 +1309,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 thought_signature: (toolCalls.find(tc => tc.id === result.toolCallId) as any)?.thought_signature
               };
               toolResults.push(resultWithSignature);
+              setCurrentToolName(null); // Clear current tool
               setSearchStatus(result.success ? 'Tool completed' : 'Tool failed');
               
               // Emit event for Agent Log
@@ -1829,6 +1832,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onToolStart: (toolCall) => {
               // Cast to AgentToolCallData - the name will be validated at runtime
               toolCalls.push(toolCall as AgentToolCallData);
+              setCurrentToolName(toolCall.name); // Track current tool
               setSearchStatus(`Executing ${toolCall.name}...`);
               
               // Emit event for Agent Log
@@ -1843,6 +1847,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 thought_signature: (toolCalls.find(tc => tc.id === result.toolCallId) as any)?.thought_signature
               };
               toolResults.push(resultWithSignature);
+              setCurrentToolName(null); // Clear current tool
               setSearchStatus(result.success ? 'Tool completed' : 'Tool failed');
               
               // Emit event for Agent Log
@@ -2016,6 +2021,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         isLoading={isLoading}
         sessionId={getEffectiveChatId()}
         searchType={searchType}
+        currentToolName={currentToolName} // NEW: Pass current tool name
         searchStatus={searchStatus}
         isRecording={isRecording}
         hasPendingVoiceMessage={hasPendingVoiceMessage}

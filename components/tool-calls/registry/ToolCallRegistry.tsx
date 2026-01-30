@@ -35,6 +35,15 @@ import { InvokeAgentUI } from '../agent-operations/InvokeAgentUI';
 import { ListAgentsUI } from '../agent-operations/ListAgentsUI';
 import { CreateAgentUI } from '../agent-operations/CreateAgentUI';
 
+// Import Framer Motion Loading Animations
+import { 
+  FileOperationsLoading,
+  CommandExecutionLoading,
+  SearchDiscoveryLoading,
+  WebAccessLoading,
+  AgentOperationsLoading
+} from '../shared/LoadingAnimations';
+
 // ============================================================================
 // Registry Implementation
 // ============================================================================
@@ -81,15 +90,9 @@ toolCallRegistry.register({
   category: 'file',
   icon: FolderOpen,
   component: ListDirectoryUI,
-  loadingComponent: ListDirectoryLoadingUI,  // Custom loading UI
+  loadingComponent: SearchDiscoveryLoading,
   supportedLayouts: ['compact', 'expanded', 'grid'],
   description: 'List contents of a directory with file types and sizes',
-  animations: {
-    enter: 'animate-in fade-in slide-in-from-bottom-2 duration-400',
-  },
-  styling: {
-    cardClassName: 'hover:scale-[1.01] transition-transform',
-  },
 });
 
 toolCallRegistry.register({
@@ -98,6 +101,7 @@ toolCallRegistry.register({
   category: 'file',
   icon: Search,
   component: SearchFilesUI,
+  loadingComponent: SearchDiscoveryLoading,
   supportedLayouts: ['compact', 'expanded', 'grid'],
   description: 'Search for files by name pattern or content',
 });
@@ -108,6 +112,7 @@ toolCallRegistry.register({
   category: 'file',
   icon: FileText,
   component: ReadFileUI,
+  loadingComponent: FileOperationsLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Read the contents of a file',
 });
@@ -118,6 +123,7 @@ toolCallRegistry.register({
   category: 'file',
   icon: FileText,
   component: WriteFileUI,
+  loadingComponent: FileOperationsLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Write content to a file',
 });
@@ -129,6 +135,7 @@ toolCallRegistry.register({
   category: 'shell',
   icon: Terminal,
   component: ShellCommandUI,
+  loadingComponent: CommandExecutionLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Execute a shell command and return its output',
 });
@@ -139,6 +146,7 @@ toolCallRegistry.register({
   category: 'shell',
   icon: Terminal,
   component: TerminalUI,
+  loadingComponent: CommandExecutionLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Execute a command in a terminal session',
 });
@@ -149,6 +157,7 @@ toolCallRegistry.register({
   category: 'shell',
   icon: Terminal,
   component: TerminalUI,
+  loadingComponent: CommandExecutionLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Create a new terminal session',
 });
@@ -159,6 +168,7 @@ toolCallRegistry.register({
   category: 'shell',
   icon: Terminal,
   component: TerminalUI,
+  loadingComponent: CommandExecutionLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Read output from a terminal session',
 });
@@ -169,6 +179,7 @@ toolCallRegistry.register({
   category: 'shell',
   icon: Terminal,
   component: TerminalUI,
+  loadingComponent: CommandExecutionLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'List all active terminal sessions',
 });
@@ -179,6 +190,7 @@ toolCallRegistry.register({
   category: 'shell',
   icon: Terminal,
   component: TerminalUI,
+  loadingComponent: CommandExecutionLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Get detailed state information about a terminal session',
 });
@@ -190,14 +202,10 @@ toolCallRegistry.register({
   category: 'web',
   icon: Globe,
   component: WebSearchUI,
-  loadingComponent: WebSearchLoadingUI,      // Custom loading UI
-  customWrapper: WebSearchCustomWrapper,      // Custom card wrapper
+  loadingComponent: WebAccessLoading,
+  customWrapper: WebSearchCustomWrapper,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Search the web for current information',
-  animations: {
-    enter: 'animate-in fade-in slide-in-from-left duration-500',
-    loading: 'animate-pulse',
-  },
 });
 
 // Agent Operations
@@ -207,6 +215,7 @@ toolCallRegistry.register({
   category: 'agent',
   icon: Bot,
   component: InvokeAgentUI,
+  loadingComponent: AgentOperationsLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Invoke a specialized agent to handle a task',
 });
@@ -217,6 +226,7 @@ toolCallRegistry.register({
   category: 'agent',
   icon: Users,
   component: ListAgentsUI,
+  loadingComponent: AgentOperationsLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'List all available agents',
 });
@@ -227,6 +237,7 @@ toolCallRegistry.register({
   category: 'agent',
   icon: Workflow,
   component: CreateAgentUI,
+  loadingComponent: AgentOperationsLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Create a new agent with specified capabilities',
 });
@@ -238,6 +249,7 @@ toolCallRegistry.register({
   category: 'other',
   icon: Bookmark,
   component: MessageSearchUI,
+  loadingComponent: SearchDiscoveryLoading,
   supportedLayouts: ['compact', 'expanded'],
   description: 'Search bookmarked messages',
 });
