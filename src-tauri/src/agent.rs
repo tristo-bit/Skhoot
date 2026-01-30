@@ -145,6 +145,13 @@ pub async fn create_agent_session(
     let opts = options.unwrap_or_default();
     let now = current_timestamp();
 
+    // Use a safe working directory: options > user home > current process dir
+    let working_directory = opts.working_directory
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            dirs::home_dir().unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+        });
+
     // Create persistent terminal session immediately (Codex-Main approach)
     // This ensures consistent behavior and avoids lazy-init context traps
     let terminal_config = skhoot_backend::SessionConfig {
@@ -157,6 +164,7 @@ pub async fn create_agent_session(
                 "/bin/sh".to_string()
             }
         },
+        cwd: Some(working_directory.clone()),
         cols: 80,
         rows: 24,
         env: vec![("TERM".to_string(), "xterm-256color".to_string())],
@@ -171,9 +179,7 @@ pub async fn create_agent_session(
         id: session_id.clone(),
         provider: opts.provider.unwrap_or_else(|| "google".to_string()),
         model: opts.model.unwrap_or_else(|| "gemini-2.0-flash".to_string()),
-        working_directory: opts.working_directory
-            .map(PathBuf::from)
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
+        working_directory,
         temperature: opts.temperature.unwrap_or(0.7),
         max_tokens: opts.max_tokens.unwrap_or(4096),
         messages: Vec::new(),
@@ -296,6 +302,7 @@ pub async fn execute_agent_tool(
                         "/bin/sh".to_string()
                     }
                 },
+                cwd: Some(session.working_directory.clone()),
                 cols: 80,
                 rows: 24,
                 env: vec![("TERM".to_string(), "xterm-256color".to_string())],

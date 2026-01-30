@@ -3,6 +3,7 @@
 use portable_pty::{native_pty_system, CommandBuilder, PtySize, Child};
 use std::io::{Read, Write};
 use std::sync::Arc;
+use std::path::PathBuf;
 use tokio::sync::{Mutex, mpsc};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
@@ -12,6 +13,7 @@ use chrono::{DateTime, Utc};
 #[derive(Debug, Clone)]
 pub struct SessionConfig {
     pub shell: String,
+    pub cwd: Option<PathBuf>,
     pub cols: u16,
     pub rows: u16,
     pub env: Vec<(String, String)>,
@@ -32,11 +34,14 @@ impl Default for SessionConfig {
 
         Self {
             shell,
+            cwd: None,
             cols: 80,
             rows: 24,
             env: vec![
                 ("PS1".to_string(), "$ ".to_string()),  // Simple prompt
                 ("TERM".to_string(), "xterm-256color".to_string()), // More standard than 'dumb'
+                // Force UTF-8 encoding in PowerShell to prevent issues with special characters in prod
+                ("PYTHONIOENCODING".to_string(), "utf-8".to_string()),
             ],
         }
     }
@@ -75,6 +80,18 @@ impl TerminalSession {
             .map_err(|e| format!("Failed to open PTY: {}", e))?;
         
         let mut cmd = CommandBuilder::new(&config.shell);
+        
+        // Set working directory if provided
+        if let Some(ref cwd) = config.cwd {
+            cmd.cwd(cwd);
+        }
+        
+        // On Windows, use -NoLogo -NoProfile -ExecutionPolicy Bypass for powershell
+        // This ensures a clean, fast startup and prevents policy blocks in prod
+        if cfg!(target_os = "windows") && config.shell.contains("powershell.exe") {
+            cmd.args(&["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass"]);
+        }
+
         // Add --norc --noprofile to skip user's bashrc (avoids fancy prompts)
         if config.shell.contains("bash") {
             cmd.args(&["--norc", "--noprofile"]);

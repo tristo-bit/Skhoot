@@ -12,6 +12,7 @@ tauri-plugin-notification = "2"
 tauri-plugin-fs = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+dirs = "6.0.0"
 tokio = { version = "1", features = ["time", "sync"] }
 skhoot-backend = { path = "../backend" }
 portable-pty = "0.8"

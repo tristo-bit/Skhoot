@@ -86,6 +86,7 @@ async fn create_session(
         }),
         cols: req.cols.unwrap_or(80),
         rows: req.rows.unwrap_or(24),
+        cwd: None,
         env: vec![],
     };
     

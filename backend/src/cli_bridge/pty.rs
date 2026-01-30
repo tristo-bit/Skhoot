@@ -66,6 +66,11 @@ impl PtySession {
         let mut command = CommandBuilder::new(cmd);
         command.args(args);
         
+        // On Windows, use -NoLogo -NoProfile -ExecutionPolicy Bypass for powershell
+        if cfg!(target_os = "windows") && cmd.contains("powershell.exe") {
+            command.args(&["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass"]);
+        }
+
         if let Some(dir) = cwd {
             command.cwd(dir);
         }
