@@ -139,7 +139,7 @@ export const CORE_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'web_search',
-    description: `Search the web with adaptive depth control. The depth parameter (0-10) controls how thoroughly the search investigates.`,
+    description: `Search the web with adaptive depth control. The search returns both textual results and relevant images. Use this for general knowledge, news, or when you need to find visual representations of things.`,
     parameters: {
       type: 'object',
       properties: {

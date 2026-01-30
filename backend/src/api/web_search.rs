@@ -137,12 +137,21 @@ pub async fn web_search(
     // Also search for images (up to 6 for display)
     let images = match search_duckduckgo_images(&params.q, 6).await {
         Ok(imgs) => {
-            tracing::info!("Found {} images", imgs.len());
+            tracing::info!("Found {} images via DuckDuckGo", imgs.len());
             if imgs.is_empty() { None } else { Some(imgs) }
         }
         Err(e) => {
-            tracing::debug!("Image search failed: {}", e);
-            None
+            tracing::warn!("DuckDuckGo image search failed: {}. Falling back to SearXNG...", e);
+            match search_searxng_images_fallback(&params.q, 6).await {
+                Ok(imgs) => {
+                    tracing::info!("Found {} images via SearXNG fallback", imgs.len());
+                    if imgs.is_empty() { None } else { Some(imgs) }
+                }
+                Err(se) => {
+                    tracing::error!("All image search sources failed. Last error: {}", se);
+                    None
+                }
+            }
         }
     };
     
@@ -530,28 +539,155 @@ fn parse_searxng_results(data: &serde_json::Value, num_results: usize) -> Result
     Ok(results)
 }
 
+/// Fallback to public SearXNG instances for images
+async fn search_searxng_images_fallback(query: &str, num_results: usize) -> Result<Vec<ImageResult>, AppError> {
+    let instances = [
+        "https://search.inetol.net",
+        "https://searx.fmac.xyz",
+        "https://search.ononoki.org",
+        "https://searx.be",
+        "https://searx.tiekoetter.com",
+        "https://search.sapti.me",
+        "https://paulgo.io",
+        "https://searx.work",
+    ];
+    
+    let mut last_error = None;
+    
+    for instance in instances.iter() {
+        match search_searxng_images_instance(instance, query, num_results).await {
+            Ok(results) => return Ok(results),
+            Err(e) => {
+                tracing::debug!("SearXNG image instance {} failed: {}", instance, e);
+                last_error = Some(e);
+                continue;
+            }
+        }
+    }
+    
+    Err(last_error.unwrap_or_else(|| 
+        AppError::Internal("All SearXNG image instances failed".to_string())
+    ))
+}
+
+/// Query a specific SearXNG instance for images
+async fn search_searxng_images_instance(
+    instance: &str,
+    query: &str,
+    num_results: usize,
+) -> Result<Vec<ImageResult>, AppError> {
+    let url = format!(
+        "{}/search?q={}&format=json&categories=images",
+        instance,
+        urlencoding::encode(query)
+    );
+    
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| AppError::Internal(format!("Failed to create HTTP client: {}", e)))?;
+    
+    let response = client
+        .get(&url)
+        .header("User-Agent", "Skhoot/0.1.3 (Desktop App)")
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(format!("SearXNG image request failed: {}", e)))?;
+    
+    if !response.status().is_success() {
+        return Err(AppError::Internal(format!(
+            "SearXNG returned status: {}",
+            response.status()
+        )));
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to parse SearXNG image response: {}", e)))?;
+    
+    parse_searxng_image_results(&data, num_results)
+}
+
+/// Parse SearXNG JSON response for images
+fn parse_searxng_image_results(data: &serde_json::Value, num_results: usize) -> Result<Vec<ImageResult>, AppError> {
+    let results_array = data["results"]
+        .as_array()
+        .ok_or_else(|| AppError::Internal("No results array in SearXNG response".to_string()))?;
+    
+    let mut images = Vec::new();
+    
+    for result in results_array.iter().take(num_results) {
+        let image_url = result["img_src"]
+            .as_str()
+            .or_else(|| result["url"].as_str())
+            .unwrap_or("")
+            .to_string();
+        
+        let thumbnail_url = result["thumbnail_src"]
+            .as_str()
+            .or_else(|| result["thumbnail"].as_str())
+            .map(|s| s.to_string());
+        
+        let title = result["title"]
+            .as_str()
+            .map(|s| s.to_string());
+        
+        let source_url = result["url"]
+            .as_str()
+            .map(|s| s.to_string());
+        
+        if !image_url.is_empty() {
+            images.push(ImageResult {
+                url: image_url,
+                thumbnail_url,
+                title,
+                source_url,
+            });
+        }
+    }
+    
+    if images.is_empty() {
+        return Err(AppError::Internal("No valid images found in SearXNG response".to_string()));
+    }
+    
+    Ok(images)
+}
+
 // ============================================================================
 // DuckDuckGo Image Search Implementation
 // ============================================================================
 
 /// Search DuckDuckGo for images
 async fn search_duckduckgo_images(query: &str, num_results: usize) -> Result<Vec<ImageResult>, AppError> {
+    // 1. Get the VQD token (required for i.js endpoint)
+    let vqd = match get_duckduckgo_vqd(query).await {
+        Ok(token) => token,
+        Err(e) => {
+            tracing::warn!("Failed to get DuckDuckGo VQD: {}", e);
+            return Err(e);
+        }
+    };
+
     let url = format!(
-        "https://duckduckgo.com/i.js?q={}&o=json&p=1&s=0&u=bing&f=,,,&l=us-en",
-        urlencoding::encode(query)
+        "https://duckduckgo.com/i.js?q={}&o=json&p=1&s=0&u=bing&f=,,,&l=us-en&vqd={}",
+        urlencoding::encode(query),
+        vqd
     );
     
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(15))
         .build()
         .map_err(|e| AppError::Internal(format!("Failed to create HTTP client: {}", e)))?;
     
-    tracing::debug!("Sending DuckDuckGo image search request for: {}", query);
+    tracing::debug!("Sending DuckDuckGo image search request for: {} (vqd: {})", query, vqd);
     
     let response = client
         .get(&url)
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .header("Referer", "https://duckduckgo.com/")
+        .header("Accept", "application/json, text/javascript, */*; q=0.01")
         .send()
         .await
         .map_err(|e| AppError::Internal(format!("DuckDuckGo image request failed: {}", e)))?;
@@ -569,6 +705,35 @@ async fn search_duckduckgo_images(query: &str, num_results: usize) -> Result<Vec
         .map_err(|e| AppError::Internal(format!("Failed to parse DuckDuckGo image response: {}", e)))?;
     
     parse_duckduckgo_images(&data, num_results)
+}
+
+/// Get the required VQD token from DuckDuckGo
+async fn get_duckduckgo_vqd(query: &str) -> Result<String, AppError> {
+    let url = format!("https://duckduckgo.com/?q={}", urlencoding::encode(query));
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .build()
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let resp = client.get(&url).send().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    let body = resp.text().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    
+    // Heuristic: Extract vqd token from JS source in HTML
+    for pattern in ["vqd='", "vqd=\""] {
+        if let Some(start) = body.find(pattern) {
+            let rest = &body[start + 5..];
+            let end_char = if pattern.contains("'") { "'" } else { "\"" };
+            if let Some(end) = rest.find(end_char) {
+                let token = rest[..end].to_string();
+                if !token.is_empty() {
+                    return Ok(token);
+                }
+            }
+        }
+    }
+    
+    Err(AppError::Internal("Could not find DuckDuckGo vqd token".to_string()))
 }
 
 /// Parse DuckDuckGo image JSON response

@@ -567,7 +567,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     };
 
     const handleWorkflowStepNext = (event: CustomEvent) => {
-      const { executionId, currentStep, context, previousResult, workflow } = event.detail;
+      const { executionId, currentStep, context, previousResult, workflow, displayImages } = event.detail;
       
       console.log(`[ChatInterface] Workflow step completed. Next: ${currentStep?.name || 'Done'}`);
 
@@ -580,6 +580,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   role: 'assistant',
                   content: previousResult.output,
                   type: 'text',
+                  displayImages: displayImages, // ATTACH IMAGES HERE
                   timestamp: new Date()
               }]);
           }
@@ -673,7 +674,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const allFiles: Array<any> = [];
       Object.values(context.stepResults).forEach((result: any) => {
           if (result.generatedFiles && result.generatedFiles.length > 0) {
-              result.generatedFiles.forEach((path: string) => {
+              // Filter out web URLs just in case they slipped through
+              const localOnly = result.generatedFiles.filter((p: string) => !p.startsWith('http') && !p.includes('://'));
+              
+              localOnly.forEach((path: string) => {
                   const fileName = path.split(/[/\\]/).pop() || 'Generated File';
                   allFiles.push({
                       id: path,
@@ -1284,30 +1288,50 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           const allGeneratedFiles = [...(result.generatedFiles || [])];
           
           // Heuristic: Search for potential paths in the content text too
-          const pathMatch = result.content.match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t]+\.[a-zA-Z0-9]{1,5}/g);
+          // Filter out web URLs and ensure we only pick up likely local paths
+          const pathMatch = result.content.match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t ]+\.[a-zA-Z0-9]{1,5}/g);
           if (pathMatch) {
-              allGeneratedFiles.push(...pathMatch);
+              const filteredPaths = pathMatch.filter(p => {
+                  // Ignore common web prefixes or domain-like patterns
+                  if (p.startsWith('http') || p.includes('://')) return false;
+                  // Ignore if it looks like a web path (e.g. starting with //)
+                  if (p.startsWith('//')) return false;
+                  // Ignore images that are likely from web search (will be in displayImages)
+                  const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(p);
+                  if (isImage && result.displayImages?.some(img => img.url.includes(p))) return false;
+                  return true;
+              });
+              allGeneratedFiles.push(...filteredPaths);
           }
 
           if (allGeneratedFiles.length > 0) {
-              const uniqueFiles = Array.from(new Set(allGeneratedFiles));
-              const fileList: Message = {
-                  id: `files-${Date.now()}`,
-                  role: 'assistant',
-                  content: 'Created files:',
-                  type: 'file_list',
-                  data: uniqueFiles.map(path => ({
-                      id: path,
-                      name: path.split(/[/\\]/).pop() || 'File',
-                      path: path,
-                      size: 'Unknown',
-                      category: 'Document',
-                      safeToRemove: false,
-                      lastUsed: new Date().toISOString()
-                  })),
-                  timestamp: new Date()
-              };
-              newMessages.push(fileList);
+              // Ensure we don't display files that were already identified as images for the gallery
+              const uniqueFiles = Array.from(new Set(allGeneratedFiles)).filter(path => {
+                  const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(path);
+                  if (!isImage) return true;
+                  // If it's an image, check if it's already in the gallery
+                  return !result.displayImages?.some(img => img.url === path);
+              });
+
+              if (uniqueFiles.length > 0) {
+                  const fileList: Message = {
+                      id: `files-${Date.now()}`,
+                      role: 'assistant',
+                      content: 'Created files:',
+                      type: 'file_list',
+                      data: uniqueFiles.map(path => ({
+                          id: path,
+                          name: path.split(/[/\\]/).pop() || 'File',
+                          path: path,
+                          size: 'Unknown',
+                          category: 'Document',
+                          safeToRemove: false,
+                          lastUsed: new Date().toISOString()
+                      })),
+                      timestamp: new Date()
+                  };
+                  newMessages.push(fileList);
+              }
           }
 
           // Extract memories automatically after conversation completes
@@ -1907,9 +1931,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             
             // Detect paths in normal text output
             const allGeneratedFiles: string[] = [];
-            const pathMatch = (result.text || '').match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t]+\.[a-zA-Z0-9]{1,5}/g);
+            const pathMatch = (result.text || '').match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t ]+\.[a-zA-Z0-9]{1,5}/g);
             if (pathMatch) {
-                allGeneratedFiles.push(...pathMatch);
+                const filteredPaths = pathMatch.filter(p => {
+                    if (p.startsWith('http') || p.includes('://') || p.startsWith('//')) return false;
+                    return true;
+                });
+                allGeneratedFiles.push(...filteredPaths);
             }
 
             if (allGeneratedFiles.length > 0 && result.type !== 'file_list') {

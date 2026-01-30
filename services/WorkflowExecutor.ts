@@ -144,7 +144,7 @@ export class WorkflowExecutor {
         }
 
         // 4. Execute AI
-        const { content, toolResults, generatedFiles: stepGeneratedFiles } = await this.executeAI(prompt);
+        const { content, toolResults, generatedFiles: stepGeneratedFiles, displayImages } = await this.executeAI(prompt);
         
         // CHECK FOR CANCELLATION IMMEDIATELY AFTER AI EXECUTION
         if (this.isCancelled) {
@@ -161,7 +161,7 @@ export class WorkflowExecutor {
 
         // 7. Complete Step & Move Next
         if (!this.isCancelled) {
-            await this.handleStepCompletion(step, content, decisionResult, allGeneratedFiles);
+            await this.handleStepCompletion(step, content, decisionResult, allGeneratedFiles, displayImages);
         }
 
       } catch (error) {
@@ -181,7 +181,7 @@ export class WorkflowExecutor {
     }
   }
 
-  private async executeAI(prompt: string): Promise<{ content: string; toolResults: any[]; generatedFiles?: string[] }> {
+  private async executeAI(prompt: string): Promise<{ content: string; toolResults: any[]; generatedFiles?: string[]; displayImages?: any[] }> {
     const aiSettings = aiSettingsService.loadSettings();
     // Use a truly unique session ID for this workflow execution to avoid chat pollution
     const sessionId = this.agentSessionId || `workflow-exec-${this.context.executionId}`;
@@ -224,7 +224,8 @@ export class WorkflowExecutor {
         return {
             content: result.content,
             toolResults: result.toolResults,
-            generatedFiles: result.generatedFiles
+            generatedFiles: result.generatedFiles,
+            displayImages: result.displayImages // Bubble up images from tool calls
         };
     } finally {
         this.abortController = null;
@@ -274,9 +275,10 @@ export class WorkflowExecutor {
 
       // 2. Fallback to path detection in AI output if file format was expected
       if (step.outputFormat === 'file') {
-        const pathMatch = output.match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t]+\.[a-zA-Z0-9]{1,5}/g);
+        const pathMatch = output.match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t ]+\.[a-zA-Z0-9]{1,5}/g);
         if (pathMatch) {
-            generatedFiles.push(...pathMatch);
+            const localPaths = pathMatch.filter(p => !p.startsWith('http') && !p.includes('://') && !p.startsWith('//'));
+            generatedFiles.push(...localPaths);
         }
       }
 
@@ -288,7 +290,8 @@ export class WorkflowExecutor {
         step: WorkflowStep, 
         output: string, 
         decisionResult: boolean | undefined, 
-        generatedFiles: string[]
+        generatedFiles: string[],
+        displayImages?: any[]
     ) {
         if (this.isCancelled) return;
 
@@ -317,7 +320,7 @@ export class WorkflowExecutor {
       };
       this.context.stepResults[step.id] = result;
 
-      this.emit('step_complete', { step, result });
+      this.emit('step_complete', { step, result, displayImages });
 
       // 3. Determine Next Step
       let nextStepId: string | undefined;

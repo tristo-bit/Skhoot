@@ -521,6 +521,7 @@ class WorkflowService {
             context: data.context,
             currentStep: workflow.steps.find(s => s.id === data.nextStepId),
             previousResult: data.result,
+            displayImages: data.displayImages, // Bubble up images
           }
         }));
         
