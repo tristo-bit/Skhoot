@@ -112,7 +112,8 @@ class ProviderRegistry {
     history: AgentChatMessage[],
     systemPrompt: string,
     tools?: any[],
-    images?: Array<{ fileName: string; base64: string; mimeType: string }>
+    images?: Array<{ fileName: string; base64: string; mimeType: string }>,
+    abortSignal?: AbortSignal
   ): Promise<AgentChatResponse> {
     const apiFormat = this.getApiFormat(providerId);
     const baseUrl = this.getBaseUrl(providerId);
@@ -120,18 +121,18 @@ class ProviderRegistry {
     switch (apiFormat) {
       case 'openai':
       case 'kiro':
-        return this.chatOpenAI(baseUrl, apiKey, model, message, history, systemPrompt, tools, images);
+        return this.chatOpenAI(baseUrl, apiKey, model, message, history, systemPrompt, tools, images, abortSignal);
       case 'anthropic':
-        return this.chatAnthropic(baseUrl, apiKey, model, message, history, systemPrompt, tools, images);
+        return this.chatAnthropic(baseUrl, apiKey, model, message, history, systemPrompt, tools, images, abortSignal);
       case 'google':
-        return this.chatGoogle(baseUrl, apiKey, model, message, history, systemPrompt, tools, images);
+        return this.chatGoogle(baseUrl, apiKey, model, message, history, systemPrompt, tools, images, abortSignal);
       default:
         throw new Error(`Unsupported API format: ${apiFormat}`);
     }
   }
 
   // --- OpenAI Adapter ---
-  private async chatOpenAI(baseUrl: string, apiKey: string, model: string, message: string, history: AgentChatMessage[], systemPrompt: string, tools?: any[], images?: any[]): Promise<AgentChatResponse> {
+  private async chatOpenAI(baseUrl: string, apiKey: string, model: string, message: string, history: AgentChatMessage[], systemPrompt: string, tools?: any[], images?: any[], abortSignal?: AbortSignal): Promise<AgentChatResponse> {
     const messages = [
       { role: 'system', content: systemPrompt },
       ...history.map(msg => {
@@ -154,7 +155,8 @@ class ProviderRegistry {
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages, tools, tool_choice: tools ? 'auto' : undefined, stream: false })
+      body: JSON.stringify({ model, messages, tools, tool_choice: tools ? 'auto' : undefined, stream: false }),
+      signal: abortSignal
     });
 
     if (!response.ok) throw new Error(`OpenAI API error: ${response.status} - ${await response.text()}`);
@@ -170,7 +172,7 @@ class ProviderRegistry {
   }
 
   // --- Anthropic Adapter ---
-  private async chatAnthropic(baseUrl: string, apiKey: string, model: string, message: string, history: AgentChatMessage[], systemPrompt: string, tools?: any[], images?: any[]): Promise<AgentChatResponse> {
+  private async chatAnthropic(baseUrl: string, apiKey: string, model: string, message: string, history: AgentChatMessage[], systemPrompt: string, tools?: any[], images?: any[], abortSignal?: AbortSignal): Promise<AgentChatResponse> {
     const messages = history.filter(msg => msg.role !== 'system').map(msg => {
       if (msg.role === 'tool') return { role: 'user', content: [{ type: 'tool_result', tool_use_id: msg.toolCallId, content: msg.content }] };
       if (msg.toolCalls) return { role: 'assistant', content: [...(msg.content ? [{ type: 'text', text: msg.content }] : []), ...msg.toolCalls.map(tc => ({ type: 'tool_use', id: tc.id, name: tc.name, input: tc.arguments }))] };
@@ -190,7 +192,8 @@ class ProviderRegistry {
     const response = await fetch(`${baseUrl}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model, messages, system: systemPrompt, tools, max_tokens: 4096, stream: false })
+      body: JSON.stringify({ model, messages, system: systemPrompt, tools, max_tokens: 4096, stream: false }),
+      signal: abortSignal
     });
 
     if (!response.ok) throw new Error(`Anthropic API error: ${response.status} - ${await response.text()}`);
@@ -204,7 +207,7 @@ class ProviderRegistry {
   }
 
   // --- Google Gemini Adapter ---
-  private async chatGoogle(baseUrl: string, apiKey: string, model: string, message: string, history: AgentChatMessage[], systemPrompt: string, tools?: any[], images?: any[]): Promise<AgentChatResponse> {
+  private async chatGoogle(baseUrl: string, apiKey: string, model: string, message: string, history: AgentChatMessage[], systemPrompt: string, tools?: any[], images?: any[], abortSignal?: AbortSignal): Promise<AgentChatResponse> {
     const contents: any[] = [];
     let i = 0;
     while (i < history.length) {
@@ -212,17 +215,16 @@ class ProviderRegistry {
       if (msg.role === 'system') { i++; continue; }
 
       if (msg.role === 'tool' || (msg.toolResults && msg.toolResults.length > 0)) {
-        const parts: any[] = [];
         const processMsg = (m: AgentChatMessage) => {
           const results = m.toolResults || [{ toolCallName: m.toolCallName, output: m.content, thought_signature: m.thought_signature }];
-          results.forEach(tr => {
+          return results.map(tr => {
             const part: any = { functionResponse: { name: tr.toolCallName || 'unknown_tool', response: { content: tr.output } } };
             if (tr.thought_signature) part.thought_signature = tr.thought_signature;
-            parts.push(part);
+            return part;
           });
         };
-        processMsg(msg);
-        while (i + 1 < history.length && (history[i + 1].role === 'tool' || history[i+1].toolResults?.length)) { i++; processMsg(history[i]); }
+        const parts: any[] = processMsg(msg);
+        while (i + 1 < history.length && (history[i + 1].role === 'tool' || history[i+1].toolResults?.length)) { i++; parts.push(...processMsg(history[i])); }
         contents.push({ role: 'user', parts });
       } else if (msg.role === 'assistant') {
         const parts: any[] = [];
@@ -253,7 +255,8 @@ class ProviderRegistry {
     const response = await fetch(`${baseUrl}/models/${model}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents, systemInstruction: { parts: [{ text: systemPrompt }] }, generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }, tools })
+      body: JSON.stringify({ contents, systemInstruction: { parts: [{ text: systemPrompt }] }, generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }, tools }),
+      signal: abortSignal
     });
 
     if (!response.ok) throw new Error(`Google API error: ${response.status} - ${await response.text()}`);

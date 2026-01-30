@@ -24,6 +24,7 @@ export class WorkflowExecutor {
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
   private isPaused: boolean = false;
   private isCancelled: boolean = false;
+  private abortController: AbortController | null = null;
   private agentSessionId: string | undefined;
 
   constructor(workflow: Workflow, context: ExecutionContext, agentSessionId?: string) {
@@ -90,6 +91,9 @@ export class WorkflowExecutor {
 
   public cancel() {
     this.isCancelled = true;
+    if (this.abortController) {
+        this.abortController.abort();
+    }
     this.context.status = 'cancelled';
     this.context.completedAt = Date.now();
     this.emit('execution_cancelled', { context: this.context });
@@ -99,7 +103,7 @@ export class WorkflowExecutor {
     // If resuming, we have an input that resolves the *current* step (which was waiting).
     if (resumeInput !== undefined && this.context.currentStepId) {
         const currentStep = this.workflow.steps.find(s => s.id === this.context.currentStepId);
-        if (currentStep) {
+        if (currentStep && !this.isCancelled) {
             await this.handleStepCompletion(currentStep, resumeInput, undefined, []);
         }
     }
@@ -111,8 +115,6 @@ export class WorkflowExecutor {
           break;
       }
 
-      // Check if we just started this step (if resumeInput was handled, currentStepId changed, so we are at start of NEW step)
-      
       this.emit('step_start', { step, context: this.context });
 
       try {
@@ -124,11 +126,12 @@ export class WorkflowExecutor {
             return; // Exit loop, wait for resume()
         }
 
+        if (this.isCancelled) break;
+
         // 2. Prepare Prompt (Variable Substitution)
         let prompt = step.prompt;
         if (this.context.variables) {
             Object.entries(this.context.variables).forEach(([key, value]) => {
-                // Better substitution: handles both {{var}} and ${var}
                 const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
                 prompt = prompt.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), valStr);
                 prompt = prompt.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), valStr);
@@ -140,20 +143,29 @@ export class WorkflowExecutor {
              prompt += "\n\nIMPORTANT: This is a decision step. You must output a JSON object with a boolean field named 'decision' (true or false) indicating the result of the decision. Example: {\"decision\": true}";
         }
 
-        // 3. Execute AI
+        // 4. Execute AI
         const { content, toolResults, generatedFiles: stepGeneratedFiles } = await this.executeAI(prompt);
         
-        // 4. Determine Decision (if any)
+        // CHECK FOR CANCELLATION IMMEDIATELY AFTER AI EXECUTION
+        if (this.isCancelled) {
+            console.log('[WorkflowExecutor] Workflow cancelled during AI execution, stopping.');
+            return;
+        }
+
+        // 5. Determine Decision (if any)
         const decisionResult = this.evaluateDecision(step, content);
 
-        // 5. Handle File Outputs
+        // 6. Handle File Outputs
         const detectedFiles = this.detectGeneratedFiles(step, content, toolResults);
         const allGeneratedFiles = Array.from(new Set([...detectedFiles, ...(stepGeneratedFiles || [])]));
 
-        // 6. Complete Step & Move Next
-        await this.handleStepCompletion(step, content, decisionResult, allGeneratedFiles);
+        // 7. Complete Step & Move Next
+        if (!this.isCancelled) {
+            await this.handleStepCompletion(step, content, decisionResult, allGeneratedFiles);
+        }
 
       } catch (error) {
+        if (this.isCancelled) return; // Ignore errors if already cancelled
         console.error('[WorkflowExecutor] Step failed:', error);
         this.context.status = 'failed';
         this.context.completedAt = Date.now();
@@ -191,24 +203,32 @@ export class WorkflowExecutor {
         }
     }
 
-    const result = await agentChatService.executeWithTools(
-        prompt,
-        workflowHistory, // Pass accumulated history instead of empty array
-        {
-            sessionId,
-            temperature: aiSettings.temperature,
-            maxTokens: aiSettings.maxTokens,
-            onStatusUpdate: (status) => {
-                this.emit('status_update', { status });
-            }
-        }
-    );
+    // Initialize AbortController for this AI call
+    this.abortController = new AbortController();
 
-    return {
-        content: result.content,
-        toolResults: result.toolResults,
-        generatedFiles: result.generatedFiles
-    };
+    try {
+        const result = await agentChatService.executeWithTools(
+            prompt,
+            workflowHistory, // Pass accumulated history instead of empty array
+            {
+                sessionId,
+                temperature: aiSettings.temperature,
+                maxTokens: aiSettings.maxTokens,
+                abortSignal: this.abortController.signal, // Pass the signal
+                onStatusUpdate: (status) => {
+                    this.emit('status_update', { status });
+                }
+            }
+        );
+
+        return {
+            content: result.content,
+            toolResults: result.toolResults,
+            generatedFiles: result.generatedFiles
+        };
+    } finally {
+        this.abortController = null;
+    }
   }
 
   private evaluateDecision(step: WorkflowStep, output: string): boolean | undefined {
@@ -257,13 +277,16 @@ export class WorkflowExecutor {
   }
 
   // Logic ported from WorkflowService.executeStep to determine next state
-  private async handleStepCompletion(
-      step: WorkflowStep, 
-      output: string, 
-      decisionResult: boolean | undefined, 
-      generatedFiles: string[]
-  ) {
-      // 1. Process Output & Variables
+    private async handleStepCompletion(
+        step: WorkflowStep, 
+        output: string, 
+        decisionResult: boolean | undefined, 
+        generatedFiles: string[]
+    ) {
+        if (this.isCancelled) return;
+
+        // 1. Process Output & Variables
+
       let processedOutput: any = output;
       if (step.outputFormat === 'json') {
           try {

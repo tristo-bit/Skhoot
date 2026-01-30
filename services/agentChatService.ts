@@ -105,8 +105,6 @@ class AgentChatService {
       const tools = ToolRegistry.getToolsForFormat(apiFormat, options.allowedTools);
 
       // Delegate to Provider Registry for actual API call
-      // Note: We are reusing the existing providerRegistry logic for the actual HTTP call
-      // to minimize risk, as refactoring that part is out of scope for this task.
       return await providerRegistry.chat(
         provider,
         model,
@@ -115,7 +113,8 @@ class AgentChatService {
         history,
         systemPrompt,
         modelInfo?.capabilities?.toolCalling ? tools : undefined,
-        options.images
+        options.images,
+        options.abortSignal // ADDED
       );
 
     } catch (error) {
@@ -175,6 +174,10 @@ class AgentChatService {
     let currentMessage = message;
 
     while (iterations < this.maxToolIterations) {
+      if (options.abortSignal?.aborted) {
+        throw new Error('Chat execution aborted');
+      }
+      
       iterations++;
       options.onStatusUpdate?.(`Processing (iteration ${iterations})...`);
 

@@ -608,7 +608,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // Clear status when completed
       setSearchStatus('');
 
-      // Update status to completed
+      // Update status based on actual context status
       setMessages(prev => prev.map(msg => {
         if (msg.type === 'workflow' && msg.workflowExecution?.executionId === executionId) {
             return {
@@ -616,7 +616,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               workflowExecution: {
                 ...msg.workflowExecution!,
                 currentStep: undefined,
-                status: 'completed'
+                status: context.status
               }
             };
         }
@@ -625,11 +625,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       // Don't show success message for background workflows
       if (workflow.behavior?.background || workflow.workflowType === 'hook') {
-        nativeNotifications.success(
-            'Background Workflow Completed',
-            `Workflow "${workflow.name}" has completed successfully.`,
-        );
+        const title = context.status === 'cancelled' ? 'Workflow Cancelled' : 'Background Workflow Completed';
+        const msg = context.status === 'cancelled' ? `Workflow "${workflow.name}" was cancelled.` : `Workflow "${workflow.name}" has completed successfully.`;
+        
+        nativeNotifications.success(title, msg);
         return;
+      }
+
+      // If cancelled, just show a simple text message and stop
+      if (context.status === 'cancelled') {
+          setMessages(prev => [...prev, {
+              id: `wf-cancel-msg-${Date.now()}`,
+              role: 'assistant',
+              content: `The workflow **${workflow.name}** was cancelled.`,
+              type: 'text',
+              timestamp: new Date()
+          }]);
+          return;
       }
 
       // Display all files generated during the workflow using the cool file_list display

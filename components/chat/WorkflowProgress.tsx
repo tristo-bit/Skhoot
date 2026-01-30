@@ -64,9 +64,9 @@ export const WorkflowProgress = memo<WorkflowProgressProps>(({ message }) => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {isRunning && (
+          {(isRunning || isWaiting) && (
              <div className="flex items-center gap-2">
-               <Loader2 size={14} className="text-purple-400 animate-spin" />
+               {isRunning && <Loader2 size={14} className="text-purple-400 animate-spin" />}
                <button 
                  onClick={handleCancel}
                  className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"

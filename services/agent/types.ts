@@ -70,6 +70,7 @@ export interface AgentChatOptions {
   onToolStart?: (toolCall: AgentToolCall) => void;
   onToolComplete?: (result: ToolResult) => void;
   onStatusUpdate?: (status: string) => void;
+  abortSignal?: AbortSignal;
 }
 
 export interface ToolDefinition {
