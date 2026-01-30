@@ -13,14 +13,55 @@ pub struct WorkflowEngine {
     executions: Arc<RwLock<HashMap<String, ExecutionContext>>>,
     /// Workflow storage reference
     storage: Arc<super::storage::WorkflowStorage>,
+    /// Execution storage path
+    execution_path: std::path::PathBuf,
 }
 
 impl WorkflowEngine {
     pub fn new(storage: Arc<super::storage::WorkflowStorage>) -> Self {
-        Self {
+        let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+        let execution_path = home.join(".skhoot").join("workflow_executions");
+        
+        if !execution_path.exists() {
+            let _ = std::fs::create_dir_all(&execution_path);
+        }
+
+        let engine = Self {
             executions: Arc::new(RwLock::new(HashMap::new())),
             storage,
+            execution_path,
+        };
+
+        // Load existing executions
+        let _ = engine.load_executions();
+        
+        engine
+    }
+
+    fn load_executions(&self) -> std::io::Result<()> {
+        if let Ok(entries) = std::fs::read_dir(&self.execution_path) {
+            let mut executions = futures::executor::block_on(self.executions.write());
+            for entry in entries.flatten() {
+                if entry.path().extension().and_then(|s| s.to_str()) == Some("json") {
+                    if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                        if let Ok(context) = serde_json::from_str::<ExecutionContext>(&content) {
+                            // Only load recent or active executions to keep memory low
+                            if context.status == WorkflowStatus::Running || 
+                               context.started_at > chrono::Utc::now().timestamp() - 86400 * 7 {
+                                executions.insert(context.execution_id.clone(), context);
+                            }
+                        }
+                    }
+                }
+            }
         }
+        Ok(())
+    }
+
+    fn save_execution(&self, context: &ExecutionContext) -> std::io::Result<()> {
+        let file_path = self.execution_path.join(format!("{}.json", context.execution_id));
+        let content = serde_json::to_string_pretty(context)?;
+        std::fs::write(file_path, content)
     }
 
     /// Start workflow execution
@@ -41,9 +82,11 @@ impl WorkflowEngine {
             started_at: chrono::Utc::now().timestamp(),
             completed_at: None,
             status: WorkflowStatus::Running,
+            loop_state: None,
         };
 
         self.executions.write().await.insert(execution_id.clone(), context.clone());
+        let _ = self.save_execution(&context);
         
         // Update workflow status
         self.storage.update_status(&workflow.id, WorkflowStatus::Running).await;
@@ -104,7 +147,17 @@ impl WorkflowEngine {
             self.storage.increment_run_count(&context.workflow_id).await;
         }
 
+        let _ = self.save_execution(context);
+
         Ok(next_step_id)
+    }
+
+    /// Update execution context
+    pub async fn update_execution(&self, context: ExecutionContext) -> Result<(), String> {
+        let mut executions = self.executions.write().await;
+        let _ = self.save_execution(&context);
+        executions.insert(context.execution_id.clone(), context);
+        Ok(())
     }
 
     /// Get current execution context
@@ -119,8 +172,22 @@ impl WorkflowEngine {
             context.status = WorkflowStatus::Cancelled;
             context.completed_at = Some(chrono::Utc::now().timestamp());
             self.storage.update_status(&context.workflow_id, WorkflowStatus::Idle).await;
+            let _ = self.save_execution(context);
             Ok(())
         } else {
+            // Check if it's on disk even if not in memory
+            let file_path = self.execution_path.join(format!("{}.json", execution_id));
+            if file_path.exists() {
+                if let Ok(content) = std::fs::read_to_string(&file_path) {
+                    if let Ok(mut context) = serde_json::from_str::<ExecutionContext>(&content) {
+                        context.status = WorkflowStatus::Cancelled;
+                        context.completed_at = Some(chrono::Utc::now().timestamp());
+                        self.storage.update_status(&context.workflow_id, WorkflowStatus::Idle).await;
+                        let _ = self.save_execution(&context);
+                        return Ok(());
+                    }
+                }
+            }
             Err(format!("Execution {} not found", execution_id))
         }
     }

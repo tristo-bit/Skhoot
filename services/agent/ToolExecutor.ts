@@ -144,6 +144,8 @@ export class ToolExecutor {
           );
           output = `File written successfully: ${toolCall.arguments.path}`;
           success = true;
+          // Tag tool call with generated file for UI display
+          (toolCall as any)._generatedFile = toolCall.arguments.path;
           break;
 
         case 'list_directory':

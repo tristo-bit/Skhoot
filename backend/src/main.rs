@@ -47,6 +47,8 @@ pub struct AppState {
     file_search_manager: SearchManager,
     content_extraction_system: Arc<tokio::sync::Mutex<ContentExtractionSystem>>,
     pub terminal_manager: TerminalManager,
+    pub workflow_engine: Arc<workflows::WorkflowEngine>,
+    pub workflow_storage: Arc<workflows::WorkflowStorage>,
 }
 
 #[derive(Serialize)]
@@ -124,6 +126,11 @@ async fn main() -> anyhow::Result<()> {
     
     // Initialize terminal manager
     let terminal_manager = TerminalManager::default();
+
+    // Initialize workflow system
+    let workflow_storage = Arc::new(workflows::WorkflowStorage::new());
+    workflow_storage.init_defaults().await;
+    let workflow_engine = Arc::new(workflows::WorkflowEngine::new(workflow_storage.clone()));
     
     // Spawn background task to cleanup stale sessions every 5 minutes
     {
@@ -146,6 +153,8 @@ async fn main() -> anyhow::Result<()> {
         file_search_manager,
         content_extraction_system,
         terminal_manager: terminal_manager.clone(),
+        workflow_engine,
+        workflow_storage,
     };
 
     let app = Router::new()
@@ -158,6 +167,7 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api/v1", api::disk::disk_routes())
         .nest("/api/v1", api::agents::agent_routes())
         .nest("/api/v1", api::web_search::web_search_routes())
+        .nest("/api/v1", api::workflows::workflow_routes())
         .route("/api/v1/recent/system", get(api::recent::get_system_recent_files))
         .nest("/api/v1/terminal", terminal::terminal_routes().with_state(terminal_manager))
         .with_state(state)

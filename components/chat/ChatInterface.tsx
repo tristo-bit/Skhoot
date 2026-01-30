@@ -477,149 +477,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return result.content;
   }, [handleWorkflowPromptExtended]);
 
-  // Workflow execution handler
-  const executeWorkflowStep = useCallback(async (
-    executionId: string, 
-    step: WorkflowStep, 
-    context: ExecutionContext
-  ) => {
-    // Prevent overlapping step executions
-    if (isProcessingStep.current) {
-      console.warn('[ChatInterface] Already processing a step, queueing or ignoring...');
-      return; 
-    }
-    
-    isProcessingStep.current = true;
-    console.log('[ChatInterface] Executing workflow step:', step.name);
-    
-    try {
-      // 1. Substitute variables in prompt
-      let prompt = step.prompt;
-      if (context.variables) {
-        Object.entries(context.variables).forEach(([key, value]) => {
-          prompt = prompt.replace(new RegExp(`{{${key}}}`, 'g'), String(value));
-        });
-      }
-
-      // 2. Add user message FIRST and wait for UI to update
-      // We use a functional update to ensure we have the latest state
-      setMessages(prev => [...prev, {
-        id: `step-prompt-${Date.now()}-${step.id}`,
-        role: 'user',
-        content: prompt, 
-        type: 'text',
-        timestamp: new Date()
-      }]);
-
-      // Small delay to ensure the user message is rendered before we start processing
-      // This gives the visual cue that "User sent X" -> "AI is thinking"
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // 2.5 Check for Input Request (Interactive Step)
-        if (step.inputRequest?.enabled) {
-          // Provide natural context and ask for input
-          setMessages(prev => [...prev, {
-            id: `step-input-${Date.now()}`,
-            role: 'assistant',
-            content: step.prompt || step.inputRequest?.placeholder || `I need some input for the step "${step.name}". Please provide it below.`,
-            type: 'text',
-            timestamp: new Date()
-          }]);
-          
-          setWaitingForInput({ executionId, stepId: step.id, mode: 'input' });
-          setIsLoading(false); // Stop loading indicator while waiting for input
-          isProcessingStep.current = false; // Release lock
-          return; // Stop execution loop (will resume via handleSend)
-        }
-
-      // 3. Execute prompt via AI
-      // We await this fully, ensuring strict sequential execution
-      const { content: resultText, toolResults } = await handleWorkflowPromptExtended(prompt);
-
-      // Display the output message for each step
-      setMessages(prev => [...prev, {
-        id: `step-output-${Date.now()}-${step.id}`,
-        role: 'assistant',
-        content: resultText,
-        type: 'text',
-        timestamp: new Date()
-      }]);
-
-      // 4. Determine decision result (if applicable)
-      // ... decision logic ...
-      let decisionResult: boolean | undefined = undefined;
-      if (step.decision) {
-        // Check if output is JSON and has boolean fields
-        let jsonDecision = false;
-        try {
-          const jsonMatch = resultText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-          if (jsonMatch) {
-             const parsed = JSON.parse(jsonMatch[0]);
-             // Check for common boolean flags in JSON
-             if (typeof parsed.isValid === 'boolean') {
-               decisionResult = parsed.isValid;
-               jsonDecision = true;
-             } else if (typeof parsed.approved === 'boolean') {
-               decisionResult = parsed.approved;
-               jsonDecision = true;
-             } else if (typeof parsed.decision === 'boolean') {
-               decisionResult = parsed.decision;
-               jsonDecision = true;
-             }
-          }
-        } catch (e) {
-          // invalid json, ignore
-        }
-
-        if (!jsonDecision) {
-          // Fallback to text analysis
-          const lower = resultText.toLowerCase();
-          if (lower.includes('yes') || lower.includes('true') || lower.includes('confirmed')) {
-            decisionResult = true;
-          } else {
-            decisionResult = false;
-          }
-        }
-        
-        console.log(`[ChatInterface] Step Decision: ${decisionResult} (JSON: ${jsonDecision})`);
-      }
-
-      // 5. Report completion to service
-      // If the step expected a file output, try to find it in tool results
-      let finalOutput = resultText;
-      let generatedFiles: string[] = [];
-      
-      if (step.outputFormat === 'file' && toolResults) {
-         const writeTool = toolResults.find(r => r.success && r.toolCallName === 'write_file');
-         if (writeTool) {
-            // Heuristic: the result of write_file usually contains the path
-            // In our service it's "File written successfully: path"
-            const match = writeTool.output.match(/File written successfully: (.*)/);
-            if (match) {
-               finalOutput = match[1];
-               generatedFiles.push(finalOutput);
-            }
-         }
-      }
-
-      // This call will trigger 'workflow-step-next' if there is a next step
-      await workflowService.executeStep(executionId, finalOutput, decisionResult, generatedFiles);
-      
-    } catch (error) {
-      console.error('[ChatInterface] Step execution failed:', error);
-      setMessages(prev => [...prev, {
-        id: `step-error-${Date.now()}`,
-        role: 'assistant',
-        content: `❌ Step failed: ${error instanceof Error ? error.message : String(error)}`,
-        type: 'text',
-        timestamp: new Date()
-      }]);
-      // Should likely fail execution here
-    } finally {
-      isProcessingStep.current = false;
-    }
-  }, [handleWorkflowPromptExtended]);
-
   // Workflow execution event listener
   useEffect(() => {
     const handleWorkflowExecute = (event: CustomEvent) => {
@@ -627,7 +484,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       // Skip if it's a background/silent workflow
       if (workflow.behavior?.background || workflow.workflowType === 'hook') {
-        // Show silent notification
         nativeNotifications.success(
             'Background Workflow Started',
             `Workflow "${workflow.name}" has started running in the background.`,
@@ -644,15 +500,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         }, 100);
       }
       
-      // Initial natural text introduction
-      setMessages(prev => [...prev, {
-        id: `wf-start-text-${executionId}`,
-        role: 'assistant',
-        content: `I will run the **${workflow.name}** workflow for you.`,
-        type: 'text',
-        timestamp: new Date()
-      }]);
-
       // Create the persistent progress card
       const workflowMsg: Message = {
         id: `workflow-${executionId}`,
@@ -671,15 +518,47 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       };
       
       setMessages(prev => [...prev, workflowMsg]);
+    };
 
-      // Start the first step if available
-      if (currentStep) {
-        executeWorkflowStep(executionId, currentStep, context);
-      }
+    const handleWorkflowStepStart = (event: CustomEvent) => {
+      const { step, executionId } = event.detail;
+      console.log(`[ChatInterface] Workflow step started: ${step.name}`);
+      
+      // We can add a message or update the progress card
+      // For now let's just make sure the progress card shows the current step
+      setMessages(prev => prev.map(msg => {
+        if (msg.type === 'workflow' && msg.workflowExecution?.executionId === executionId) {
+           return {
+             ...msg,
+             workflowExecution: {
+               ...msg.workflowExecution,
+               currentStep: step,
+               status: 'running'
+             }
+           };
+        }
+        return msg;
+      }));
     };
 
     const handleWorkflowStepNext = (event: CustomEvent) => {
       const { executionId, currentStep, context, previousResult, workflow } = event.detail;
+      
+      console.log(`[ChatInterface] Workflow step completed. Next: ${currentStep?.name || 'Done'}`);
+
+      // Add step output as an assistant message if it's not a loop repetition or if we want transparency
+      if (previousResult && previousResult.output && previousResult.output.length > 0) {
+          const stepDef = workflow.steps.find((s: any) => s.id === previousResult.stepId);
+          if (stepDef && stepDef.outputFormat !== 'file') { // Don't show raw file paths as messages
+              setMessages(prev => [...prev, {
+                  id: `wf-step-out-${Date.now()}-${previousResult.stepId}`,
+                  role: 'assistant',
+                  content: previousResult.output,
+                  type: 'text',
+                  timestamp: new Date()
+              }]);
+          }
+      }
       
       // Update the existing workflow message to reflect progress
       setMessages(prev => prev.map(msg => {
@@ -698,9 +577,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       // Check if previous step required confirmation
       if (previousResult) {
-         const prevStepDef = workflow.steps.find((s: WorkflowStep) => s.id === previousResult.stepId);
+         const prevStepDef = workflow.steps.find((s: any) => s.id === previousResult.stepId);
          if (prevStepDef && prevStepDef.requiresConfirmation) {
-            // Update status to waiting
             setMessages(prev => prev.map(msg => {
               if (msg.type === 'workflow' && msg.workflowExecution?.executionId === executionId) {
                  return { ...msg, workflowExecution: { ...msg.workflowExecution!, status: 'waiting' } };
@@ -711,27 +589,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             setMessages(prev => [...prev, {
                id: `wf-confirm-${Date.now()}`,
                role: 'assistant',
-               content: `I've completed the **${prevStepDef.name}** step. Please review the results above.\n\nDo you want me to proceed with the next step?`,
+               content: `I've completed the **${prevStepDef.name}** step. Please review the results above.\n\nDo you want me to proceed?`,
                type: 'text',
                timestamp: new Date()
             }]);
             
             if (currentStep) {
                setWaitingForInput({ executionId, stepId: currentStep.id, mode: 'confirmation' });
-               setIsLoading(false); // Stop loading indicator while waiting for confirmation
+               setIsLoading(false);
             }
-            return;
          }
-      }
-
-      if (currentStep) {
-        executeWorkflowStep(executionId, currentStep, context);
       }
     };
 
     const handleWorkflowCompleted = (event: CustomEvent) => {
       const { workflow, executionId, context } = event.detail;
       
+      // Clear status when completed
+      setSearchStatus('');
+
       // Update status to completed
       setMessages(prev => prev.map(msg => {
         if (msg.type === 'workflow' && msg.workflowExecution?.executionId === executionId) {
@@ -749,7 +625,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       // Don't show success message for background workflows
       if (workflow.behavior?.background || workflow.workflowType === 'hook') {
-        // Show silent notification
         nativeNotifications.success(
             'Background Workflow Completed',
             `Workflow "${workflow.name}" has completed successfully.`,
@@ -757,37 +632,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         return;
       }
 
-      // Check if the workflow produced any files
-      const filesGenerated: Array<{ fileName: string; filePath: string }> = [];
-      
-      // Iterate through all steps to find file-format outputs
-      workflow.steps.forEach((s: WorkflowStep) => {
-        const result = context.stepResults[s.id];
-        if (s.outputFormat === 'file' && result && result.output) {
-          // Simple heuristic: if output looks like a path or just a filename
-          const path = result.output.trim();
-          const fileName = path.split(/[/\\]/).pop() || 'Generated File';
-          filesGenerated.push({ fileName, filePath: path });
-        }
+      // Display all files generated during the workflow using the cool file_list display
+      const allFiles: Array<any> = [];
+      Object.values(context.stepResults).forEach((result: any) => {
+          if (result.generatedFiles && result.generatedFiles.length > 0) {
+              result.generatedFiles.forEach((path: string) => {
+                  const fileName = path.split(/[/\\]/).pop() || 'Generated File';
+                  allFiles.push({
+                      id: path,
+                      name: fileName,
+                      path: path,
+                      size: 'Unknown',
+                      category: 'Document',
+                      safeToRemove: false,
+                      lastUsed: new Date().toISOString()
+                  });
+              });
+          }
       });
 
-      if (filesGenerated.length > 0) {
-        setMessages(prev => [...prev, {
-          id: `wf-files-${Date.now()}`,
-          role: 'assistant',
-          content: 'I have generated the following files:',
-          type: 'file_list',
-          data: filesGenerated.map(f => ({
-            id: f.fileName,
-            name: f.fileName,
-            path: f.filePath,
-            size: 'Unknown',
-            category: 'Document',
-            safeToRemove: false,
-            lastUsed: new Date().toISOString()
-          })),
-          timestamp: new Date()
-        }]);
+      if (allFiles.length > 0) {
+          setMessages(prev => [...prev, {
+              id: `wf-files-final-${Date.now()}`,
+              role: 'assistant',
+              content: 'I have generated the following files during this workflow:',
+              type: 'file_list',
+              data: allFiles,
+              timestamp: new Date()
+          }]);
       }
 
       // Find the most relevant output to display as the "result"
@@ -854,16 +726,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       generateSummary();
     };
 
+    const handleWorkflowStatusUpdate = (event: CustomEvent) => {
+      const { status } = event.detail;
+      setSearchStatus(status);
+    };
+
     window.addEventListener('workflow-execute', handleWorkflowExecute as EventListener);
+    window.addEventListener('workflow-status-update', handleWorkflowStatusUpdate as EventListener);
+    window.addEventListener('workflow-step-start', handleWorkflowStepStart as EventListener);
     window.addEventListener('workflow-step-next', handleWorkflowStepNext as EventListener);
     window.addEventListener('workflow-completed', handleWorkflowCompleted as EventListener);
     
     return () => {
       window.removeEventListener('workflow-execute', handleWorkflowExecute as EventListener);
+      window.removeEventListener('workflow-step-start', handleWorkflowStepStart as EventListener);
       window.removeEventListener('workflow-step-next', handleWorkflowStepNext as EventListener);
       window.removeEventListener('workflow-completed', handleWorkflowCompleted as EventListener);
     };
-  }, [isEmptyStateVisible, executeWorkflowStep]);
+  }, [isEmptyStateVisible]);
 
   // Empty state visibility
   useEffect(() => {
@@ -1128,17 +1008,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
          const nextStep = workflow?.steps.find(s => s.id === waitingForInput.stepId);
          
          if (context && nextStep) {
-            executeWorkflowStep(waitingForInput.executionId, nextStep, context);
+            // Resume via workflowService instead of calling executeWorkflowStep directly
+            workflowService.resumeExecution(waitingForInput.executionId, messageText);
          } else {
             console.error('[ChatInterface] Failed to resume workflow after confirmation');
          }
       } else {
-         // Standard input request
-         // Resume workflow with user input as step output
-         workflowService.executeStep(waitingForInput.executionId, messageText).catch(err => {
-           console.error('[ChatInterface] Failed to resume workflow:', err);
-         });
+          // Standard input request
+          // Resume workflow with user input as step output
+          workflowService.resumeExecution(waitingForInput.executionId, messageText);
       }
+
       
       setWaitingForInput(null);
       return;
@@ -1362,6 +1242,27 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         setMessages(prev => {
           const newMessages = [...prev, assistantMsg];
+
+          // If files were generated, show them immediately
+          if (result.generatedFiles && result.generatedFiles.length > 0) {
+              const fileList: Message = {
+                  id: `files-${Date.now()}`,
+                  role: 'assistant',
+                  content: 'Created files:',
+                  type: 'file_list',
+                  data: result.generatedFiles.map(path => ({
+                      id: path,
+                      name: path.split(/[/\\]/).pop() || 'File',
+                      path: path,
+                      size: 'Unknown',
+                      category: 'Document',
+                      safeToRemove: false,
+                      lastUsed: new Date().toISOString()
+                  })),
+                  timestamp: new Date()
+              };
+              newMessages.push(fileList);
+          }
 
           // Extract memories automatically after conversation completes
           if (currentSessionId) {

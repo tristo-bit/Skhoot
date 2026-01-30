@@ -136,7 +136,8 @@ class AgentChatService {
     content: string; 
     thought?: string;
     toolResults: ToolResult[]; 
-    displayImages?: Array<{ url: string; alt?: string; fileName?: string }> 
+    displayImages?: Array<{ url: string; alt?: string; fileName?: string }>;
+    generatedFiles?: string[];
   }> {
     const allToolResults: ToolResult[] = [];
     const displayImages: Array<{ url: string; alt?: string; fileName?: string }> = [];
@@ -214,7 +215,8 @@ class AgentChatService {
         };
       }
 
-      // Add assistant message with tool calls to history
+  // Add assistant message with tool calls to history
+
       currentHistory.push({
         role: 'assistant',
         content: response.content,
