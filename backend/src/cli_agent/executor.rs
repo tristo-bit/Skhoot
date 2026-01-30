@@ -172,10 +172,10 @@ impl AgentExecutor {
 
             // Write command to PTY (append newline)
             // We prepend a directory change to ensure we execute in the requested context
-            // Note: We use quotes to handle paths with spaces
+            // Note: We use Set-Location -LiteralPath on Windows to handle special characters in paths
             let cmd_with_newline = if cfg!(target_os = "windows") {
-                // PowerShell (default for Skhoot on Windows) handles cd across drives fine
-                format!("cd \"{}\"; if ($?) {{ {} }}\n", workdir.display(), command)
+                // PowerShell handles paths with spaces/special chars best with -LiteralPath
+                format!("Set-Location -LiteralPath '{}'; if ($?) {{ {} }}\n", workdir.display(), command)
             } else {
                 // Bash/Sh - usage of && ensures we don't run if cd fails
                 format!("cd \"{}\" && {}\n", workdir.display(), command)
@@ -191,7 +191,9 @@ impl AgentExecutor {
                     // Success! It was a valid session (or restored successfully)
                     
                     // Wait briefly for output (heuristic)
-                    tokio::time::sleep(Duration::from_millis(500)).await;
+                    // Increased wait time for Windows/Prod environments where initialization might be slower
+                    let wait_time = if cfg!(target_os = "windows") { 1000 } else { 500 };
+                    tokio::time::sleep(Duration::from_millis(wait_time)).await;
                     
                     // Read only new lines since we sent the command
                     // Note: if session was restored, start_len might be 0 or small, 

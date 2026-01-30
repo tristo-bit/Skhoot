@@ -66,6 +66,7 @@ pub async fn create_terminal_session(
     
     let config = skhoot_backend::terminal::SessionConfig {
         shell: shell_cmd,
+        cwd: None,
         cols,
         rows,
         env: vec![

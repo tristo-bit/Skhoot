@@ -148,6 +148,7 @@ impl TerminalManager {
         // Create new session with same config
         let config = SessionConfig {
             shell: snapshot.shell.clone(),
+            cwd: Some(PathBuf::from(&snapshot.working_directory)),
             cols: snapshot.cols,
             rows: snapshot.rows,
             env: snapshot.environment.iter()
@@ -210,14 +211,24 @@ impl TerminalManager {
         let session = TerminalSession::new(config.clone())?;
         let session_id = session.id.clone();
         
+        // Use the config's CWD for the snapshot if available, 
+        // otherwise fallback to current process directory
+        let initial_cwd = config.cwd.as_ref()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| {
+                std::env::current_dir()
+                    .ok()
+                    .and_then(|p| p.to_str().map(String::from))
+                    .unwrap_or_else(|| {
+                        if cfg!(target_os = "windows") { "C:\\".to_string() } else { "/".to_string() }
+                    })
+            });
+
         // Create snapshot for tracking
         let snapshot = SessionSnapshot::new(
             session_id.clone(),
             config.shell.clone(),
-            std::env::current_dir()
-                .ok()
-                .and_then(|p| p.to_str().map(String::from))
-                .unwrap_or_else(|| "/".to_string()),
+            initial_cwd,
             config.cols,
             config.rows,
             "user".to_string(), // Default to user, can be updated
