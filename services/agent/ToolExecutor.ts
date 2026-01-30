@@ -121,17 +121,19 @@ export class ToolExecutor {
               toolCall.arguments.timeout_ms
             );
             output = JSON.stringify(shellResult, null, 2);
-            success = true;
+            success = shellResult.success; // Use the actual success from ephemeral shell
           } else {
             const data = shellTermResult.data;
             output = data && data.message ? data.message : 'Command executed successfully in terminal.';
             success = true;
           }
 
-          // Detect files created via shell (heuristic)
-          const shellCreatedFiles = this.detectCreatedFilesFromCommand(toolCall.arguments.command);
-          if (shellCreatedFiles.length > 0) {
-              (toolCall as any)._generatedFiles = shellCreatedFiles;
+          // Detect files created via shell (heuristic) - ONLY IF SUCCESSFUL
+          if (success) {
+              const shellCreatedFiles = this.detectCreatedFilesFromCommand(toolCall.arguments.command);
+              if (shellCreatedFiles.length > 0) {
+                  (toolCall as any)._generatedFiles = shellCreatedFiles;
+              }
           }
           break;
 

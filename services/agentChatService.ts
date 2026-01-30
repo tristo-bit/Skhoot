@@ -140,6 +140,7 @@ class AgentChatService {
   }> {
     const allToolResults: ToolResult[] = [];
     const displayImages: Array<{ url: string; alt?: string; fileName?: string }> = [];
+    const allGeneratedFiles = new Set<string>();
     // Start with initial history
     let currentHistory = [...history];
     let iterations = 0;
@@ -162,10 +163,12 @@ class AgentChatService {
       options.onToolComplete?.(result);
       
       this.collectImages(toolCall, displayImages);
+      this.collectGeneratedFiles(toolCall, allGeneratedFiles);
       
       return {
         ...this.formatDirectExecutionResult(toolCall, result, allToolResults, displayImages),
-        thought: undefined
+        thought: undefined,
+        generatedFiles: Array.from(allGeneratedFiles)
       };
     }
 
@@ -206,25 +209,19 @@ class AgentChatService {
             content: summaryResponse.content || 'I have completed the requested tasks using the available tools.',
             thought: response.thought || summaryResponse.thought,
             toolResults: allToolResults,
-            displayImages: displayImages.length > 0 ? displayImages : undefined
+            displayImages: displayImages.length > 0 ? displayImages : undefined,
+            generatedFiles: Array.from(allGeneratedFiles)
           };
         }
         
-    const allGeneratedFiles = response.toolCalls?.flatMap((tc: any) => {
-        const files = [];
-        if (tc._generatedFile) files.push(tc._generatedFile);
-        if (tc._generatedFiles) files.push(...tc._generatedFiles);
-        return files;
-    }).filter(Boolean) as string[];
-
-    return { 
-      content: response.content, 
-      thought: response.thought,
-      toolResults: allToolResults,
-      displayImages: displayImages.length > 0 ? displayImages : undefined,
-      generatedFiles: Array.from(new Set(allGeneratedFiles))
-    };
-  }
+        return { 
+          content: response.content, 
+          thought: response.thought,
+          toolResults: allToolResults,
+          displayImages: displayImages.length > 0 ? displayImages : undefined,
+          generatedFiles: Array.from(allGeneratedFiles)
+        };
+      }
 
 
   // Add assistant message with tool calls to history
@@ -247,6 +244,7 @@ class AgentChatService {
         options.onToolComplete?.(result);
         
         this.collectImages(toolCall, displayImages);
+        this.collectGeneratedFiles(toolCall, allGeneratedFiles);
 
         // Add tool result to history
         currentHistory.push({
@@ -265,7 +263,8 @@ class AgentChatService {
     return {
       content: 'Maximum tool iterations reached. Please try a simpler request.',
       toolResults: allToolResults,
-      displayImages: displayImages.length > 0 ? displayImages : undefined
+      displayImages: displayImages.length > 0 ? displayImages : undefined,
+      generatedFiles: Array.from(allGeneratedFiles)
     };
   }
 
@@ -285,6 +284,15 @@ class AgentChatService {
           fileName: img.title
         });
       });
+    }
+  }
+
+  private collectGeneratedFiles(toolCall: AgentToolCall, allGeneratedFiles: Set<string>) {
+    if ((toolCall as any)._generatedFile) {
+        allGeneratedFiles.add((toolCall as any)._generatedFile);
+    }
+    if ((toolCall as any)._generatedFiles) {
+        (toolCall as any)._generatedFiles.forEach((f: string) => allGeneratedFiles.add(f));
     }
   }
 

@@ -1284,24 +1284,33 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         setMessages(prev => {
           const newMessages = [...prev, assistantMsg];
 
-          // If files were generated, show them immediately
+          // If files were generated/modified by tools, show them with high priority
+          const hasAgentGeneratedFiles = result.generatedFiles !== undefined;
           const allGeneratedFiles = [...(result.generatedFiles || [])];
+          let fileListLabel = 'Modified files:';
           
-          // Heuristic: Search for potential paths in the content text too
-          // Filter out web URLs and ensure we only pick up likely local paths
-          const pathMatch = result.content.match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t ]+\.[a-zA-Z0-9]{1,5}/g);
-          if (pathMatch) {
-              const filteredPaths = pathMatch.filter(p => {
-                  // Ignore common web prefixes or domain-like patterns
-                  if (p.startsWith('http') || p.includes('://')) return false;
-                  // Ignore if it looks like a web path (e.g. starting with //)
-                  if (p.startsWith('//')) return false;
-                  // Ignore images that are likely from web search (will be in displayImages)
-                  const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(p);
-                  if (isImage && result.displayImages?.some(img => img.url.includes(p))) return false;
-                  return true;
-              });
-              allGeneratedFiles.push(...filteredPaths);
+          // Only use heuristic if the agent didn't provide an explicit list
+          // This prevents false positives from the AI mentioning paths it didn't touch
+          if (!hasAgentGeneratedFiles) {
+              fileListLabel = 'Referenced files:';
+              // Heuristic: Search for potential paths in the content text too
+              // Filter out web URLs and ensure we only pick up likely local paths
+              const pathMatch = result.content.match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t ]+\.[a-zA-Z0-9]{1,5}/g);
+              if (pathMatch) {
+                  const filteredPaths = pathMatch.filter(p => {
+                      // Ignore common web prefixes or domain-like patterns
+                      if (p.startsWith('http') || p.includes('://')) return false;
+                      // Ignore if it looks like a web path (e.g. starting with //)
+                      if (p.startsWith('//')) return false;
+                      // Ignore images that are likely from web search (will be in displayImages)
+                      const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(p);
+                      if (isImage && result.displayImages?.some(img => img.url.includes(p))) return false;
+                      // Basic check to see if it's just a folder or a real path with extension
+                      if (!p.includes('.')) return false;
+                      return true;
+                  });
+                  allGeneratedFiles.push(...filteredPaths);
+              }
           }
 
           if (allGeneratedFiles.length > 0) {
@@ -1317,7 +1326,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   const fileList: Message = {
                       id: `files-${Date.now()}`,
                       role: 'assistant',
-                      content: 'Created files:',
+                      content: fileListLabel,
                       type: 'file_list',
                       data: uniqueFiles.map(path => ({
                           id: path,
@@ -1930,22 +1939,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             const newMsgs = [...prev, assistantMsg];
             
             // Detect paths in normal text output
-            const allGeneratedFiles: string[] = [];
+            const allDetectedFiles: string[] = [];
             const pathMatch = (result.text || '').match(/(?:\/|\\|[a-zA-Z]:\\)[^"'\n\r\t ]+\.[a-zA-Z0-9]{1,5}/g);
             if (pathMatch) {
                 const filteredPaths = pathMatch.filter(p => {
                     if (p.startsWith('http') || p.includes('://') || p.startsWith('//')) return false;
+                    if (!p.includes('.')) return false;
                     return true;
                 });
-                allGeneratedFiles.push(...filteredPaths);
+                allDetectedFiles.push(...filteredPaths);
             }
 
-            if (allGeneratedFiles.length > 0 && result.type !== 'file_list') {
-                const uniqueFiles = Array.from(new Set(allGeneratedFiles));
+            if (allDetectedFiles.length > 0 && result.type !== 'file_list') {
+                const uniqueFiles = Array.from(new Set(allDetectedFiles));
                 newMsgs.push({
                     id: `files-norm-${Date.now()}`,
                     role: 'assistant',
-                    content: 'Generated files detected:',
+                    content: 'Referenced files:',
                     type: 'file_list',
                     data: uniqueFiles.map(path => ({
                         id: path,
