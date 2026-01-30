@@ -80,6 +80,20 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
   - **File Operations**: `read_file`, `write_file` tools show file paths, operation types, content previews, and diff views
   - **Directory Listing**: `list_directory` tool renders interactive file lists with icons, sizes, and click-to-open functionality
   - **File Search**: `search_files` tool displays results with syntax highlighting, line numbers, and folder navigation
+  - **Real-Time Tool Tracking**: Live tracking of currently executing agent tools with automatic state management
+    - Tracks tool execution start and completion in real-time
+    - Automatically clears tool state when execution completes
+    - Passes current tool name to loading indicators for context-aware animations
+  - **Intelligent Loading Animations**: Context-aware Framer Motion animations with simplified, consistent visual feedback:
+    - **Tool-Specific Animations**: When tool name is known, displays category-specific animation:
+      - **File Operations** (Blue): `read_file`, `write_file`, `fsWrite`, `fsAppend`, `strReplace`, `deleteFile`
+      - **Search & Discovery** (Purple): `list_directory`, `search_files`, `fileSearch`, `grepSearch`, `message_search`
+      - **Command Execution** (Green): `shell`, `execute_command`, `create_terminal`, `executeBash`, `controlBashProcess`
+      - **Web Access** (Cyan): `web_search`, `remote_web_search`, `webFetch`, `browse`
+      - **Agent Operations** (Indigo): `invoke_agent`, `list_agents`, `create_agent`
+    - **Connecting State**: Purple search animation shown during connection phase before tool name is known
+    - Each animation features unique orbital rings, particle effects, and color schemes matching the operation category
+    - Consistent visual identity from "Connecting..." through tool execution
 - **Agent Log Terminal Tab**: Dedicated monitoring tab showing:
   - Agent launch status and readiness indicators
   - Real-time tool call logging with timestamps
@@ -93,6 +107,10 @@ Built with React • TypeScript • Tauri • Rust • Tailwind CSS
 - **Interactive Results**: Click files to open, navigate folders visually, copy code with one click
 - **Session Management**: Agent sessions tied to conversations with proper lifecycle management
 - **Event-Driven Architecture**: Real-time updates via Tauri events (tool_start, tool_complete, message, cancelled)
+- **Enhanced Communication**: Agents always provide natural language summaries after tool execution
+  - Never returns empty responses - explains results in context
+  - Adds interpretation and insights beyond raw tool output
+  - Conversational explanations make technical operations accessible
 
 **Why This Matters**: See what your agent is doing in real-time with visual feedback. No more scrolling through terminal text - interact with results directly. Full transparency into agent decision-making and tool execution.
 
@@ -507,6 +525,7 @@ skhoot/
 │   │   ├── CommandExecution.tsx # Shell command display (NEW)
 │   │   ├── CommandOutput.tsx    # Command output with ANSI colors (NEW)
 │   │   ├── FileOperation.tsx    # File operation display (NEW)
+│   │   ├── Indicators.tsx       # Intelligent loading indicators with tool-aware animations (ENHANCED)
 │   │   └── ...
 │   ├── panels/          # Floating panel components
 │   │   ├── FileExplorerPanel.tsx # File explorer with search and disk analysis
@@ -524,8 +543,25 @@ skhoot/
 │   │   ├── AgentLogTab.tsx      # Agent monitoring interface (NEW)
 │   │   └── ...
 │   ├── chat/            # Chat interface components
-│   │   ├── ChatInterface.tsx    # Main chat with agent mode toggle
+│   │   ├── ChatInterface.tsx    # Main chat with agent mode toggle and real-time tool tracking
 │   │   ├── TokenDisplay.tsx     # Real-time token usage display (NEW)
+│   │   └── ...
+│   ├── tool-calls/      # Tool call plugin system (NEW)
+│   │   ├── registry/            # Plugin registration
+│   │   ├── file-operations/     # File tool UIs
+│   │   ├── shell-operations/    # Shell tool UIs
+│   │   ├── web-operations/      # Web tool UIs
+│   │   ├── agent-operations/    # Agent tool UIs
+│   │   ├── shared/              # Shared components
+│   │   │   └── LoadingAnimations.tsx # Framer Motion loading animations (NEW)
+│   │   ├── AnimationFileOperations.tsx    # File ops animation
+│   │   ├── AnimationCommandExecution.tsx  # Command animation
+│   │   ├── AnimationSearchDiscovery.tsx   # Search animation
+│   │   ├── AnimationWebAccess.tsx         # Web animation
+│   │   ├── AnimationAgentOperations.tsx   # Agent animation
+│   │   └── AnimationCodeAnalysis.tsx      # Code animation
+│   ├── ui/              # Reusable UI components
+│   │   ├── AnimationToolcall.tsx # Base animation primitive (NEW)
 │   │   └── ...
 │   ├── shared/          # Reusable UI components
 │   ├── library/         # Reusable hooks and utilities
@@ -1830,6 +1866,35 @@ const agentResponse = await agentChatService.executeWithTools(
   - `CommandOutput`: Stdout/stderr with ANSI colors, truncation with "Show more", copy button, line numbers
   - `FileOperation`: File path display, operation type, file preview, diff view for writes
   - Integrated into `MessageBubble` for seamless conversation rendering
+- **Tool Call Loading Animations**: Intelligent, context-aware Framer Motion animations with automatic tool detection
+  - **Base Animation Primitive** (`AnimationToolcall`): Reusable component with outer ring, inner ring, core gem, and particle container
+  - **Five Animation Variants**: Each tool category has a distinct visual style
+    - **File Operations** (blue): Scanning lines with vertical sweep and data blocks for read/write operations
+    - **Command Execution** (emerald): Expanding sonar rings (pulse) for shell commands
+    - **Search & Discovery** (purple): Chaotic swarm of orbiting particles for file/content search
+    - **Web Access** (cyan): Network-style animations for web operations
+    - **Agent Operations** (orange): Agent-focused visual patterns for agent management tools
+  - **Intelligent Tool Detection** (`Indicators.tsx`): Automatically selects the appropriate animation based on tool name
+    - **Real-Time Tool Tracking**: `ChatInterface` tracks currently executing tool via `currentToolName` state
+    - **Automatic State Management**: Tool name set on `onToolStart`, cleared on `onToolComplete`
+    - **Prop Propagation**: Current tool name passed through `MainArea` to `SearchingIndicator`
+    - **File Operations**: `read_file`, `write_file`, `fsWrite`, `fsAppend`, `strReplace`, `deleteFile`
+    - **Search & Discovery**: `list_directory`, `search_files`, `fileSearch`, `grepSearch`, `message_search`
+    - **Command Execution**: `shell`, `execute_command`, `create_terminal`, `read_output`, `list_terminals`, `inspect_terminal`, `executeBash`, `controlBashProcess`
+    - **Web Access**: `web_search`, `remote_web_search`, `webFetch`, `browse`
+    - **Agent Operations**: `invoke_agent`, `list_agents`, `create_agent`
+    - Fallback to type-based animation when tool name is not recognized
+  - **Loading Components** (`LoadingAnimations.tsx`): Wraps animations for registry integration
+    - `FileOperationsLoading`, `CommandExecutionLoading`, `SearchDiscoveryLoading`, `WebAccessLoading`, `AgentOperationsLoading`
+    - Each component displays a 24px height animation while tool executes
+    - Automatically used by tool-call registry system for visual feedback
+  - **Configurable Animations**: Each animation has customizable colors, ring speed, and ring type (dotted/dashed/solid)
+  - **Idle State**: Subtle floating particles when not processing
+  - **Active State**: Dynamic animations with category-specific behavior when tool is executing
+  - **Enhanced Props**: 
+    - `SearchingIndicator` accepts optional `toolName` prop for precise animation selection
+    - `MainArea` receives and forwards `currentToolName` from `ChatInterface`
+    - Real-time updates ensure animations match the actual tool being executed
 - **File Reference Support**: Agent mode properly processes `@filename` references
   - File contents automatically loaded from backend
   - Complete file contents appended to message before sending to agent

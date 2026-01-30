@@ -47,3 +47,21 @@ export { CreateAgentUI } from './agent-operations/CreateAgentUI';
 
 // Bookmark Operations
 export { MessageSearchUI } from './bookmark-operations/MessageSearchUI';
+
+// Framer Motion Animations
+export { AnimationFileOperations } from './AnimationFileOperations';
+export { AnimationCommandExecution } from './AnimationCommandExecution';
+export { AnimationSearchDiscovery } from './AnimationSearchDiscovery';
+export { AnimationWebAccess } from './AnimationWebAccess';
+export { AnimationCodeAnalysis } from './AnimationCodeAnalysis';
+export { AnimationAgentOperations } from './AnimationAgentOperations';
+
+// Loading Animations
+export { 
+  FileOperationsLoading,
+  CommandExecutionLoading,
+  SearchDiscoveryLoading,
+  WebAccessLoading,
+  CodeAnalysisLoading,
+  AgentOperationsLoading
+} from './shared/LoadingAnimations';

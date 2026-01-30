@@ -191,14 +191,29 @@ class AgentChatService {
 
       // If no tool calls, we're done
       if (!response.toolCalls || response.toolCalls.length === 0) {
-    return { 
-      content: response.content, 
-      thought: response.thought,
-      toolResults: allToolResults,
-      displayImages: displayImages.length > 0 ? displayImages : undefined,
-      generatedFiles: response.toolCalls?.map((tc: any) => tc._generatedFile).filter(Boolean) as string[]
-    };
-  }
+        // Solution 1: If content is empty after using tools, force a summary
+        if (allToolResults.length > 0 && (!response.content || response.content.trim().length === 0)) {
+          console.log('[AgentChatService] Empty response after tool execution, requesting summary...');
+          options.onStatusUpdate?.('Generating summary...');
+          
+          const summaryPrompt = 'Please provide a natural language summary of the results from the tools you just used. Be specific and helpful.';
+          const summaryResponse = await this.chat(summaryPrompt, currentHistory, options);
+          
+          return {
+            content: summaryResponse.content || 'I have completed the requested tasks using the available tools.',
+            thought: response.thought || summaryResponse.thought,
+            toolResults: allToolResults,
+            displayImages: displayImages.length > 0 ? displayImages : undefined
+          };
+        }
+        
+        return { 
+          content: response.content, 
+          thought: response.thought,
+          toolResults: allToolResults,
+          displayImages: displayImages.length > 0 ? displayImages : undefined
+        };
+      }
 
   // Add assistant message with tool calls to history
 

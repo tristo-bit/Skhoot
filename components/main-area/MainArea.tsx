@@ -11,6 +11,7 @@ interface MainAreaProps {
   messages: Message[];
   isLoading: boolean;
   searchType: 'files' | 'messages' | 'disk' | 'cleanup' | null;
+  currentToolName?: string | null; // NEW: Current tool being executed
   searchStatus?: string;
   isRecording: boolean;
   hasPendingVoiceMessage: boolean;
@@ -45,6 +46,7 @@ export const MainArea = memo(forwardRef<HTMLDivElement, MainAreaProps>(({
   messages,
   isLoading,
   searchType,
+  currentToolName, // NEW
   searchStatus,
   isRecording,
   hasPendingVoiceMessage,
@@ -201,7 +203,7 @@ export const MainArea = memo(forwardRef<HTMLDivElement, MainAreaProps>(({
           
           {/* Search/Loading indicator */}
           {isLoading && (
-            searchType ? <SearchingIndicator type={searchType} status={searchStatus} /> : <LoadingIndicator />
+            <SearchingIndicator type={searchType} status={searchStatus} toolName={currentToolName || undefined} />
           )}
         </div>
       </div>
